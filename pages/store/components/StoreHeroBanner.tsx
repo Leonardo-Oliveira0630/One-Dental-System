@@ -4,6 +4,7 @@ import {
   Building2, MapPin, Star, Share2, CheckCircle2, 
   Package, ChevronLeft, ArrowRight, ShieldCheck, Sparkles 
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface StoreHeroBannerProps {
   supplierOrg: Organization | null;
@@ -22,13 +23,14 @@ export const StoreHeroBanner: React.FC<StoreHeroBannerProps> = ({
   onBackToAllStores,
   productCount
 }) => {
+  const { t } = useTranslation();
   if (!supplierOrg) return null;
 
   const banners = supplierOrg.storeSettings?.banners || [];
   const currentBanner = banners[bannerIndex];
 
   return (
-    <div className="w-full bg-white border-b border-zinc-200/80">
+    <div className="w-full bg-white dark:bg-[#131B2A] border-b border-zinc-200/80 dark:border-slate-800 transition-colors">
       {/* Supplier Top Brand Navigation Bar */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3.5">
@@ -36,15 +38,15 @@ export const StoreHeroBanner: React.FC<StoreHeroBannerProps> = ({
             <button
               type="button"
               onClick={onBackToAllStores}
-              className="p-2 -ml-2 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 rounded-xl transition-colors"
-              title="Voltar para Todos os Fornecedores"
+              className="p-2 -ml-2 text-zinc-500 dark:text-slate-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
+              title={t('store.backToStores', 'Voltar para Todos os Fornecedores')}
             >
               <ChevronLeft size={20} />
             </button>
           )}
 
           {/* Brand Logo Avatar */}
-          <div className="relative w-12 h-12 rounded-2xl bg-zinc-100 border border-zinc-200 overflow-hidden shrink-0 flex items-center justify-center shadow-xs">
+          <div className="relative w-12 h-12 rounded-2xl bg-zinc-100 dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 overflow-hidden shrink-0 flex items-center justify-center shadow-xs">
             {supplierOrg.storeSettings?.profilePhotoUrl || supplierOrg.logoUrl ? (
               <img
                 src={supplierOrg.storeSettings?.profilePhotoUrl || supplierOrg.logoUrl}
@@ -53,33 +55,35 @@ export const StoreHeroBanner: React.FC<StoreHeroBannerProps> = ({
                 referrerPolicy="no-referrer"
               />
             ) : (
-              <Building2 size={24} className="text-zinc-600" />
+              <Building2 size={24} className="text-zinc-600 dark:text-slate-300" />
             )}
           </div>
 
           <div>
             <div className="flex items-center gap-1.5 flex-wrap">
-              <h1 className="font-extrabold text-lg text-zinc-950 tracking-tight">
+              <h1 className="font-extrabold text-lg text-zinc-950 dark:text-white tracking-tight">
                 {supplierOrg.name}
               </h1>
               <CheckCircle2 size={16} className="text-blue-600 shrink-0" />
             </div>
 
-            <div className="flex items-center gap-3 text-xs text-zinc-500 flex-wrap">
+            <div className="flex items-center gap-3 text-xs text-zinc-500 dark:text-slate-400 flex-wrap">
               {(supplierOrg.city || supplierOrg.state) && (
                 <span className="flex items-center gap-1">
-                  <MapPin size={12} className="text-zinc-400" />
+                  <MapPin size={12} className="text-zinc-400 dark:text-slate-500" />
                   {supplierOrg.city ? `${supplierOrg.city} - ${supplierOrg.state || ''}` : supplierOrg.state}
                 </span>
               )}
               {supplierOrg.ratingAverage && (
-                <span className="flex items-center gap-1 font-bold text-amber-600">
+                <span className="flex items-center gap-1 font-bold text-amber-600 dark:text-amber-400">
                   <Star size={12} className="fill-amber-500 text-amber-500" />
                   {supplierOrg.ratingAverage.toFixed(1)}
                 </span>
               )}
-              <span className="text-zinc-400">•</span>
-              <span className="font-mono text-zinc-600">{productCount} produtos</span>
+              <span className="text-zinc-400 dark:text-slate-600">•</span>
+              <span className="font-mono text-zinc-600 dark:text-slate-300">
+                {productCount} {productCount === 1 ? t('store.productSingle', 'produto') : t('store.productPlural', 'produtos')}
+              </span>
             </div>
           </div>
         </div>
@@ -90,10 +94,10 @@ export const StoreHeroBanner: React.FC<StoreHeroBannerProps> = ({
             <button
               type="button"
               onClick={onShareStore}
-              className="px-3.5 py-2 bg-white hover:bg-zinc-50 border border-zinc-200 text-zinc-700 text-xs font-bold rounded-xl transition-all shadow-xs flex items-center gap-1.5"
+              className="px-3.5 py-2 bg-white dark:bg-slate-800 hover:bg-zinc-50 dark:hover:bg-slate-700 border border-zinc-200 dark:border-slate-700 text-zinc-700 dark:text-slate-200 text-xs font-bold rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
             >
               <Share2 size={13} />
-              <span>Compartilhar Loja</span>
+              <span>{t('store.shareStore', 'Compartilhar Loja')}</span>
             </button>
           )}
         </div>
@@ -111,7 +115,7 @@ export const StoreHeroBanner: React.FC<StoreHeroBannerProps> = ({
           <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/80 via-zinc-950/30 to-transparent flex flex-col justify-end p-6 sm:p-10 text-white">
             <div className="max-w-2xl space-y-2">
               <span className="inline-block px-2.5 py-0.5 bg-white/20 backdrop-blur-md rounded-md font-mono text-[10px] font-bold uppercase tracking-wider text-white">
-                Destaque Oficial
+                {t('store.officialFeatured', 'Destaque Oficial')}
               </span>
               <h2 className="text-2xl sm:text-4xl font-extrabold tracking-tight leading-tight">
                 {currentBanner.title || supplierOrg.name}
@@ -140,7 +144,7 @@ export const StoreHeroBanner: React.FC<StoreHeroBannerProps> = ({
           <p className="text-sm sm:text-base font-bold text-zinc-100 max-w-xl mx-auto">
             "{supplierOrg.storeSettings.catchphrase}"
           </p>
-          <p className="text-xs text-zinc-400 font-mono">Loja Verificada Labprox</p>
+          <p className="text-xs text-zinc-400 font-mono">{t('store.verifiedStore', 'Loja Verificada Labprox')}</p>
         </div>
       ) : null}
     </div>

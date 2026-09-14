@@ -1,6 +1,7 @@
 import React from 'react';
 import { InventoryItem } from '../../../types';
 import { Package, Building2, Plus, Sparkles, Layers } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface StoreProductCardProps {
   product: InventoryItem;
@@ -14,6 +15,8 @@ export const StoreProductCard: React.FC<StoreProductCardProps> = ({
   supplierName,
   onOpenDetail
 }) => {
+  const { t } = useTranslation();
+
   const isPromo = Boolean(
     product.isPromotion || 
     (product.promotionalPrice && product.promotionalPrice < product.sellPrice) ||
@@ -49,7 +52,7 @@ export const StoreProductCard: React.FC<StoreProductCardProps> = ({
           ) : (
             <div className="flex flex-col items-center justify-center text-zinc-400 dark:text-slate-400 gap-1">
               <Package size={36} strokeWidth={1.2} />
-              <span className="text-[10px] font-mono uppercase tracking-wider">Sem Imagem</span>
+              <span className="text-[10px] font-mono uppercase tracking-wider">{t('store.noImage', 'Sem Imagem')}</span>
             </div>
           )}
 
@@ -62,7 +65,7 @@ export const StoreProductCard: React.FC<StoreProductCardProps> = ({
             )}
             {product.isCombo && (
               <span className="px-2 py-0.5 bg-purple-600 text-white font-bold font-mono text-[10px] rounded-md shadow-xs uppercase tracking-wider flex items-center gap-1">
-                <Sparkles size={10} /> Combo
+                <Sparkles size={10} /> {t('store.combo', 'Combo')}
               </span>
             )}
           </div>
@@ -81,7 +84,7 @@ export const StoreProductCard: React.FC<StoreProductCardProps> = ({
           {product.variations && product.variations.length > 0 && (
             <div className="flex items-center gap-1 text-[11px] text-zinc-500 dark:text-slate-400 font-medium">
               <Layers size={12} />
-              <span>{product.variations.length} opções disponíveis</span>
+              <span>{product.variations.length} {t('store.optionsAvailable', 'opções disponíveis')}</span>
             </div>
           )}
 
@@ -119,10 +122,10 @@ export const StoreProductCard: React.FC<StoreProductCardProps> = ({
             e.stopPropagation();
             onOpenDetail(product);
           }}
-          className="px-3 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-bold rounded-xl transition-all shadow-xs flex items-center gap-1.5 shrink-0"
+          className="px-3 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-bold rounded-xl transition-all shadow-xs flex items-center gap-1.5 shrink-0 cursor-pointer"
         >
           <Plus size={14} />
-          <span>Comprar</span>
+          <span>{t('store.buy', 'Comprar')}</span>
         </button>
       </div>
     </div>

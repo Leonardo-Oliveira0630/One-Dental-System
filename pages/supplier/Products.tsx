@@ -643,7 +643,7 @@ export const SupplierProducts = () => {
 
                 {/* Stock tracker */}
                 <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
-                  <div className="bg-slate-50 dark:bg-[#0E1626] p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-center">
+                  <div className="bg-slate-50 dark:bg-[#070A10] p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-center">
                     <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono uppercase">EM ESTOQUE</p>
                     <p className={`text-md font-bold font-mono mt-1 ${
                       item.currentStock <= item.minStock ? 'text-red-500 dark:text-red-400' : 'text-slate-800 dark:text-slate-200'
@@ -651,7 +651,7 @@ export const SupplierProducts = () => {
                       {item.currentStock} un
                     </p>
                   </div>
-                  <div className="bg-slate-50 dark:bg-[#0E1626] p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-center">
+                  <div className="bg-slate-50 dark:bg-[#070A10] p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-center">
                     <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono uppercase">PREÇO VENDA</p>
                     <p className="text-md font-bold font-mono mt-1 text-teal-600 dark:text-teal-400">
                       R$ {item.sellPrice.toFixed(2)}
@@ -661,7 +661,7 @@ export const SupplierProducts = () => {
               </div>
 
               {/* Action Buttons - Card Footer */}
-              <div className="p-3 bg-slate-50/70 dark:bg-[#0E1626] border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-2">
+              <div className="p-3 bg-slate-50/80 dark:bg-[#070A10] border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-2">
                 <button
                   onClick={() => openModal(item)}
                   className="p-2 hover:bg-slate-200/60 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg transition-all cursor-pointer"
@@ -685,10 +685,10 @@ export const SupplierProducts = () => {
       {/* Editor Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 w-full max-w-4xl rounded-2xl overflow-hidden shadow-2xl text-slate-900 flex flex-col max-h-[90vh]">
-            <div className="px-4 pb-4 sm:px-6 sm:pb-6 border-b border-slate-200 flex justify-between items-center bg-slate-50/40">
-              <h3 className="font-bold text-lg flex items-center gap-2">
-                <Package className="text-indigo-600" />
+          <div className="bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 w-full max-w-4xl rounded-2xl overflow-hidden shadow-2xl text-slate-900 dark:text-white flex flex-col max-h-[90vh]">
+            <div className="px-4 pb-4 sm:px-6 sm:pb-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50/40 dark:bg-[#0E1626]">
+              <h3 className="font-bold text-lg flex items-center gap-2 text-slate-900 dark:text-white">
+                <Package className="text-indigo-600 dark:text-indigo-400" />
                 {editingItemId ? 'Editar Produto / Combo' : 'Cadastrar Novo Produto / Combo'}
               </h3>
               <div className="flex items-center gap-3">
@@ -696,14 +696,14 @@ export const SupplierProducts = () => {
                   <button
                     type="button"
                     onClick={() => handleShareProduct(editingItemId)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-700 bg-slate-100 border border-slate-300 rounded-lg hover:bg-slate-200 transition-colors"
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
                   >
                     <ClipboardCheck size={14} /> Copiar Link
                   </button>
                 )}
                 <button 
                   onClick={() => setIsModalOpen(false)} 
-                  className="text-slate-500 hover:text-slate-900"
+                  className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white p-1 rounded-lg"
                 >
                   ✕
                 </button>

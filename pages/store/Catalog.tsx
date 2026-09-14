@@ -1,6 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
+import { useTranslation } from 'react-i18next';
 import { 
     Plus, Search, ShoppingBag, BadgePercent, Package, X, Building, Tag, Store, 
     ChevronLeft, ChevronRight, Star, ImageIcon, MessageSquare, 
@@ -170,6 +171,7 @@ const BannerCarousel = ({ images }: { images: BannerConfig[] }) => {
 };
 
 const PortfolioSection = ({ portfolio }: { portfolio: any[] }) => {
+    const { t } = useTranslation();
     const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
 
     const handlePrev = (e?: React.MouseEvent) => {
@@ -206,10 +208,10 @@ const PortfolioSection = ({ portfolio }: { portfolio: any[] }) => {
 
     if (!portfolio || portfolio.length === 0) {
         return (
-            <div className="py-20 text-center bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
-                <ImageIcon size={48} className="mx-auto text-slate-300 mb-4" />
-                <h3 className="text-xl font-bold text-slate-600">Nenhum trabalho no portfólio ainda</h3>
-                <p className="text-slate-400">Em breve mostraremos fotos de casos reais aqui.</p>
+            <div className="py-20 text-center bg-slate-50 dark:bg-[#131B2A] rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-800">
+                <ImageIcon size={48} className="mx-auto text-slate-300 dark:text-slate-600 mb-4" />
+                <h3 className="text-xl font-bold text-slate-600 dark:text-slate-300">{t('store.noPortfolioYet', 'Nenhum trabalho no portfólio ainda')}</h3>
+                <p className="text-slate-400 dark:text-slate-500">{t('store.portfolioSoon', 'Em breve mostraremos fotos de casos reais aqui.')}</p>
             </div>
         );
     }
@@ -224,7 +226,7 @@ const PortfolioSection = ({ portfolio }: { portfolio: any[] }) => {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: i * 0.1 }}
                         onClick={() => setSelectedIdx(i)}
-                        className="group bg-white rounded-3xl overflow-hidden shadow-sm border border-slate-100 hover:shadow-2xl transition-all cursor-pointer"
+                        className="group bg-white dark:bg-[#131B2A] rounded-3xl overflow-hidden shadow-sm border border-slate-100 dark:border-slate-800 hover:shadow-2xl transition-all cursor-pointer"
                     >
                         <div className="aspect-square overflow-hidden relative">
                             <img src={item.imageUrl} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
@@ -233,8 +235,8 @@ const PortfolioSection = ({ portfolio }: { portfolio: any[] }) => {
                             </div>
                         </div>
                         <div className="px-4 pb-4 sm:px-6 sm:pb-6">
-                            <h4 className="font-black text-slate-800 text-lg mb-2">{item.title}</h4>
-                            <p className="text-slate-500 text-sm leading-relaxed">{item.description}</p>
+                            <h4 className="font-black text-slate-800 dark:text-white text-lg mb-2">{item.title}</h4>
+                            <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed">{item.description}</p>
                         </div>
                     </motion.div>
                 ))}
@@ -253,7 +255,7 @@ const PortfolioSection = ({ portfolio }: { portfolio: any[] }) => {
                         {/* Top action bar */}
                         <div className="absolute top-4 sm:p-6 left-6 right-6 flex items-center justify-between text-white z-10">
                             <span className="font-mono text-xs bg-white/10 px-3 py-1.5 rounded-full backdrop-blur-sm">
-                                {selectedIdx + 1} de {portfolio.length}
+                                {selectedIdx + 1} {t('store.of', 'de')} {portfolio.length}
                             </span>
                             <button 
                                 onClick={() => setSelectedIdx(null)}
@@ -289,7 +291,7 @@ const PortfolioSection = ({ portfolio }: { portfolio: any[] }) => {
                             >
                                 <img 
                                     src={portfolio[selectedIdx].imageUrl} 
-                                    alt={portfolio[selectedIdx].title || "Item do portfólio"} 
+                                    alt={portfolio[selectedIdx].title || "Item"} 
                                     className="max-h-[50vh] md:max-h-[60vh] object-contain rounded-2xl shadow-2xl select-none pointer-events-none border border-white/10"
                                 />
                                 {portfolio[selectedIdx].title && (
@@ -314,7 +316,7 @@ const PortfolioSection = ({ portfolio }: { portfolio: any[] }) => {
                         {/* Swipe instructions (Mobile helper) */}
                         <div className="absolute bottom-6 left-1/2 -translate-x-1/2 text-center pointer-events-none">
                             <p className="text-xs text-slate-400 font-medium tracking-wide">
-                                Deslize para o lado ou utilize as setas do teclado para navegar
+                                {t('store.swipeInstructions', 'Deslize para o lado ou utilize as setas do teclado para navegar')}
                             </p>
                         </div>
                     </motion.div>
@@ -325,6 +327,7 @@ const PortfolioSection = ({ portfolio }: { portfolio: any[] }) => {
 };
 
 const ReviewsSection = ({ labId }: { labId: string }) => {
+    const { t } = useTranslation();
     const [reviews, setReviews] = useState<LabRating[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -342,8 +345,8 @@ const ReviewsSection = ({ labId }: { labId: string }) => {
         return (
             <div className="py-20 text-center bg-slate-50 dark:bg-[#131B2A] rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-800">
                 <Star size={48} className="mx-auto text-slate-300 dark:text-slate-600 mb-4" />
-                <h3 className="text-xl font-bold text-slate-700 dark:text-slate-200">Sem avaliações recentes</h3>
-                <p className="text-slate-400 dark:text-slate-500">Seja o primeiro a avaliar este laboratório após seu pedido!</p>
+                <h3 className="text-xl font-bold text-slate-700 dark:text-slate-200">{t('store.noReviewsRecent', 'Sem avaliações recentes')}</h3>
+                <p className="text-slate-400 dark:text-slate-500">{t('store.beFirstToReview', 'Seja o primeiro a avaliar este laboratório após seu pedido!')}</p>
             </div>
         );
     }
@@ -363,7 +366,7 @@ const ReviewsSection = ({ labId }: { labId: string }) => {
                                     {[...Array(5)].map((_, i) => <Star key={i} size={14} fill={i < row.score ? 'currentColor' : 'none'} />)}
                                 </div>
                             </div>
-                            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Recente</span>
+                            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t('store.recent', 'Recente')}</span>
                         </div>
                         <p className="text-slate-600 dark:text-slate-300 text-sm italic">"{row.comment}"</p>
                     </div>
@@ -375,6 +378,7 @@ const ReviewsSection = ({ labId }: { labId: string }) => {
 
 // Variation Configuration Modal (Component with Partner Checking)
 const VariationConfigModal = ({ product, selectedLab, localPriceTables, onClose }: { product: JobType; selectedLab: import('../../types').Organization; localPriceTables: any[]; onClose: () => void; }) => {
+    const { t } = useTranslation();
     const { addToCart, currentUser, currentOrg, userConnections, addConnectionByCode } = useApp();
     const [quantity, setQuantity] = useState(1);
     const isOwnStore = selectedLab?.id === currentOrg?.id;
@@ -542,7 +546,7 @@ const VariationConfigModal = ({ product, selectedLab, localPriceTables, onClose 
 
     const handleAddToCart = () => {
         if (isOwnStore) {
-            alert('Você não pode adicionar serviços da sua própria loja ao carrinho.');
+            alert(t('store.ownStoreAlert', 'Você não pode adicionar serviços da sua própria loja ao carrinho.'));
             return;
         }
 
@@ -589,7 +593,7 @@ const VariationConfigModal = ({ product, selectedLab, localPriceTables, onClose 
             setShowPartnerModal(false);
             onClose();
         } catch (err: any) {
-            setLinkError(err.message || 'Ocorreu um erro ao firmar parceria automática. Tente novamente mais tarde.');
+            setLinkError(err.message || t('store.partnerLinkedError', 'Erro ao firmar parceria com o laboratório.'));
         } finally {
             setIsLinking(false);
         }
@@ -611,9 +615,9 @@ const VariationConfigModal = ({ product, selectedLab, localPriceTables, onClose 
                                 <Handshake size={30} />
                             </div>
                             <div>
-                                <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">Firmar Parceria?</h3>
+                                <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">{t('store.linkPartnershipPromptTitle', 'Firmar Parceria?')}</h3>
                                 <p className="text-slate-500 dark:text-slate-400 font-medium text-xs sm:text-sm mt-2 leading-relaxed">
-                                    Para adicionar <span className="font-bold text-slate-800 dark:text-slate-200">{product.name}</span> ao carrinho e enviar pedidos, é preciso estar vinculado a <span className="font-bold text-slate-800 dark:text-slate-200">{selectedLab.name}</span>. Deseja realizar essa vinculação agora?
+                                    {t('store.linkPartnershipPromptDesc', 'Para adicionar {{product}} ao carrinho e enviar pedidos, é preciso estar vinculado a {{lab}}. Deseja realizar essa vinculação agora?', { product: product.name, lab: selectedLab.name })}
                                 </p>
                             </div>
 
@@ -627,16 +631,16 @@ const VariationConfigModal = ({ product, selectedLab, localPriceTables, onClose 
                                 <button 
                                     onClick={handleLinkAndAddToCart}
                                     disabled={isLinking}
-                                    className="px-4 py-3 bg-blue-600 text-white font-black rounded-xl sm:rounded-2xl hover:bg-blue-700 transition-all text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-blue-100 dark:shadow-none disabled:opacity-50"
+                                    className="px-4 py-3 bg-blue-600 text-white font-black rounded-xl sm:rounded-2xl hover:bg-blue-700 transition-all text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-blue-100 dark:shadow-none disabled:opacity-50 cursor-pointer"
                                 >
-                                    {isLinking ? <Loader2 className="animate-spin" size={16} /> : "Sim, Vincular"}
+                                    {isLinking ? <Loader2 className="animate-spin" size={16} /> : t('store.yesLink', 'Sim, Vincular')}
                                 </button>
                                 <button 
                                     onClick={() => setShowPartnerModal(false)}
                                     disabled={isLinking}
-                                    className="px-4 py-3 bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-black rounded-xl sm:rounded-2xl hover:bg-slate-200 dark:hover:bg-slate-700 transition-all text-xs uppercase tracking-wider"
+                                    className="px-4 py-3 bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-black rounded-xl sm:rounded-2xl hover:bg-slate-200 dark:hover:bg-slate-700 transition-all text-xs uppercase tracking-wider cursor-pointer"
                                 >
-                                    Cancelar
+                                    {t('store.cancel', 'Cancelar')}
                                 </button>
                             </div>
                         </div>
@@ -646,7 +650,7 @@ const VariationConfigModal = ({ product, selectedLab, localPriceTables, onClose 
                 <div className="flex justify-between items-center px-4 py-3.5 sm:px-6 sm:py-4 border-b border-slate-100 dark:border-slate-800 shrink-0">
                     <div className="min-w-0 pr-3">
                         <h3 className="font-black text-lg sm:text-2xl text-slate-900 dark:text-white tracking-tight truncate">{product.name}</h3>
-                        <p className="text-[10px] sm:text-xs text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest mt-0.5">Configuração Personalizada</p>
+                        <p className="text-[10px] sm:text-xs text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest mt-0.5">{t('store.customConfig', 'Configuração Personalizada')}</p>
                     </div>
                     <button onClick={onClose} className="p-2 bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-full transition-colors shrink-0"><X size={20} /></button>
                 </div>
@@ -658,7 +662,7 @@ const VariationConfigModal = ({ product, selectedLab, localPriceTables, onClose 
                                     <Tag className="text-blue-500 dark:text-blue-400" size={15} /> {group.name}
                                 </h4>
                                 <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2.5 py-0.5 rounded-full">
-                                    {group.selectionType === 'SINGLE' ? 'Tipo Único' : group.selectionType === 'MULTIPLE' ? 'Combo' : 'Mensagem'}
+                                    {group.selectionType === 'SINGLE' ? t('store.singleType', 'Tipo Único') : group.selectionType === 'MULTIPLE' ? t('store.comboType', 'Combo') : t('store.textType', 'Mensagem')}
                                 </span>
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
@@ -684,11 +688,11 @@ const VariationConfigModal = ({ product, selectedLab, localPriceTables, onClose 
                                         <button key={option.id} onClick={() => !isDisabled && handleVariationChange(group, option.id)}
                                             className={`p-3 sm:p-4 rounded-xl sm:rounded-2xl flex flex-col items-start gap-1 text-xs sm:text-sm transition-all border-2 ${isDisabled ? 'cursor-not-allowed opacity-40 grayscale' : 'cursor-pointer'} ${isSelected ? 'bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-100 dark:shadow-none' : 'bg-white dark:bg-[#0E1626] border-slate-100 dark:border-slate-800 hover:border-blue-300 dark:hover:border-blue-600 text-slate-600 dark:text-slate-300'}`}>
                                             <div className="flex justify-between items-center w-full">
-                                                <span className={`font-black uppercase text-[9px] sm:text-[10px] tracking-widest ${isSelected ? 'text-blue-100' : 'text-slate-400'}`}>Opção</span>
+                                                <span className={`font-black uppercase text-[9px] sm:text-[10px] tracking-widest ${isSelected ? 'text-blue-100' : 'text-slate-400'}`}>{t('store.option', 'Opção')}</span>
                                                 {option.priceModifier > 0 && <span className={`font-bold text-[10px] ${isSelected ? 'text-white' : 'text-blue-600 dark:text-blue-400'}`}>+ R$ {option.priceModifier.toFixed(2)}</span>}
                                             </div>
                                             <span className="font-bold text-left leading-tight">{option.name}</span>
-                                            {option.isDiscountExempt && <span className={`text-[8px] sm:text-[9px] font-black uppercase px-1.5 py-0.5 rounded mt-0.5 ${isSelected ? 'bg-white/20 text-white' : 'bg-orange-50 dark:bg-orange-950/60 text-orange-500 dark:text-orange-400 border border-orange-200/50 dark:border-orange-800/50'}`}>Fixo</span>}
+                                            {option.isDiscountExempt && <span className={`text-[8px] sm:text-[9px] font-black uppercase px-1.5 py-0.5 rounded mt-0.5 ${isSelected ? 'bg-white/20 text-white' : 'bg-orange-50 dark:bg-orange-950/60 text-orange-500 dark:text-orange-400 border border-orange-200/50 dark:border-orange-800/50'}`}>{t('store.fixed', 'Fixo')}</span>}
                                         </button>
                                     );
                                 })}
@@ -697,7 +701,7 @@ const VariationConfigModal = ({ product, selectedLab, localPriceTables, onClose 
                     ))}
                     
                     <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl border bg-white dark:bg-[#131B2A] border-slate-100 dark:border-slate-800 shadow-xs space-y-3">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-400 block">Dentes Relacionados (Opcional)</label>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-400 block">{t('store.relatedTeethOptional', 'Dentes Relacionados (Opcional)')}</label>
                         <div className="bg-slate-50 dark:bg-[#0E1626] border border-slate-100 dark:border-slate-800 rounded-2xl p-2 sm:p-4 flex justify-center items-center overflow-x-auto">
                             <Odontogram 
                                 selectedTeeth={selectedTeeth}
@@ -714,7 +718,7 @@ const VariationConfigModal = ({ product, selectedLab, localPriceTables, onClose 
                         </div>
                         {selectedTeeth.length > 0 && (
                             <p className="text-xs text-blue-600 dark:text-blue-400 font-bold">
-                                Dentes selecionados: {selectedTeeth.sort().join(', ')}
+                                {t('store.selectedTeethLabel', 'Dentes selecionados:')} {selectedTeeth.sort().join(', ')}
                             </p>
                         )}
                     </div>
@@ -722,7 +726,7 @@ const VariationConfigModal = ({ product, selectedLab, localPriceTables, onClose 
                 <div className="p-3 sm:p-5 bg-white dark:bg-[#131B2A] border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 shrink-0 shadow-lg">
                     <div className="flex items-center justify-between sm:justify-start gap-3 sm:gap-4 w-full sm:w-auto">
                         <div className="flex items-center gap-2">
-                            <label className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-slate-400">Qtd:</label>
+                            <label className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-slate-400">{t('store.qty', 'Qtd:')}</label>
                             <div className={`flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl ${selectedTeeth.length > 0 ? 'opacity-50 pointer-events-none' : ''}`}>
                                 <button onClick={() => setQuantity(q => Math.max(1, q-1))} className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center font-bold text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-white dark:hover:bg-slate-700 rounded-lg transition-all text-sm" disabled={selectedTeeth.length > 0}>-</button>
                                 <input type="number" readOnly value={quantity} className="w-8 sm:w-10 bg-transparent text-center font-black text-slate-800 dark:text-white text-xs sm:text-sm pointer-events-none" />
@@ -731,14 +735,14 @@ const VariationConfigModal = ({ product, selectedLab, localPriceTables, onClose 
                         </div>
                         <div className="h-8 w-[1px] bg-slate-200 dark:bg-slate-700 hidden sm:block" />
                         <div className="text-right sm:text-left">
-                             <span className="text-[9px] sm:text-[10px] text-slate-400 dark:text-slate-400 uppercase font-black tracking-widest block">Total estimado</span>
+                             <span className="text-[9px] sm:text-[10px] text-slate-400 dark:text-slate-400 uppercase font-black tracking-widest block">{t('store.estimatedTotal', 'Total estimado')}</span>
                              <p className="font-black text-lg sm:text-2xl text-blue-600 dark:text-blue-400 tracking-tight">R$ {finalPrice.toFixed(2)}</p>
                         </div>
                     </div>
                     <button onClick={handleAddToCart}
                         disabled={isOwnStore}
-                        className={`w-full sm:w-auto px-6 sm:px-8 py-3.5 sm:py-4 text-white font-black rounded-xl sm:rounded-2xl shadow-lg transition-all active:scale-95 text-sm sm:text-base ${isOwnStore ? 'bg-slate-400 cursor-not-allowed shadow-none' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-100 dark:shadow-none'}`}>
-                        {isOwnStore ? 'Minha Loja' : 'Adicionar ao Carrinho'}
+                        className={`w-full sm:w-auto px-6 sm:px-8 py-3.5 sm:py-4 text-white font-black rounded-xl sm:rounded-2xl shadow-lg transition-all active:scale-95 text-sm sm:text-base cursor-pointer ${isOwnStore ? 'bg-slate-400 cursor-not-allowed shadow-none' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-100 dark:shadow-none'}`}>
+                        {isOwnStore ? t('store.myStoreDisabled', 'Minha Loja') : t('store.addToCart', 'Adicionar ao Carrinho')}
                     </button>
                 </div>
             </motion.div>
@@ -749,6 +753,7 @@ const VariationConfigModal = ({ product, selectedLab, localPriceTables, onClose 
 // --- Main Component ---
 
 export const Catalog = () => {
+    const { t } = useTranslation();
     const { slug } = useParams<{ slug: string }>();
     const { allLaboratories, allSuppliers, currentUser, currentOrg, activeOrganization, currentPlan, userConnections, addConnectionByCode, cart, switchActiveOrganization } = useApp();
     const navigate = useNavigate();
@@ -919,7 +924,7 @@ export const Catalog = () => {
         return (
             <div className="flex flex-col items-center justify-center h-[60vh] text-center p-4 sm:p-8">
                 <Loader2 className="animate-spin text-indigo-600 mb-4" size={48} />
-                <p className="text-slate-500 font-bold text-sm">Carregando loja do laboratório...</p>
+                <p className="text-slate-500 font-bold text-sm">{t('store.loadingStore', 'Carregando loja do laboratório...')}</p>
             </div>
         );
     }
@@ -927,17 +932,17 @@ export const Catalog = () => {
     if (slug && !selectedLab) {
         return (
             <div className="flex flex-col items-center justify-center h-[60vh] text-center p-4 sm:p-8">
-                <div className="bg-white p-10 rounded-[32px] shadow-sm border border-slate-100 max-w-md w-full flex flex-col items-center">
-                    <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-6 text-slate-300">
+                <div className="bg-white dark:bg-[#131B2A] p-10 rounded-[32px] shadow-sm border border-slate-100 dark:border-slate-800 max-w-md w-full flex flex-col items-center">
+                    <div className="w-20 h-20 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mb-6 text-slate-300 dark:text-slate-600">
                         <Building size={40} />
                     </div>
-                    <h2 className="text-2xl font-black text-slate-900 mb-3 tracking-tighter">Laboratório não encontrado</h2>
-                    <p className="text-slate-500 mb-8 font-medium">
-                        O laboratório solicitado por essa URL não existe ou ainda não configurou seu link de compartilhamento.
+                    <h2 className="text-2xl font-black text-slate-900 dark:text-white mb-3 tracking-tighter">{t('store.labNotFound', 'Laboratório não encontrado')}</h2>
+                    <p className="text-slate-500 dark:text-slate-400 mb-8 font-medium">
+                        {t('store.labNotFoundDesc', 'O laboratório solicitado por essa URL não existe ou ainda não configurou seu link de compartilhamento.')}
                     </p>
                     <button onClick={() => navigate('/dentist/partnerships')}
-                        className="px-10 py-4 bg-indigo-600 text-white font-black rounded-2xl hover:bg-indigo-700 shadow-xl shadow-indigo-100 transition-all w-full animate-pulse">
-                        EXPLORAR LABORATÓRIOS
+                        className="px-10 py-4 bg-indigo-600 text-white font-black rounded-2xl hover:bg-indigo-700 shadow-xl shadow-indigo-100 dark:shadow-none transition-all w-full animate-pulse cursor-pointer">
+                        {t('store.exploreLabs', 'EXPLORAR LABORATÓRIOS')}
                     </button>
                 </div>
             </div>
@@ -947,8 +952,8 @@ export const Catalog = () => {
     if (selectedLab && currentPlan && !currentPlan.features.hasStoreModule && !slug) {
         return (
             <FeatureLocked 
-                title="Módulo de Loja Bloqueado" 
-                message={`O laboratório ${selectedLab.name} não possui o módulo de Loja Virtual habilitado no plano atual.`} 
+                title={t('store.storeModuleLocked', 'Módulo de Loja Bloqueado')} 
+                message={t('store.storeModuleLockedDesc', 'O laboratório {{name}} não possui o módulo de Loja Virtual habilitado no plano atual.', { name: selectedLab.name })} 
             />
         );
     }
@@ -1043,31 +1048,31 @@ export const Catalog = () => {
                     <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto scrollbar-none py-0.5 flex-1 min-w-0">
                         <button
                             onClick={() => setMainTab('STORE')}
-                            className={`px-3 sm:px-4 py-2 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 ${mainTab === 'STORE' ? 'bg-[#15263f] text-white dark:bg-blue-600 shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'}`}
+                            className={`px-3 sm:px-4 py-2 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${mainTab === 'STORE' ? 'bg-[#15263f] text-white dark:bg-blue-600 shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'}`}
                         >
                             <ShoppingBag size={15} />
-                            <span>Loja Online</span>
+                            <span>{t('store.onlineStore', 'Loja Online')}</span>
                         </button>
                         <button
                             onClick={() => setMainTab('PARTNERSHIPS')}
-                            className={`px-3 sm:px-4 py-2 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 ${mainTab === 'PARTNERSHIPS' ? 'bg-[#15263f] text-white dark:bg-blue-600 shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'}`}
+                            className={`px-3 sm:px-4 py-2 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${mainTab === 'PARTNERSHIPS' ? 'bg-[#15263f] text-white dark:bg-blue-600 shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'}`}
                         >
                             <Handshake size={15} />
-                            <span>Parcerias Lab</span>
+                            <span>{t('store.labPartnerships', 'Parcerias Lab')}</span>
                         </button>
                         <button
                             onClick={() => setMainTab('MY_ORDERS')}
-                            className={`px-3 sm:px-4 py-2 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 ${mainTab === 'MY_ORDERS' ? 'bg-[#15263f] text-white dark:bg-blue-600 shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'}`}
+                            className={`px-3 sm:px-4 py-2 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${mainTab === 'MY_ORDERS' ? 'bg-[#15263f] text-white dark:bg-blue-600 shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'}`}
                         >
                             <ClipboardList size={15} />
-                            <span>Meus Pedidos</span>
+                            <span>{t('store.myOrders', 'Meus Pedidos')}</span>
                         </button>
                         <button
                             onClick={() => setMainTab('VOUCHERS')}
-                            className={`px-3 sm:px-4 py-2 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 ${mainTab === 'VOUCHERS' ? 'bg-[#15263f] text-white dark:bg-blue-600 shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'}`}
+                            className={`px-3 sm:px-4 py-2 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${mainTab === 'VOUCHERS' ? 'bg-[#15263f] text-white dark:bg-blue-600 shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'}`}
                         >
                             <Ticket size={15} />
-                            <span>Vouchers</span>
+                            <span>{t('store.vouchers', 'Vouchers')}</span>
                         </button>
                     </div>
 
@@ -1075,10 +1080,10 @@ export const Catalog = () => {
                     <div className="flex items-center shrink-0">
                         <button
                             onClick={() => setMainTab('CART')}
-                            className="px-3 sm:px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 active:scale-95 font-bold rounded-xl transition-all shadow-md flex items-center gap-1.5 sm:gap-2 whitespace-nowrap text-xs sm:text-sm"
+                            className="px-3 sm:px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 active:scale-95 font-bold rounded-xl transition-all shadow-md flex items-center gap-1.5 sm:gap-2 whitespace-nowrap text-xs sm:text-sm cursor-pointer"
                         >
                             <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
-                            <span className="hidden xs:inline sm:inline">Carrinho</span>
+                            <span className="hidden xs:inline sm:inline">{t('store.cart', 'Carrinho')}</span>
                             <span className="bg-white/20 text-white px-1.5 py-0.5 rounded-md text-[10px] sm:text-xs font-black">{cart?.length || 0}</span>
                         </button>
                     </div>
@@ -1114,18 +1119,18 @@ export const Catalog = () => {
 
             {mainTab === 'STORE' && (
                 !selectedLab ? (
-                    <div className="flex-1 flex flex-col items-center justify-center h-[60vh] text-center p-4 sm:p-8 bg-white animate-in fade-in duration-500">
-                        <div className="bg-white p-6 sm:p-10 rounded-3xl sm:rounded-[32px] shadow-sm border border-slate-100 max-w-md w-full flex flex-col items-center">
-                            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-slate-50 rounded-full flex items-center justify-center mb-5 text-slate-300">
+                    <div className="flex-1 flex flex-col items-center justify-center h-[60vh] text-center p-4 sm:p-8 bg-white dark:bg-[#131B2A] animate-in fade-in duration-500">
+                        <div className="bg-white dark:bg-[#131B2A] p-6 sm:p-10 rounded-3xl sm:rounded-[32px] shadow-sm border border-slate-100 dark:border-slate-800 max-w-md w-full flex flex-col items-center">
+                            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mb-5 text-slate-300 dark:text-slate-600">
                                 <Building size={36} />
                             </div>
-                            <h2 className="text-xl sm:text-2xl font-black text-slate-900 mb-2 tracking-tight">Ops! Laboratório ausente.</h2>
-                            <p className="text-slate-500 mb-6 font-medium text-xs sm:text-sm">
-                                Parece que você ainda não selecionou qual laboratório deseja visitar hoje.
+                            <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mb-2 tracking-tight">{t('store.labNotFound', 'Ops! Laboratório ausente.')}</h2>
+                            <p className="text-slate-500 dark:text-slate-400 mb-6 font-medium text-xs sm:text-sm">
+                                {t('store.selectLabPrompt', 'Parece que você ainda não selecionou qual laboratório deseja visitar hoje.')}
                             </p>
                             <button onClick={() => setMainTab('PARTNERSHIPS')}
-                                className="px-6 sm:px-10 py-3.5 sm:py-4 bg-indigo-600 text-white font-black rounded-xl sm:rounded-2xl hover:bg-indigo-700 shadow-lg shadow-indigo-100 transition-all w-full text-xs sm:text-sm">
-                                EXPLORAR LABORATÓRIOS
+                                className="px-6 sm:px-10 py-3.5 sm:py-4 bg-indigo-600 text-white font-black rounded-xl sm:rounded-2xl hover:bg-indigo-700 shadow-lg shadow-indigo-100 dark:shadow-none transition-all w-full text-xs sm:text-sm cursor-pointer">
+                                {t('store.exploreLabs', 'EXPLORAR LABORATÓRIOS')}
                             </button>
                         </div>
                     </div>
@@ -1135,35 +1140,35 @@ export const Catalog = () => {
             
             {showAuthModal && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md p-3 sm:p-4 animate-in fade-in duration-300">
-                    <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white p-5 sm:p-8 rounded-2xl sm:rounded-[32px] max-w-md w-full shadow-2xl text-center space-y-5">
-                        <div className="w-14 h-14 sm:w-16 sm:h-16 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto">
+                    <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white dark:bg-[#131B2A] p-5 sm:p-8 rounded-2xl sm:rounded-[32px] max-w-md w-full shadow-2xl text-center space-y-5 border border-slate-100 dark:border-slate-800">
+                        <div className="w-14 h-14 sm:w-16 sm:h-16 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 rounded-full flex items-center justify-center mx-auto">
                             <Shield size={30} />
                         </div>
                         <div>
-                            <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Fazer Pedido ou Customizar</h3>
-                            <p className="text-slate-500 font-medium text-xs sm:text-sm mt-2 leading-relaxed">
-                                Para poder escolher variações, aplicar cupons e enviar trabalhos ao laboratório, você precisa estar cadastrado e logado.
+                            <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">{t('store.authModalTitle', 'Fazer Pedido ou Customizar')}</h3>
+                            <p className="text-slate-500 dark:text-slate-400 font-medium text-xs sm:text-sm mt-2 leading-relaxed">
+                                {t('store.authModalDesc', 'Para poder escolher variações, aplicar cupons e enviar trabalhos ao laboratório, você precisa estar cadastrado e logado.')}
                             </p>
                         </div>
                         <div className="grid grid-cols-2 gap-2.5 pt-2">
                             <button 
                                 onClick={() => navigate(`/register-lab?redirect=${encodeURIComponent(location.pathname + location.search)}&type=DENTIST`)} 
-                                className="px-4 py-3 bg-indigo-600 text-white font-bold rounded-xl sm:rounded-2xl hover:bg-indigo-700 transition-all text-xs"
+                                className="px-4 py-3 bg-indigo-600 text-white font-bold rounded-xl sm:rounded-2xl hover:bg-indigo-700 transition-all text-xs cursor-pointer"
                             >
-                                Criar Conta
+                                {t('store.createAccount', 'Criar Conta')}
                             </button>
                             <button 
                                 onClick={() => navigate(`/login?redirect=${encodeURIComponent(location.pathname + location.search)}`)} 
-                                className="px-4 py-3 bg-slate-100 text-slate-800 font-bold rounded-xl sm:rounded-2xl hover:bg-slate-200 transition-all text-xs"
+                                className="px-4 py-3 bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-bold rounded-xl sm:rounded-2xl hover:bg-slate-200 dark:hover:bg-slate-700 transition-all text-xs cursor-pointer"
                             >
-                                Fazer Login
+                                {t('store.login', 'Fazer Login')}
                             </button>
                         </div>
                         <button 
                             onClick={() => setShowAuthModal(false)}
-                            className="text-xs text-slate-400 hover:text-slate-600 font-bold underline"
+                            className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 font-bold underline cursor-pointer"
                         >
-                            Voltar ao Catálogo
+                            {t('store.backToCatalog', 'Voltar ao Catálogo')}
                         </button>
                     </motion.div>
                 </div>
@@ -1184,15 +1189,15 @@ export const Catalog = () => {
                             <h1 className="text-lg sm:text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight leading-tight truncate max-w-[240px] sm:max-w-none">{selectedLab.name}</h1>
                             {isOwnStore ? (
                                 <span className="text-[9px] sm:text-[10px] bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 font-black px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full uppercase tracking-widest flex items-center gap-1 shrink-0">
-                                    <span className="w-1.5 h-1.5 bg-blue-500 rounded-full"></span> Minha Loja
+                                    <span className="w-1.5 h-1.5 bg-blue-500 rounded-full"></span> {t('store.myStoreBadge', 'Minha Loja')}
                                 </span>
                             ) : isLinked ? (
                                 <span className="text-[9px] sm:text-[10px] bg-green-50 dark:bg-green-950/60 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-800 font-black px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full uppercase tracking-widest flex items-center gap-1 shrink-0">
-                                    <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span> Parceiro Vinculado
+                                    <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span> {t('store.linkedPartnerBadge', 'Parceiro Vinculado')}
                                 </span>
                             ) : (
                                 <span className="text-[9px] sm:text-[10px] bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800 font-black px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full uppercase tracking-widest flex items-center gap-1 shrink-0">
-                                    <span className="w-1.5 h-1.5 bg-amber-500 rounded-full"></span> Sem Parceria
+                                    <span className="w-1.5 h-1.5 bg-amber-500 rounded-full"></span> {t('store.noPartnerBadge', 'Sem Parceria')}
                                 </span>
                             )}
                         </div>
@@ -1203,7 +1208,7 @@ export const Catalog = () => {
                                 {selectedLab.ratingAverage ? selectedLab.ratingAverage.toFixed(1) : "S/N"}
                             </div>
                             <span>•</span>
-                            <span className="font-semibold text-[11px] sm:text-xs">{selectedLab.ratingCount || 0} Avaliações</span>
+                            <span className="font-semibold text-[11px] sm:text-xs">{selectedLab.ratingCount || 0} {t('store.reviewsTab', 'Avaliações')}</span>
                             <span className="hidden sm:inline">•</span>
                             <span className="bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded text-[9px] sm:text-[10px] font-black font-mono hidden sm:inline">ID: {selectedLab.id}</span>
                         </div>
@@ -1225,9 +1230,9 @@ export const Catalog = () => {
                         <button 
                             onClick={handleDirectLink}
                             disabled={connecting}
-                            className="w-full md:w-auto px-5 py-3 sm:px-6 sm:py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs uppercase tracking-wider rounded-xl sm:rounded-2xl shadow-lg shadow-blue-100 dark:shadow-none transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
+                            className="w-full md:w-auto px-5 py-3 sm:px-6 sm:py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs uppercase tracking-wider rounded-xl sm:rounded-2xl shadow-lg shadow-blue-100 dark:shadow-none transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 cursor-pointer"
                         >
-                            {connecting ? <Loader2 className="animate-spin" size={16} /> : <><Handshake size={16} /> FIRMAR PARCERIA</>}
+                            {connecting ? <Loader2 className="animate-spin" size={16} /> : <><Handshake size={16} /> {t('store.firmPartnership', 'FIRMAR PARCERIA')}</>}
                         </button>
                     </div>
                 )}
@@ -1248,9 +1253,9 @@ export const Catalog = () => {
                     <button 
                         key={opt}
                         onClick={() => setActiveTab(opt as any)}
-                        className={`px-4 sm:px-8 py-3.5 sm:py-5 text-xs sm:text-sm font-black uppercase tracking-wider sm:tracking-widest transition-all relative shrink-0 ${activeTab === opt ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400 hover:text-slate-600 dark:text-slate-400 dark:hover:text-slate-200'}`}
+                        className={`px-4 sm:px-8 py-3.5 sm:py-5 text-xs sm:text-sm font-black uppercase tracking-wider sm:tracking-widest transition-all relative shrink-0 cursor-pointer ${activeTab === opt ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400 hover:text-slate-600 dark:text-slate-400 dark:hover:text-slate-200'}`}
                     >
-                        {opt === 'PRODUCTS' ? 'Catálogo' : opt === 'PROMOTIONS' ? 'Promoções' : opt === 'PORTFOLIO' ? 'Portfólio' : opt === 'REVIEWS' ? 'Avaliações' : 'Sobre'}
+                        {opt === 'PRODUCTS' ? t('store.catalogTab', 'Catálogo') : opt === 'PROMOTIONS' ? t('store.promotionsTab', 'Promoções') : opt === 'PORTFOLIO' ? t('store.portfolioTab', 'Portfólio') : opt === 'REVIEWS' ? t('store.reviewsTab', 'Avaliações') : t('store.aboutTab', 'Sobre')}
                         {activeTab === opt && (
                             <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 sm:h-1 bg-blue-600 dark:bg-blue-500 rounded-full" />
                         )}
@@ -1275,7 +1280,7 @@ export const Catalog = () => {
                                     <Search className="absolute left-3.5 sm:left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" size={20} />
                                     <input 
                                         className="w-full pl-10 sm:pl-12 pr-4 py-3 sm:py-4 bg-slate-50 dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-700/80 rounded-xl sm:rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-medium text-sm sm:text-lg text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500"
-                                        placeholder="Qual serviço você procura? Ex: Coroa, Coping..."
+                                        placeholder={t('store.searchPlaceholder', 'Qual serviço você procura? Ex: Coroa, Coping...')}
                                         value={term}
                                         onChange={(e) => setTerm(e.target.value)}
                                     />
@@ -1285,7 +1290,7 @@ export const Catalog = () => {
                                         <button 
                                             key={cat} 
                                             onClick={() => setSelectedCategory(selectedCategory === cat ? 'ALL' : cat)} 
-                                            className={`px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-full transition-all border ${selectedCategory === cat ? 'bg-blue-600 text-white border-blue-600 shadow-xs' : 'bg-slate-50 dark:bg-[#0B0F17] text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-blue-600 dark:hover:text-blue-400'}`}
+                                            className={`px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-full transition-all border cursor-pointer ${selectedCategory === cat ? 'bg-blue-600 text-white border-blue-600 shadow-xs' : 'bg-slate-50 dark:bg-[#0B0F17] text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-blue-600 dark:hover:text-blue-400'}`}
                                         >
                                             {cat}
                                         </button>
@@ -1298,7 +1303,7 @@ export const Catalog = () => {
                                     onChange={(e) => setSelectedCategory(e.target.value)}
                                     className="w-full appearance-none bg-slate-50 dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-700/80 text-slate-700 dark:text-slate-200 font-black text-sm uppercase tracking-widest px-6 py-4 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer"
                                 >
-                                    <option value="ALL">Todas Categorias</option>
+                                    <option value="ALL">{t('store.allCategories', 'Todas Categorias')}</option>
                                     {categories.map(cat => (
                                         <option key={cat} value={cat} className="bg-white dark:bg-[#131B2A] text-slate-800 dark:text-slate-100">{cat}</option>
                                     ))}
@@ -1311,13 +1316,13 @@ export const Catalog = () => {
                         {loadingProducts ? (
                             <div className="text-center py-20">
                                 <Loader2 className="animate-spin text-blue-600 dark:text-blue-400 mx-auto" size={36} />
-                                <span className="text-slate-400 dark:text-slate-500 text-xs font-bold uppercase tracking-widest block mt-3">Carregando catálogo...</span>
+                                <span className="text-slate-400 dark:text-slate-500 text-xs font-bold uppercase tracking-widest block mt-3">{t('store.loadingCatalog', 'Carregando catálogo...')}</span>
                             </div>
                         ) : products.length === 0 ? (
                             <div className="text-center py-20 bg-slate-50 dark:bg-[#131B2A] rounded-[40px] border-2 border-dashed border-slate-200 dark:border-slate-800">
                                 <Package size={64} className="mx-auto text-slate-300 dark:text-slate-600 mb-4" />
-                                <h3 className="text-2xl font-black text-slate-800 dark:text-slate-100 tracking-tighter">Nenhum resultado</h3>
-                                <p className="text-slate-400 dark:text-slate-400 font-medium">Tente uma busca diferente ou selecione outra categoria.</p>
+                                <h3 className="text-2xl font-black text-slate-800 dark:text-slate-100 tracking-tighter">{t('store.noResultsTitle', 'Nenhum resultado')}</h3>
+                                <p className="text-slate-400 dark:text-slate-400 font-medium">{t('store.noResultsDesc', 'Tente uma busca diferente ou selecione outra categoria.')}</p>
                             </div>
                         ) : (
                             <div className={storeSettings.layoutType === 'LIST' ? 'space-y-4' : 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8'}>
@@ -1334,15 +1339,15 @@ export const Catalog = () => {
                                                         <span className="text-[10px] font-black uppercase text-blue-600 dark:text-blue-400 tracking-widest">{product.category}</span>
                                                         <h3 className="font-bold text-slate-800 dark:text-white text-lg leading-tight">{product.name}</h3>
                                                         <div className="flex items-center gap-4 mt-1">
-                                                             <span className="text-xs font-bold text-slate-400 dark:text-slate-400">A partir de</span>
+                                                             <span className="text-xs font-bold text-slate-400 dark:text-slate-400">{t('store.startingFrom', 'A partir de')}</span>
                                                              {isPriceVisible ? (
                                                                  <>
                                                                     <span className={`font-black ${isCustom ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-400'}`}>R$ {price.toFixed(2)}</span>
-                                                                    {isCustom && <span className="bg-green-50 dark:bg-green-950/60 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-800 text-[8px] font-black px-2 py-0.5 rounded tracking-widest">EXCLUSIVO</span>}
+                                                                    {isCustom && <span className="bg-green-50 dark:bg-green-950/60 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-800 text-[8px] font-black px-2 py-0.5 rounded tracking-widest">{t('store.exclusive', 'EXCLUSIVO')}</span>}
                                                                  </>
                                                              ) : (
-                                                                 <button onClick={(e) => { e.stopPropagation(); navigate(`/login?redirect=${encodeURIComponent(location.pathname + location.search)}`); }} className="flex items-center gap-1.5 text-xs font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 px-2.5 py-0.5 border border-amber-100/50 dark:border-amber-800/50 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors">
-                                                                    <Lock size={12} /> Faça login para ver valores
+                                                                 <button onClick={(e) => { e.stopPropagation(); navigate(`/login?redirect=${encodeURIComponent(location.pathname + location.search)}`); }} className="flex items-center gap-1.5 text-xs font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 px-2.5 py-0.5 border border-amber-100/50 dark:border-amber-800/50 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors cursor-pointer">
+                                                                    <Lock size={12} /> {t('store.loginToSeePrices', 'Faça login para ver valores')}
                                                                  </button>
                                                              )}
                                                         </div>
@@ -1351,17 +1356,17 @@ export const Catalog = () => {
                                                 <div className="flex items-center gap-2">
                                                     <button 
                                                         onClick={() => handleShareProduct(product.id)}
-                                                        className={`p-3 rounded-xl border transition-all ${copiedServiceId === product.id ? 'bg-green-50 dark:bg-green-950/60 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800' : 'bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 border-slate-100 dark:border-slate-700'}`}
-                                                        title="Compartilhar serviço"
+                                                        className={`p-3 rounded-xl border transition-all cursor-pointer ${copiedServiceId === product.id ? 'bg-green-50 dark:bg-green-950/60 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800' : 'bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 border-slate-100 dark:border-slate-700'}`}
+                                                        title={t('store.shareProduct', 'Compartilhar serviço')}
                                                     >
                                                         {copiedServiceId === product.id ? (
-                                                            <span className="text-[10px] font-black uppercase tracking-wider px-1">Copiado!</span>
+                                                            <span className="text-[10px] font-black uppercase tracking-wider px-1">{t('store.copied', 'Copiado!')}</span>
                                                         ) : (
                                                             <Share2 size={16} />
                                                         )}
                                                     </button>
-                                                    <button onClick={() => handleConfigureProduct(product)} className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs rounded-xl shadow-lg shadow-blue-100 dark:shadow-none active:scale-95 transition-all">
-                                                        CONFIGURAR
+                                                    <button onClick={() => handleConfigureProduct(product)} className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs rounded-xl shadow-lg shadow-blue-100 dark:shadow-none active:scale-95 transition-all cursor-pointer">
+                                                        {t('store.configureBtn', 'CONFIGURAR')}
                                                     </button>
                                                 </div>
                                             </div>
@@ -1375,7 +1380,7 @@ export const Catalog = () => {
                                                 ) : (
                                                     <Package size={80} className="relative z-10 text-slate-300 dark:text-slate-600 group-hover:text-blue-400 dark:group-hover:text-blue-400 transition-colors duration-300" />
                                                 )}
-                                                {isCustom && (<div className="absolute top-4 right-4 bg-green-500 text-white text-[10px] font-black px-3 py-1 rounded-full flex items-center gap-1 shadow-xl z-20"><BadgePercent size={12} /> SPECIAL PRICE</div>)}
+                                                {isCustom && (<div className="absolute top-4 right-4 bg-green-500 text-white text-[10px] font-black px-3 py-1 rounded-full flex items-center gap-1 shadow-xl z-20"><BadgePercent size={12} /> {t('store.specialPrice', 'SPECIAL PRICE')}</div>)}
                                                 <div className="absolute bottom-4 left-4 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md px-4 py-1.5 rounded-full text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-widest z-20 border border-slate-200/80 dark:border-slate-700/80 shadow-xs">{product.category}</div>
                                                 <div className="absolute inset-0 bg-blue-900/0 group-hover:bg-blue-900/10 dark:group-hover:bg-blue-500/10 transition-colors duration-300 pointer-events-none" />
                                             </div>
@@ -1386,7 +1391,7 @@ export const Catalog = () => {
                                                 <div className="pt-6 border-t border-slate-100 dark:border-slate-800/80">
                                                     <div className="flex justify-between items-end mb-6">
                                                         <div className="flex flex-col">
-                                                            <span className="text-[10px] text-slate-400 dark:text-slate-400 font-black uppercase tracking-widest mb-1">{isCustom ? 'Sua Oferta' : 'Investimento'}</span>
+                                                            <span className="text-[10px] text-slate-400 dark:text-slate-400 font-black uppercase tracking-widest mb-1">{isCustom ? t('store.yourOffer', 'Sua Oferta') : t('store.investment', 'Investimento')}</span>
                                                             <div className="flex items-baseline gap-2">
                                                                 {isPriceVisible ? (
                                                                     <>
@@ -1394,8 +1399,8 @@ export const Catalog = () => {
                                                                         {isCustom && <span className="text-[10px] text-slate-400 line-through">R$ {product.basePrice.toFixed(2)}</span>}
                                                                     </>
                                                                 ) : (
-                                                                    <button onClick={(e) => { e.stopPropagation(); navigate(`/login?redirect=${encodeURIComponent(location.pathname + location.search)}`); }} className="flex items-center gap-1.5 text-xs font-black text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 px-3 py-1.5 border border-amber-100/50 dark:border-amber-800/50 rounded-xl leading-tight hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors">
-                                                                        <Lock size={14} /> Registrar para ver preço
+                                                                    <button onClick={(e) => { e.stopPropagation(); navigate(`/login?redirect=${encodeURIComponent(location.pathname + location.search)}`); }} className="flex items-center gap-1.5 text-xs font-black text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 px-3 py-1.5 border border-amber-100/50 dark:border-amber-800/50 rounded-xl leading-tight hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors cursor-pointer">
+                                                                        <Lock size={14} /> {t('store.registerToSeePrice', 'Registrar para ver preço')}
                                                                     </button>
                                                                 )}
                                                             </div>
@@ -1403,16 +1408,16 @@ export const Catalog = () => {
                                                         <div className="flex items-center gap-2">
                                                             <button 
                                                                 onClick={() => handleShareProduct(product.id)}
-                                                                className={`w-12 h-12 rounded-2xl border flex items-center justify-center transition-all ${copiedServiceId === product.id ? 'bg-green-50 dark:bg-green-950/60 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
-                                                                title="Compartilhar serviço"
+                                                                className={`w-12 h-12 rounded-2xl border flex items-center justify-center transition-all cursor-pointer ${copiedServiceId === product.id ? 'bg-green-50 dark:bg-green-950/60 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
+                                                                title={t('store.shareProduct', 'Compartilhar serviço')}
                                                             >
                                                                 {copiedServiceId === product.id ? (
-                                                                    <span className="text-[9px] font-black uppercase tracking-widest text-center leading-tight">Copiado!</span>
+                                                                    <span className="text-[9px] font-black uppercase tracking-widest text-center leading-tight">{t('store.copied', 'Copiado!')}</span>
                                                                 ) : (
                                                                     <Share2 size={18} />
                                                                 )}
                                                             </button>
-                                                            <button onClick={() => handleConfigureProduct(product)} className="w-12 h-12 bg-slate-900 dark:bg-blue-600 text-white rounded-2xl flex items-center justify-center hover:bg-blue-600 dark:hover:bg-blue-500 transition-all active:scale-90 shadow-xl shadow-slate-200 dark:shadow-none group-hover:shadow-blue-200 dark:group-hover:shadow-none">
+                                                            <button onClick={() => handleConfigureProduct(product)} className="w-12 h-12 bg-slate-900 dark:bg-blue-600 text-white rounded-2xl flex items-center justify-center hover:bg-blue-600 dark:hover:bg-blue-500 transition-all active:scale-90 shadow-xl shadow-slate-200 dark:shadow-none group-hover:shadow-blue-200 dark:group-hover:shadow-none cursor-pointer">
                                                                 <Plus size={24} />
                                                             </button>
                                                         </div>
@@ -1435,7 +1440,7 @@ export const Catalog = () => {
                                 return (
                                 <div key={promo.id} className="bg-white dark:bg-[#131B2A] rounded-2xl border border-yellow-200 dark:border-yellow-700/60 overflow-hidden shadow-sm hover:shadow-xl transition-all group flex flex-col relative">
                                     <div className="absolute top-4 left-4 bg-yellow-400 text-yellow-900 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider z-10 shadow-sm flex items-center gap-1">
-                                        <Tag size={12} /> PROMOÇÃO
+                                        <Tag size={12} /> {t('store.promoBadge', 'PROMOÇÃO')}
                                     </div>
                                     <div className="h-48 bg-slate-100 dark:bg-[#0E1626] relative overflow-hidden">
                                         {promo.imageUrl ? (
@@ -1450,7 +1455,7 @@ export const Catalog = () => {
                                             <h3 className="font-bold text-lg leading-tight mb-1">{promo.name}</h3>
                                             <span className="text-xs bg-white/20 backdrop-blur-md px-2 py-1 rounded-full font-medium">{promo.category}</span>
                                             {promo.isVoucherCombo && (
-                                                <span className="text-xs bg-blue-500/80 backdrop-blur-md px-2 py-1 rounded-full font-medium ml-2 border border-blue-400">Pacote de Vouchers</span>
+                                                <span className="text-xs bg-blue-500/80 backdrop-blur-md px-2 py-1 rounded-full font-medium ml-2 border border-blue-400">{t('store.voucherPackage', 'Pacote de Vouchers')}</span>
                                             )}
                                         </div>
                                     </div>
@@ -1461,15 +1466,15 @@ export const Catalog = () => {
                                         {originalProduct && promo.promotionQuantity && (
                                             <div className="text-xs text-slate-500 dark:text-slate-400 mb-4 bg-slate-50 dark:bg-[#0E1626] p-3 rounded-xl border border-slate-100 dark:border-slate-800">
                                                 <div className="flex justify-between items-center mb-1">
-                                                    <span>Produto:</span>
+                                                    <span>{t('store.product', 'Produto:')}</span>
                                                     <span className="font-bold text-slate-700 dark:text-slate-200">{originalProduct.name}</span>
                                                 </div>
                                                 <div className="flex justify-between items-center mb-1">
-                                                    <span>Quantidade do pacote:</span>
+                                                    <span>{t('store.packageQuantity', 'Quantidade do pacote:')}</span>
                                                     <span className="font-bold text-slate-700 dark:text-slate-200">{promo.promotionQuantity} un.</span>
                                                 </div>
                                                 <div className="flex justify-between items-center text-red-400 line-through">
-                                                    <span>Preço original total:</span>
+                                                    <span>{t('store.originalTotalPrice', 'Preço original total:')}</span>
                                                     <span>{(originalProduct.basePrice * promo.promotionQuantity).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                                                 </div>
                                             </div>
@@ -1477,7 +1482,7 @@ export const Catalog = () => {
                                         
                                         <div className="mt-auto pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
                                             <div>
-                                                <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider font-bold mb-0.5">Por apenas</p>
+                                                <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider font-bold mb-0.5">{t('store.forOnly', 'Por apenas')}</p>
                                                 <p className="text-xl font-black text-blue-600 dark:text-blue-400">{promo.basePrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
                                             </div>
                                             <div className="flex items-center gap-2">
@@ -1486,11 +1491,11 @@ export const Catalog = () => {
                                                         e.stopPropagation();
                                                         handleShareProduct(promo.id);
                                                     }}
-                                                    className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all ${copiedServiceId === promo.id ? 'bg-green-50 dark:bg-green-950/60 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800' : 'bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 border-slate-200 dark:border-slate-700'}`}
-                                                    title="Compartilhar promoção"
+                                                    className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all cursor-pointer ${copiedServiceId === promo.id ? 'bg-green-50 dark:bg-green-950/60 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800' : 'bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 border-slate-200 dark:border-slate-700'}`}
+                                                    title={t('store.sharePromotion', 'Compartilhar promoção')}
                                                 >
                                                     {copiedServiceId === promo.id ? (
-                                                        <span className="text-[8px] font-black uppercase tracking-widest text-center leading-tight">Copiado!</span>
+                                                        <span className="text-[8px] font-black uppercase tracking-widest text-center leading-tight">{t('store.copied', 'Copiado!')}</span>
                                                     ) : (
                                                         <Share2 size={16} />
                                                     )}
@@ -1500,7 +1505,7 @@ export const Catalog = () => {
                                                         e.stopPropagation();
                                                         setConfiguringProduct(promo);
                                                     }}
-                                                    className="bg-yellow-400 hover:bg-yellow-500 text-yellow-900 w-10 h-10 rounded-full flex items-center justify-center transition-colors shadow-sm"
+                                                    className="bg-yellow-400 hover:bg-yellow-500 text-yellow-900 w-10 h-10 rounded-full flex items-center justify-center transition-colors shadow-sm cursor-pointer"
                                                 >
                                                     <ShoppingCart size={20} />
                                                 </button>
@@ -1512,7 +1517,7 @@ export const Catalog = () => {
                             {visiblePromos.length === 0 && (
                                 <div className="col-span-full py-12 flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 bg-white dark:bg-[#131B2A] rounded-2xl border border-slate-200 dark:border-slate-800 border-dashed">
                                     <Tag size={48} className="mb-4 text-slate-300 dark:text-slate-600" />
-                                    <p className="font-medium text-lg text-slate-500 dark:text-slate-400">Nenhuma promoção ativa no momento.</p>
+                                    <p className="font-medium text-lg text-slate-500 dark:text-slate-400">{t('store.noPromotionsActive', 'Nenhuma promoção ativa no momento.')}</p>
                                 </div>
                             )}
                         </div>
@@ -1541,7 +1546,7 @@ export const Catalog = () => {
                         {/* Location Details */}
                         <div className="bg-white dark:bg-[#131B2A] p-4 sm:p-6 md:p-4 sm:p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm space-y-6">
                             <h3 className="text-xl font-black text-slate-800 dark:text-white flex items-center gap-2">
-                                <MapPin className="text-blue-600 dark:text-blue-400" size={24} /> Localização & Endereço
+                                <MapPin className="text-blue-600 dark:text-blue-400" size={24} /> {t('store.locationAddress', 'Localização & Endereço')}
                             </h3>
                             
                             <div className="space-y-4 font-medium text-slate-600 dark:text-slate-300">
@@ -1551,7 +1556,7 @@ export const Catalog = () => {
                                             <MapPin size={22} />
                                         </div>
                                         <div>
-                                            <p className="text-sm font-bold text-slate-800 dark:text-white mb-1">Endereço Principal</p>
+                                            <p className="text-sm font-bold text-slate-800 dark:text-white mb-1">{t('store.mainAddress', 'Endereço Principal')}</p>
                                             <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
                                                 {selectedLab.address}, {selectedLab.number}
                                                 {selectedLab.complement && ` - ${selectedLab.complement}`}
@@ -1565,7 +1570,7 @@ export const Catalog = () => {
                                     </div>
                                 ) : (
                                     <div className="text-center py-12 text-slate-400 dark:text-slate-500 italic bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700">
-                                        Endereço não informado pelo laboratório.
+                                        {t('store.addressNotProvided', 'Endereço não informado pelo laboratório.')}
                                     </div>
                                 )}
                             </div>
@@ -1574,7 +1579,7 @@ export const Catalog = () => {
                         {/* Contacts & General Info */}
                         <div className="bg-white dark:bg-[#131B2A] p-4 sm:p-6 md:p-4 sm:p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm space-y-6">
                             <h3 className="text-xl font-black text-slate-800 dark:text-white flex items-center gap-2">
-                                <Info className="text-teal-600 dark:text-teal-400" size={24} /> Contato & Responsável
+                                <Info className="text-teal-600 dark:text-teal-400" size={24} /> {t('store.contactAndResponsible', 'Contato & Responsável')}
                             </h3>
 
                             <div className="space-y-6">
@@ -1586,7 +1591,7 @@ export const Catalog = () => {
                                                 <div className="flex items-center gap-4">
                                                     <span className="p-3 bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-300 rounded-2xl text-xl">📞</span>
                                                     <div>
-                                                        <p className="text-xs text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">Telefone</p>
+                                                        <p className="text-xs text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">{t('store.phone', 'Telefone')}</p>
                                                         <p className="text-base font-black text-slate-800 dark:text-white">{selectedLab.phone}</p>
                                                     </div>
                                                 </div>
@@ -1595,7 +1600,7 @@ export const Catalog = () => {
                                                 <div className="flex items-center gap-4">
                                                     <span className="p-3 bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-300 rounded-2xl text-xl">📧</span>
                                                     <div>
-                                                        <p className="text-xs text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">E-mail Comercial</p>
+                                                        <p className="text-xs text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">{t('store.commercialEmail', 'E-mail Comercial')}</p>
                                                         <p className="text-base font-black text-slate-800 dark:text-white select-all">{selectedLab.email}</p>
                                                     </div>
                                                 </div>
@@ -1603,18 +1608,18 @@ export const Catalog = () => {
                                         </>
                                     ) : (
                                         <div className="text-center py-6 text-slate-400 dark:text-slate-500 italic bg-slate-50 dark:bg-slate-800/50 rounded-2xl">
-                                            Contatos comerciais não preenchidos.
+                                            {t('store.commercialContactsEmpty', 'Contatos comerciais não preenchidos.')}
                                         </div>
                                     )}
                                 </div>
 
                                 {/* Technical Responsible */}
                                 <div className="pt-6 border-t border-slate-100 dark:border-slate-800 space-y-3">
-                                    <h4 className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Responsabilidade Técnica</h4>
+                                    <h4 className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t('store.technicalResponsibility', 'Responsabilidade Técnica')}</h4>
                                     
                                     <div className="bg-slate-50 dark:bg-[#0E1626] p-5 rounded-[24px] border border-slate-100 dark:border-slate-800 space-y-3">
                                         <p className="text-base font-bold text-slate-800 dark:text-white">
-                                            {selectedLab.financialSettings?.techResponsibleName || 'Não Informado'}
+                                            {selectedLab.financialSettings?.techResponsibleName || t('store.notInformed', 'Não Informado')}
                                         </p>
                                         <div className="flex flex-wrap gap-x-6 gap-y-2 text-xs text-slate-500 dark:text-slate-400 font-medium">
                                             {selectedLab.croNumero && (

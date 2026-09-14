@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useApp } from '../../context/AppContext';
 import { SupplierOrder, ProductReview } from '../../types';
 import { 
@@ -16,11 +17,12 @@ import {
   AlertTriangle, RotateCcw
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { ptBR, enUS, es } from 'date-fns/locale';
 import { OrderCancelReturnModal } from './components/OrderCancelReturnModal';
 import { SupplierStoreChatModal } from './components/SupplierStoreChatModal';
 
 export function MyOrdersTab() {
+  const { t, i18n } = useTranslation();
   const { currentOrg } = useApp();
   const [orders, setOrders] = useState<SupplierOrder[]>([]);
   const [filterTab, setFilterTab] = useState<'PAID' | 'PENDING' | 'ALL'>('PAID');
@@ -34,6 +36,12 @@ export function MyOrdersTab() {
   const [orderForReturnModal, setOrderForReturnModal] = useState<SupplierOrder | null>(null);
   const [chatModalOpen, setChatModalOpen] = useState(false);
   const [chatSupplierInfo, setChatSupplierInfo] = useState<{ id?: string; name?: string; orderId?: string }>({});
+
+  const getDateLocale = () => {
+    if (i18n.language?.startsWith('en')) return enUS;
+    if (i18n.language?.startsWith('es')) return es;
+    return ptBR;
+  };
 
   useEffect(() => {
     if (!currentOrg) return;
@@ -90,12 +98,12 @@ export function MyOrdersTab() {
     try {
       const res = await apiCheckSupplierOrderPayment(orderId);
       if (res.paid) {
-        setStatusMessage('Pagamento confirmado com sucesso! Seu pedido agora está em separação.');
+        setStatusMessage(t('store.paymentConfirmedSuccess', 'Pagamento confirmado com sucesso! Seu pedido agora está em separação.'));
       } else {
-        setStatusMessage('Pagamento ainda não foi identificado pelo Asaas. Aguarde alguns instantes ou conclua a transação.');
+        setStatusMessage(t('store.paymentNotIdentified', 'Pagamento ainda não foi identificado pelo Asaas. Aguarde alguns instantes ou conclua a transação.'));
       }
     } catch (e: any) {
-      setStatusMessage('Erro ao consultar status no Asaas. Tente novamente.');
+      setStatusMessage(t('store.errorCheckingPayment', 'Erro ao consultar status no Asaas. Tente novamente.'));
     } finally {
       setIsCheckingPayment(null);
     }
@@ -113,26 +121,26 @@ export function MyOrdersTab() {
     switch (status) {
       case 'DELIVERED':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-            <CheckCircle2 size={13} /> Entregue
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+            <CheckCircle2 size={13} /> {t('store.deliveredStatus', 'Entregue')}
           </span>
         );
       case 'SHIPPED':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
-            <Truck size={13} /> Enviado / Em Trânsito
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+            <Truck size={13} /> {t('store.shippedStatus', 'Enviado / Em Trânsito')}
           </span>
         );
       case 'PROCESSING':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
-            <Package size={13} /> Em Separação
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+            <Package size={13} /> {t('store.processingStatus', 'Em Separação')}
           </span>
         );
       default:
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-zinc-100 text-zinc-700 border border-zinc-200">
-            <Clock size={13} /> Aguardando Envio
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-zinc-100 dark:bg-slate-800 text-zinc-700 dark:text-slate-300 border border-zinc-200 dark:border-slate-700">
+            <Clock size={13} /> {t('store.awaitingDispatch', 'Aguardando Envio')}
           </span>
         );
     }
@@ -141,21 +149,21 @@ export function MyOrdersTab() {
   const getPaymentStatusBadge = (order: SupplierOrder) => {
     if (order.paymentStatus === 'PAID' || (order.status && order.status !== 'PENDING' && order.status !== 'CANCELLED')) {
       return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-          <CheckCircle2 size={13} /> Pago
+        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+          <CheckCircle2 size={13} /> {t('store.paidStatus', 'Pago')}
         </span>
       );
     }
     if (order.status === 'CANCELLED' || order.paymentStatus === 'FAILED') {
       return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200">
-          <AlertCircle size={13} /> Cancelado
+        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
+          <AlertCircle size={13} /> {t('store.cancelledStatus', 'Cancelado')}
         </span>
       );
     }
     return (
-      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-50 text-amber-800 border border-amber-300 animate-pulse">
-        <Clock size={13} /> Aguardando Pagamento
+      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-50 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800 animate-pulse">
+        <Clock size={13} /> {t('store.awaitingPayment', 'Aguardando Pagamento')}
       </span>
     );
   };
@@ -166,9 +174,9 @@ export function MyOrdersTab() {
       <div className="bg-white dark:bg-[#131B2A] rounded-3xl border border-zinc-200/80 dark:border-slate-800 p-6 sm:p-8 space-y-6 shadow-xs transition-colors">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h2 className="text-2xl font-black text-zinc-950 dark:text-slate-100 tracking-tight">Meus Pedidos</h2>
+            <h2 className="text-2xl font-black text-zinc-950 dark:text-slate-100 tracking-tight">{t('store.myOrders', 'Meus Pedidos')}</h2>
             <p className="text-xs text-zinc-500 dark:text-slate-400 font-medium mt-1">
-              Acompanhe pedidos confirmados, notas, detalhes dos itens e códigos de rastreamento de entrega.
+              {t('store.myOrdersSubtitle', 'Acompanhe pedidos confirmados, notas, detalhes dos itens e códigos de rastreamento de entrega.')}
             </p>
           </div>
 
@@ -177,7 +185,7 @@ export function MyOrdersTab() {
             <Search className="absolute left-3.5 top-3 text-zinc-400 dark:text-slate-400" size={15} />
             <input
               type="text"
-              placeholder="Buscar por código, produto ou fornecedor..."
+              placeholder={t('store.searchOrdersPlaceholder', 'Buscar por código, produto ou fornecedor...')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-zinc-50 dark:bg-slate-800/80 border border-zinc-200 dark:border-slate-700 rounded-2xl pl-10 pr-4 py-2.5 text-xs text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-slate-400 outline-none focus:border-zinc-900 dark:focus:border-blue-500 focus:bg-white dark:focus:bg-slate-800 transition-all font-medium"
@@ -190,13 +198,13 @@ export function MyOrdersTab() {
           <button
             type="button"
             onClick={() => setFilterTab('PAID')}
-            className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 ${
+            className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 cursor-pointer ${
               filterTab === 'PAID'
                 ? 'bg-zinc-950 dark:bg-blue-600 text-white shadow-xs'
                 : 'bg-zinc-100 dark:bg-slate-800 text-zinc-600 dark:text-slate-300 hover:bg-zinc-200/70 dark:hover:bg-slate-700'
             }`}
           >
-            <span>Confirmados & Pagos</span>
+            <span>{t('store.confirmedAndPaid', 'Confirmados & Pagos')}</span>
             <span className={`px-2 py-0.5 rounded-md text-[10px] font-mono ${filterTab === 'PAID' ? 'bg-zinc-800 dark:bg-blue-700 text-white' : 'bg-zinc-200 dark:bg-slate-700 text-zinc-700 dark:text-slate-300'}`}>
               {paidCount}
             </span>
@@ -205,13 +213,13 @@ export function MyOrdersTab() {
           <button
             type="button"
             onClick={() => setFilterTab('PENDING')}
-            className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 ${
+            className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 cursor-pointer ${
               filterTab === 'PENDING'
                 ? 'bg-amber-600 text-white shadow-xs'
                 : 'bg-zinc-100 dark:bg-slate-800 text-zinc-600 dark:text-slate-300 hover:bg-zinc-200/70 dark:hover:bg-slate-700'
             }`}
           >
-            <span>Aguardando Pagamento</span>
+            <span>{t('store.awaitingPayment', 'Aguardando Pagamento')}</span>
             {pendingCount > 0 && (
               <span className={`px-2 py-0.5 rounded-md text-[10px] font-mono ${filterTab === 'PENDING' ? 'bg-amber-700 text-white' : 'bg-amber-200 dark:bg-amber-950 text-amber-900 dark:text-amber-300'}`}>
                 {pendingCount}
@@ -222,13 +230,13 @@ export function MyOrdersTab() {
           <button
             type="button"
             onClick={() => setFilterTab('ALL')}
-            className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 ${
+            className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 cursor-pointer ${
               filterTab === 'ALL'
                 ? 'bg-zinc-950 dark:bg-blue-600 text-white shadow-xs'
                 : 'bg-zinc-100 dark:bg-slate-800 text-zinc-600 dark:text-slate-300 hover:bg-zinc-200/70 dark:hover:bg-slate-700'
             }`}
           >
-            <span>Todos os Pedidos</span>
+            <span>{t('store.allOrders', 'Todos os Pedidos')}</span>
             <span className={`px-2 py-0.5 rounded-md text-[10px] font-mono ${filterTab === 'ALL' ? 'bg-zinc-800 dark:bg-blue-700 text-white' : 'bg-zinc-200 dark:bg-slate-700 text-zinc-700 dark:text-slate-300'}`}>
               {orders.length}
             </span>
@@ -239,7 +247,7 @@ export function MyOrdersTab() {
       {statusMessage && (
         <div className="p-4 bg-zinc-900 dark:bg-slate-800 text-white text-xs font-medium rounded-2xl flex items-center justify-between gap-3 shadow-md animate-in fade-in">
           <span>{statusMessage}</span>
-          <button type="button" onClick={() => setStatusMessage(null)} className="text-zinc-400 hover:text-white">
+          <button type="button" onClick={() => setStatusMessage(null)} className="text-zinc-400 hover:text-white cursor-pointer">
             <X size={16} />
           </button>
         </div>
@@ -253,14 +261,14 @@ export function MyOrdersTab() {
           </div>
           <div className="space-y-1">
             <h3 className="font-extrabold text-base text-zinc-900 dark:text-slate-100">
-              Nenhum pedido encontrado
+              {t('store.noOrdersFound', 'Nenhum pedido encontrado')}
             </h3>
             <p className="text-xs text-zinc-500 dark:text-slate-400 max-w-md mx-auto">
               {filterTab === 'PAID'
-                ? 'Você ainda não possui compras com pagamento confirmado. Quando o pagamento for concluído na loja de fornecedores, seu pedido aparecerá aqui automaticamente.'
+                ? t('store.noPaidOrdersDesc', 'Você ainda não possui compras com pagamento confirmado. Quando o pagamento for concluído na loja de fornecedores, seu pedido aparecerá aqui automaticamente.')
                 : filterTab === 'PENDING'
-                ? 'Nenhum pedido pendente de pagamento no momento.'
-                : 'Nenhum pedido registrado no sistema.'}
+                ? t('store.noPendingOrdersDesc', 'Nenhum pedido pendente de pagamento no momento.')
+                : t('store.noOrdersRegistered', 'Nenhum pedido registrado no sistema.')}
             </p>
           </div>
         </div>
@@ -284,13 +292,13 @@ export function MyOrdersTab() {
                       </span>
                       <span className="text-xs text-zinc-400 dark:text-slate-500">•</span>
                       <span className="text-xs text-zinc-600 dark:text-slate-400 font-medium">
-                        {order.createdAt ? format(new Date(order.createdAt), "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: ptBR }) : 'Data indisponível'}
+                        {order.createdAt ? format(new Date(order.createdAt), "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: getDateLocale() }) : t('store.dateUnavailable', 'Data indisponível')}
                       </span>
                     </div>
 
                     <div className="flex items-center gap-1.5 text-xs text-zinc-900 dark:text-slate-100 font-bold">
                       <Building2 size={14} className="text-zinc-400 dark:text-slate-400" />
-                      <span>Fornecedor: {order.supplierName}</span>
+                      <span>{t('store.supplierLabel', 'Fornecedor:')} {order.supplierName}</span>
                     </div>
                   </div>
 
@@ -304,7 +312,7 @@ export function MyOrdersTab() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
                   <div className="md:col-span-2 space-y-2">
                     <p className="text-[11px] font-bold text-zinc-400 dark:text-slate-400 uppercase tracking-wider">
-                      Itens do Pedido ({totalItemsCount} {totalItemsCount === 1 ? 'item' : 'itens'})
+                      {t('store.orderItems', 'Itens do Pedido')} ({totalItemsCount} {totalItemsCount === 1 ? t('store.itemSingle', 'item') : t('store.itemsPlural', 'itens')})
                     </p>
                     <div className="flex flex-wrap gap-2">
                       {order.items.slice(0, 3).map((item, idx) => (
@@ -321,7 +329,7 @@ export function MyOrdersTab() {
                       ))}
                       {order.items.length > 3 && (
                         <span className="text-xs text-zinc-500 dark:text-slate-400 font-medium self-center">
-                          +{order.items.length - 3} mais
+                          +{order.items.length - 3} {t('store.more', 'mais')}
                         </span>
                       )}
                     </div>
@@ -330,7 +338,7 @@ export function MyOrdersTab() {
                   {/* Pricing and Action */}
                   <div className="flex flex-col sm:flex-row md:flex-col items-start md:items-end justify-between gap-3 pt-3 md:pt-0 border-t md:border-t-0 border-zinc-100 dark:border-slate-800">
                     <div className="text-left md:text-right">
-                      <span className="text-[11px] font-medium text-zinc-500 dark:text-slate-400 block">Valor Total</span>
+                      <span className="text-[11px] font-medium text-zinc-500 dark:text-slate-400 block">{t('store.totalValue', 'Valor Total')}</span>
                       <span className="text-lg font-black font-mono text-zinc-950 dark:text-white">
                         R$ {order.totalValue.toFixed(2)}
                       </span>
@@ -339,9 +347,9 @@ export function MyOrdersTab() {
                     <button
                       type="button"
                       onClick={() => setSelectedOrder(order)}
-                      className="w-full sm:w-auto px-4 py-2.5 bg-zinc-950 hover:bg-zinc-800 dark:bg-blue-600 dark:hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-all shadow-xs flex items-center justify-center gap-2"
+                      className="w-full sm:w-auto px-4 py-2.5 bg-zinc-950 hover:bg-zinc-800 dark:bg-blue-600 dark:hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer"
                     >
-                      <span>Ver Detalhes da Compra</span>
+                      <span>{t('store.viewPurchaseDetails', 'Ver Detalhes da Compra')}</span>
                       <ChevronRight size={14} />
                     </button>
                   </div>
@@ -362,14 +370,14 @@ export function MyOrdersTab() {
                       <RotateCcw size={15} className="shrink-0" />
                       <div>
                         <span className="font-extrabold block">
-                          {order.returnRequest.type === 'CANCEL' ? 'Solicitação de Cancelamento: ' : 'Solicitação de Devolução/Troca: '}
-                          {order.returnRequest.status === 'PENDING' && 'Em Análise pelo Fornecedor'}
-                          {order.returnRequest.status === 'APPROVED' && 'Aprovada (Aguardando Logística Reversa)'}
-                          {order.returnRequest.status === 'POSTED_BY_BUYER' && 'Produto em Devolução (Postado)'}
-                          {order.returnRequest.status === 'RECEIVED_BY_SUPPLIER' && 'Recebido pelo Fornecedor'}
-                          {order.returnRequest.status === 'REFUNDED' && 'Estorno / Reembolso Concluído'}
-                          {order.returnRequest.status === 'EXCHANGED' && 'Troca Concluída'}
-                          {order.returnRequest.status === 'REJECTED' && 'Recusada pelo Fornecedor'}
+                          {order.returnRequest.type === 'CANCEL' ? t('store.cancelRequestLabel', 'Solicitação de Cancelamento: ') : t('store.returnRequestLabel', 'Solicitação de Devolução/Troca: ')}
+                          {order.returnRequest.status === 'PENDING' && t('store.returnUnderReview', 'Em Análise pelo Fornecedor')}
+                          {order.returnRequest.status === 'APPROVED' && t('store.returnApprovedLogistics', 'Aprovada (Aguardando Logística Reversa)')}
+                          {order.returnRequest.status === 'POSTED_BY_BUYER' && t('store.returnPosted', 'Produto em Devolução (Postado)')}
+                          {order.returnRequest.status === 'RECEIVED_BY_SUPPLIER' && t('store.returnReceived', 'Recebido pelo Fornecedor')}
+                          {order.returnRequest.status === 'REFUNDED' && t('store.returnRefunded', 'Estorno / Reembolso Concluído')}
+                          {order.returnRequest.status === 'EXCHANGED' && t('store.returnExchanged', 'Troca Concluída')}
+                          {order.returnRequest.status === 'REJECTED' && t('store.returnRejected', 'Recusada pelo Fornecedor')}
                         </span>
                         <span className="text-[11px] opacity-80">{order.returnRequest.reasonLabel}</span>
                       </div>
@@ -378,9 +386,9 @@ export function MyOrdersTab() {
                     <button
                       type="button"
                       onClick={() => setOrderForReturnModal(order)}
-                      className="px-3 py-1.5 bg-white/90 dark:bg-slate-800 hover:bg-white dark:hover:bg-slate-700 text-zinc-900 dark:text-white rounded-xl text-[11px] font-bold shadow-xs shrink-0 transition-all border border-zinc-200 dark:border-slate-700"
+                      className="px-3 py-1.5 bg-white/90 dark:bg-slate-800 hover:bg-white dark:hover:bg-slate-700 text-zinc-900 dark:text-white rounded-xl text-[11px] font-bold shadow-xs shrink-0 transition-all border border-zinc-200 dark:border-slate-700 cursor-pointer"
                     >
-                      Ver Detalhes
+                      {t('store.viewDetails', 'Ver Detalhes')}
                     </button>
                   </div>
                 )}
@@ -390,16 +398,16 @@ export function MyOrdersTab() {
                   <div className="p-3 bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 rounded-2xl flex items-center justify-between text-xs text-blue-900 dark:text-blue-300 gap-2">
                     <div className="flex items-center gap-2">
                       <Truck size={15} className="text-blue-600 dark:text-blue-400" />
-                      <span>Rastreio Correios / Transportadora:</span>
+                      <span>{t('store.trackingCorreiosCarrier', 'Rastreio Correios / Transportadora:')}</span>
                       <span className="font-mono font-bold">{order.trackingCode}</span>
                     </div>
                     <button
                       type="button"
                       onClick={() => handleCopy(order.trackingCode!, order.id)}
-                      className="px-2.5 py-1 bg-white dark:bg-slate-800 hover:bg-blue-100/60 dark:hover:bg-slate-700 border border-blue-200 dark:border-slate-700 text-blue-800 dark:text-blue-300 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all"
+                      className="px-2.5 py-1 bg-white dark:bg-slate-800 hover:bg-blue-100/60 dark:hover:bg-slate-700 border border-blue-200 dark:border-slate-700 text-blue-800 dark:text-blue-300 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer"
                     >
                       {copiedTracking === order.id ? <Check size={12} /> : <Copy size={12} />}
-                      <span>{copiedTracking === order.id ? 'Copiado!' : 'Copiar'}</span>
+                      <span>{copiedTracking === order.id ? t('store.copied', 'Copiado!') : t('store.copy', 'Copiar')}</span>
                     </button>
                   </div>
                 )}
@@ -409,19 +417,19 @@ export function MyOrdersTab() {
                   <button
                     type="button"
                     onClick={() => handleOpenChat(order.supplierId, order.supplierName, order.id)}
-                    className="text-zinc-600 dark:text-slate-400 hover:text-zinc-950 dark:hover:text-white font-bold flex items-center gap-1.5 transition-colors py-1"
+                    className="text-zinc-600 dark:text-slate-400 hover:text-zinc-950 dark:hover:text-white font-bold flex items-center gap-1.5 transition-colors py-1 cursor-pointer"
                   >
                     <MessageSquare size={14} className="text-zinc-400 dark:text-slate-500" />
-                    <span>Chat com Fornecedor</span>
+                    <span>{t('store.chatWithSupplier', 'Chat com Fornecedor')}</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setOrderForReturnModal(order)}
-                    className="text-zinc-500 dark:text-slate-400 hover:text-zinc-800 dark:hover:text-slate-200 font-medium flex items-center gap-1 transition-colors py-1 text-[11px]"
+                    className="text-zinc-500 dark:text-slate-400 hover:text-zinc-800 dark:hover:text-slate-200 font-medium flex items-center gap-1 transition-colors py-1 text-[11px] cursor-pointer"
                   >
                     <RotateCcw size={12} />
-                    <span>{order.returnRequest ? 'Acompanhar Devolução' : 'Devolução / Cancelamento'}</span>
+                    <span>{order.returnRequest ? t('store.trackReturn', 'Acompanhar Devolução') : t('store.returnOrCancellation', 'Devolução / Cancelamento')}</span>
                   </button>
                 </div>
               </div>
@@ -450,7 +458,7 @@ export function MyOrdersTab() {
           order={orderForReturnModal}
           onClose={() => setOrderForReturnModal(null)}
           onSuccess={() => {
-            setStatusMessage('Solicitação registrada com sucesso! O fornecedor foi notificado.');
+            setStatusMessage(t('store.returnRequestSuccessMsg', 'Solicitação registrada com sucesso! O fornecedor foi notificado.'));
           }}
         />
       )}
@@ -488,6 +496,7 @@ function OrderDetailModal({
   onOpenChat,
   onOpenReturnModal
 }: OrderDetailModalProps) {
+  const { t } = useTranslation();
   const [reviews, setReviews] = useState<ProductReview[]>([]);
   const [reviewingItemId, setReviewingItemId] = useState<string | null>(null);
   const [copiedTracking, setCopiedTracking] = useState(false);
@@ -520,12 +529,12 @@ function OrderDetailModal({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="font-black text-base text-zinc-950 dark:text-slate-100">
-                  Pedido #{order.id.substring(0, 8).toUpperCase()}
+                  {t('store.orderNumberLabel', 'Pedido')} #{order.id.substring(0, 8).toUpperCase()}
                 </h3>
                 {getPaymentStatusBadge(order)}
               </div>
               <p className="text-xs text-zinc-500 dark:text-slate-400 font-medium">
-                Fornecedor: <strong>{order.supplierName}</strong> • {order.createdAt ? format(new Date(order.createdAt), "dd/MM/yyyy 'às' HH:mm") : ''}
+                {t('store.supplierLabel', 'Fornecedor:')} <strong>{order.supplierName}</strong> • {order.createdAt ? format(new Date(order.createdAt), "dd/MM/yyyy 'às' HH:mm") : ''}
               </p>
             </div>
           </div>
@@ -533,7 +542,7 @@ function OrderDetailModal({
           <button
             type="button"
             onClick={onClose}
-            className="p-2 text-zinc-400 dark:text-slate-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200/60 dark:hover:bg-slate-800 rounded-xl transition-all"
+            className="p-2 text-zinc-400 dark:text-slate-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200/60 dark:hover:bg-slate-800 rounded-xl transition-all cursor-pointer"
           >
             <X size={18} />
           </button>
@@ -556,29 +565,29 @@ function OrderDetailModal({
                 <div className="flex items-center gap-1.5 font-bold uppercase tracking-wider text-[10px]">
                   <RotateCcw size={13} />
                   <span>
-                    {order.returnRequest.type === 'CANCEL' ? 'Processo de Cancelamento' : 'Processo de Devolução / Troca'}
+                    {order.returnRequest.type === 'CANCEL' ? t('store.cancelProcess', 'Processo de Cancelamento') : t('store.returnProcess', 'Processo de Devolução / Troca')}
                   </span>
                 </div>
                 <h5 className="font-extrabold text-sm">
-                  {order.returnRequest.status === 'PENDING' && 'Solicitação em análise pelo fornecedor'}
-                  {order.returnRequest.status === 'APPROVED' && 'Solicitação Aprovada - Logística Reversa Liberada'}
-                  {order.returnRequest.status === 'POSTED_BY_BUYER' && 'Produto Postado (Aguardando Recebimento na Fábrica)'}
-                  {order.returnRequest.status === 'RECEIVED_BY_SUPPLIER' && 'Produto Recebido pelo Fornecedor'}
-                  {order.returnRequest.status === 'REFUNDED' && 'Estorno / Reembolso Concluído'}
-                  {order.returnRequest.status === 'EXCHANGED' && 'Troca Concluída'}
-                  {order.returnRequest.status === 'REJECTED' && 'Solicitação Recusada pelo Fornecedor'}
+                  {order.returnRequest.status === 'PENDING' && t('store.returnUnderReview', 'Solicitação em análise pelo fornecedor')}
+                  {order.returnRequest.status === 'APPROVED' && t('store.returnApprovedLogistics', 'Solicitação Aprovada - Logística Reversa Liberada')}
+                  {order.returnRequest.status === 'POSTED_BY_BUYER' && t('store.returnPostedBuyer', 'Produto Postado (Aguardando Recebimento na Fábrica)')}
+                  {order.returnRequest.status === 'RECEIVED_BY_SUPPLIER' && t('store.returnReceivedSupplier', 'Produto Recebido pelo Fornecedor')}
+                  {order.returnRequest.status === 'REFUNDED' && t('store.returnRefundedCompleted', 'Estorno / Reembolso Concluído')}
+                  {order.returnRequest.status === 'EXCHANGED' && t('store.returnExchangeCompleted', 'Troca Concluída')}
+                  {order.returnRequest.status === 'REJECTED' && t('store.returnRejectedSupplier', 'Solicitação Recusada pelo Fornecedor')}
                 </h5>
                 <p className="text-xs opacity-85">
-                  Motivo: <strong>{order.returnRequest.reasonLabel}</strong>
+                  {t('store.reasonLabel', 'Motivo:')} <strong>{order.returnRequest.reasonLabel}</strong>
                 </p>
               </div>
 
               <button
                 type="button"
                 onClick={() => onOpenReturnModal(order)}
-                className="px-4 py-2 bg-zinc-950 dark:bg-slate-800 hover:bg-zinc-800 dark:hover:bg-slate-700 text-white rounded-xl font-bold text-xs shadow-xs shrink-0 transition-all border border-transparent dark:border-slate-700"
+                className="px-4 py-2 bg-zinc-950 dark:bg-slate-800 hover:bg-zinc-800 dark:hover:bg-slate-700 text-white rounded-xl font-bold text-xs shadow-xs shrink-0 transition-all border border-transparent dark:border-slate-700 cursor-pointer"
               >
-                Ver Detalhes do Processo
+                {t('store.viewProcessDetails', 'Ver Detalhes do Processo')}
               </button>
             </div>
           )}
@@ -592,10 +601,10 @@ function OrderDetailModal({
                 </div>
                 <div className="flex-1">
                   <h4 className="font-extrabold text-xs text-amber-950 dark:text-amber-200 uppercase tracking-wider">
-                    Aguardando Confirmação do Pagamento
+                    {t('store.awaitingPaymentConfirmation', 'Aguardando Confirmação do Pagamento')}
                   </h4>
                   <p className="text-xs text-amber-800 dark:text-amber-300 mt-0.5">
-                    O fornecedor iniciará o processo de separação e envio logo após a identificação da liquidação bancária.
+                    {t('store.supplierWillStartDispatch', 'O fornecedor iniciará o processo de separação e envio logo após a identificação da liquidação bancária.')}
                   </p>
                 </div>
               </div>
@@ -608,7 +617,7 @@ function OrderDetailModal({
                     rel="noreferrer"
                     className="flex-1 py-2.5 px-4 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition-all shadow-xs"
                   >
-                    <span>Abrir Fatura / Pagar no Asaas (PIX / Boleto)</span>
+                    <span>{t('store.openInvoiceAsaas', 'Abrir Fatura / Pagar no Asaas (PIX / Boleto)')}</span>
                     <ExternalLink size={14} />
                   </a>
                 )}
@@ -617,10 +626,10 @@ function OrderDetailModal({
                   type="button"
                   onClick={() => onVerifyPayment(order.id)}
                   disabled={isCheckingPayment}
-                  className="py-2.5 px-4 bg-white dark:bg-slate-800 hover:bg-amber-100/70 dark:hover:bg-slate-700 border border-amber-300 dark:border-slate-700 text-amber-900 dark:text-amber-300 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="py-2.5 px-4 bg-white dark:bg-slate-800 hover:bg-amber-100/70 dark:hover:bg-slate-700 border border-amber-300 dark:border-slate-700 text-amber-900 dark:text-amber-300 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
                 >
                   <RefreshCw size={14} className={isCheckingPayment ? 'animate-spin' : ''} />
-                  <span>{isCheckingPayment ? 'Verificando...' : 'Verificar Pagamento'}</span>
+                  <span>{isCheckingPayment ? t('store.verifying', 'Verificando...') : t('store.verifyPayment', 'Verificar Pagamento')}</span>
                 </button>
               </div>
             </div>
@@ -631,14 +640,14 @@ function OrderDetailModal({
             <div className="flex items-center justify-between border-b border-zinc-200/60 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-2 text-xs font-black text-zinc-900 dark:text-slate-100 uppercase tracking-wider">
                 <Truck size={16} className="text-zinc-600 dark:text-slate-400" />
-                <span>Modo & Status da Entrega</span>
+                <span>{t('store.deliveryModeAndStatus', 'Modo & Status da Entrega')}</span>
               </div>
               {getDeliveryStatusBadge(order)}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
               <div className="space-y-1">
-                <span className="text-[11px] font-bold text-zinc-400 dark:text-slate-500 uppercase">Modo de Envio</span>
+                <span className="text-[11px] font-bold text-zinc-400 dark:text-slate-500 uppercase">{t('store.shippingMethodLabel', 'Modo de Envio')}</span>
                 <p className="font-bold text-zinc-900 dark:text-slate-200 flex items-center gap-1.5">
                   <Package size={14} className="text-zinc-500 dark:text-slate-400" />
                   {order.shippingMethod === 'FRENET'
@@ -647,14 +656,14 @@ function OrderDetailModal({
                     ? 'Correios SEDEX'
                     : order.shippingMethod === 'PAC'
                     ? 'Correios PAC'
-                    : 'A Combinar / Entrega Direta'}
+                    : t('store.directDeliveryFallback', 'A Combinar / Entrega Direta')}
                 </p>
               </div>
 
               <div className="space-y-1">
-                <span className="text-[11px] font-bold text-zinc-400 dark:text-slate-500 uppercase">Custo do Frete</span>
+                <span className="text-[11px] font-bold text-zinc-400 dark:text-slate-500 uppercase">{t('store.shippingCostLabel', 'Custo do Frete')}</span>
                 <p className="font-mono font-bold text-zinc-900 dark:text-slate-200">
-                  {order.shippingCost ? `R$ ${order.shippingCost.toFixed(2)}` : 'Incluso ou a combinar'}
+                  {order.shippingCost ? `R$ ${order.shippingCost.toFixed(2)}` : t('store.shippingIncludedOrArranged', 'Incluso ou a combinar')}
                 </p>
               </div>
             </div>
@@ -664,7 +673,7 @@ function OrderDetailModal({
               <div className="p-3.5 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="space-y-0.5">
                   <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
-                    Código de Rastreamento
+                    {t('store.trackingCode', 'Código de Rastreamento')}
                   </span>
                   <p className="font-mono font-black text-sm text-blue-950 dark:text-blue-200">
                     {order.trackingCode}
@@ -674,10 +683,10 @@ function OrderDetailModal({
                   <button
                     type="button"
                     onClick={() => handleCopy(order.trackingCode!)}
-                    className="px-3 py-1.5 bg-white dark:bg-slate-800 hover:bg-blue-100/60 dark:hover:bg-slate-700 border border-blue-200 dark:border-slate-700 text-blue-900 dark:text-blue-300 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all"
+                    className="px-3 py-1.5 bg-white dark:bg-slate-800 hover:bg-blue-100/60 dark:hover:bg-slate-700 border border-blue-200 dark:border-slate-700 text-blue-900 dark:text-blue-300 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
                   >
                     {copiedTracking ? <Check size={13} /> : <Copy size={13} />}
-                    <span>{copiedTracking ? 'Copiado!' : 'Copiar Código'}</span>
+                    <span>{copiedTracking ? t('store.copied', 'Copiado!') : t('store.copyCode', 'Copiar Código')}</span>
                   </button>
 
                   <a
@@ -686,7 +695,7 @@ function OrderDetailModal({
                     rel="noreferrer"
                     className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs"
                   >
-                    <span>Rastrear</span>
+                    <span>{t('store.track', 'Rastrear')}</span>
                     <ExternalLink size={13} />
                   </a>
                 </div>
@@ -694,7 +703,7 @@ function OrderDetailModal({
             ) : (
               <div className="p-3 bg-zinc-100 dark:bg-slate-800/60 rounded-xl text-xs text-zinc-500 dark:text-slate-400 flex items-center gap-2">
                 <Clock size={14} className="text-zinc-400 dark:text-slate-500" />
-                <span>Código de rastreio será disponibilizado assim que o pedido for despachado.</span>
+                <span>{t('store.trackingCodeAvailableSoon', 'Código de rastreio será disponibilizado assim que o pedido for despachado.')}</span>
               </div>
             )}
 
@@ -702,7 +711,7 @@ function OrderDetailModal({
             {order.buyerAddress && (
               <div className="space-y-1 pt-2 border-t border-zinc-200/60 dark:border-slate-800 text-xs">
                 <span className="text-[11px] font-bold text-zinc-400 dark:text-slate-500 uppercase flex items-center gap-1">
-                  <MapPin size={12} /> Endereço de Entrega
+                  <MapPin size={12} /> {t('store.deliveryAddress', 'Endereço de Entrega')}
                 </span>
                 <p className="text-zinc-800 dark:text-slate-300 leading-relaxed font-medium">
                   {order.buyerAddress.street}
@@ -718,7 +727,7 @@ function OrderDetailModal({
 
             {order.notes && (
               <div className="space-y-1 pt-2 border-t border-zinc-200/60 dark:border-slate-800 text-xs">
-                <span className="text-[11px] font-bold text-zinc-400 dark:text-slate-500 uppercase">Observações para Despacho</span>
+                <span className="text-[11px] font-bold text-zinc-400 dark:text-slate-500 uppercase">{t('store.dispatchNotes', 'Observações para Despacho')}</span>
                 <p className="text-zinc-700 dark:text-slate-300 italic bg-white dark:bg-slate-800/80 p-2.5 rounded-lg border border-zinc-200 dark:border-slate-700">
                   "{order.notes}"
                 </p>
@@ -730,7 +739,7 @@ function OrderDetailModal({
           <div className="space-y-3">
             <h4 className="text-xs font-black text-zinc-900 dark:text-slate-100 uppercase tracking-wider flex items-center gap-2">
               <ShoppingBag size={16} className="text-zinc-600 dark:text-slate-400" />
-              <span>Produtos Comprados & Avaliação</span>
+              <span>{t('store.purchasedProductsAndReview', 'Produtos Comprados & Avaliação')}</span>
             </h4>
 
             <div className="space-y-3">
@@ -749,7 +758,7 @@ function OrderDetailModal({
                         
                         {item.variationName && (
                           <span className="inline-block text-[11px] font-bold text-zinc-600 dark:text-slate-300 bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 px-2 py-0.5 rounded-md">
-                            Opção: {item.variationName}
+                            {t('store.option', 'Opção:')} {item.variationName}
                           </span>
                         )}
 
@@ -779,7 +788,7 @@ function OrderDetailModal({
                       {existingReview ? (
                         <div className="space-y-1.5 bg-white dark:bg-slate-800/80 p-3 rounded-xl border border-zinc-200 dark:border-slate-700 text-xs">
                           <div className="flex items-center justify-between">
-                            <span className="font-bold text-zinc-700 dark:text-slate-300">Sua Avaliação:</span>
+                            <span className="font-bold text-zinc-700 dark:text-slate-300">{t('store.yourReview', 'Sua Avaliação:')}</span>
                             <div className="flex gap-1 text-amber-400">
                               {Array.from({ length: existingReview.rating }).map((_, i) => (
                                 <Star key={i} size={14} fill="currentColor" />
@@ -810,10 +819,10 @@ function OrderDetailModal({
                             <button
                               type="button"
                               onClick={() => setReviewingItemId(item.productId)}
-                              className="text-xs font-bold text-zinc-900 dark:text-slate-200 hover:text-zinc-700 dark:hover:text-white underline flex items-center gap-1.5"
+                              className="text-xs font-bold text-zinc-900 dark:text-slate-200 hover:text-zinc-700 dark:hover:text-white underline flex items-center gap-1.5 cursor-pointer"
                             >
                               <Star size={13} className="text-amber-500" />
-                              <span>Avaliar este produto</span>
+                              <span>{t('store.rateThisProduct', 'Avaliar este produto')}</span>
                             </button>
                           )}
                         </div>
@@ -828,12 +837,12 @@ function OrderDetailModal({
           {/* 3. FINANCIAL SUMMARY */}
           <div className="p-5 bg-zinc-900 dark:bg-slate-950 text-white rounded-2xl space-y-3 text-xs border border-transparent dark:border-slate-800">
             <div className="flex items-center justify-between text-zinc-400 pb-2 border-b border-zinc-800">
-              <span className="font-bold uppercase tracking-wider">Resumo Financeiro</span>
+              <span className="font-bold uppercase tracking-wider">{t('store.financialSummary', 'Resumo Financeiro')}</span>
               <span className="font-mono">#{order.id.substring(0, 8)}</span>
             </div>
 
             <div className="flex justify-between text-zinc-300">
-              <span>Subtotal dos Produtos</span>
+              <span>{t('store.productsSubtotal', 'Subtotal dos Produtos')}</span>
               <span className="font-mono">
                 R$ {order.items.reduce((s, it) => s + (it.price * it.quantity), 0).toFixed(2)}
               </span>
@@ -841,20 +850,20 @@ function OrderDetailModal({
 
             {order.discountValue && order.discountValue > 0 && (
               <div className="flex justify-between text-emerald-400 font-medium">
-                <span>Desconto Aplicado {order.couponCode ? `(${order.couponCode})` : ''}</span>
+                <span>{t('store.appliedDiscount', 'Desconto Aplicado')} {order.couponCode ? `(${order.couponCode})` : ''}</span>
                 <span className="font-mono">- R$ {order.discountValue.toFixed(2)}</span>
               </div>
             )}
 
             <div className="flex justify-between text-zinc-300">
-              <span>Custo de Frete</span>
+              <span>{t('store.shippingCostLabel', 'Custo de Frete')}</span>
               <span className="font-mono">
                 {order.shippingCost ? `R$ ${order.shippingCost.toFixed(2)}` : 'R$ 0,00'}
               </span>
             </div>
 
             <div className="flex justify-between text-white font-black text-base pt-2 border-t border-zinc-800">
-              <span>Valor Total</span>
+              <span>{t('store.totalValue', 'Valor Total')}</span>
               <span className="font-mono text-lg text-emerald-400">
                 R$ {order.totalValue.toFixed(2)}
               </span>
@@ -871,10 +880,10 @@ function OrderDetailModal({
                 onClose();
                 onOpenChat(order.supplierId, order.supplierName, order.id);
               }}
-              className="px-4 py-2.5 bg-zinc-100 dark:bg-slate-800 hover:bg-zinc-200/80 dark:hover:bg-slate-700 text-zinc-900 dark:text-white text-xs font-extrabold rounded-xl transition-all flex items-center gap-2 border border-zinc-300 dark:border-slate-700 shadow-xs"
+              className="px-4 py-2.5 bg-zinc-100 dark:bg-slate-800 hover:bg-zinc-200/80 dark:hover:bg-slate-700 text-zinc-900 dark:text-white text-xs font-extrabold rounded-xl transition-all flex items-center gap-2 border border-zinc-300 dark:border-slate-700 shadow-xs cursor-pointer"
             >
               <MessageSquare size={15} className="text-zinc-700 dark:text-slate-300" />
-              <span>Chat com Fornecedor</span>
+              <span>{t('store.chatWithSupplier', 'Chat com Fornecedor')}</span>
             </button>
 
             <button
@@ -883,23 +892,23 @@ function OrderDetailModal({
                 onClose();
                 onOpenReturnModal(order);
               }}
-              className={`px-4 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center gap-2 border ${
+              className={`px-4 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center gap-2 border cursor-pointer ${
                 order.returnRequest
                   ? 'bg-amber-50 dark:bg-amber-950/50 hover:bg-amber-100 dark:hover:bg-amber-900/50 text-amber-900 dark:text-amber-200 border-amber-300 dark:border-amber-800'
                   : 'bg-white dark:bg-slate-800 hover:bg-zinc-100 dark:hover:bg-slate-700 text-zinc-700 dark:text-slate-200 border-zinc-300 dark:border-slate-700'
               }`}
             >
               <RotateCcw size={14} />
-              <span>{order.returnRequest ? 'Acompanhar Solicitação' : 'Solicitar Cancelamento / Devolução'}</span>
+              <span>{order.returnRequest ? t('store.trackRequest', 'Acompanhar Solicitação') : t('store.requestCancelOrReturn', 'Solicitar Cancelamento / Devolução')}</span>
             </button>
           </div>
 
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2.5 bg-zinc-950 hover:bg-zinc-800 dark:bg-blue-600 dark:hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-all shadow-xs"
+            className="px-5 py-2.5 bg-zinc-950 hover:bg-zinc-800 dark:bg-blue-600 dark:hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-all shadow-xs cursor-pointer"
           >
-            Fechar
+            {t('common.close', 'Fechar')}
           </button>
         </div>
       </div>
@@ -918,6 +927,7 @@ function ReviewForm({
   onSuccess: () => void; 
   onCancel?: () => void; 
 }) {
+  const { t } = useTranslation();
   const { currentOrg, currentUser } = useApp();
   const [rating, setRating] = useState(5);
   const [feedback, setFeedback] = useState('');
@@ -934,7 +944,7 @@ function ReviewForm({
         productId: item.productId,
         supplierId: order.supplierId,
         buyerOrgId: currentOrg.id,
-        buyerName: currentUser.name || currentOrg.name || 'Comprador',
+        buyerName: currentUser.name || currentOrg.name || t('store.buyer', 'Comprador'),
         rating,
         feedbackText: feedback,
         createdAt: new Date()
@@ -951,14 +961,14 @@ function ReviewForm({
   return (
     <form onSubmit={handleSubmit} className="p-4 bg-white dark:bg-slate-800/90 rounded-xl border border-zinc-200 dark:border-slate-700 space-y-3 animate-in fade-in">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-bold text-zinc-900 dark:text-slate-100">Sua nota para o item:</span>
+        <span className="text-xs font-bold text-zinc-900 dark:text-slate-100">{t('store.yourRatingForItem', 'Sua nota para o item:')}</span>
         <div className="flex gap-1 text-amber-400">
           {[1, 2, 3, 4, 5].map((s) => (
             <button
               key={s}
               type="button"
               onClick={() => setRating(s)}
-              className="p-1 hover:scale-110 transition-transform"
+              className="p-1 hover:scale-110 transition-transform cursor-pointer"
             >
               <Star size={18} fill={s <= rating ? 'currentColor' : 'none'} />
             </button>
@@ -967,7 +977,7 @@ function ReviewForm({
       </div>
 
       <textarea
-        placeholder="Escreva seu comentário sobre a qualidade, embalagem ou acabamento do produto..."
+        placeholder={t('store.reviewFeedbackPlaceholder', 'Escreva seu comentário sobre a qualidade, embalagem ou acabamento do produto...')}
         value={feedback}
         onChange={(e) => setFeedback(e.target.value)}
         className="w-full bg-zinc-50 dark:bg-slate-900 border border-zinc-200 dark:border-slate-700 rounded-xl p-3 text-xs text-zinc-900 dark:text-white outline-none focus:border-zinc-900 dark:focus:border-blue-500 h-20 resize-none"
@@ -978,17 +988,17 @@ function ReviewForm({
           <button
             type="button"
             onClick={onCancel}
-            className="px-3 py-1.5 text-xs font-bold text-zinc-600 dark:text-slate-400 hover:text-zinc-900 dark:hover:text-white"
+            className="px-3 py-1.5 text-xs font-bold text-zinc-600 dark:text-slate-400 hover:text-zinc-900 dark:hover:text-white cursor-pointer"
           >
-            Cancelar
+            {t('common.cancel', 'Cancelar')}
           </button>
         )}
         <button
           type="submit"
           disabled={submitting}
-          className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 dark:bg-blue-600 dark:hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-all shadow-xs"
+          className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 dark:bg-blue-600 dark:hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-all shadow-xs cursor-pointer"
         >
-          {submitting ? 'Enviando...' : 'Publicar Avaliação'}
+          {submitting ? t('store.submittingReview', 'Enviando...') : t('store.publishReview', 'Publicar Avaliação')}
         </button>
       </div>
     </form>

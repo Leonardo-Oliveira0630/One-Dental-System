@@ -330,7 +330,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                         <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/supplier/chat" icon={<MessageSquare size={20} />} label={t('navigation.chat', 'Mensagens de Clientes')} active={location.pathname === '/supplier/chat'} badge={unreadSupplierChatCount > 0 ? unreadSupplierChatCount : undefined} />
                         <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/supplier/products" icon={<Package size={20} />} label={t('common.products', 'Meus Produtos')} active={location.pathname === '/supplier/products'} />
                         <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/supplier/coupons" icon={<Ticket size={20} />} label={t('navigation.coupons', 'Cupons')} active={location.pathname === '/supplier/coupons'} />
-                        <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/supplier/settings" icon={<Settings size={20} />} label={t('navigation.settings', 'Configurações')} active={location.pathname === '/supplier/settings'} />
+                        <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/supplier/settings" icon={<Settings size={20} />} label={t('navigation.supplierSettings', 'Configurações')} active={location.pathname === '/supplier/settings'} />
                       </>
                     )}
 
@@ -419,7 +419,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
 
                     <div className="pt-8 mt-8 border-t border-white/10 shrink-0">
                       <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/profile" icon={<UserCircle size={20} />} label={t('navigation.profile', 'Perfil')} active={location.pathname === '/profile'} />
-                      {currentOrg?.orgType === 'CLINIC' && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/clinic-settings" icon={<Settings size={20} />} label={t('navigation.settings', 'Configurações')} active={location.pathname === '/clinic-settings'} />}
+                      {currentOrg?.orgType === 'CLINIC' && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/clinic-settings" icon={<Settings size={20} />} label={t('navigation.clinicSettings', 'Configurações')} active={location.pathname === '/clinic-settings'} />}
                       {((currentOrg?.orgType !== 'LAB_OUTSOURCED' && currentOrg?.orgType !== 'CLINIC' && !isSupplier && (isAdmin || hasPerm('users:view') || hasPerm('clients:view') || hasPerm('sectors:view') || hasPerm('boxes:view') || hasPerm('finance:view') || hasPerm('commissions:view'))) || isFreeLab) && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/admin" icon={<Settings size={20} />} label={t('navigation.settings', 'Configurar Lab')} active={location.pathname.startsWith('/admin')} />}
                     </div>
                   </>

@@ -215,6 +215,14 @@ service cloud.firestore {
       allow read, write: if isAuthenticated();
     }
 
+    match /supplierConversations/{conversationId} {
+      allow read, write: if isAuthenticated();
+      
+      match /messages/{messageId} {
+        allow read, write: if isAuthenticated();
+      }
+    }
+
     match /productReviews/{reviewId} {
       allow read, write: if isAuthenticated();
     }

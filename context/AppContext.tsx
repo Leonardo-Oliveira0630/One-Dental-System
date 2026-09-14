@@ -666,7 +666,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     }
     
     return () => unsubs.forEach(u => u());
-  }, [currentUser, activeDataId, activeManualDentistId]);
+  }, [currentUser, currentOrg, activeDataId, activeManualDentistId]);
 
   // Special subscriptions for Dentists (CLINIC users) to track jobs and requisitions from all their connected labs
   useEffect(() => {

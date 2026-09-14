@@ -5,6 +5,7 @@ import { useApp } from '../../context/AppContext';
 import { InventoryItem, Organization, SupplierOrder } from '../../types';
 import { useNavigate, useLocation } from 'react-router-dom';
 import * as api from '../../services/firebaseService';
+import { useTranslation } from 'react-i18next';
 
 // Subcomponents & Modals
 import { MarketplaceBanner } from '../../components/MarketplaceBanner';
@@ -27,6 +28,7 @@ import {
 type SortOption = 'RELEVANCE' | 'LATEST' | 'SALES' | 'PRICE_ASC' | 'PRICE_DESC';
 
 export const SupplierStore = () => {
+  const { t } = useTranslation();
   const { 
     allSuppliers, 
     allSupplierProducts, 
@@ -732,24 +734,24 @@ export const SupplierStore = () => {
                 setSelectedInternalCategory(null);
                 setActiveTab('STORE');
               }}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 activeTab === 'STORE'
                   ? 'bg-white dark:bg-slate-700 text-zinc-950 dark:text-white shadow-xs'
                   : 'text-zinc-600 dark:text-slate-300 hover:text-zinc-900 dark:hover:text-white'
               }`}
             >
-              Loja de Fornecedores
+              {t('store.supplierStore', 'Loja de Fornecedores')}
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('MY_ORDERS')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 activeTab === 'MY_ORDERS'
                   ? 'bg-white dark:bg-slate-700 text-zinc-950 dark:text-white shadow-xs'
                   : 'text-zinc-600 dark:text-slate-300 hover:text-zinc-900 dark:hover:text-white'
               }`}
             >
-              Meus Pedidos
+              {t('store.myOrders', 'Meus Pedidos')}
             </button>
           </div>
 
@@ -763,20 +765,20 @@ export const SupplierStore = () => {
                 setChatInitialOrderId(undefined);
                 setIsChatModalOpen(true);
               }}
-              className="flex items-center gap-1.5 px-3 py-2 bg-zinc-100 dark:bg-slate-800 hover:bg-zinc-200 dark:hover:bg-slate-700 text-zinc-900 dark:text-slate-100 rounded-xl transition-all text-xs font-bold border border-zinc-200 dark:border-slate-700"
-              title="Chat com Fornecedores"
+              className="flex items-center gap-1.5 px-3 py-2 bg-zinc-100 dark:bg-slate-800 hover:bg-zinc-200 dark:hover:bg-slate-700 text-zinc-900 dark:text-slate-100 rounded-xl transition-all text-xs font-bold border border-zinc-200 dark:border-slate-700 cursor-pointer"
+              title={t('store.chatWithSupplier', 'Chat com Fornecedores')}
             >
               <MessageSquare size={15} className="text-zinc-700 dark:text-slate-300" />
-              <span className="hidden sm:inline">Mensagens</span>
+              <span className="hidden sm:inline">{t('store.messages', 'Mensagens')}</span>
             </button>
 
             <button
               type="button"
               onClick={() => setIsCartOpen(true)}
-              className="group relative flex items-center gap-2.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all shadow-md active:scale-95 text-xs font-bold"
+              className="group relative flex items-center gap-2.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all shadow-md active:scale-95 text-xs font-bold cursor-pointer"
             >
               <ShoppingCart size={15} />
-              <span className="hidden sm:inline">Carrinho</span>
+              <span className="hidden sm:inline">{t('store.cart', 'Carrinho')}</span>
               {totalCartCount > 0 && (
                 <span className="px-1.5 py-0.2 bg-white text-blue-700 rounded-full font-mono text-[10px] font-black">
                   {totalCartCount}
@@ -841,7 +843,7 @@ export const SupplierStore = () => {
                   <Search className="absolute left-3.5 top-3 text-zinc-400 dark:text-slate-400" size={16} />
                   <input
                     type="text"
-                    placeholder="Pesquisar insumo, resina, equipamento, marca..."
+                    placeholder={t('store.searchPlaceholderSupplier', 'Pesquisar insumo, resina, equipamento, marca...')}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full bg-zinc-50/70 dark:bg-slate-800/80 border border-zinc-200 dark:border-slate-700 rounded-xl pl-10 pr-9 py-2.5 text-xs text-zinc-900 dark:text-white outline-none focus:border-blue-500 focus:bg-white dark:focus:bg-slate-800 placeholder-zinc-400 dark:placeholder-slate-400 font-medium transition-all"
@@ -850,7 +852,7 @@ export const SupplierStore = () => {
                     <button
                       type="button"
                       onClick={() => setSearchQuery('')}
-                      className="absolute right-3 top-3 text-zinc-400 dark:text-slate-400 hover:text-zinc-700 dark:hover:text-white"
+                      className="absolute right-3 top-3 text-zinc-400 dark:text-slate-400 hover:text-zinc-700 dark:hover:text-white cursor-pointer"
                     >
                       <X size={14} />
                     </button>
@@ -868,7 +870,7 @@ export const SupplierStore = () => {
                     }}
                     className="w-full bg-zinc-50/70 dark:bg-slate-800/80 border border-zinc-200 dark:border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-xs text-zinc-900 dark:text-white outline-none focus:border-blue-500 focus:bg-white dark:focus:bg-slate-800 font-bold transition-all cursor-pointer"
                   >
-                    <option value="ALL">Todos os Fornecedores</option>
+                    <option value="ALL">{t('store.allSuppliers', 'Todos os Fornecedores')}</option>
                     {allSuppliers.map((s) => (
                       <option key={s.id} value={s.id}>
                         {s.name} {s.city ? `(${s.city}-${s.state || ''})` : ''}
@@ -883,14 +885,14 @@ export const SupplierStore = () => {
                     <button
                       type="button"
                       onClick={() => setShowLocationFilter(!showLocationFilter)}
-                      className={`w-full py-2.5 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+                      className={`w-full py-2.5 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                         showLocationFilter || userLocation
                           ? 'border-blue-600 bg-blue-600 text-white'
                           : 'border-zinc-200 dark:border-slate-700 bg-zinc-50/70 dark:bg-slate-800/80 text-zinc-700 dark:text-slate-200 hover:bg-zinc-100 dark:hover:bg-slate-700'
                       }`}
                     >
                       <MapPin size={14} />
-                      <span>{userLocation ? userLocation : 'Localização'}</span>
+                      <span>{userLocation ? userLocation : t('store.location', 'Localização')}</span>
                     </button>
                   </div>
                 )}
@@ -903,7 +905,7 @@ export const SupplierStore = () => {
                     <MapPin className="absolute left-3 top-2.5 text-zinc-400 dark:text-slate-400" size={15} />
                     <input
                       type="text"
-                      placeholder="Filtrar por cidade ou estado..."
+                      placeholder={t('store.filterCityOrState', 'Filtrar por cidade ou estado...')}
                       value={userLocation}
                       onChange={(e) => setUserLocation(e.target.value)}
                       className="w-full bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 rounded-lg pl-9 pr-3 py-1.5 text-xs text-zinc-900 dark:text-white outline-none focus:border-blue-500"
@@ -911,7 +913,7 @@ export const SupplierStore = () => {
                   </div>
                   <div className="flex items-center gap-3 bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 rounded-lg px-3 py-1.5">
                     <span className="text-[10px] font-bold text-zinc-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">
-                      Raio: {searchRadius > 200 ? '+200' : searchRadius} km
+                      {t('store.radius', 'Raio')}: {searchRadius > 200 ? '+200' : searchRadius} km
                     </span>
                     <input
                       type="range"
@@ -930,21 +932,21 @@ export const SupplierStore = () => {
               <div className="flex flex-wrap items-center justify-between text-xs gap-2 pt-2 border-t border-zinc-100 dark:border-slate-800">
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <span className="text-zinc-400 dark:text-slate-400 text-[11px] font-medium mr-1 flex items-center gap-1">
-                    <ArrowUpDown size={12} /> Ordenar:
+                    <ArrowUpDown size={12} /> {t('store.sortLabel', 'Ordenar:')}
                   </span>
 
                   {[
-                    { id: 'RELEVANCE', label: 'Relevância' },
-                    { id: 'SALES', label: 'Mais Vendidos' },
-                    { id: 'PRICE_ASC', label: 'Menor Preço' },
-                    { id: 'PRICE_DESC', label: 'Maior Preço' },
-                    { id: 'LATEST', label: 'Recentes' }
+                    { id: 'RELEVANCE', label: t('store.sortRelevance', 'Relevância') },
+                    { id: 'SALES', label: t('store.sortBestSellers', 'Mais Vendidos') },
+                    { id: 'PRICE_ASC', label: t('store.sortPriceAsc', 'Menor Preço') },
+                    { id: 'PRICE_DESC', label: t('store.sortPriceDesc', 'Maior Preço') },
+                    { id: 'LATEST', label: t('store.sortLatest', 'Recentes') }
                   ].map((s) => (
                     <button
                       key={s.id}
                       type="button"
                       onClick={() => setSortOption(s.id as SortOption)}
-                      className={`px-3 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                      className={`px-3 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
                         sortOption === s.id
                           ? 'bg-blue-600 text-white shadow-xs'
                           : 'bg-zinc-100 dark:bg-slate-800 text-zinc-600 dark:text-slate-300 hover:bg-zinc-200/70 dark:hover:bg-slate-700'
@@ -956,7 +958,7 @@ export const SupplierStore = () => {
                 </div>
 
                 <span className="text-[11px] font-mono text-zinc-500 dark:text-slate-400">
-                  {rankedProducts.length} {rankedProducts.length === 1 ? 'produto' : 'produtos'}
+                  {rankedProducts.length} {rankedProducts.length === 1 ? t('store.productSingle', 'produto') : t('store.productPlural', 'produtos')}
                 </span>
               </div>
             </div>
@@ -980,10 +982,10 @@ export const SupplierStore = () => {
                 <Package size={48} strokeWidth={1} className="mx-auto text-zinc-300 dark:text-slate-600" />
                 <div className="space-y-1">
                   <h3 className="font-extrabold text-base text-zinc-800 dark:text-slate-100">
-                    Nenhum produto encontrado
+                    {t('store.noProductsFoundStore', 'Nenhum produto encontrado')}
                   </h3>
                   <p className="text-xs text-zinc-500 dark:text-slate-400 max-w-sm mx-auto">
-                    Tente ajustar seus termos de busca, filtros ou selecionar outro fornecedor parceiro.
+                    {t('store.noProductsHint', 'Tente ajustar seus termos de busca, filtros ou selecionar outro fornecedor parceiro.')}
                   </p>
                 </div>
                 {(searchQuery || selectedInternalCategory || userLocation) && (
@@ -994,9 +996,9 @@ export const SupplierStore = () => {
                       setSelectedInternalCategory(null);
                       setUserLocation('');
                     }}
-                    className="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded-xl hover:bg-blue-700 transition-all shadow-xs"
+                    className="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded-xl hover:bg-blue-700 transition-all shadow-xs cursor-pointer"
                   >
-                    Limpar Filtros
+                    {t('store.clearFilters', 'Limpar Filtros')}
                   </button>
                 )}
               </div>

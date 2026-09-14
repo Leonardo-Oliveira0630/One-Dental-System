@@ -544,7 +544,7 @@ export const Inventory = () => {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-100">
                 <div>
                     <h1 className="text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-2 tracking-tight flex-wrap">
-                        <Package className="text-indigo-600 shrink-0" /> <span className="break-words min-w-0 flex-1">CONTROLE DE ESTOQUE E INVENTÁRIO</span>
+                        <Package className="text-indigo-600 shrink-0" /> <span className="break-words min-w-0 flex-1">{t("inventory.title", "CONTROLE DE ESTOQUE E INVENTÁRIO")}</span>
                     </h1>
                     <p className="text-slate-500 mt-1 text-sm sm:text-base break-words">{t("inventory.subtitle", "Gerencie produtos, categorias, insumos, maquinários e implantes do laboratório.")}</p>
                 </div>
@@ -555,19 +555,19 @@ export const Inventory = () => {
                   onClick={() => setActiveTab('ITEMS')}
                   className={`px-4 sm:px-6 py-3 font-bold text-xs sm:text-sm tracking-wide transition-all border-b-2 ${activeTab === 'ITEMS' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
                 >
-                  PRODUTOS & INSUMOS
+                  {t("inventory.tabItems", "PRODUTOS & INSUMOS")}
                 </button>
                 <button 
                   onClick={() => setActiveTab('CATEGORIES')}
                   className={`px-4 sm:px-6 py-3 font-bold text-xs sm:text-sm tracking-wide transition-all border-b-2 ${activeTab === 'CATEGORIES' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
                 >
-                  CATEGORIAS
+                  {t("inventory.tabCategories", "CATEGORIAS")}
                 </button>
                 <button 
                   onClick={() => setActiveTab('CATALOG')}
                   className={`px-4 sm:px-6 py-3 font-bold text-xs sm:text-sm tracking-wide transition-all border-b-2 ${activeTab === 'CATALOG' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
                 >
-                  BANCO DE PRODUTOS
+                  {t("inventory.tabCatalog", "BANCO DE PRODUTOS")}
                 </button>
             </div>
 
@@ -576,7 +576,7 @@ export const Inventory = () => {
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
                     <input 
                         type="text" 
-                        placeholder="Buscar..."
+                        placeholder={t("inventory.searchPlaceholder", "Buscar...")}
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="w-full pl-12 pr-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
@@ -585,27 +585,27 @@ export const Inventory = () => {
                 <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 sm:gap-4 w-full xl:w-auto">
                     {(activeTab === 'ITEMS' || activeTab === 'CATALOG') && canCreate && (
                         <button onClick={() => setIsBulkModalOpen(true)} className="w-full sm:flex-1 xl:w-auto justify-center px-4 sm:px-6 py-3 bg-emerald-600 text-white text-sm sm:text-base font-bold rounded-xl hover:bg-emerald-700 shadow-md flex items-center gap-2">
-                            <Sparkles size={20} /> Importação Inteligente
+                            <Sparkles size={20} /> {t("inventory.smartImport", "Importação Inteligente")}
                         </button>
                     )}
                     {activeTab === 'ITEMS' && canCreate && activeOwnerGroup === null && (
                         <button onClick={() => setShowCreateStockModal(true)} className="w-full sm:flex-1 xl:w-auto justify-center px-4 sm:px-6 py-3 bg-amber-600 text-white text-sm sm:text-base font-bold rounded-xl hover:bg-amber-700 shadow-md flex items-center gap-2">
-                            <Layers size={20} /> Criar Estoque
+                            <Layers size={20} /> {t("inventory.createStock", "Criar Estoque")}
                         </button>
                     )}
                     {activeTab === 'ITEMS' && canCreate && (
                         <button onClick={() => openItemModal()} className="w-full sm:flex-1 xl:w-auto justify-center px-4 sm:px-6 py-3 bg-indigo-600 text-white text-sm sm:text-base font-bold rounded-xl hover:bg-indigo-700 shadow-md flex items-center gap-2">
-                            <Plus size={20} /> Novo Produto
+                            <Plus size={20} /> {t("inventory.newProduct", "Novo Produto")}
                         </button>
                     )}
                     {activeTab === 'CATEGORIES' && canCreate && (
                         <button onClick={() => openCatModal()} className="w-full sm:flex-1 xl:w-auto justify-center px-4 sm:px-6 py-3 bg-indigo-600 text-white text-sm sm:text-base font-bold rounded-xl hover:bg-indigo-700 shadow-md flex items-center gap-2">
-                            <Plus size={20} /> Nova Categoria
+                            <Plus size={20} /> {t("inventory.newCategory", "Nova Categoria")}
                         </button>
                     )}
                     {activeTab === 'CATALOG' && canCreate && (
                         <button onClick={() => openCatalogModal()} className="w-full sm:flex-1 xl:w-auto justify-center px-4 sm:px-6 py-3 bg-indigo-600 text-white text-sm sm:text-base font-bold rounded-xl hover:bg-indigo-700 shadow-md flex items-center gap-2">
-                            <Plus size={20} /> Novo Produto Base
+                            <Plus size={20} /> {t("inventory.newBaseProduct", "Novo Produto Base")}
                         </button>
                     )}
                 </div>
@@ -618,7 +618,7 @@ export const Inventory = () => {
                             <tr className="border-b border-slate-100 bg-slate-50/50">
                                 <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-widest">{t("inventory.baseProduct", "Produto Base")}</th>
                                 <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-widest">{t("inventory.category", "Categoria")}</th>
-                                <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-widest">Custo / Venda</th>
+                                <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-widest">{t("inventory.costSell", "Custo / Venda")}</th>
                                 <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-widest w-24">{t("common.actions", "Ações")}</th>
                             </tr>
                         </thead>
@@ -677,13 +677,13 @@ export const Inventory = () => {
                             </div>
                             <h3 className="text-lg font-black text-slate-800 break-words">{cat.name}</h3>
                             <div className="mt-2 inline-flex items-center px-3 py-1 bg-slate-100 text-slate-600 text-xs font-bold rounded-full">
-                                TIPO: {cat.type}
+                                {t("inventory.typeLabel", "TIPO")}: {cat.type}
                             </div>
                         </div>
                     ))}
                     {filteredCategories.length === 0 && (
                         <div className="col-span-full py-12 text-center text-slate-500 bg-white rounded-2xl border border-slate-100">
-                            Nenhuma categoria encontrada.
+                            {t("inventory.noCategoriesFound", "Nenhuma categoria encontrada.")}
                         </div>
                     )}
                 </div>
@@ -703,7 +703,7 @@ export const Inventory = () => {
                                             <button 
                                                 onClick={(e) => openDeleteStockConfirm(owner.id, e)} 
                                                 className="opacity-0 group-hover:opacity-100 p-2 text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                                                title="Excluir Estoque"
+                                                title={t("inventory.deleteStockTooltip", "Excluir Estoque")}
                                             >
                                                 <Trash2 size={18} />
                                             </button>
@@ -712,14 +712,14 @@ export const Inventory = () => {
                                     <h3 className="text-lg font-black text-slate-800 line-clamp-2">{owner.name}</h3>
                                     <div className="mt-4 flex justify-between items-center">
                                         <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-100 text-slate-600 text-xs font-bold rounded-full">
-                                            <Package size={12}/> {owner.itemCount} Produtos
+                                            <Package size={12}/> {t("inventory.productsCount", { count: owner.itemCount, defaultValue: `${owner.itemCount} Produtos` })}
                                         </div>
                                     </div>
                                 </div>
                             ))}
                             {ownerOptions.length === 0 && (
                                 <div className="col-span-full py-12 text-center text-slate-500 bg-white rounded-2xl border border-slate-100">
-                                    Nenhuma fonte de estoque encontrada.
+                                    {t("inventory.noStockSourcesFound", "Nenhuma fonte de estoque encontrada.")}
                                 </div>
                             )}
                         </div>
@@ -737,7 +737,7 @@ export const Inventory = () => {
                                 </div>
                                 <div className="flex flex-wrap items-center gap-2 mt-4 sm:mt-0">
                                     <div className="text-xs font-bold text-slate-500 bg-white px-3 py-1.5 rounded-lg border border-slate-200 hidden sm:block">
-                                        {filteredItems.length} Produtos
+                                        {t("inventory.productsCount", { count: filteredItems.length, defaultValue: `${filteredItems.length} Produtos` })}
                                     </div>
                                     {isSelectionMode && selectedItems.length > 0 && (
                                         <>
@@ -745,13 +745,13 @@ export const Inventory = () => {
                                                 onClick={() => setShowMoveModal(true)}
                                                 className="px-3 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg shadow hover:bg-blue-700 transition-colors flex items-center gap-2"
                                             >
-                                                Mover ({selectedItems.length})
+                                                {t("inventory.moveItems", { count: selectedItems.length, defaultValue: `Mover (${selectedItems.length})` })}
                                             </button>
                                             <button 
                                                 onClick={() => setShowDeleteConfirmModal(true)}
                                                 className="px-3 py-1.5 bg-red-600 text-white text-xs font-bold rounded-lg shadow hover:bg-red-700 transition-colors flex items-center gap-2"
                                             >
-                                                <Trash2 size={14} /> Excluir ({selectedItems.length})
+                                                <Trash2 size={14} /> {t("inventory.deleteItems", { count: selectedItems.length, defaultValue: `Excluir (${selectedItems.length})` })}
                                             </button>
                                         </>
                                     )}
@@ -762,7 +762,7 @@ export const Inventory = () => {
                                         }}
                                         className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-colors flex items-center gap-2 ${isSelectionMode ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
                                     >
-                                        <Check size={14} /> {isSelectionMode ? 'Cancelar Seleção' : 'Selecionar'}
+                                        <Check size={14} /> {isSelectionMode ? t("inventory.cancelSelection", "Cancelar Seleção") : t("inventory.select", "Selecionar")}
                                     </button>
                                 </div>
                             </div>
@@ -817,7 +817,7 @@ export const Inventory = () => {
                                                     {item.description && <div className="text-xs text-slate-500 mt-1 truncate max-w-[250px]">{item.description}</div>}
                                                     <div className="text-[10px] bg-slate-100 text-slate-500 inline-block px-2 py-0.5 rounded mt-1">{item.type}</div>
                                                 </td>
-                                                <td className="p-4 font-medium text-slate-600">{cat?.name || 'Desconhecida'}</td>
+                                                <td className="p-4 font-medium text-slate-600">{cat?.name || t("inventory.unknown", "Desconhecida")}</td>
                                                 <td className="p-4 text-right">
                                                     <div className={`inline-flex items-center px-3 py-1 rounded-full font-black text-sm ${isLowStock ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-700'}`}>
                                                         {item.currentStock}
@@ -842,7 +842,7 @@ export const Inventory = () => {
                                     {filteredItems.length === 0 && (
                                         <tr>
                                             <td colSpan={5} className="p-12 text-center text-slate-500">
-                                                Nenhum produto encontrado.
+                                                {t("inventory.noProductsFound", "Nenhum produto encontrado.")}
                                             </td>
                                         </tr>
                                     )}
@@ -861,7 +861,7 @@ export const Inventory = () => {
                         <button type="button" onClick={() => setIsCatalogModalOpen(false)} className="absolute top-4 sm:top-6 right-4 sm:right-6 p-2 bg-slate-100 text-slate-500 hover:text-slate-800 rounded-full">
                             <X size={20}/>
                         </button>
-                        <h2 className="text-2xl font-black text-slate-900 mb-6">{editingCatalogId ? 'Editar Produto Base' : 'Novo Produto Base'}</h2>
+                        <h2 className="text-2xl font-black text-slate-900 mb-6">{editingCatalogId ? t("inventory.editBaseProduct", "Editar Produto Base") : t("inventory.newBaseProduct", "Novo Produto Base")}</h2>
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="md:col-span-2">
@@ -870,7 +870,7 @@ export const Inventory = () => {
                             </div>
                             
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">SKU / Código</label>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">{t("inventory.skuCode", "SKU / Código")}</label>
                                 <input type="text" value={catalogForm.code || ''} onChange={e => setCatalogForm({...catalogForm, code: e.target.value})} className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none" />
                             </div>
                             
@@ -885,33 +885,33 @@ export const Inventory = () => {
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-2">{t("inventory.type", "Tipo")}</label>
                                 <select required value={catalogForm.type || 'MATERIAL'} onChange={e => setCatalogForm({...catalogForm, type: e.target.value as any})} className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none">
-                                    <option value="MATERIAL">Insumo/Material</option>
-                                    <option value="EQUIPMENT">Equipamento/Ferramenta</option>
+                                    <option value="MATERIAL">{t("inventory.typeMaterial", "Insumo/Material")}</option>
+                                    <option value="EQUIPMENT">{t("inventory.typeEquipment", "Equipamento/Ferramenta")}</option>
                                     <option value="IMPLANT">{t("inventory.typeImplant", "Implante")}</option>
                                     <option value="SERVICE">{t("inventory.typeService", "Serviço Terceirizado")}</option>
                                 </select>
                             </div>
                             
                             <div className="md:col-span-2">
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Descrição (Opcional)</label>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">{t("inventory.descriptionOptional", "Descrição (Opcional)")}</label>
                                 <textarea value={catalogForm.description || ''} onChange={e => setCatalogForm({...catalogForm, description: e.target.value})} className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none h-24 resize-none" />
                             </div>
 
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Custo Unitário (R$)</label>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">{t("inventory.unitCost", "Custo Unitário (R$)")}</label>
                                 <input required type="number" step="0.01" min="0" value={catalogForm.costPrice || ''} onChange={e => setCatalogForm({...catalogForm, costPrice: parseFloat(e.target.value)})} className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none" />
                             </div>
 
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Preço de Venda (R$)</label>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">{t("inventory.salePrice", "Preço de Venda (R$)")}</label>
                                 <input required type="number" step="0.01" min="0" value={catalogForm.sellPrice || ''} onChange={e => setCatalogForm({...catalogForm, sellPrice: parseFloat(e.target.value)})} className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none" />
                             </div>
                         </div>
 
                         <div className="mt-8 flex justify-end gap-3">
-                            <button type="button" onClick={() => setIsCatalogModalOpen(false)} className="px-6 py-4 rounded-xl font-bold text-slate-500 hover:bg-slate-100 transition-colors">Cancelar</button>
+                            <button type="button" onClick={() => setIsCatalogModalOpen(false)} className="px-6 py-4 rounded-xl font-bold text-slate-500 hover:bg-slate-100 transition-colors">{t("common.cancel", "Cancelar")}</button>
                             <button type="submit" className="px-8 py-4 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-md flex items-center gap-2">
-                                <Save size={20}/> Salvar
+                                <Save size={20}/> {t("common.save", "Salvar")}
                             </button>
                         </div>
                     </form>
@@ -925,7 +925,7 @@ export const Inventory = () => {
                         <button type="button" onClick={() => setIsCatModalOpen(false)} className="absolute top-4 sm:top-6 right-4 sm:right-6 p-2 bg-slate-100 text-slate-500 hover:text-slate-800 rounded-full">
                             <X size={20}/>
                         </button>
-                        <h2 className="text-2xl font-black text-slate-900 mb-6">{editingCatId ? 'Editar Categoria' : 'Nova Categoria'}</h2>
+                        <h2 className="text-2xl font-black text-slate-900 mb-6">{editingCatId ? t("inventory.editCategory", "Editar Categoria") : t("inventory.newCategory", "Nova Categoria")}</h2>
                         
                         <div className="space-y-4">
                             <div>
@@ -938,7 +938,7 @@ export const Inventory = () => {
                                     <option value="MATERIAL">{t("inventory.materialGeneral", "Material Geral")}</option>
                                     <option value="SUPPLY">{t("inventory.supply", "Insumo")}</option>
                                     <option value="MACHINERY">{t("inventory.machinery", "Maquinário")}</option>
-                                    <option value="IMPLANT">Implante / Componente</option>
+                                    <option value="IMPLANT">{t("inventory.implantComponent", "Implante / Componente")}</option>
                                     <option value="OTHER">{t("inventory.other", "Outros")}</option>
                                 </select>
                             </div>
@@ -946,7 +946,7 @@ export const Inventory = () => {
 
                         <div className="mt-8">
                             <button type="submit" className="w-full py-4 bg-indigo-600 text-white font-black rounded-xl shadow-lg hover:bg-indigo-700 flex justify-center items-center gap-2">
-                                <Save size={20}/> SALVAR CATEGORIA
+                                <Save size={20}/> {t("inventory.saveCategory", "SALVAR CATEGORIA")}
                             </button>
                         </div>
                     </form>
@@ -960,7 +960,7 @@ export const Inventory = () => {
                         <button type="button" onClick={() => setIsItemModalOpen(false)} className="absolute top-4 sm:top-6 right-4 sm:right-6 p-2 bg-slate-100 text-slate-500 hover:text-slate-800 rounded-full">
                             <X size={20}/>
                         </button>
-                        <h2 className="text-2xl font-black text-slate-900 mb-6">{editingItemId ? 'Editar Produto' : 'Novo Produto'}</h2>
+                        <h2 className="text-2xl font-black text-slate-900 mb-6">{editingItemId ? t("inventory.editProduct", "Editar Produto") : t("inventory.newProduct", "Novo Produto")}</h2>
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:p-6">
                             <div className="md:col-span-2 space-y-4">
@@ -977,7 +977,7 @@ export const Inventory = () => {
                                             onFocus={() => setShowCatalogSuggestions(true)}
                                             onBlur={() => setTimeout(() => setShowCatalogSuggestions(false), 200)}
                                             className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none" 
-                                            placeholder="Ex: Componente Titânio Hexágono Externo" 
+                                            placeholder={t("inventory.productNamePlaceholder", "Ex: Componente Titânio Hexágono Externo")} 
                                         />
                                         
                                         {/* Catalog Autocomplete Dropdown */}
@@ -1015,13 +1015,13 @@ export const Inventory = () => {
                                         )}
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Código do Item (SKU)</label>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">{t("inventory.itemSkuCode", "Código do Item (SKU)")}</label>
                                         <input type="text" value={itemForm.code || ''} onChange={e => setItemForm({...itemForm, code: e.target.value})} className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none uppercase" placeholder="Ex: TIT-HEX-001" />
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Descrição (Opcional)</label>
-                                    <textarea value={itemForm.description || ''} onChange={e => setItemForm({...itemForm, description: e.target.value})} className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none min-h-[100px]" placeholder="Informações adicionais..." />
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">{t("inventory.descriptionOptional", "Descrição (Opcional)")}</label>
+                                    <textarea value={itemForm.description || ''} onChange={e => setItemForm({...itemForm, description: e.target.value})} className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none min-h-[100px]" placeholder={t("inventory.descriptionPlaceholder", "Informações adicionais...")} />
                                 </div>
                             </div>
                             
@@ -1039,7 +1039,7 @@ export const Inventory = () => {
                             </div>
 
                             <div className="relative">
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Proprietário (Especial Implantes)</label>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">{t("inventory.ownerImplants", "Proprietário (Especial Implantes)")}</label>
                                 <div className="relative">
                                     <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
                                         <Search size={16} />
@@ -1057,7 +1057,7 @@ export const Inventory = () => {
                                             }
                                         }}
                                         className="w-full pl-10 pr-4 py-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none" 
-                                        placeholder="Buscar laboratório ou cliente..."
+                                        placeholder={t("inventory.searchOwnerPlaceholder", "Buscar laboratório ou cliente...")}
                                     />
                                     <ChevronDown size={20} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                                 </div>
@@ -1065,12 +1065,12 @@ export const Inventory = () => {
                                     <div className="absolute z-10 w-full mt-2 bg-white rounded-xl shadow-xl border border-slate-100 max-h-60 overflow-y-auto">
                                         <button 
                                             type="button"
-                                            onClick={() => handleSelectDentist(null, 'Laboratório (Geral)')}
+                                            onClick={() => handleSelectDentist(null, t("inventory.labGeneral", "Laboratório (Geral)"))}
                                             className="w-full text-left px-4 py-3 hover:bg-slate-50 flex items-center gap-3 border-b border-slate-100"
                                         >
                                             <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg"><Box size={16}/></div>
                                             <div>
-                                                <div className="font-bold text-slate-800">Laboratório (Geral)</div>
+                                                <div className="font-bold text-slate-800">{t("inventory.labGeneral", "Laboratório (Geral)")}</div>
                                                 <div className="text-xs text-slate-500">{t("inventory.labStock", "Estoque do próprio laboratório")}</div>
                                             </div>
                                         </button>
@@ -1098,24 +1098,24 @@ export const Inventory = () => {
                                 <input required type="number" step="1" value={itemForm.currentStock || 0} onChange={e => setItemForm({...itemForm, currentStock: Number(e.target.value)})} className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none" />
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Estoque Mínimo</label>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">{t("inventory.minStock", "Estoque Mínimo")}</label>
                                 <input required type="number" step="1" value={itemForm.minStock || 0} onChange={e => setItemForm({...itemForm, minStock: Number(e.target.value)})} className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none" />
                             </div>
 
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Custo Unitário (R$)</label>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">{t("inventory.unitCost", "Custo Unitário (R$)")}</label>
                                 <input required type="number" step="0.01" value={itemForm.costPrice || 0} onChange={e => setItemForm({...itemForm, costPrice: Number(e.target.value)})} className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none" />
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Preço de Venda / Cobrança Extra (R$)</label>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">{t("inventory.extraChargePrice", "Preço de Venda / Cobrança Extra (R$)")}</label>
                                 <input required type="number" step="0.01" value={itemForm.sellPrice || 0} onChange={e => setItemForm({...itemForm, sellPrice: Number(e.target.value)})} className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none" />
-                                <p className="text-[10px] mt-2 text-slate-500">Valor cobrado a mais na OS quando este item é utilizado.</p>
+                                <p className="text-[10px] mt-2 text-slate-500">{t("inventory.extraChargeHelp", "Valor cobrado a mais na OS quando este item é utilizado.")}</p>
                             </div>
                         </div>
 
                         <div className="mt-8">
                             <button type="submit" className="w-full py-4 bg-indigo-600 text-white font-black rounded-xl shadow-lg hover:bg-indigo-700 flex justify-center items-center gap-2">
-                                <Save size={20}/> {editingItemId ? 'ATUALIZAR PRODUTO' : 'CADASTRAR PRODUTO NO ESTOQUE'}
+                                <Save size={20}/> {editingItemId ? t("inventory.updateProductBtn", "ATUALIZAR PRODUTO") : t("inventory.registerProductBtn", "CADASTRAR PRODUTO NO ESTOQUE")}
                             </button>
                         </div>
                     </form>
@@ -1130,37 +1130,37 @@ export const Inventory = () => {
                         </button>
                         <h2 className="text-2xl font-black text-slate-900 mb-1 flex items-center gap-2">
                             <Upload className="text-emerald-500" />
-                            Importação em Massa
+                            {t("inventory.bulkImportTitle", "Importação em Massa")}
                         </h2>
                         <p className="text-slate-500 mb-6 text-sm">
-                            Importe e registre produtos em massa a partir de planilhas de estoque (.xlsx, .csv). O sistema fará a leitura linha por linha.
+                            {t("inventory.bulkImportSubtitle", "Importe e registre produtos em massa a partir de planilhas de estoque (.xlsx, .csv). O sistema fará a leitura linha por linha.")}
                         </p>
 
                         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6">
-                            <span className="text-xs font-black text-amber-700 uppercase tracking-wider block mb-2">Ordem Obrigatória das Colunas</span>
+                            <span className="text-xs font-black text-amber-700 uppercase tracking-wider block mb-2">{t("inventory.mandatoryColumnOrder", "Ordem Obrigatória das Colunas")}</span>
                             <div className="text-xs text-amber-800 space-y-1">
-                                <p>Para que a importação funcione corretamente, sua planilha <strong>DEVE</strong> seguir exatamente a ordem de colunas abaixo (da esquerda para direita):</p>
+                                <p>{t("inventory.columnOrderIntro", "Para que a importação funcione corretamente, sua planilha DEVE seguir exatamente a ordem de colunas abaixo (da esquerda para direita):")}</p>
                                 <ol className="list-decimal pl-4 mt-2 font-mono font-bold">
-                                    <li>Código (SKU)</li>
-                                    <li>Produto (Nome do Item) - Obrigatório</li>
+                                    <li>{t("inventory.colSku", "Código (SKU)")}</li>
+                                    <li>{t("inventory.colProduct", "Produto (Nome do Item) - Obrigatório")}</li>
                                     <li>{t("inventory.category", "Categoria")}</li>
                                     <li>{t("inventory.currentStock", "Estoque Atual")}</li>
-                                    <li>Custo Médio (Custo de compra)</li>
-                                    <li>Valor Total de Vendas (Coluna ignorada, mas deve existir)</li>
-                                    <li>Preço de Venda</li>
-                                    <li>Estoque Mínimo</li>
-                                    <li>Descrição</li>
+                                    <li>{t("inventory.colAvgCost", "Custo Médio (Custo de compra)")}</li>
+                                    <li>{t("inventory.colTotalSales", "Valor Total de Vendas (Coluna ignorada, mas deve existir)")}</li>
+                                    <li>{t("inventory.salePrice", "Preço de Venda")}</li>
+                                    <li>{t("inventory.minStock", "Estoque Mínimo")}</li>
+                                    <li>{t("inventory.colDescription", "Descrição")}</li>
                                 </ol>
-                                <p className="mt-2 text-[10px]">* Obs: A primeira linha pode conter os cabeçalhos. Os valores em dinheiro (ex: R$15,00) serão convertidos automaticamente.</p>
+                                <p className="mt-2 text-[10px]">{t("inventory.columnOrderNote", "* Obs: A primeira linha pode conter os cabeçalhos. Os valores em dinheiro (ex: R$15,00) serão convertidos automaticamente.")}</p>
                             </div>
                         </div>
 
                         <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 mb-6">
-                            <span className="text-xs font-black text-slate-400 uppercase tracking-wider block mb-2">Destino da Importação</span>
+                            <span className="text-xs font-black text-slate-400 uppercase tracking-wider block mb-2">{t("inventory.importDestination", "Destino da Importação")}</span>
                             <div className="flex items-center gap-2">
                                 <div className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse"></div>
                                 <span className="font-bold text-slate-800 text-sm">
-                                    {activeTab === 'CATALOG' ? 'Banco de Produtos Base (Catálogo)' : 'Estoque / Insumos do Laboratório'}
+                                    {activeTab === 'CATALOG' ? t("inventory.destCatalog", "Banco de Produtos Base (Catálogo)") : t("inventory.destStock", "Estoque / Insumos do Laboratório")}
                                 </span>
                             </div>
                         </div>
@@ -1184,8 +1184,8 @@ export const Inventory = () => {
                                     <Upload size={28} />
                                 </div>
                                 <div>
-                                    <p className="font-black text-slate-800 text-base">Arraste seu arquivo ou clique para selecionar</p>
-                                    <p className="text-xs text-slate-500 mt-1">Suporta planilhas Excel (.xlsx, .xls) ou arquivos formatados (.csv, .tsv)</p>
+                                    <p className="font-black text-slate-800 text-base">{t("inventory.dragDropPrompt", "Arraste seu arquivo ou clique para selecionar")}</p>
+                                    <p className="text-xs text-slate-500 mt-1">{t("inventory.dragDropSub", "Suporta planilhas Excel (.xlsx, .xls) ou arquivos formatados (.csv, .tsv)")}</p>
                                 </div>
                             </div>
                         </div>
@@ -1199,14 +1199,14 @@ export const Inventory = () => {
                                     </div>
                                     <div>
                                         <div className="font-bold text-slate-800 text-sm">{uploadedFile.name}</div>
-                                        <div className="text-[10px] text-emerald-600 font-semibold uppercase tracking-wider">Pronto para importação de dados</div>
+                                        <div className="text-[10px] text-emerald-600 font-semibold uppercase tracking-wider">{t("inventory.readyForImport", "Pronto para importação de dados")}</div>
                                     </div>
                                 </div>
                                 <button 
                                     type="button" 
                                     onClick={() => setUploadedFile(null)} 
                                     className="p-1.5 hover:bg-emerald-200/50 text-emerald-700 rounded-full transition-colors"
-                                    title="Remover arquivo"
+                                    title={t("inventory.removeFile", "Remover arquivo")}
                                 >
                                     <X size={18} />
                                 </button>
@@ -1217,21 +1217,21 @@ export const Inventory = () => {
                         {!uploadedFile && (
                             <div className="mb-6">
                                 <div className="flex justify-between items-center mb-2">
-                                    <label className="text-xs font-black text-slate-400 uppercase tracking-wider">Texto Extraído ou Copiado</label>
+                                    <label className="text-xs font-black text-slate-400 uppercase tracking-wider">{t("inventory.extractedTextLabel", "Texto Extraído ou Copiado")}</label>
                                     {bulkText && (
                                         <button 
                                             type="button" 
                                             onClick={() => setBulkText('')} 
                                             className="text-xs text-rose-500 font-bold hover:underline"
                                         >
-                                            Limpar Texto
+                                            {t("inventory.clearText", "Limpar Texto")}
                                         </button>
                                     )}
                                 </div>
                                 <textarea
                                     value={bulkText}
                                     onChange={e => setBulkText(e.target.value)}
-                                    placeholder="Caso prefira, você também pode colar dados copiados de uma planilha ou digitar uma lista livre aqui..."
+                                    placeholder={t("inventory.pastePlaceholder", "Caso prefira, você também pode colar dados copiados de uma planilha ou digitar uma lista livre aqui...")}
                                     className="w-full h-44 p-4 rounded-2xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none font-mono text-xs whitespace-pre-wrap resize-none transition-all"
                                 />
                             </div>
@@ -1247,7 +1247,7 @@ export const Inventory = () => {
                                 }} 
                                 className="px-6 py-4 rounded-xl font-bold text-slate-500 hover:bg-slate-100 transition-colors"
                             >
-                                Cancelar
+                                {t("common.cancel", "Cancelar")}
                             </button>
                             <button 
                                 type="button" 
@@ -1258,11 +1258,11 @@ export const Inventory = () => {
                                 {isParsingBulk ? (
                                     <>
                                         <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                                        Analisando e Cadastrando...
+                                        {t("inventory.analyzingRegistering", "Analisando e Cadastrando...")}
                                     </>
                                 ) : (
                                     <>
-                                        <Sparkles size={20}/> Iniciar Importação
+                                        <Sparkles size={20}/> {t("inventory.startImport", "Iniciar Importação")}
                                     </>
                                 )}
                             </button>
@@ -1277,7 +1277,7 @@ export const Inventory = () => {
                     <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl">
                         <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-blue-50/50">
                             <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
-                                <ArrowLeft className="text-blue-600" /> Mover Itens
+                                <ArrowLeft className="text-blue-600" /> {t("inventory.moveItemsTitle", "Mover Itens")}
                             </h2>
                             <button onClick={() => setShowMoveModal(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-500">
                                 <X size={20} />
@@ -1285,10 +1285,10 @@ export const Inventory = () => {
                         </div>
                         <div className="p-6 space-y-4">
                             <p className="text-sm font-medium text-slate-600">
-                                Para qual estoque deseja mover os <strong>{selectedItems.length}</strong> itens selecionados?
+                                {t("inventory.moveDestinationPrompt", { count: selectedItems.length, defaultValue: `Para qual estoque deseja mover os ${selectedItems.length} itens selecionados?` })}
                             </p>
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Destino</label>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5 ml-1">{t("inventory.destinationLabel", "Destino")}</label>
                                 <div className="relative">
                                     <input 
                                         type="text" 
@@ -1299,7 +1299,7 @@ export const Inventory = () => {
                                             if (!e.target.value) setMoveToOwnerId('');
                                         }}
                                         onFocus={() => setShowMoveDentistDropdown(true)}
-                                        placeholder="Digite para buscar estoque/cliente..."
+                                        placeholder={t("inventory.searchStockPlaceholder", "Digite para buscar estoque/cliente...")}
                                         className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                                     />
                                     {showMoveDentistDropdown && (
@@ -1308,11 +1308,11 @@ export const Inventory = () => {
                                                 className="p-3 hover:bg-slate-50 cursor-pointer border-b border-slate-100 font-bold text-blue-700 flex items-center gap-2"
                                                 onClick={() => {
                                                     setMoveToOwnerId('LAB');
-                                                    setMoveDentistSearch('Laboratório (Geral)');
+                                                    setMoveDentistSearch(t("inventory.labGeneral", "Laboratório (Geral)"));
                                                     setShowMoveDentistDropdown(false);
                                                 }}
                                             >
-                                                <Box size={16} /> Laboratório (Geral)
+                                                <Box size={16} /> {t("inventory.labGeneral", "Laboratório (Geral)")}
                                             </div>
                                             {clients.filter(c => c.name.toLowerCase().includes(moveDentistSearch.toLowerCase()) || (c.clinicName && c.clinicName.toLowerCase().includes(moveDentistSearch.toLowerCase()))).slice(0, 10).map(client => (
                                                 <div 
@@ -1334,8 +1334,8 @@ export const Inventory = () => {
                             </div>
                         </div>
                         <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
-                            <button onClick={() => setShowMoveModal(false)} className="px-5 py-2.5 font-bold text-slate-500 hover:bg-slate-200 rounded-xl transition-colors">Cancelar</button>
-                            <button onClick={handleBulkMove} disabled={!moveToOwnerId} className="px-5 py-2.5 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 transition-all disabled:opacity-50">Mover Itens</button>
+                            <button onClick={() => setShowMoveModal(false)} className="px-5 py-2.5 font-bold text-slate-500 hover:bg-slate-200 rounded-xl transition-colors">{t("common.cancel", "Cancelar")}</button>
+                            <button onClick={handleBulkMove} disabled={!moveToOwnerId} className="px-5 py-2.5 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 transition-all disabled:opacity-50">{t("inventory.moveItemsBtn", "Mover Itens")}</button>
                         </div>
                     </div>
                 </div>
@@ -1349,12 +1349,12 @@ export const Inventory = () => {
                             <div className="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto">
                                 <Trash2 size={32} />
                             </div>
-                            <h2 className="text-xl font-black text-slate-800">Confirmar Exclusão</h2>
-                            <p className="text-slate-600 font-medium">Tem certeza que deseja excluir os <strong>{selectedItems.length}</strong> itens selecionados? Esta ação não pode ser desfeita.</p>
+                            <h2 className="text-xl font-black text-slate-800">{t("inventory.confirmDeleteTitle", "Confirmar Exclusão")}</h2>
+                            <p className="text-slate-600 font-medium">{t("inventory.confirmDeleteMsg", { count: selectedItems.length, defaultValue: `Tem certeza que deseja excluir os ${selectedItems.length} itens selecionados? Esta ação não pode ser desfeita.` })}</p>
                         </div>
                         <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
-                            <button onClick={() => setShowDeleteConfirmModal(false)} className="flex-1 px-5 py-3 font-bold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">Cancelar</button>
-                            <button onClick={handleBulkDelete} className="flex-1 px-5 py-3 bg-red-600 text-white font-bold rounded-xl shadow-lg hover:bg-red-700 transition-all">Excluir Tudo</button>
+                            <button onClick={() => setShowDeleteConfirmModal(false)} className="flex-1 px-5 py-3 font-bold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">{t("common.cancel", "Cancelar")}</button>
+                            <button onClick={handleBulkDelete} className="flex-1 px-5 py-3 bg-red-600 text-white font-bold rounded-xl shadow-lg hover:bg-red-700 transition-all">{t("inventory.deleteAllBtn", "Excluir Tudo")}</button>
                         </div>
                     </div>
                 </div>
@@ -1366,7 +1366,7 @@ export const Inventory = () => {
                     <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl">
                         <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-amber-50/50">
                             <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
-                                <Layers className="text-amber-600" /> Criar Novo Estoque
+                                <Layers className="text-amber-600" /> {t("inventory.createStockTitle", "Criar Novo Estoque")}
                             </h2>
                             <button onClick={() => setShowCreateStockModal(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-500">
                                 <X size={20} />
@@ -1374,10 +1374,10 @@ export const Inventory = () => {
                         </div>
                         <div className="p-6 space-y-4">
                             <p className="text-sm font-medium text-slate-600">
-                                Selecione de quem será este estoque (Geral do laboratório ou de um cliente específico).
+                                {t("inventory.createStockPrompt", "Selecione de quem será este estoque (Geral do laboratório ou de um cliente específico).")}
                             </p>
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Proprietário do Estoque</label>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5 ml-1">{t("inventory.stockOwnerLabel", "Proprietário do Estoque")}</label>
                                 <div className="relative">
                                     <input 
                                         type="text" 
@@ -1388,7 +1388,7 @@ export const Inventory = () => {
                                             if (!e.target.value) setNewStockOwnerId('');
                                         }}
                                         onFocus={() => setShowNewStockDentistDropdown(true)}
-                                        placeholder="Buscar..."
+                                        placeholder={t("inventory.searchPlaceholder", "Buscar...")}
                                         className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none transition-all"
                                     />
                                     {showNewStockDentistDropdown && (
@@ -1397,11 +1397,11 @@ export const Inventory = () => {
                                                 className="p-3 hover:bg-slate-50 cursor-pointer border-b border-slate-100 font-bold text-indigo-700 flex items-center gap-2"
                                                 onClick={() => {
                                                     setNewStockOwnerId('LAB');
-                                                    setNewStockDentistSearch('Laboratório (Geral)');
+                                                    setNewStockDentistSearch(t("inventory.labGeneral", "Laboratório (Geral)"));
                                                     setShowNewStockDentistDropdown(false);
                                                 }}
                                             >
-                                                <Box size={16} /> Laboratório (Geral)
+                                                <Box size={16} /> {t("inventory.labGeneral", "Laboratório (Geral)")}
                                             </div>
                                             {clients.filter(c => c.name.toLowerCase().includes(newStockDentistSearch.toLowerCase()) || (c.clinicName && c.clinicName.toLowerCase().includes(newStockDentistSearch.toLowerCase()))).slice(0, 10).map(client => (
                                                 <div 
@@ -1423,8 +1423,8 @@ export const Inventory = () => {
                             </div>
                         </div>
                         <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
-                            <button onClick={() => setShowCreateStockModal(false)} className="px-5 py-2.5 font-bold text-slate-500 hover:bg-slate-200 rounded-xl transition-colors">Cancelar</button>
-                            <button onClick={handleCreateStock} disabled={!newStockOwnerId} className="px-5 py-2.5 bg-amber-600 text-white font-bold rounded-xl shadow-lg hover:bg-amber-700 transition-all disabled:opacity-50">Criar Estoque</button>
+                            <button onClick={() => setShowCreateStockModal(false)} className="px-5 py-2.5 font-bold text-slate-500 hover:bg-slate-200 rounded-xl transition-colors">{t("common.cancel", "Cancelar")}</button>
+                            <button onClick={handleCreateStock} disabled={!newStockOwnerId} className="px-5 py-2.5 bg-amber-600 text-white font-bold rounded-xl shadow-lg hover:bg-amber-700 transition-all disabled:opacity-50">{t("inventory.createStockBtn", "Criar Estoque")}</button>
                         </div>
                     </div>
                 </div>
@@ -1438,12 +1438,12 @@ export const Inventory = () => {
                             <div className="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto">
                                 <Trash2 size={32} />
                             </div>
-                            <h2 className="text-xl font-black text-slate-800">Excluir Estoque</h2>
-                            <p className="text-slate-600 font-medium">Tem certeza que deseja excluir este estoque completo? <strong>Todos os {itemGroups[deleteStockId || '']?.length || 0} itens dentro dele serão apagados permanentemente.</strong></p>
+                            <h2 className="text-xl font-black text-slate-800">{t("inventory.deleteStockTitle", "Excluir Estoque")}</h2>
+                            <p className="text-slate-600 font-medium">{t("inventory.deleteStockWarning", { count: itemGroups[deleteStockId || '']?.length || 0, defaultValue: `Tem certeza que deseja excluir este estoque completo? Todos os ${itemGroups[deleteStockId || '']?.length || 0} itens dentro dele serão apagados permanentemente.` })}</p>
                         </div>
                         <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
-                            <button onClick={() => setShowDeleteStockModal(false)} className="flex-1 px-5 py-3 font-bold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">Cancelar</button>
-                            <button onClick={handleDeleteStock} className="flex-1 px-5 py-3 bg-red-600 text-white font-bold rounded-xl shadow-lg hover:bg-red-700 transition-all">Excluir Estoque</button>
+                            <button onClick={() => setShowDeleteStockModal(false)} className="flex-1 px-5 py-3 font-bold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">{t("common.cancel", "Cancelar")}</button>
+                            <button onClick={handleDeleteStock} className="flex-1 px-5 py-3 bg-red-600 text-white font-bold rounded-xl shadow-lg hover:bg-red-700 transition-all">{t("inventory.deleteStockBtn", "Excluir Estoque")}</button>
                         </div>
                     </div>
                 </div>

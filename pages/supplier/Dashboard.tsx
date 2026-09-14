@@ -8,7 +8,7 @@ import {
   Building2, ExternalLink, Filter
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { subscribeSupplierConversations } from '../../services/firebaseService';
+import { subscribeSupplierConversations, subscribeSupplierOrders } from '../../services/firebaseService';
 import { SupplierOrder } from '../../types';
 import { SupplierOrderDetailsDrawer } from './components/SupplierOrderDetailsDrawer';
 import { SupplierOrderPackingSlipModal } from './components/SupplierOrderPackingSlipModal';
@@ -33,6 +33,16 @@ export const SupplierDashboard = () => {
   const [orderToPrint, setOrderToPrint] = useState<SupplierOrder | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [unreadChatCount, setUnreadChatCount] = useState(0);
+  const [directSupplierOrders, setDirectSupplierOrders] = useState<SupplierOrder[] | null>(null);
+
+  // Direct subscription to supplier orders
+  useEffect(() => {
+    if (!currentOrg?.id) return;
+    const unsub = subscribeSupplierOrders(currentOrg.id, (orders) => {
+      setDirectSupplierOrders(orders);
+    });
+    return () => unsub();
+  }, [currentOrg?.id]);
 
   // Sync searchParams when mainView changes
   useEffect(() => {
@@ -58,8 +68,9 @@ export const SupplierDashboard = () => {
 
   // Filter orders for this supplier
   const myOrders: SupplierOrder[] = useMemo(() => {
+    if (directSupplierOrders !== null) return directSupplierOrders;
     return supplierOrders || [];
-  }, [supplierOrders]);
+  }, [directSupplierOrders, supplierOrders]);
 
   // Categorize order into standard tab
   const getOrderCategory = (o: SupplierOrder): SupplierOrderTab => {
@@ -410,7 +421,7 @@ export const SupplierDashboard = () => {
           <div className="bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs overflow-hidden">
             <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/80 dark:bg-[#0E1626]">
               <div className="flex items-center gap-2">
-                <h3 className="font-black text-sm text-slate-900 dark:text-white">
+                <h3 className="font-black text-sm text-slate-900 dark:text-white flex items-center gap-2">
                   {orderTab === 'SEPARATION' ? '📦 Pedidos Pagos a Separar (Picking List)' :
                    orderTab === 'READY_TO_SHIP' ? '🏷️ Pedidos Separados e Prontos para Despacho' :
                    orderTab === 'SHIPPED' ? '🚚 Pedidos em Trânsito com Rastreio' :
@@ -424,7 +435,7 @@ export const SupplierDashboard = () => {
               </div>
 
               {orderTab === 'SEPARATION' && (
-                <div className="text-[11px] text-emerald-700 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-lg border border-emerald-200 dark:border-emerald-800 flex items-center gap-1.5">
+                <div className="text-[11px] text-emerald-700 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950/50 px-2.5 py-1 rounded-lg border border-emerald-200 dark:border-emerald-800/80 flex items-center gap-1.5 shadow-2xs">
                   <ShieldCheck size={13} />
                   <span>Pagamentos confirmados automaticamente via PIX/Cartão</span>
                 </div>

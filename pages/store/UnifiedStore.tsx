@@ -5,8 +5,10 @@ import { useLocation } from 'react-router-dom';
 import { Catalog } from './Catalog';
 import { SupplierStore } from './SupplierStore';
 import { useApp } from '../../context/AppContext';
+import { useTranslation } from 'react-i18next';
 
 export function UnifiedStore() {
+  const { t } = useTranslation();
   const location = useLocation();
   const { currentOrg } = useApp();
   const [activeStore, setActiveStore] = useState<'PROTESE' | 'FORNECEDOR'>(() => {
@@ -41,10 +43,10 @@ export function UnifiedStore() {
              transition={{ type: "spring", stiffness: 400, damping: 30 }}
            />
            <div className={`flex-1 flex justify-center items-center z-10 text-[11px] md:text-sm font-black transition-colors duration-300 select-none ${activeStore === 'PROTESE' ? 'text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400'}`}>
-             {isLab ? 'Terceirização' : 'Loja de Prótese'}
+             {isLab ? t('store.outsourcing', 'Terceirização') : t('store.prosthesisStore', 'Loja de Prótese')}
            </div>
            <div className={`flex-1 flex justify-center items-center z-10 text-[11px] md:text-sm font-black transition-colors duration-300 select-none ${activeStore === 'FORNECEDOR' ? 'text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400'}`}>
-             Fornecedores
+             {t('store.suppliers', 'Fornecedores')}
            </div>
         </div>,
         headerPortalElement

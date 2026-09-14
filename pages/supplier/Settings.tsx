@@ -371,13 +371,13 @@ export const SupplierSettings = () => {
             <div className="lg:col-span-2 space-y-6">
               
               {/* Banner Carousel customizer */}
-              <div className="bg-white border border-slate-200 p-4 sm:p-6 rounded-2xl space-y-4">
+              <div className="bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 p-4 sm:p-6 rounded-2xl space-y-4">
                 <div>
-                  <h3 className="font-bold text-md flex items-center gap-2 text-slate-900">
+                  <h3 className="font-bold text-md flex items-center gap-2 text-slate-900 dark:text-white">
                     <ImageIcon className="text-indigo-500" />
                     Banners Deslizantes da Loja
                   </h3>
-                  <p className="text-slate-500 text-xs mt-1">
+                  <p className="text-slate-500 dark:text-slate-400 text-xs mt-1">
                     Adicione banners promocionais em carrossel no topo da sua vitrine para divulgar lançamentos, campanhas e ofertas especiais.
                   </p>
                 </div>
@@ -389,7 +389,7 @@ export const SupplierSettings = () => {
                       placeholder="URL da imagem do banner (ex: https://...)"
                       value={newBanner}
                       onChange={e => setNewBanner(e.target.value)}
-                      className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500"
+                      className="flex-1 bg-slate-50 dark:bg-[#080C14] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-indigo-500"
                     />
                     <div className="flex gap-2">
                       <input
@@ -401,14 +401,14 @@ export const SupplierSettings = () => {
                       />
                       <label
                         htmlFor="banner-image-upload-settings"
-                        className="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors border border-slate-200 whitespace-nowrap"
+                        className="px-4 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors border border-slate-200 dark:border-slate-700 whitespace-nowrap"
                       >
-                        <Sparkles size={14} className="text-indigo-600" /> Upload Imagem
+                        <Sparkles size={14} className="text-indigo-600 dark:text-indigo-400" /> Upload Imagem
                       </label>
                       <button
                         type="button"
                         onClick={handleAddBanner}
-                        className="px-5 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-1 shadow-sm"
+                        className="px-5 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-1 shadow-sm cursor-pointer"
                         title="Adicionar Banner via Link"
                       >
                         <Plus size={18} />
@@ -418,40 +418,40 @@ export const SupplierSettings = () => {
                   </div>
 
                   {banners.length === 0 ? (
-                    <div className="text-center py-6 text-slate-400 text-xs italic border-2 border-dashed border-slate-200 rounded-xl">
+                    <div className="text-center py-6 text-slate-400 dark:text-slate-500 text-xs italic border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/50 dark:bg-[#080C14]/50">
                       Nenhum banner cadastrado no momento. Faça upload ou insira uma URL acima.
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 gap-4 pt-2">
                       {banners.map((banner, idx) => (
-                        <div key={idx} className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col gap-4">
+                        <div key={idx} className="bg-slate-50 dark:bg-[#0E1626] border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex flex-col gap-4">
                           <div className="flex items-center gap-3">
                             <img 
                               src={banner.imageUrl} 
                               alt={`Banner ${idx}`} 
-                              className="w-24 h-16 rounded-xl object-cover bg-white border border-slate-200 flex-shrink-0"
+                              className="w-24 h-16 rounded-xl object-cover bg-white dark:bg-[#080C14] border border-slate-200 dark:border-slate-700 flex-shrink-0"
                               referrerPolicy="no-referrer"
                               onError={(e) => {
                                 (e.target as any).src = 'https://placehold.co/600x400?text=Banner+Error';
                               }}
                             />
                             <div className="flex-1 min-w-0">
-                              <p className="font-bold text-xs text-slate-800 truncate">Banner #{idx + 1}</p>
-                              <p className="text-[10px] text-slate-500 truncate">{banner.imageUrl}</p>
+                              <p className="font-bold text-xs text-slate-800 dark:text-slate-200 truncate">Banner #{idx + 1}</p>
+                              <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">{banner.imageUrl}</p>
                             </div>
                             <button
                               type="button"
                               onClick={() => handleRemoveBanner(idx)}
-                              className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                              className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-colors cursor-pointer"
                               title="Remover Banner"
                             >
                               <Trash2 size={16} />
                             </button>
                           </div>
 
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-200">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-200 dark:border-slate-800">
                             <div>
-                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Título Central</label>
+                              <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Título Central</label>
                               <input 
                                 type="text" 
                                 value={banner.title || ''} 
@@ -460,12 +460,12 @@ export const SupplierSettings = () => {
                                   newBanners[idx].title = e.target.value;
                                   setBanners(newBanners);
                                 }}
-                                className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500"
+                                className="w-full bg-white dark:bg-[#080C14] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-indigo-500"
                                 placeholder="Ex: Mega Ofertas da Semana"
                               />
                             </div>
                             <div>
-                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Subtítulo (Opcional)</label>
+                              <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Subtítulo (Opcional)</label>
                               <input 
                                 type="text" 
                                 value={banner.subtitle || ''} 
@@ -474,12 +474,12 @@ export const SupplierSettings = () => {
                                   newBanners[idx].subtitle = e.target.value;
                                   setBanners(newBanners);
                                 }}
-                                className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500"
+                                className="w-full bg-white dark:bg-[#080C14] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-indigo-500"
                                 placeholder="Ex: Toda a linha com descontos especiais"
                               />
                             </div>
                             <div>
-                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Texto do Botão</label>
+                              <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Texto do Botão</label>
                               <input 
                                 type="text" 
                                 value={banner.buttonText || ''} 
@@ -488,12 +488,12 @@ export const SupplierSettings = () => {
                                   newBanners[idx].buttonText = e.target.value;
                                   setBanners(newBanners);
                                 }}
-                                className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500"
+                                className="w-full bg-white dark:bg-[#080C14] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-indigo-500"
                                 placeholder="Ex: Ver Ofertas"
                               />
                             </div>
                             <div>
-                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Link de Redirecionamento</label>
+                              <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Link de Redirecionamento</label>
                               <input 
                                 type="text" 
                                 value={banner.buttonLink || ''} 
@@ -502,7 +502,7 @@ export const SupplierSettings = () => {
                                   newBanners[idx].buttonLink = e.target.value;
                                   setBanners(newBanners);
                                 }}
-                                className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500"
+                                className="w-full bg-white dark:bg-[#080C14] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-indigo-500"
                                 placeholder="Ex: /loja/categoria..."
                               />
                             </div>
@@ -515,23 +515,23 @@ export const SupplierSettings = () => {
               </div>
 
               {/* Profile Photo / Logo */}
-              <div className="bg-white border border-slate-200 p-4 sm:p-6 rounded-2xl space-y-4">
+              <div className="bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 p-4 sm:p-6 rounded-2xl space-y-4">
                 <div>
-                  <h3 className="font-bold text-md flex items-center gap-2 text-slate-900">
+                  <h3 className="font-bold text-md flex items-center gap-2 text-slate-900 dark:text-white">
                     <ImageIcon className="text-indigo-500" />
                     Foto de Perfil / Logo da Loja
                   </h3>
-                  <p className="text-slate-500 text-xs mt-1">
+                  <p className="text-slate-500 dark:text-slate-400 text-xs mt-1">
                     Importe e insira a logomarca da sua empresa. Ela será exibida no topo da sua vitrine e no catálogo de produtos.
                   </p>
                 </div>
 
-                <div className="flex flex-col sm:flex-row items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                <div className="flex flex-col sm:flex-row items-center gap-4 bg-slate-50 dark:bg-[#0E1626] p-4 rounded-xl border border-slate-100 dark:border-slate-800">
                   <div className="relative group flex-shrink-0">
                     <img 
                       src={profilePhoto || 'https://placehold.co/120x120?text=Logo'} 
                       alt="Logo da Loja"
-                      className="w-20 h-20 rounded-2xl border-2 border-slate-200 bg-white object-cover shadow-sm" 
+                      className="w-20 h-20 rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-[#080C14] object-cover shadow-sm" 
                     />
                   </div>
                   
@@ -542,7 +542,7 @@ export const SupplierSettings = () => {
                         placeholder="Cole a URL da imagem da logo..."
                         value={profilePhoto}
                         onChange={e => setProfilePhoto(e.target.value)}
-                        className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500"
+                        className="flex-1 bg-white dark:bg-[#080C14] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-xs text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-indigo-500"
                       />
                       <input
                         type="file"
@@ -553,12 +553,12 @@ export const SupplierSettings = () => {
                       />
                       <label
                         htmlFor="profile-image-upload"
-                        className="px-4 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-xl text-xs flex items-center justify-center cursor-pointer transition-colors border border-indigo-200 whitespace-nowrap gap-1.5"
+                        className="px-4 py-2.5 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-bold rounded-xl text-xs flex items-center justify-center cursor-pointer transition-colors border border-indigo-200 dark:border-indigo-800 whitespace-nowrap gap-1.5"
                       >
-                        <Sparkles size={14} className="text-indigo-600" /> Upload Logo
+                        <Sparkles size={14} className="text-indigo-600 dark:text-indigo-400" /> Upload Logo
                       </label>
                     </div>
-                    <p className="text-[11px] text-slate-400">Formatos aceitos: PNG, JPEG ou WebP. Resolução recomendada: 400x400px.</p>
+                    <p className="text-[11px] text-slate-400 dark:text-slate-500">Formatos aceitos: PNG, JPEG ou WebP. Resolução recomendada: 400x400px.</p>
                   </div>
                 </div>
               </div>
@@ -840,55 +840,55 @@ export const SupplierSettings = () => {
             <div className="space-y-6">
               
               {/* Informative Help Center Panel: Como estilizar sua loja */}
-              <div className="bg-white border border-slate-200 p-5 sm:p-6 rounded-2xl space-y-4 shadow-xs">
-                <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-                  <HelpCircle className="text-indigo-600" size={22} />
-                  <h3 className="font-bold text-base text-slate-900">
+              <div className="bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 p-5 sm:p-6 rounded-2xl space-y-4 shadow-xs">
+                <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+                  <HelpCircle className="text-indigo-600 dark:text-indigo-400" size={22} />
+                  <h3 className="font-bold text-base text-slate-900 dark:text-white">
                     Como estilizar sua loja
                   </h3>
                 </div>
                 
-                <div className="text-xs text-slate-600 space-y-4 leading-relaxed">
-                  <p className="text-slate-500">
+                <div className="text-xs text-slate-600 dark:text-slate-400 space-y-4 leading-relaxed">
+                  <p className="text-slate-500 dark:text-slate-400">
                     Personalize a vitrine do seu portal de fornecedor para encantar seus clientes, valorizar sua marca e aumentar suas vendas de produtos odontológicos.
                   </p>
 
-                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
-                    <p className="font-bold text-slate-900 flex items-center gap-1.5">
-                      <ImageIcon size={14} className="text-indigo-600" />
+                  <div className="p-3.5 bg-slate-50 dark:bg-[#0E1626] border border-slate-200 dark:border-slate-800 rounded-xl space-y-1.5">
+                    <p className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                      <ImageIcon size={14} className="text-indigo-600 dark:text-indigo-400" />
                       1. Banners Deslizantes da Loja
                     </p>
-                    <p className="text-slate-500 text-[11px]">
+                    <p className="text-slate-500 dark:text-slate-400 text-[11px]">
                       Adicione banners promocionais em carrossel no topo da sua loja. Você pode fazer o upload direto de imagens do seu dispositivo ou inserir uma URL. Em cada banner, defina <strong>Título Central</strong>, <strong>Subtítulo</strong>, <strong>Texto do Botão</strong> (ex: "Ver Ofertas") e o <strong>Link de Redirecionamento</strong> para guiar o cliente direto a uma categoria ou produto específico.
                     </p>
                   </div>
 
-                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
-                    <p className="font-bold text-slate-900 flex items-center gap-1.5">
-                      <Sparkles size={14} className="text-indigo-600" />
+                  <div className="p-3.5 bg-slate-50 dark:bg-[#0E1626] border border-slate-200 dark:border-slate-800 rounded-xl space-y-1.5">
+                    <p className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                      <Sparkles size={14} className="text-indigo-600 dark:text-indigo-400" />
                       2. Foto de Perfil e Logo da Loja
                     </p>
-                    <p className="text-slate-500 text-[11px]">
+                    <p className="text-slate-500 dark:text-slate-400 text-[11px]">
                       Importe e insira a logomarca da sua empresa através de upload de arquivo ou URL. A logo é exibida com destaque no cabeçalho da sua vitrine e no catálogo, identificando sua marca para todos os clientes e laboratórios parceiros.
                     </p>
                   </div>
 
-                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
-                    <p className="font-bold text-slate-900 flex items-center gap-1.5">
-                      <Folder size={14} className="text-indigo-600" />
+                  <div className="p-3.5 bg-slate-50 dark:bg-[#0E1626] border border-slate-200 dark:border-slate-800 rounded-xl space-y-1.5">
+                    <p className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                      <Folder size={14} className="text-indigo-600 dark:text-indigo-400" />
                       3. Imagens para Categorias
                     </p>
-                    <p className="text-slate-500 text-[11px]">
+                    <p className="text-slate-500 dark:text-slate-400 text-[11px]">
                       Defina fotos e ícones representativos para cada categoria de insumos e maquinários (como Resinas 3D, Fresadoras, Descartáveis, Equipamentos). Essas imagens aparecem em destaque na seção <strong>"Explorar nossas Categorias"</strong> na vitrine principal da loja.
                     </p>
                   </div>
 
-                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
-                    <p className="font-bold text-slate-900 flex items-center gap-1.5">
-                      <FolderPlus size={14} className="text-indigo-600" />
+                  <div className="p-3.5 bg-slate-50 dark:bg-[#0E1626] border border-slate-200 dark:border-slate-800 rounded-xl space-y-1.5">
+                    <p className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                      <FolderPlus size={14} className="text-indigo-600 dark:text-indigo-400" />
                       4. Criação e Gestão de Categorias
                     </p>
-                    <p className="text-slate-500 text-[11px]">
+                    <p className="text-slate-500 dark:text-slate-400 text-[11px]">
                       Você pode criar novas categorias diretamente aqui nesta tela pelo botão <strong>"+ Nova Categoria"</strong> ou durante o cadastro/edição de produtos (clicando em <em>"+ Nova Categoria"</em> ao lado do seletor). Todas as categorias criadas ficam sincronizadas em tempo real e disponíveis instantaneamente no ato do cadastro de produtos.
                     </p>
                   </div>
@@ -902,12 +902,12 @@ export const SupplierSettings = () => {
         {/* TAB 2: PLANS & UPGRADES */}
         {activeTab === 'plans' && (
           <div className="space-y-6 animate-in fade-in duration-300">
-            <div className="bg-white border border-slate-200 rounded-3xl p-4 sm:p-8 text-white shadow-xl relative overflow-hidden">
+            <div className="bg-slate-900 dark:bg-[#0B0F17] border border-slate-800 rounded-3xl p-4 sm:p-8 text-white shadow-xl relative overflow-hidden">
                <div className="absolute top-0 right-0 p-4 sm:p-8 opacity-10"><Crown size={120} /></div>
                <div className="relative z-10">
                   <p className="text-indigo-400 font-bold uppercase text-xs tracking-widest mb-1">Seu Plano Atual de Fornecedor</p>
                   <h2 className="text-4xl font-black mb-4">{currentPlan?.name || 'Fornecedor Standard'}</h2>
-                  <div className="flex flex-wrap gap-4 text-sm font-medium text-slate-800">
+                  <div className="flex flex-wrap gap-4 text-sm font-medium text-slate-300">
                      <div className="flex items-center gap-1.5"><CheckCircle2 size={16} className="text-emerald-400" /> Produtos Ilimitados</div>
                      <div className="flex items-center gap-1.5"><CheckCircle2 size={16} className="text-emerald-400" /> Exposição no Feed Global Shopee</div>
                      <div className="flex items-center gap-1.5"><CheckCircle2 size={16} className="text-emerald-400" /> Configuração de Wallet Asaas para Splits</div>
@@ -917,7 +917,7 @@ export const SupplierSettings = () => {
                     <div className="mt-6 p-4 bg-red-500/20 border border-red-500/50 rounded-2xl flex items-center justify-between">
                       <div>
                         <p className="font-bold text-red-400">Mensalidade do Plano Vencida</p>
-                        <p className="text-xs">Regularize sua mensalidade para voltar a expor seus produtos na loja global.</p>
+                        <p className="text-xs text-slate-300">Regularize sua mensalidade para voltar a expor seus produtos na loja global.</p>
                       </div>
                     </div>
                   )}
@@ -926,7 +926,7 @@ export const SupplierSettings = () => {
                     <div className="mt-6 p-4 bg-emerald-500/10 border border-emerald-500/35 rounded-2xl flex items-center justify-between">
                       <div>
                         <p className="font-bold text-emerald-400">Conta Fornecedora Isenta</p>
-                        <p className="text-xs">Seu registro está configurado com isenção de mensalidades comerciais.</p>
+                        <p className="text-xs text-slate-300">Seu registro está configurado com isenção de mensalidades comerciais.</p>
                       </div>
                       <Crown size={20} className="text-emerald-400 animate-pulse" />
                     </div>
@@ -935,8 +935,8 @@ export const SupplierSettings = () => {
             </div>
 
             {/* Application of Promo Coupon keys */}
-            <div className="bg-white border border-slate-200 p-4 sm:p-6 rounded-3xl">
-               <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+            <div className="bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 p-4 sm:p-6 rounded-3xl">
+               <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
                  <Tag className="text-indigo-400" /> Resgatar Cupom de Parceria Fornecedora
                </h3>
                <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
@@ -945,12 +945,12 @@ export const SupplierSettings = () => {
                     placeholder="Código do Cupom Parceiro" 
                     value={couponCode}
                     onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                    className="flex-1 bg-slate-50 border border-slate-200 px-4 py-3 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-900 outline-none uppercase font-bold tracking-widest text-sm"
+                    className="flex-1 bg-slate-50 dark:bg-[#080C14] border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white px-4 py-3 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-900 outline-none uppercase font-bold tracking-widest text-sm"
                   />
                   <button 
                     onClick={handleApplyCoupon}
                     disabled={couponLoading || !couponCode.trim()}
-                    className="px-8 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-500 transition-all disabled:opacity-50 whitespace-nowrap text-sm"
+                    className="px-8 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-500 transition-all disabled:opacity-50 whitespace-nowrap text-sm cursor-pointer"
                   >
                     {couponLoading ? 'Validando...' : 'Resgatar Cupom'}
                   </button>
@@ -963,26 +963,26 @@ export const SupplierSettings = () => {
             </div>
 
             {/* Invoices summary */}
-            <div className="bg-white border border-slate-200 p-4 sm:p-6 rounded-3xl space-y-4">
-              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+            <div className="bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 p-4 sm:p-6 rounded-3xl space-y-4">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <DollarSign className="text-indigo-400" /> Histórico de Recibos/Mensalidades
               </h3>
               {loadingInvoices ? (
-                <div className="py-6 text-center text-slate-500">Carregando faturas...</div>
+                <div className="py-6 text-center text-slate-500 dark:text-slate-400">Carregando faturas...</div>
               ) : invoices.length === 0 ? (
-                <p className="text-xs text-slate-500 italic pb-2">Sem faturas comerciais recentes registradas.</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 italic pb-2">Sem faturas comerciais recentes registradas.</p>
               ) : (
-                <div className="divide-y divide-slate-850">
+                <div className="divide-y divide-slate-100 dark:divide-slate-800">
                   {invoices.map((inv: any, idx) => (
                     <div key={idx} className="py-3 flex justify-between items-center text-xs">
                       <div>
-                        <p className="font-bold text-slate-800">Fatura Mensalidade #{inv.id.substring(inv.id.length - 8).toUpperCase()}</p>
-                        <p className="text-slate-500 mt-1 font-mono">Vencimento: {inv.dueDate}</p>
+                        <p className="font-bold text-slate-800 dark:text-slate-200">Fatura Mensalidade #{inv.id.substring(inv.id.length - 8).toUpperCase()}</p>
+                        <p className="text-slate-500 dark:text-slate-400 mt-1 font-mono">Vencimento: {inv.dueDate}</p>
                       </div>
                       <div className="text-right">
-                        <p className="font-mono font-bold text-teal-400">R$ {inv.value.toFixed(2)}</p>
+                        <p className="font-mono font-bold text-teal-500 dark:text-teal-400">R$ {inv.value.toFixed(2)}</p>
                         <span className={`inline-block mt-1 px-2 py-0.5 rounded font-bold font-mono text-[9px] ${
-                          inv.status === 'RECEIVED' || inv.status === 'CONFIRMED' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-yellow-500/10 text-yellow-500'
+                          inv.status === 'RECEIVED' || inv.status === 'CONFIRMED' ? 'bg-emerald-500/10 text-emerald-500 dark:text-emerald-400' : 'bg-yellow-500/10 text-yellow-500'
                         }`}>{inv.status === 'RECEIVED' ? 'PAGO' : 'PENDENTE'}</span>
                       </div>
                     </div>
@@ -995,157 +995,156 @@ export const SupplierSettings = () => {
 
         {/* TAB 3: ASAAS SUB-ACCOUNT CREDENTIALS */}
         {activeTab === 'asaas' && (
-          <div className="bg-white border border-slate-200/80 p-4 sm:p-6 rounded-2xl space-y-6 animate-in fade-in duration-300 max-w-3xl">
-            <h3 className="font-bold text-md flex items-center gap-2 border-b border-slate-200 pb-3">
+          <div className="bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 p-4 sm:p-6 rounded-2xl space-y-6 animate-in fade-in duration-300 max-w-3xl">
+            <h3 className="font-bold text-md flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3 text-slate-900 dark:text-white">
               <Wallet className="text-indigo-400" />
               Credenciamento e Split do Asaas
             </h3>
             
-            <p className="text-slate-500 text-xs leading-relaxed">
+            <p className="text-slate-500 dark:text-slate-400 text-xs leading-relaxed">
               Associe sua conta digital ASAAS para recolhimento direto das vendas de seus produtos, possibilitando liberação imediata de splits financeiros automáticos e transferências de saldo em conta.
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="sm:col-span-2">
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">ID da Carteira ASAAS (Wallet ID)</label>
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">ID da Carteira ASAAS (Wallet ID)</label>
                 <input
                   type="text"
                   placeholder="Ex: account_1234567..."
                   value={asaasWalletId}
                   onChange={e => setAsaasWalletId(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500 font-mono placeholder-slate-700"
+                  className="w-full bg-slate-50 dark:bg-[#080C14] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-xs text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-indigo-500 font-mono placeholder-slate-400 dark:placeholder-slate-600"
                 />
-                <p className="text-[10px] text-slate-500 mt-1">ID da conta fornecido pelo Administrador ou localizado em sua conta comercial Asaas.</p>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">ID da conta fornecido pelo Administrador ou localizado em sua conta comercial Asaas.</p>
               </div>
 
-
               {/* Address section */}
-              <div className="sm:col-span-2 mt-4 pt-4 border-t border-slate-200">
-                <h4 className="font-bold text-sm text-slate-900 mb-4">Endereço de Origem (Para cálculo de frete)</h4>
+              <div className="sm:col-span-2 mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
+                <h4 className="font-bold text-sm text-slate-900 dark:text-white mb-4">Endereço de Origem (Para cálculo de frete)</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="md:col-span-1">
-                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">CEP</label>
+                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">CEP</label>
                     <input
                       type="text"
                       placeholder="00000-000"
                       value={cep}
                       onChange={e => setCep(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500 font-mono"
+                      className="w-full bg-slate-50 dark:bg-[#080C14] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-xs text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-indigo-500 font-mono"
                     />
                   </div>
                   <div className="md:col-span-3">
-                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Rua / Logradouro</label>
+                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Rua / Logradouro</label>
                     <input
                       type="text"
                       placeholder="Ex: Rua das Flores"
                       value={address}
                       onChange={e => setAddress(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500"
+                      className="w-full bg-slate-50 dark:bg-[#080C14] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-xs text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-indigo-500"
                     />
                   </div>
                   <div className="md:col-span-1">
-                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Número</label>
+                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Número</label>
                     <input
                       type="text"
                       placeholder="Ex: 123"
                       value={number}
                       onChange={e => setNumber(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500"
+                      className="w-full bg-slate-50 dark:bg-[#080C14] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-xs text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-indigo-500"
                     />
                   </div>
                   <div className="md:col-span-1">
-                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Complemento</label>
+                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Complemento</label>
                     <input
                       type="text"
                       placeholder="Ex: Sala 2"
                       value={complement}
                       onChange={e => setComplement(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500"
+                      className="w-full bg-slate-50 dark:bg-[#080C14] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-xs text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-indigo-500"
                     />
                   </div>
                   <div className="md:col-span-1">
-                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Bairro</label>
+                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Bairro</label>
                     <input
                       type="text"
                       placeholder="Ex: Centro"
                       value={neighborhood}
                       onChange={e => setNeighborhood(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500"
+                      className="w-full bg-slate-50 dark:bg-[#080C14] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-xs text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-indigo-500"
                     />
                   </div>
                   <div className="md:col-span-1">
-                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Cidade</label>
+                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Cidade</label>
                     <input
                       type="text"
                       placeholder="Ex: São Paulo"
                       value={city}
                       onChange={e => setCity(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500"
+                      className="w-full bg-slate-50 dark:bg-[#080C14] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-xs text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-indigo-500"
                     />
                   </div>
                   <div className="md:col-span-1">
-                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Estado (UF)</label>
+                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Estado (UF)</label>
                     <input
                       type="text"
                       placeholder="Ex: SP"
                       value={state}
                       onChange={e => setState(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500 uppercase text-center"
+                      className="w-full bg-slate-50 dark:bg-[#080C14] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-xs text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-indigo-500 uppercase text-center"
                       maxLength={2}
                     />
                   </div>
                 </div>
               </div>
               <div className="sm:col-span-2">
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Token Frenet (Cotação de Frete)</label>
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Token Frenet (Cotação de Frete)</label>
                 <input
                   type="text"
                   placeholder="Token da API da Frenet"
                   value={frenetToken}
                   onChange={e => setFrenetToken(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500 font-mono placeholder-slate-700"
+                  className="w-full bg-slate-50 dark:bg-[#080C14] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-xs text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-indigo-500 font-mono placeholder-slate-400 dark:placeholder-slate-600"
                 />
-                <p className="text-[10px] text-slate-500 mt-1">Crie sua conta na Frenet, gere o token e cole aqui para habilitar as opções de frete no checkout.</p>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">Crie sua conta na Frenet, gere o token e cole aqui para habilitar as opções de frete no checkout.</p>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Chave Pix Comercial</label>
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Chave Pix Comercial</label>
                 <input
                   type="text"
                   placeholder="Ex: CNPJ ou E-mail ou Celular"
                   value={pixKey}
                   onChange={e => setPixKey(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full bg-slate-50 dark:bg-[#080C14] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-xs text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-indigo-500"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Dados Bancários Alternativos</label>
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Dados Bancários Alternativos</label>
                 <input
                   type="text"
                   placeholder="Ex: Banco Itaú - Ag 1234, Cc 5678-9"
                   value={bankInfo}
                   onChange={e => setBankInfo(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full bg-slate-50 dark:bg-[#080C14] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-xs text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-indigo-500"
                 />
               </div>
 
               <div className="sm:col-span-2">
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Orientação de Faturamento e Checkout</label>
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Orientação de Faturamento e Checkout</label>
                 <textarea
                   placeholder="Instruções para exibição ao comprador dental / laboratório no checkout..."
                   value={instructions}
                   onChange={e => setInstructions(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-800 outline-none focus:ring-1 focus:ring-indigo-500 h-24 resize-none"
+                  className="w-full bg-slate-50 dark:bg-[#080C14] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-xs text-slate-800 dark:text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500 h-24 resize-none"
                 />
               </div>
             </div>
 
-            <div className="flex justify-end border-t border-slate-200 pt-4">
+            <div className="flex justify-end border-t border-slate-200 dark:border-slate-800 pt-4">
               <button
                 onClick={handleSaveFinancials}
                 disabled={loading}
-                className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold p-3 px-6 rounded-xl transition-all shadow-lg flex items-center gap-1.5"
+                className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold p-3 px-6 rounded-xl transition-all shadow-lg flex items-center gap-1.5 cursor-pointer"
               >
                 <Save size={16} />
                 <span>{loading ? 'Processando...' : 'Salvar Dados de Recebimento'}</span>
@@ -1166,12 +1165,12 @@ export const SupplierSettings = () => {
               <div className="space-y-6">
                 
                 {/* Status Hero Card */}
-                <div className="p-6 bg-white border border-slate-200 rounded-3xl shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div className="p-6 bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 rounded-3xl shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
                   <div className="flex items-start gap-4">
                     <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 border ${
                       currentOrg?.storeSettings?.policies?.termsAcceptance?.accepted 
-                        ? 'bg-emerald-50 text-emerald-600 border-emerald-200' 
-                        : 'bg-amber-50 text-amber-600 border-amber-200'
+                        ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900/50' 
+                        : 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-900/50'
                     }`}>
                       {currentOrg?.storeSettings?.policies?.termsAcceptance?.accepted ? (
                         <ShieldCheck size={28} />
@@ -1183,23 +1182,23 @@ export const SupplierSettings = () => {
                       <div className="flex items-center gap-2">
                         <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-md border ${
                           currentOrg?.storeSettings?.policies?.termsAcceptance?.accepted 
-                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
-                            : 'bg-amber-50 text-amber-700 border-amber-200'
+                            ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800' 
+                            : 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
                         }`}>
                           {currentOrg?.storeSettings?.policies?.termsAcceptance?.accepted ? 'Loja Homologada' : 'Homologação Pendente'}
                         </span>
                         {currentOrg?.storeSettings?.policies?.termsAcceptance?.version && (
-                          <span className="text-[10px] font-mono text-slate-400">
+                          <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500">
                             Versão: {currentOrg.storeSettings.policies.termsAcceptance.version}
                           </span>
                         )}
                       </div>
-                      <h2 className="text-xl font-black text-slate-900 mt-1">
+                      <h2 className="text-xl font-black text-slate-900 dark:text-white mt-1">
                         {currentOrg?.storeSettings?.policies?.termsAcceptance?.accepted 
                           ? 'Diretrizes e Políticas Homologadas' 
                           : 'Configure as Políticas e Aceite os Termos'}
                       </h2>
-                      <p className="text-xs text-slate-500 mt-0.5 max-w-2xl">
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 max-w-2xl">
                         {currentOrg?.storeSettings?.policies?.termsAcceptance?.accepted
                           ? `Termos aceitos formalmente em ${new Date(currentOrg.storeSettings.policies.termsAcceptance.acceptedAt).toLocaleDateString('pt-BR')} por ${currentOrg.storeSettings.policies.termsAcceptance.acceptedByUserName}.`
                           : 'Para publicar produtos com selo de garantia no Marketplace LabProx, configure suas diretrizes de envio, devolução, conformidade ANVISA e aceite os Termos Oficiais.'}
@@ -1210,7 +1209,7 @@ export const SupplierSettings = () => {
                   <div className="flex flex-wrap items-center gap-3">
                     <button
                       onClick={() => setIsTermsModalOpen(true)}
-                      className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors flex items-center gap-1.5"
+                      className="px-4 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer"
                     >
                       <FileText size={15} />
                       <span>Ver Termos</span>
@@ -1218,7 +1217,7 @@ export const SupplierSettings = () => {
 
                     <button
                       onClick={() => setShowWizard(true)}
-                      className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl transition-colors shadow-md flex items-center gap-2"
+                      className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl transition-colors shadow-md flex items-center gap-2 cursor-pointer"
                     >
                       <Scale size={15} />
                       <span>{currentOrg?.storeSettings?.policies?.termsAcceptance?.accepted ? 'Editar Políticas da Loja' : 'Iniciar Assistente de Configuração'}</span>
@@ -1230,82 +1229,82 @@ export const SupplierSettings = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   
                   {/* Delivery */}
-                  <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
-                    <div className="flex items-center gap-2.5 text-indigo-600">
+                  <div className="bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 rounded-2xl p-5 space-y-3">
+                    <div className="flex items-center gap-2.5 text-indigo-600 dark:text-indigo-400">
                       <Truck size={18} />
-                      <h3 className="font-bold text-sm text-slate-900">Envio & Expedição</h3>
+                      <h3 className="font-bold text-sm text-slate-900 dark:text-white">Envio & Expedição</h3>
                     </div>
-                    <div className="text-xs space-y-1 text-slate-600">
-                      <p><strong className="text-slate-900">Prazo de Despacho:</strong> {currentOrg?.storeSettings?.policies?.deliveryPolicy?.defaultDispatchDays || 2} dia(s) útil(eis)</p>
-                      <p><strong className="text-slate-900">Modalidades:</strong> {currentOrg?.storeSettings?.policies?.deliveryPolicy?.shippingModes?.join(', ') || 'Frenet, Correios, Transportadora'}</p>
-                      <p><strong className="text-slate-900">Frete Grátis:</strong> {currentOrg?.storeSettings?.policies?.deliveryPolicy?.freeShippingEnabled ? `Acima de R$ ${currentOrg.storeSettings.policies.deliveryPolicy.freeShippingThreshold}` : 'Não ativo'}</p>
+                    <div className="text-xs space-y-1 text-slate-600 dark:text-slate-400">
+                      <p><strong className="text-slate-900 dark:text-slate-200">Prazo de Despacho:</strong> {currentOrg?.storeSettings?.policies?.deliveryPolicy?.defaultDispatchDays || 2} dia(s) útil(eis)</p>
+                      <p><strong className="text-slate-900 dark:text-slate-200">Modalidades:</strong> {currentOrg?.storeSettings?.policies?.deliveryPolicy?.shippingModes?.join(', ') || 'Frenet, Correios, Transportadora'}</p>
+                      <p><strong className="text-slate-900 dark:text-slate-200">Frete Grátis:</strong> {currentOrg?.storeSettings?.policies?.deliveryPolicy?.freeShippingEnabled ? `Acima de R$ ${currentOrg.storeSettings.policies.deliveryPolicy.freeShippingThreshold}` : 'Não ativo'}</p>
                     </div>
                   </div>
 
                   {/* Return */}
-                  <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
-                    <div className="flex items-center gap-2.5 text-indigo-600">
+                  <div className="bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 rounded-2xl p-5 space-y-3">
+                    <div className="flex items-center gap-2.5 text-indigo-600 dark:text-indigo-400">
                       <RotateCcw size={18} />
-                      <h3 className="font-bold text-sm text-slate-900">Devolução & Arrependimento</h3>
+                      <h3 className="font-bold text-sm text-slate-900 dark:text-white">Devolução & Arrependimento</h3>
                     </div>
-                    <div className="text-xs space-y-1 text-slate-600">
-                      <p><strong className="text-slate-900">Prazo CDC:</strong> {currentOrg?.storeSettings?.policies?.returnPolicy?.legalReturnPeriodDays || 7} dias corridos</p>
-                      <p><strong className="text-slate-900">Logística Reversa:</strong> Fornecedor arca com frete nos termos legais</p>
-                      <p><strong className="text-slate-900">Troca / Estorno:</strong> Em até {currentOrg?.storeSettings?.policies?.returnPolicy?.exchangeProcessingDays || 3} dias úteis</p>
+                    <div className="text-xs space-y-1 text-slate-600 dark:text-slate-400">
+                      <p><strong className="text-slate-900 dark:text-slate-200">Prazo CDC:</strong> {currentOrg?.storeSettings?.policies?.returnPolicy?.legalReturnPeriodDays || 7} dias corridos</p>
+                      <p><strong className="text-slate-900 dark:text-slate-200">Logística Reversa:</strong> Fornecedor arca com frete nos termos legais</p>
+                      <p><strong className="text-slate-900 dark:text-slate-200">Troca / Estorno:</strong> Em até {currentOrg?.storeSettings?.policies?.returnPolicy?.exchangeProcessingDays || 3} dias úteis</p>
                     </div>
                   </div>
 
                   {/* Warranty */}
-                  <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
-                    <div className="flex items-center gap-2.5 text-indigo-600">
+                  <div className="bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 rounded-2xl p-5 space-y-3">
+                    <div className="flex items-center gap-2.5 text-indigo-600 dark:text-indigo-400">
                       <Award size={18} />
-                      <h3 className="font-bold text-sm text-slate-900">Garantia & Assistência</h3>
+                      <h3 className="font-bold text-sm text-slate-900 dark:text-white">Garantia & Assistência</h3>
                     </div>
-                    <div className="text-xs space-y-1 text-slate-600">
-                      <p><strong className="text-slate-900">Garantia Legal:</strong> {currentOrg?.storeSettings?.policies?.warrantyPolicy?.legalWarrantyDays || 90} dias</p>
-                      <p><strong className="text-slate-900">Garantia Fabricante:</strong> {currentOrg?.storeSettings?.policies?.warrantyPolicy?.manufacturerWarrantyMonths || 12} meses</p>
-                      <p><strong className="text-slate-900">Suporte Técnico:</strong> {currentOrg?.storeSettings?.policies?.warrantyPolicy?.technicalAssistanceInfo || 'Assistência autorizada'}</p>
+                    <div className="text-xs space-y-1 text-slate-600 dark:text-slate-400">
+                      <p><strong className="text-slate-900 dark:text-slate-200">Garantia Legal:</strong> {currentOrg?.storeSettings?.policies?.warrantyPolicy?.legalWarrantyDays || 90} dias</p>
+                      <p><strong className="text-slate-900 dark:text-slate-200">Garantia Fabricante:</strong> {currentOrg?.storeSettings?.policies?.warrantyPolicy?.manufacturerWarrantyMonths || 12} meses</p>
+                      <p><strong className="text-slate-900 dark:text-slate-200">Suporte Técnico:</strong> {currentOrg?.storeSettings?.policies?.warrantyPolicy?.technicalAssistanceInfo || 'Assistência autorizada'}</p>
                     </div>
                   </div>
 
                   {/* Regulated Products / ANVISA */}
-                  <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
-                    <div className="flex items-center gap-2.5 text-indigo-600">
+                  <div className="bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 rounded-2xl p-5 space-y-3">
+                    <div className="flex items-center gap-2.5 text-indigo-600 dark:text-indigo-400">
                       <ShieldCheck size={18} />
-                      <h3 className="font-bold text-sm text-slate-900">Conformidade ANVISA / CRO</h3>
+                      <h3 className="font-bold text-sm text-slate-900 dark:text-white">Conformidade ANVISA / CRO</h3>
                     </div>
-                    <div className="text-xs space-y-1 text-slate-600">
-                      <p className="flex items-center gap-1.5 text-emerald-700 font-bold">
+                    <div className="text-xs space-y-1 text-slate-600 dark:text-slate-400">
+                      <p className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold">
                         <CheckCircle2 size={14} />
                         <span>Declaração Sanitária Homologada</span>
                       </p>
-                      <p><strong className="text-slate-900">Rastreabilidade:</strong> Lote e Validade em todos os envios</p>
+                      <p><strong className="text-slate-900 dark:text-slate-200">Rastreabilidade:</strong> Lote e Validade em todos os envios</p>
                       {currentOrg?.storeSettings?.policies?.regulatedProductsPolicy?.technicalResponsibleName && (
-                        <p><strong className="text-slate-900">Resp. Técnico:</strong> {currentOrg.storeSettings.policies.regulatedProductsPolicy.technicalResponsibleName} ({currentOrg.storeSettings.policies.regulatedProductsPolicy.technicalResponsibleDocType} {currentOrg.storeSettings.policies.regulatedProductsPolicy.technicalResponsibleDocNumber})</p>
+                        <p><strong className="text-slate-900 dark:text-slate-200">Resp. Técnico:</strong> {currentOrg.storeSettings.policies.regulatedProductsPolicy.technicalResponsibleName} ({currentOrg.storeSettings.policies.regulatedProductsPolicy.technicalResponsibleDocType} {currentOrg.storeSettings.policies.regulatedProductsPolicy.technicalResponsibleDocNumber})</p>
                       )}
                     </div>
                   </div>
 
                   {/* Attendance & SLA */}
-                  <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
-                    <div className="flex items-center gap-2.5 text-indigo-600">
+                  <div className="bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 rounded-2xl p-5 space-y-3">
+                    <div className="flex items-center gap-2.5 text-indigo-600 dark:text-indigo-400">
                       <PhoneCall size={18} />
-                      <h3 className="font-bold text-sm text-slate-900">Atendimento & SLA</h3>
+                      <h3 className="font-bold text-sm text-slate-900 dark:text-white">Atendimento & SLA</h3>
                     </div>
-                    <div className="text-xs space-y-1 text-slate-600">
-                      <p><strong className="text-slate-900">SLA de Resposta:</strong> Em até {currentOrg?.storeSettings?.policies?.customerServicePolicy?.maxResponseTimeHours || 24} horas úteis</p>
-                      <p><strong className="text-slate-900">Horário:</strong> {currentOrg?.storeSettings?.policies?.customerServicePolicy?.businessHours || 'Seg a Sex, das 08h às 18h'}</p>
-                      <p><strong className="text-slate-900">Canais:</strong> {currentOrg?.storeSettings?.policies?.customerServicePolicy?.supportChannels?.join(', ') || 'Chat, WhatsApp, E-mail'}</p>
+                    <div className="text-xs space-y-1 text-slate-600 dark:text-slate-400">
+                      <p><strong className="text-slate-900 dark:text-slate-200">SLA de Resposta:</strong> Em até {currentOrg?.storeSettings?.policies?.customerServicePolicy?.maxResponseTimeHours || 24} horas úteis</p>
+                      <p><strong className="text-slate-900 dark:text-slate-200">Horário:</strong> {currentOrg?.storeSettings?.policies?.customerServicePolicy?.businessHours || 'Seg a Sex, das 08h às 18h'}</p>
+                      <p><strong className="text-slate-900 dark:text-slate-200">Canais:</strong> {currentOrg?.storeSettings?.policies?.customerServicePolicy?.supportChannels?.join(', ') || 'Chat, WhatsApp, E-mail'}</p>
                     </div>
                   </div>
 
                   {/* Global Marketplace Split */}
-                  <div className="bg-gradient-to-br from-indigo-50/50 to-slate-50 border border-indigo-100 rounded-2xl p-5 space-y-3">
-                    <div className="flex items-center gap-2.5 text-indigo-600">
+                  <div className="bg-gradient-to-br from-indigo-50/50 to-slate-50 dark:from-indigo-950/20 dark:to-[#0B0F17] border border-indigo-100 dark:border-indigo-900/40 rounded-2xl p-5 space-y-3">
+                    <div className="flex items-center gap-2.5 text-indigo-600 dark:text-indigo-400">
                       <Scale size={18} />
-                      <h3 className="font-bold text-sm text-slate-900">Marketplace LabProx</h3>
+                      <h3 className="font-bold text-sm text-slate-900 dark:text-white">Marketplace LabProx</h3>
                     </div>
-                    <p className="text-xs text-slate-600 leading-relaxed">
+                    <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
                       As políticas personalizadas da sua loja complementam as regras obrigatórias e inegociáveis de conformidade legal, CDC e processamento financeiro Asaas do LabProx.
                     </p>
                   </div>

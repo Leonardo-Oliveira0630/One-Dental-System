@@ -1,5 +1,6 @@
 import React from 'react';
 import { Layers, Sparkles, Folder } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface CategoryItem {
   id: string;
@@ -22,6 +23,7 @@ export const StoreCategoryNav: React.FC<StoreCategoryNavProps> = ({
   totalProductsCount,
   categoryCountMap = {}
 }) => {
+  const { t } = useTranslation();
   if (!categories || categories.length === 0) return null;
 
   return (
@@ -31,14 +33,14 @@ export const StoreCategoryNav: React.FC<StoreCategoryNavProps> = ({
         <button
           type="button"
           onClick={() => onSelectCategory(null)}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
             selectedCategoryId === null
               ? 'bg-blue-600 text-white shadow-xs'
               : 'bg-white dark:bg-[#131B2A] text-zinc-700 dark:text-slate-200 hover:bg-zinc-100 dark:hover:bg-slate-800 border border-zinc-200/90 dark:border-slate-800'
           }`}
         >
           <Layers size={14} className={selectedCategoryId === null ? 'text-white' : 'text-zinc-500 dark:text-slate-400'} />
-          <span>Todos os Produtos</span>
+          <span>{t('store.allProducts', 'Todos os Produtos')}</span>
           <span className={`px-1.5 py-0.2 rounded-md font-mono text-[10px] ${
             selectedCategoryId === null ? 'bg-blue-700 text-white' : 'bg-zinc-100 dark:bg-slate-800 text-zinc-600 dark:text-slate-300'
           }`}>
@@ -56,7 +58,7 @@ export const StoreCategoryNav: React.FC<StoreCategoryNavProps> = ({
               key={cat.id}
               type="button"
               onClick={() => onSelectCategory(cat.id)}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
                 isSelected
                   ? 'bg-blue-600 text-white shadow-xs'
                   : 'bg-white dark:bg-[#131B2A] text-zinc-700 dark:text-slate-200 hover:bg-zinc-100 dark:hover:bg-slate-800 border border-zinc-200/90 dark:border-slate-800'

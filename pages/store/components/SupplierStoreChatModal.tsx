@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useApp } from '../../../context/AppContext';
 import { 
   SupplierConversation, 
@@ -40,6 +41,7 @@ export const SupplierStoreChatModal: React.FC<SupplierStoreChatModalProps> = ({
   initialOrderId,
   initialProduct
 }) => {
+  const { t } = useTranslation();
   const { currentOrg, currentUser, allSuppliers } = useApp();
 
   const isSupplierOrg = currentOrg?.orgType === 'SUPPLIER';
@@ -217,24 +219,24 @@ export const SupplierStoreChatModal: React.FC<SupplierStoreChatModalProps> = ({
       onClick={onClose}
     >
       <div 
-        className="relative w-full max-w-5xl h-[92vh] max-h-[850px] bg-white rounded-3xl border border-zinc-200 shadow-2xl overflow-hidden flex flex-col md:flex-row"
+        className="relative w-full max-w-5xl h-[92vh] max-h-[850px] bg-white dark:bg-[#0B0F17] rounded-3xl border border-zinc-200 dark:border-slate-800 shadow-2xl overflow-hidden flex flex-col md:flex-row text-zinc-900 dark:text-white"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Left Sidebar: Conversations List */}
-        <div className={`w-full md:w-80 lg:w-96 border-r border-zinc-200 flex flex-col bg-zinc-50/70 h-full ${
+        <div className={`w-full md:w-80 lg:w-96 border-r border-zinc-200 dark:border-slate-800 flex flex-col bg-zinc-50/70 dark:bg-[#0E1626] h-full ${
           mobileView === 'CHAT' ? 'hidden md:flex' : 'flex'
         }`}>
           {/* Header */}
-          <div className="p-4 border-b border-zinc-200 flex items-center justify-between bg-white">
+          <div className="p-4 border-b border-zinc-200 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-[#0B0F17]">
             <div className="flex items-center gap-2 min-w-0">
-              <div className="w-9 h-9 rounded-xl bg-zinc-950 text-white flex items-center justify-center shrink-0">
+              <div className="w-9 h-9 rounded-xl bg-zinc-950 dark:bg-indigo-600 text-white flex items-center justify-center shrink-0">
                 <MessageSquare size={18} />
               </div>
               <div className="truncate">
-                <h3 className="font-black text-sm text-zinc-950 truncate">
-                  {isSupplierOrg ? 'Mensagens de Clientes' : 'Chat com Fornecedores'}
+                <h3 className="font-black text-sm text-zinc-950 dark:text-white truncate">
+                  {isSupplierOrg ? 'Mensagens de Clientes' : t('store.supplierChatTitle', 'Chat com Fornecedores')}
                 </h3>
-                <p className="text-[11px] text-zinc-500 font-medium truncate">
+                <p className="text-[11px] text-zinc-500 dark:text-slate-400 font-medium truncate">
                   {isSupplierOrg ? 'Atendimento a Labs & Clínicas' : 'Dúvidas, Pedidos & Pós-Venda'}
                 </p>
               </div>
@@ -244,37 +246,37 @@ export const SupplierStoreChatModal: React.FC<SupplierStoreChatModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-100 hover:bg-red-50 text-zinc-600 hover:text-red-600 border border-zinc-200 hover:border-red-200 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer shadow-xs"
-              title="Sair do Chat"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-100 dark:bg-[#131B2E] hover:bg-red-50 dark:hover:bg-red-950/40 text-zinc-600 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 border border-zinc-200 dark:border-slate-700 hover:border-red-200 dark:hover:border-red-800 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer shadow-xs"
+              title={t('common.close', 'Sair')}
             >
               <X size={16} />
-              <span className="hidden sm:inline">Sair</span>
+              <span className="hidden sm:inline">{t('common.close', 'Sair')}</span>
             </button>
           </div>
 
           {/* Search Box */}
-          <div className="p-3 border-b border-zinc-200/60 bg-white/50">
+          <div className="p-3 border-b border-zinc-200/60 dark:border-slate-800 bg-white/50 dark:bg-[#0B0F17]/50">
             <div className="relative">
-              <Search size={14} className="absolute left-3 top-2.5 text-zinc-400" />
+              <Search size={14} className="absolute left-3 top-2.5 text-zinc-400 dark:text-slate-500" />
               <input
                 type="text"
-                placeholder="Buscar conversa ou fornecedor..."
+                placeholder={t('common.search', 'Buscar conversa ou fornecedor...')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-white border border-zinc-200 rounded-xl pl-9 pr-3 py-1.5 text-xs text-zinc-900 placeholder-zinc-400 outline-none focus:border-zinc-900"
+                className="w-full bg-white dark:bg-[#070A10] border border-zinc-200 dark:border-slate-700 rounded-xl pl-9 pr-3 py-1.5 text-xs text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-slate-500 outline-none focus:border-indigo-600 dark:focus:border-indigo-500"
               />
             </div>
           </div>
 
           {/* Conversations Scroll Area */}
-          <div className="flex-1 overflow-y-auto divide-y divide-zinc-100">
+          <div className="flex-1 overflow-y-auto divide-y divide-zinc-100 dark:divide-slate-800">
             {filteredConversations.length === 0 ? (
               <div className="p-8 text-center space-y-2">
-                <div className="w-12 h-12 rounded-full bg-zinc-100 text-zinc-400 flex items-center justify-center mx-auto">
+                <div className="w-12 h-12 rounded-full bg-zinc-100 dark:bg-slate-800 text-zinc-400 dark:text-slate-500 flex items-center justify-center mx-auto">
                   <MessageSquare size={20} />
                 </div>
-                <p className="text-xs font-bold text-zinc-800">Nenhuma conversa ativa</p>
-                <p className="text-[11px] text-zinc-500">
+                <p className="text-xs font-bold text-zinc-800 dark:text-slate-200">Nenhuma conversa ativa</p>
+                <p className="text-[11px] text-zinc-500 dark:text-slate-400">
                   {isSupplierOrg
                     ? 'As dúvidas e contatos de clientes aparecerão aqui assim que iniciados na loja.'
                     : 'Inicie uma conversa clicando em "Falar com Fornecedor" nos produtos ou em seus pedidos.'}
@@ -294,21 +296,21 @@ export const SupplierStoreChatModal: React.FC<SupplierStoreChatModalProps> = ({
                       setActiveConversationId(conv.id);
                       setMobileView('CHAT');
                     }}
-                    className={`w-full text-left p-3.5 transition-all flex items-start gap-3 hover:bg-white cursor-pointer ${
-                      isActive ? 'bg-white border-l-4 border-l-zinc-950 shadow-xs' : ''
+                    className={`w-full text-left p-3.5 transition-all flex items-start gap-3 hover:bg-white dark:hover:bg-[#131B2E] cursor-pointer ${
+                      isActive ? 'bg-white dark:bg-[#131B2E] border-l-4 border-l-zinc-950 dark:border-l-indigo-500 shadow-xs' : ''
                     }`}
                   >
-                    <div className="w-10 h-10 rounded-xl bg-zinc-200/80 text-zinc-700 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
+                    <div className="w-10 h-10 rounded-xl bg-zinc-200/80 dark:bg-slate-800 text-zinc-700 dark:text-slate-200 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
                       {isSupplierOrg ? <User size={18} /> : <Building2 size={18} />}
                     </div>
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-1">
-                        <span className="font-extrabold text-xs text-zinc-950 truncate">
+                        <span className="font-extrabold text-xs text-zinc-950 dark:text-white truncate">
                           {otherPartyName}
                         </span>
                         {conv.lastMessageTimestamp && (
-                          <span className="text-[10px] text-zinc-400 shrink-0 font-mono">
+                          <span className="text-[10px] text-zinc-400 dark:text-slate-500 shrink-0 font-mono">
                             {format(new Date(conv.lastMessageTimestamp), 'HH:mm')}
                           </span>
                         )}
@@ -316,20 +318,20 @@ export const SupplierStoreChatModal: React.FC<SupplierStoreChatModalProps> = ({
 
                       {/* Product or Order Tag */}
                       {conv.orderId && (
-                        <div className="flex items-center gap-1 text-[10px] font-bold text-zinc-500 mt-0.5">
+                        <div className="flex items-center gap-1 text-[10px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 px-1.5 py-0.5 rounded mt-0.5 w-fit border border-indigo-100 dark:border-indigo-900/40">
                           <Package size={10} />
                           <span>Pedido #{conv.orderId.substring(0, 8).toUpperCase()}</span>
                         </div>
                       )}
                       {conv.productName && !conv.orderId && (
-                        <div className="flex items-center gap-1 text-[10px] font-bold text-zinc-500 mt-0.5 truncate">
+                        <div className="flex items-center gap-1 text-[10px] font-bold text-zinc-500 dark:text-slate-400 mt-0.5 truncate">
                           <ShoppingBag size={10} />
                           <span className="truncate">{conv.productName}</span>
                         </div>
                       )}
 
                       {/* Last Message Snippet */}
-                      <p className="text-[11px] text-zinc-500 truncate mt-1">
+                      <p className="text-[11px] text-zinc-500 dark:text-slate-400 truncate mt-1">
                         {conv.lastMessageText || 'Conversa iniciada'}
                       </p>
                     </div>
@@ -347,25 +349,25 @@ export const SupplierStoreChatModal: React.FC<SupplierStoreChatModalProps> = ({
         </div>
 
         {/* Right Area: Active Chat Conversation */}
-        <div className={`flex-1 flex-col h-full bg-white ${
+        <div className={`flex-1 flex-col h-full bg-white dark:bg-[#0B0F17] ${
           mobileView === 'LIST' ? 'hidden md:flex' : 'flex'
         }`}>
           {activeConv ? (
             <>
               {/* Active Header */}
-              <div className="px-4 sm:px-6 py-3.5 border-b border-zinc-200 bg-zinc-50/70 flex items-center justify-between gap-2">
+              <div className="px-4 sm:px-6 py-3.5 border-b border-zinc-200 dark:border-slate-800 bg-zinc-50/70 dark:bg-[#0E1626] flex items-center justify-between gap-2">
                 <div className="flex items-center gap-3 min-w-0">
                   {/* Mobile Back Button to list */}
                   <button
                     type="button"
                     onClick={() => setMobileView('LIST')}
-                    className="md:hidden p-2 text-zinc-600 hover:text-zinc-950 hover:bg-zinc-200/70 rounded-xl transition-all"
+                    className="md:hidden p-2 text-zinc-600 dark:text-slate-400 hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-200/70 dark:hover:bg-slate-800 rounded-xl transition-all"
                     title="Voltar para conversas"
                   >
                     <ChevronRight size={18} className="rotate-180" />
                   </button>
 
-                  <div className="w-10 h-10 rounded-2xl bg-zinc-900 text-white flex items-center justify-center font-bold text-sm shrink-0">
+                  <div className="w-10 h-10 rounded-2xl bg-zinc-900 dark:bg-indigo-600 text-white flex items-center justify-center font-bold text-sm shrink-0">
                     {isSupplierOrg ? (
                       <User size={20} />
                     ) : (
@@ -374,15 +376,15 @@ export const SupplierStoreChatModal: React.FC<SupplierStoreChatModalProps> = ({
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <h4 className="font-black text-sm text-zinc-950 truncate">
+                      <h4 className="font-black text-sm text-zinc-950 dark:text-white truncate">
                         {isSupplierOrg ? activeConv.buyerOrgName : activeConv.supplierOrgName}
                       </h4>
-                      <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-md text-[10px] font-bold flex items-center gap-1 shrink-0">
+                      <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 rounded-md text-[10px] font-bold flex items-center gap-1 shrink-0">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                         Online
                       </span>
                     </div>
-                    <p className="text-[11px] text-zinc-500 font-medium truncate">
+                    <p className="text-[11px] text-zinc-500 dark:text-slate-400 font-medium truncate">
                       {isSupplierOrg ? (
                         <>Contato: {activeConv.buyerUserName} • {activeConv.buyerRole === 'CLINIC' ? 'Clínica / Dentista' : 'Laboratório'}</>
                       ) : (
@@ -397,7 +399,7 @@ export const SupplierStoreChatModal: React.FC<SupplierStoreChatModalProps> = ({
                   <button
                     type="button"
                     onClick={onClose}
-                    className="flex items-center gap-1.5 px-3.5 py-2 bg-red-50 hover:bg-red-100 text-red-700 hover:text-red-800 border border-red-200 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs"
+                    className="flex items-center gap-1.5 px-3.5 py-2 bg-red-50 dark:bg-red-950/40 hover:bg-red-100 dark:hover:bg-red-900/60 text-red-700 dark:text-red-300 hover:text-red-800 border border-red-200 dark:border-red-800/80 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs"
                     title="Sair do Chat"
                   >
                     <X size={16} />
@@ -408,40 +410,40 @@ export const SupplierStoreChatModal: React.FC<SupplierStoreChatModalProps> = ({
 
               {/* Context Banner: Order or Product Preview */}
               {(activeConv.orderId || activeConv.productName) && (
-                <div className="px-4 sm:px-6 py-2.5 bg-zinc-100/80 border-b border-zinc-200/70 flex items-center justify-between text-xs text-zinc-700">
+                <div className="px-4 sm:px-6 py-2.5 bg-zinc-100/80 dark:bg-indigo-950/30 border-b border-zinc-200/70 dark:border-indigo-900/50 flex items-center justify-between text-xs text-zinc-700 dark:text-indigo-200">
                   <div className="flex items-center gap-2 truncate">
                     {activeConv.orderId ? (
                       <>
-                        <Package size={14} className="text-zinc-600 shrink-0" />
+                        <Package size={14} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
                         <span className="truncate">Conversando sobre o <strong>Pedido #{activeConv.orderId.substring(0, 8).toUpperCase()}</strong></span>
                       </>
                     ) : (
                       <>
-                        <ShoppingBag size={14} className="text-zinc-600 shrink-0" />
+                        <ShoppingBag size={14} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
                         <span className="truncate">Produto de Referência: <strong>{activeConv.productName}</strong></span>
                       </>
                     )}
                   </div>
-                  <span className="text-[10px] font-bold text-zinc-500 bg-white px-2 py-0.5 rounded-md border border-zinc-200 shrink-0 ml-2">
+                  <span className="text-[10px] font-bold text-zinc-500 dark:text-indigo-300 bg-white dark:bg-[#0B0F17] px-2 py-0.5 rounded-md border border-zinc-200 dark:border-indigo-900/50 shrink-0 ml-2">
                     Contexto Anexado
                   </span>
                 </div>
               )}
 
               {/* Messages Thread Container */}
-              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-zinc-50/30">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-zinc-50/30 dark:bg-[#070A10]">
                 {/* Security and Compliance Pill */}
                 <div className="text-center">
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-zinc-100 text-zinc-600 rounded-full text-[11px] font-medium border border-zinc-200/80">
-                    <ShieldCheck size={13} className="text-emerald-600" />
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-zinc-100 dark:bg-[#0E1626] text-zinc-600 dark:text-slate-400 rounded-full text-[11px] font-medium border border-zinc-200/80 dark:border-slate-800 shadow-2xs">
+                    <ShieldCheck size={13} className="text-emerald-600 dark:text-emerald-400" />
                     Atendimento protegido pelas Diretrizes Oficiais do Marketplace LabProx
                   </span>
                 </div>
 
                 {messages.length === 0 ? (
                   <div className="text-center py-12 space-y-2">
-                    <p className="text-xs font-bold text-zinc-600">Nenhuma mensagem ainda.</p>
-                    <p className="text-[11px] text-zinc-400 max-w-sm mx-auto">
+                    <p className="text-xs font-bold text-zinc-600 dark:text-slate-300">Nenhuma mensagem ainda.</p>
+                    <p className="text-[11px] text-zinc-400 dark:text-slate-500 max-w-sm mx-auto">
                       Envie uma mensagem abaixo para tirar dúvidas técnicas sobre materiais, solicitar orçamento especial ou acompanhar pedidos.
                     </p>
                   </div>
@@ -455,10 +457,10 @@ export const SupplierStoreChatModal: React.FC<SupplierStoreChatModalProps> = ({
                         className={`flex flex-col ${isMyMessage ? 'items-end' : 'items-start'}`}
                       >
                         <div className="flex items-center gap-1.5 mb-1 px-1">
-                          <span className="text-[10px] font-bold text-zinc-500">
+                          <span className="text-[10px] font-bold text-zinc-500 dark:text-slate-400">
                             {msg.senderName}
                           </span>
-                          <span className="text-[10px] text-zinc-400 font-mono">
+                          <span className="text-[10px] text-zinc-400 dark:text-slate-500 font-mono">
                             {format(new Date(msg.createdAt), 'HH:mm')}
                           </span>
                         </div>
@@ -466,8 +468,8 @@ export const SupplierStoreChatModal: React.FC<SupplierStoreChatModalProps> = ({
                         <div
                           className={`max-w-[85%] sm:max-w-md rounded-2xl p-3.5 text-xs leading-relaxed space-y-2 shadow-xs ${
                             isMyMessage
-                              ? 'bg-zinc-950 text-white rounded-tr-xs'
-                              : 'bg-white border border-zinc-200 text-zinc-900 rounded-tl-xs'
+                              ? 'bg-zinc-950 dark:bg-indigo-600 text-white rounded-tr-xs'
+                              : 'bg-white dark:bg-[#0E1626] border border-zinc-200 dark:border-slate-800 text-zinc-900 dark:text-slate-100 rounded-tl-xs'
                           }`}
                         >
                           {msg.imageUrl && (
@@ -487,22 +489,22 @@ export const SupplierStoreChatModal: React.FC<SupplierStoreChatModalProps> = ({
               </div>
 
               {/* Message Input Box */}
-              <div className="p-3 sm:p-4 border-t border-zinc-200 bg-white">
+              <div className="p-3 sm:p-4 border-t border-zinc-200 dark:border-slate-800 bg-white dark:bg-[#0B0F17]">
                 {showImageInput && (
-                  <div className="mb-3 p-2 bg-zinc-50 rounded-xl border border-zinc-200 flex gap-2 animate-in fade-in">
+                  <div className="mb-3 p-2 bg-zinc-50 dark:bg-[#0E1626] rounded-xl border border-zinc-200 dark:border-slate-800 flex gap-2 animate-in fade-in">
                     <input
                       type="url"
                       placeholder="Cole a URL da imagem/anexo..."
                       value={imageUrlInput}
                       onChange={(e) => setImageUrlInput(e.target.value)}
-                      className="flex-1 bg-white border border-zinc-200 rounded-lg px-3 py-1.5 text-xs outline-none focus:border-zinc-900"
+                      className="flex-1 bg-white dark:bg-[#070A10] border border-zinc-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs text-zinc-900 dark:text-white outline-none focus:border-indigo-600"
                     />
                     <button
                       type="button"
                       onClick={() => setShowImageInput(false)}
-                      className="px-2 text-zinc-400 hover:text-zinc-900 text-xs font-bold cursor-pointer"
+                      className="px-2 text-zinc-400 hover:text-zinc-900 dark:hover:text-white text-xs font-bold cursor-pointer"
                     >
-                      Fechar
+                      ✕ Fechar
                     </button>
                   </div>
                 )}
@@ -513,8 +515,8 @@ export const SupplierStoreChatModal: React.FC<SupplierStoreChatModalProps> = ({
                     onClick={() => setShowImageInput(!showImageInput)}
                     className={`p-2.5 rounded-xl border transition-all cursor-pointer ${
                       showImageInput
-                        ? 'bg-zinc-900 text-white border-zinc-900'
-                        : 'bg-zinc-50 text-zinc-600 hover:bg-zinc-100 border-zinc-200'
+                        ? 'bg-zinc-900 dark:bg-indigo-600 text-white border-zinc-900 dark:border-indigo-600'
+                        : 'bg-zinc-50 dark:bg-[#0E1626] text-zinc-600 dark:text-slate-300 hover:bg-zinc-100 dark:hover:bg-slate-800 border-zinc-200 dark:border-slate-700'
                     }`}
                     title="Anexar Imagem"
                   >
@@ -523,16 +525,16 @@ export const SupplierStoreChatModal: React.FC<SupplierStoreChatModalProps> = ({
 
                   <input
                     type="text"
-                    placeholder="Digite sua mensagem para o fornecedor..."
+                    placeholder={t('store.typeMessage', 'Digite sua mensagem para o fornecedor...')}
                     value={messageText}
                     onChange={(e) => setMessageText(e.target.value)}
-                    className="flex-1 bg-zinc-50 border border-zinc-200 rounded-2xl px-4 py-3 text-xs text-zinc-900 placeholder-zinc-400 outline-none focus:border-zinc-900 focus:bg-white transition-all font-medium"
+                    className="flex-1 bg-zinc-50 dark:bg-[#0E1626] border border-zinc-200 dark:border-slate-700 rounded-2xl px-4 py-3 text-xs text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-slate-500 outline-none focus:border-indigo-600 dark:focus:border-indigo-500 focus:bg-white dark:focus:bg-[#131B2E] transition-all font-medium"
                   />
 
                   <button
                     type="submit"
                     disabled={sending || (!messageText.trim() && !imageUrlInput.trim())}
-                    className="p-3 bg-zinc-950 hover:bg-zinc-800 disabled:opacity-40 text-white rounded-2xl transition-all shadow-xs shrink-0 flex items-center justify-center cursor-pointer"
+                    className="p-3 bg-zinc-950 dark:bg-indigo-600 hover:bg-zinc-800 dark:hover:bg-indigo-500 disabled:opacity-40 text-white rounded-2xl transition-all shadow-xs shrink-0 flex items-center justify-center cursor-pointer"
                   >
                     <Send size={16} />
                   </button>
@@ -540,29 +542,29 @@ export const SupplierStoreChatModal: React.FC<SupplierStoreChatModalProps> = ({
               </div>
             </>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-4 bg-zinc-50/50">
+            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-4 bg-zinc-50/50 dark:bg-[#070A10]">
               <div className="absolute top-4 right-4">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="flex items-center gap-1.5 px-3.5 py-2 bg-red-50 hover:bg-red-100 text-red-700 hover:text-red-800 border border-red-200 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs"
+                  className="flex items-center gap-1.5 px-3.5 py-2 bg-red-50 dark:bg-red-950/40 hover:bg-red-100 dark:hover:bg-red-900/60 text-red-700 dark:text-red-300 hover:text-red-800 border border-red-200 dark:border-red-800/80 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs"
                   title="Sair do Chat"
                 >
                   <X size={16} />
                   <span>Sair do Chat</span>
                 </button>
               </div>
-              <div className="w-16 h-16 rounded-full bg-zinc-100 text-zinc-400 flex items-center justify-center">
+              <div className="w-16 h-16 rounded-full bg-zinc-100 dark:bg-slate-800 text-zinc-400 dark:text-slate-500 flex items-center justify-center">
                 <MessageSquare size={28} />
               </div>
-              <h4 className="font-bold text-zinc-900 text-sm">Selecione uma conversa ao lado</h4>
-              <p className="text-xs text-zinc-500 max-w-sm">
+              <h4 className="font-bold text-zinc-900 dark:text-white text-sm">Selecione uma conversa ao lado</h4>
+              <p className="text-xs text-zinc-500 dark:text-slate-400 max-w-sm">
                 Acompanhe o histórico de mensagens, tire dúvidas com os fornecedores e resolva solicitações rapidamente.
               </p>
               <button
                 type="button"
                 onClick={onClose}
-                className="px-5 py-2.5 bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+                className="px-5 py-2.5 bg-zinc-900 dark:bg-indigo-600 hover:bg-zinc-800 dark:hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
               >
                 Fechar e Sair do Chat
               </button>
