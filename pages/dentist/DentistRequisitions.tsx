@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { OnlineRequisition, Attachment, JobStatus, Job } from '../../types';
@@ -35,6 +36,7 @@ interface ServiceOption {
 }
 
 export const DentistRequisitions = () => {
+  const { t } = useTranslation();
   const { 
     currentUser, 
     currentOrg, 
@@ -221,7 +223,7 @@ export const DentistRequisitions = () => {
         setLoading(false);
       } catch (err) {
         console.error('Error fetching partner laboratories:', err);
-        setError('Falha ao carregar laboratórios parceiros relacionados.');
+        setError(t('dentistRequisitions.fetchLabsError', 'Falha ao carregar laboratórios parceiros relacionados.'));
         setLoading(false);
       }
     };
@@ -335,7 +337,7 @@ export const DentistRequisitions = () => {
               return {
                 ...item,
                 isUploading: false,
-                error: 'Erro no envio'
+                error: t('dentistRequisitions.uploadError', 'Erro no envio')
               };
             }
             return item;
@@ -420,28 +422,28 @@ export const DentistRequisitions = () => {
     setSuccess(false);
 
     if (!selectedLabId) {
-      setError('Selecione o laboratório para o envio.');
+      setError(t('dentistRequisitions.errorSelectLab', 'Selecione o laboratório para o envio.'));
       return;
     }
 
     if (!patientName.trim()) {
-      setError('Por favor, informe o nome do paciente.');
+      setError(t('dentistRequisitions.errorPatientName', 'Por favor, informe o nome do paciente.'));
       return;
     }
 
     const hasCurrentItem = !!selectedServiceId;
     if (requisitionItems.length === 0 && !hasCurrentItem) {
-      setError('Por favor, adicione pelo menos um serviço.');
+      setError(t('dentistRequisitions.errorAddService', 'Por favor, adicione pelo menos um serviço.'));
       return;
     }
 
     if (attachedFiles.some(f => f.isUploading)) {
-      setError('Aguarde o carregamento completo dos arquivos anexados antes de enviar.');
+      setError(t('dentistRequisitions.errorWaitUploads', 'Aguarde o carregamento completo dos arquivos anexados antes de enviar.'));
       return;
     }
 
     if (attachedFiles.some(f => f.error)) {
-      setError('Por favor, remova ou reenvie os arquivos que falharam no carregamento.');
+      setError(t('dentistRequisitions.errorRemoveFailedUploads', 'Por favor, remova ou reenvie os arquivos que falharam no carregamento.'));
       return;
     }
 
@@ -468,7 +470,7 @@ export const DentistRequisitions = () => {
       }
 
       if (finalItems.length === 0) {
-          setError('Nenhum serviço válido para enviar.');
+          setError(t('dentistRequisitions.errorNoValidService', 'Nenhum serviço válido para enviar.'));
           setSubmitting(false);
           return;
       }
@@ -518,7 +520,7 @@ export const DentistRequisitions = () => {
         try {
           const specsCompiled = finalItems.map(item => `${item.quantity || 1}x ${item.serviceName}`).join(', ');
           const labName = activeLab?.name || 'Laboratório';
-          const descriptionText = `Enviada requisição online ao Laboratório: ${labName}. Requisito: ${specsCompiled}.`;
+          const descriptionText = `${t('dentistRequisitions.history.sentOnline', 'Enviada requisição online ao Laboratório:')} ${labName}. ${t('dentistRequisitions.history.requirement', 'Requisito:')} ${specsCompiled}.`;
 
           const historyRecord: any = {
             id: `hist_${Date.now()}`,
@@ -554,7 +556,7 @@ export const DentistRequisitions = () => {
       setRequisitionItems([]);
     } catch (err: any) {
       console.error('Error submitting online requisition:', err);
-      setError(err.message || 'Falha ao transmitir requisição para o laboratório.');
+      setError(err.message || t('dentistRequisitions.submitError', 'Falha ao transmitir requisição para o laboratório.'));
     } finally {
       setSubmitting(false);
     }
@@ -564,7 +566,7 @@ export const DentistRequisitions = () => {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] p-4 sm:p-8">
         <Loader2 className="h-10 w-10 text-indigo-600 animate-spin mb-4" />
-        <p className="text-slate-500 font-medium">Carregando portal de requisições...</p>
+        <p className="text-slate-500 font-medium">{t('dentistRequisitions.loadingPortal', 'Carregando portal de requisições...')}</p>
       </div>
     );
   }
@@ -575,10 +577,10 @@ export const DentistRequisitions = () => {
       <div>
         <h2 className="text-2xl font-black text-slate-800 flex items-center gap-2">
           <ClipboardList className="text-indigo-600" size={28} />
-          Portal de Requisições de Trabalho
+          {t('dentistRequisitions.portalTitle', 'Portal de Requisições de Trabalho')}
         </h2>
         <p className="text-sm text-slate-500">
-          Envie pedidos de serviços rápidos, guias de trabalho, fotos e arquivos 3D diretamente para os seus laboratórios conectados de forma segura.
+          {t('dentistRequisitions.portalSubtitle', 'Envie pedidos de serviços rápidos, guias de trabalho, fotos e arquivos 3D diretamente para os seus laboratórios conectados de forma segura.')}
         </p>
       </div>
 
@@ -587,7 +589,7 @@ export const DentistRequisitions = () => {
         <div className="lg:col-span-7 bg-white rounded-3xl border border-slate-100 shadow-sm p-4 sm:p-6 space-y-6">
           <div className="flex items-center gap-2 border-b border-slate-100 pb-4">
             <Send className="text-indigo-600" size={20} />
-            <h3 className="font-extrabold text-slate-800">Nova Requisição Online</h3>
+            <h3 className="font-extrabold text-slate-800">{t('dentistRequisitions.newRequisition', 'Nova Requisição Online')}</h3>
           </div>
 
           {error && (
@@ -600,16 +602,16 @@ export const DentistRequisitions = () => {
           {success && (
             <div className="p-4 bg-emerald-50 text-emerald-800 text-sm rounded-2xl flex items-center gap-2 border border-emerald-100 font-bold">
               <CheckCircle size={18} className="text-emerald-600" />
-              <span>Sua requisição foi enviada com sucesso!</span>
+              <span>{t('dentistRequisitions.successSent', 'Sua requisição foi enviada com sucesso!')}</span>
             </div>
           )}
 
           {labs.length === 0 ? (
             <div className="p-4 sm:p-8 text-center bg-amber-50/50 rounded-2xl border border-amber-100 flex flex-col items-center gap-2">
               <Building className="text-amber-500" size={32} />
-              <p className="text-xs font-bold text-slate-700">Nenhum Laboratório Vinculado</p>
+              <p className="text-xs font-bold text-slate-700">{t('dentistRequisitions.noLinkedLab', 'Nenhum Laboratório Vinculado')}</p>
               <p className="text-[11px] text-slate-500 max-w-xs">
-                Para enviar requisições de trabalho, você precisa de um laboratório parceiro conectado à sua conta. Solicite o link de requisição para o seu laboratório.
+                {t('dentistRequisitions.noLinkedLabDesc', 'Para enviar requisições de trabalho, você precisa de um laboratório parceiro conectado à sua conta. Solicite o link de requisição para o seu laboratório.')}
               </p>
             </div>
           ) : (
@@ -617,7 +619,7 @@ export const DentistRequisitions = () => {
               {/* Select Lab */}
               <div>
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5 ml-1">
-                  Laboratório Destinatário *
+                  {t('dentistRequisitions.destinationLab', 'Laboratório Destinatário *')}
                 </label>
                 <select
                   required
@@ -636,7 +638,7 @@ export const DentistRequisitions = () => {
               {/* Patient Name */}
               <div>
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5 ml-1">
-                  Paciente *
+                  {t('common.patient', 'Paciente')} *
                 </label>
                 <div ref={patientInputContainerRef} className="relative">
                   <input
@@ -649,7 +651,7 @@ export const DentistRequisitions = () => {
                       setShowPatientSuggestions(true);
                     }}
                     onFocus={() => setShowPatientSuggestions(true)}
-                    placeholder="DIGITE OU SELECIONE UM PACIENTE..."
+                    placeholder={t('dentistRequisitions.patientPlaceholder', "DIGITE OU SELECIONE UM PACIENTE...")}
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold uppercase text-slate-700 placeholder:normal-case placeholder:font-medium placeholder:text-slate-400"
                   />
                   {showPatientSuggestions && filteredPatients.length > 0 && (
@@ -676,11 +678,11 @@ export const DentistRequisitions = () => {
               {/* Select Service */}
               <div>
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5 ml-1">
-                  Serviço Solicitado {requisitionItems.length === 0 ? '*' : ''}
+                  {t('dentistRequisitions.serviceRequested', 'Serviço Solicitado')} {requisitionItems.length === 0 ? '*' : ''}
                 </label>
                 {services.length === 0 ? (
                   <p className="text-xs text-amber-600 bg-amber-50 rounded-xl p-3">
-                    Nenhum serviço disponível listado para este laboratório.
+                    {t('dentistRequisitions.noServiceAvailable', 'Nenhum serviço disponível listado para este laboratório.')}
                   </p>
                 ) : (
                   <div className="space-y-4">
@@ -690,7 +692,7 @@ export const DentistRequisitions = () => {
                       onChange={(e) => setSelectedServiceId(e.target.value)}
                       className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-slate-700 text-sm"
                     >
-                      <option value="" disabled>SELECIONE UM TRABALHO / SERVIÇO</option>
+                      <option value="" disabled>{t('dentistRequisitions.selectServiceOption', 'SELECIONE UM TRABALHO / SERVIÇO')}</option>
                       {services.map(ser => (
                         <option key={ser.id} value={ser.id}>
                           {ser.name}
@@ -708,7 +710,7 @@ export const DentistRequisitions = () => {
                           {activeService.variationGroups && activeService.variationGroups.length > 0 && (
                             <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl space-y-4">
                               <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider border-b border-slate-200 pb-1.5">
-                                Especificações & Variações da Prótese
+                                {t('dentistRequisitions.specsVariations', 'Especificações & Variações da Prótese')}
                               </p>
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 {activeService.variationGroups.map(group => (
@@ -745,7 +747,7 @@ export const DentistRequisitions = () => {
 
                           <div className="pt-2">
                             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2 ml-1">
-                              Dentes Relacionados (Opcional)
+                              {t('dentistRequisitions.relatedTeeth', 'Dentes Relacionados (Opcional)')}
                             </label>
                             <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex justify-center items-center overflow-hidden">
                               <Odontogram 
@@ -763,7 +765,7 @@ export const DentistRequisitions = () => {
                             </div>
                             {itemSelectedTeeth.length > 0 && (
                               <p className="text-xs text-indigo-600 font-bold mt-2 ml-1">
-                                Dentes selecionados: {itemSelectedTeeth.sort().join(', ')}
+                                {t('dentistRequisitions.selectedTeethList', 'Dentes selecionados:')} {itemSelectedTeeth.sort().join(', ')}
                               </p>
                             )}
                           </div>
@@ -771,7 +773,7 @@ export const DentistRequisitions = () => {
                           {/* Quantity Selector */}
                           <div className={`w-24 mt-2 ${itemSelectedTeeth.length > 0 ? 'opacity-50 pointer-events-none' : ''}`}>
                             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5 ml-1">
-                              Quantidade *
+                              {t('common.quantity', 'Quantidade')} *
                             </label>
                             <input
                               type="number"
@@ -785,7 +787,7 @@ export const DentistRequisitions = () => {
                           </div>
                           
                           <div className="flex justify-end mt-2">
-                              <button type="button" onClick={handleAddService} className="text-[10px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-4 py-2 rounded-xl transition flex items-center gap-1"><Plus size={14}/> Adicionar Serviço</button>
+                              <button type="button" onClick={handleAddService} className="text-[10px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-4 py-2 rounded-xl transition flex items-center gap-1"><Plus size={14}/> {t('dentistRequisitions.addService', 'Adicionar Serviço')}</button>
                           </div>
                         </div>
                       );
@@ -797,17 +799,17 @@ export const DentistRequisitions = () => {
                 {requisitionItems.length > 0 && (
                     <div className="space-y-2 mt-6 animate-in fade-in">
                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2 ml-1">
-                            Serviços Adicionados ({requisitionItems.length})
+                            {t('dentistRequisitions.addedServices', 'Serviços Adicionados')} ({requisitionItems.length})
                         </label>
                         {requisitionItems.map((item) => (
                             <div key={item.id} className="flex items-center justify-between bg-white border border-slate-200 p-3.5 rounded-2xl shadow-sm">
                                 <div>
                                     <p className="font-extrabold text-xs text-slate-800">{item.quantity}x {item.serviceName}</p>
                                     {item.selectedVariationIds && item.selectedVariationIds.length > 0 && (
-                                        <p className="text-[10px] text-slate-500 mt-1 font-bold">Variações selecionadas: {item.selectedVariationIds.length}</p>
+                                        <p className="text-[10px] text-slate-500 mt-1 font-bold">{t('dentistRequisitions.selectedVariations', 'Variações selecionadas:')} {item.selectedVariationIds.length}</p>
                                     )}
                                     {item.selectedTeeth && item.selectedTeeth.length > 0 && (
-                                        <p className="text-[10px] text-indigo-500 mt-1 font-bold">Dentes: {item.selectedTeeth.join(', ')}</p>
+                                        <p className="text-[10px] text-indigo-500 mt-1 font-bold">{t('dentistRequisitions.teeth', 'Dentes:')} {item.selectedTeeth.join(', ')}</p>
                                     )}
                                 </div>
                                 <button type="button" onClick={() => setRequisitionItems(prev => prev.filter(i => i.id !== item.id))} className="text-red-500 hover:bg-red-50 p-2 rounded-xl transition-colors shrink-0">
@@ -822,7 +824,7 @@ export const DentistRequisitions = () => {
               {/* Drag and Drop File Attachments */}
               <div>
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5 ml-1">
-                  Enviar Arquivos 3D (STL/PLY), Fotos ou Vídeos do Caso
+                  {t('dentistRequisitions.uploadFilesTitle', 'Enviar Arquivos 3D (STL/PLY), Fotos ou Vídeos do Caso')}
                 </label>
                 <div
                   onDragOver={handleDragOver}
@@ -834,9 +836,9 @@ export const DentistRequisitions = () => {
                 >
                   <HardDrive className="text-slate-400 mb-2" size={32} />
                   <p className="text-xs font-bold text-slate-700 mb-1">
-                    Arraste e solte seus arquivos de imagem, vídeo ou STL aqui
+                    {t('dentistRequisitions.dragDropFiles', 'Arraste e solte seus arquivos de imagem, vídeo ou STL aqui')}
                   </p>
-                  <p className="text-[10px] text-slate-400 mb-3">ou clique para computador</p>
+                  <p className="text-[10px] text-slate-400 mb-3">{t('dentistRequisitions.orClickComputer', 'ou clique para computador')}</p>
                   
                   <input
                     type="file"
@@ -849,14 +851,14 @@ export const DentistRequisitions = () => {
                     htmlFor="requisitionFiles"
                     className="px-4 py-1.5 bg-white border border-slate-200 font-extrabold text-[11px] rounded-xl text-slate-600 shadow-sm hover:bg-slate-50 cursor-pointer"
                   >
-                    Selecionar Arquivos
+                    {t('dentistRequisitions.selectFilesBtn', 'Selecionar Arquivos')}
                   </label>
                 </div>
 
                 {/* Attachments List */}
                 {attachedFiles.length > 0 && (
                   <div className="mt-4 space-y-2">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase">Arquivos anexados ({attachedFiles.length})</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase">{t('dentistRequisitions.attachedFiles', 'Arquivos anexados')} ({attachedFiles.length})</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {attachedFiles.map((file, idx) => (
                         <div key={idx} className="flex justify-between items-center bg-slate-50/55 p-2 rounded-xl border border-slate-100 text-xs">
@@ -866,15 +868,15 @@ export const DentistRequisitions = () => {
                           <div className="flex items-center gap-1.5 ml-2">
                             {file.isUploading ? (
                               <span className="text-[9px] text-indigo-500 font-bold flex items-center gap-1 uppercase tracking-wider shrink-0">
-                                <Loader2 size={10} className="animate-spin shrink-0" /> <span className="hidden xs:inline">Enviando...</span>
+                                <Loader2 size={10} className="animate-spin shrink-0" /> <span className="hidden xs:inline">{t('common.uploading', 'Enviando...')}</span>
                               </span>
                             ) : file.error ? (
                               <span className="text-[9px] text-red-500 font-bold uppercase tracking-wider shrink-0" title={file.error}>
-                                Falhou
+                                {t('common.failed', 'Falhou')}
                               </span>
                             ) : (
                               <span className="text-[9px] text-emerald-600 font-black uppercase tracking-wider shrink-0">
-                                Pronto
+                                {t('common.ready', 'Pronto')}
                               </span>
                             )}
                             <span className="text-[9px] text-slate-400 shrink-0">{file.size}</span>
@@ -897,13 +899,13 @@ export const DentistRequisitions = () => {
               {/* Service Observations */}
               <div>
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5 ml-1">
-                  Observações de Serviço
+                  {t('dentistRequisitions.notesLabel', 'Observações de Serviço')}
                 </label>
                 <textarea
                   rows={3}
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Informe detalhes de cor da prótese, especificidades do material, dentes específicos, ou outras recomendações importantes..."
+                  placeholder={t('dentistRequisitions.notesPlaceholder2', 'Informe detalhes de cor da prótese, especificidades do material, dentes específicos, ou outras recomendações importantes...')}
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-slate-700 text-xs"
                 />
               </div>
@@ -919,7 +921,7 @@ export const DentistRequisitions = () => {
                     <Loader2 className="h-5 w-5 animate-spin" />
                   ) : (
                     <>
-                      <Send size={14} /> Transmitir Caso ao Laboratório
+                      <Send size={14} /> {t('dentistRequisitions.submitCaseBtn', 'Transmitir Caso ao Laboratório')}
                     </>
                   )}
                 </button>
@@ -934,7 +936,7 @@ export const DentistRequisitions = () => {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Clock className="text-indigo-600" size={20} />
-                <h3 className="font-extrabold text-slate-800">Acompanhamento de Casos</h3>
+                <h3 className="font-extrabold text-slate-800">{t('dentistRequisitions.caseTracking', 'Acompanhamento de Casos')}</h3>
               </div>
             </div>
             
@@ -950,7 +952,7 @@ export const DentistRequisitions = () => {
                 }`}
               >
                 <Package size={14} />
-                Solicitações ({onlineRequisitions ? onlineRequisitions.filter(r => (r.dentistId === currentUser?.id || r.dentistManualId === userAny?.manualDentistId || r.dentistManualId === activeManualDentistId) && r.status === 'PENDING').length : 0})
+                {t('dentistRequisitions.requestsTab', 'Solicitações')} ({onlineRequisitions ? onlineRequisitions.filter(r => (r.dentistId === currentUser?.id || r.dentistManualId === userAny?.manualDentistId || r.dentistManualId === activeManualDentistId) && r.status === 'PENDING').length : 0})
               </button>
               <button
                 type="button"
@@ -962,7 +964,7 @@ export const DentistRequisitions = () => {
                 }`}
               >
                 <XCircle size={14} className={rightTab === 'REJECTED' ? 'text-rose-500' : 'text-slate-400'} />
-                Recusados ({onlineRequisitions ? onlineRequisitions.filter(r => (r.dentistId === currentUser?.id || r.dentistManualId === userAny?.manualDentistId || r.dentistManualId === activeManualDentistId) && r.status === 'REJECTED').length : 0})
+                {t('dentistRequisitions.rejectedTab', 'Recusados')} ({onlineRequisitions ? onlineRequisitions.filter(r => (r.dentistId === currentUser?.id || r.dentistManualId === userAny?.manualDentistId || r.dentistManualId === activeManualDentistId) && r.status === 'REJECTED').length : 0})
               </button>
               <button
                 type="button"
@@ -974,7 +976,7 @@ export const DentistRequisitions = () => {
                 }`}
               >
                 <Activity size={14} />
-                Casos Ativos ({dentistActiveJobs.length})
+                {t('dentistRequisitions.activeCasesTab', 'Casos Ativos')} ({dentistActiveJobs.length})
               </button>
             </div>
           </div>
@@ -983,7 +985,7 @@ export const DentistRequisitions = () => {
             {rightTab === 'REQS' ? (
               (!onlineRequisitions || onlineRequisitions.filter(r => (r.dentistId === currentUser?.id || r.dentistManualId === userAny?.manualDentistId || r.dentistManualId === activeManualDentistId) && r.status === 'PENDING').length === 0) ? (
                 <div className="p-12 text-center text-slate-400 italic text-xs">
-                  Nenhuma solicitação pendente no momento.
+                  {t('dentistRequisitions.noPendingRequests', 'Nenhuma solicitação pendente no momento.')}
                 </div>
               ) : (
                 onlineRequisitions
@@ -1012,7 +1014,7 @@ export const DentistRequisitions = () => {
                                     <div className="text-[10px] font-bold text-slate-700">{req.serviceName}</div>
                                     {req.quantity && req.quantity > 0 && (
                                       <div className="text-[9px] font-bold text-slate-500 mt-0.5">
-                                        Quantidade: {req.quantity} {req.quantity === 1 ? 'item' : 'itens/dentes'}
+                                        {t('common.quantity', 'Quantidade')}: {req.quantity} {req.quantity === 1 ? t('common.item', 'item') : t('common.itemsTeeth', 'itens/dentes')}
                                       </div>
                                     )}
                                     {req.selectedVariationIds && req.selectedVariationIds.length > 0 && (
@@ -1043,7 +1045,7 @@ export const DentistRequisitions = () => {
                                     {req.selectedTeeth && req.selectedTeeth.length > 0 && (
                                       <div className="flex flex-wrap gap-1 mt-1">
                                         <span className="bg-indigo-50 text-indigo-600 border border-indigo-200 rounded px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-tight">
-                                          Dentes: {req.selectedTeeth.join(', ')}
+                                          {t('dentistRequisitions.teeth', 'Dentes')}: {req.selectedTeeth.join(', ')}
                                         </span>
                                       </div>
                                     )}
@@ -1052,14 +1054,14 @@ export const DentistRequisitions = () => {
                           </div>
                           
                           <span className="inline-block text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider bg-amber-100 text-amber-800">
-                            Pendente
+                            {t('dentistRequisitions.status.PENDING', 'Pendente')}
                           </span>
                         </div>
 
                         {linkedJob && (
                           <div className="mt-1 p-2 bg-emerald-50 border border-emerald-100 rounded-xl flex items-center justify-between text-[10px]">
                             <span className="font-bold text-emerald-800">
-                              Fase no Lab: <span className="uppercase font-black text-emerald-900">{linkedJob.currentSector || 'Triagem'}</span>
+                              {t('dentistRequisitions.labPhase', 'Fase no Lab:')} <span className="uppercase font-black text-emerald-900">{linkedJob.currentSector || t('common.triage', 'Triagem')}</span>
                             </span>
                             <span className="text-slate-500">
                               OS: #{linkedJob.osNumber}
@@ -1068,7 +1070,7 @@ export const DentistRequisitions = () => {
                         )}
 
                         <div className="text-[9px] font-bold text-slate-400 uppercase tracking-tight flex items-center gap-1 mt-1">
-                          <Clock size={10} className="text-slate-400" /> Enviado em: {parseDateSafely(req.sentAt || req.createdAt)?.toLocaleString('pt-BR') || '---'}
+                          <Clock size={10} className="text-slate-400" /> {t('dentistRequisitions.sentAt', 'Enviado em:')} {parseDateSafely(req.sentAt || req.createdAt)?.toLocaleString('pt-BR') || '---'}
                         </div>
 
                         {req.notes && (
@@ -1088,7 +1090,7 @@ export const DentistRequisitions = () => {
                                   setAllAttachmentsForPreview(req.attachments || []);
                                 }}
                                 className="bg-white hover:bg-slate-50 border border-slate-200 text-[8px] px-1.5 py-0.5 rounded text-indigo-600 hover:text-indigo-800 font-bold truncate max-w-[125px] transition-colors flex items-center gap-1 focus:outline-none"
-                                title="Clique de visualização/download de arquivo"
+                                title={t('dentistRequisitions.clickViewDownload', "Clique de visualização/download de arquivo")}
                               >
                                 <FileText size={8} className="shrink-0" /> {file.name}
                               </button>
@@ -1102,7 +1104,7 @@ export const DentistRequisitions = () => {
             ) : rightTab === 'REJECTED' ? (
               (!onlineRequisitions || onlineRequisitions.filter(r => (r.dentistId === currentUser?.id || r.dentistManualId === userAny?.manualDentistId || r.dentistManualId === activeManualDentistId) && r.status === 'REJECTED').length === 0) ? (
                 <div className="p-12 text-center text-slate-400 italic text-xs">
-                  Nenhuma solicitação recusada.
+                  {t('dentistRequisitions.noRejectedRequests', 'Nenhuma solicitação recusada.')}
                 </div>
               ) : (
                 onlineRequisitions
@@ -1129,7 +1131,7 @@ export const DentistRequisitions = () => {
                                     <div className="text-[10px] font-bold text-slate-700">{req.serviceName}</div>
                                     {req.quantity && req.quantity > 0 && (
                                       <div className="text-[9px] font-bold text-slate-500 mt-0.5">
-                                        Quantidade: {req.quantity} {req.quantity === 1 ? 'item' : 'itens/dentes'}
+                                        {t('common.quantity', 'Quantidade')}: {req.quantity} {req.quantity === 1 ? t('common.item', 'item') : t('common.itemsTeeth', 'itens/dentes')}
                                       </div>
                                     )}
                                     {req.selectedVariationIds && req.selectedVariationIds.length > 0 && (
@@ -1160,7 +1162,7 @@ export const DentistRequisitions = () => {
                                     {req.selectedTeeth && req.selectedTeeth.length > 0 && (
                                       <div className="flex flex-wrap gap-1 mt-1">
                                         <span className="bg-indigo-50 text-indigo-600 border border-indigo-200 rounded px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-tight">
-                                          Dentes: {req.selectedTeeth.join(', ')}
+                                          {t('dentistRequisitions.teeth', 'Dentes')}: {req.selectedTeeth.join(', ')}
                                         </span>
                                       </div>
                                     )}
@@ -1169,7 +1171,7 @@ export const DentistRequisitions = () => {
                           </div>
                           
                           <span className="inline-block text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider bg-red-100 text-red-800">
-                            Recusado
+                            {t('dentistRequisitions.status.REJECTED', 'Recusado')}
                           </span>
                         </div>
 
@@ -1190,7 +1192,7 @@ export const DentistRequisitions = () => {
                                   setAllAttachmentsForPreview(req.attachments || []);
                                 }}
                                 className="bg-white hover:bg-slate-50 border border-slate-200 text-[8px] px-1.5 py-0.5 rounded text-indigo-600 hover:text-indigo-800 font-bold truncate max-w-[125px] transition-colors flex items-center gap-1 focus:outline-none"
-                                title="Clique de visualização/download de arquivo"
+                                title={t('dentistRequisitions.clickViewDownload', "Clique de visualização/download de arquivo")}
                               >
                                 <FileText size={8} className="shrink-0" /> {file.name}
                               </button>
@@ -1200,18 +1202,18 @@ export const DentistRequisitions = () => {
 
                         <div className="flex flex-col gap-1 text-[9px] font-bold uppercase tracking-tight">
                           <div className="text-slate-500 flex items-center gap-1">
-                            <Clock size={10} className="text-slate-450" /> Enviado em: {parseDateSafely(req.sentAt || req.createdAt)?.toLocaleString('pt-BR') || '---'}
+                            <Clock size={10} className="text-slate-450" /> {t('dentistRequisitions.sentAt', 'Enviado em:')} {parseDateSafely(req.sentAt || req.createdAt)?.toLocaleString('pt-BR') || '---'}
                           </div>
                           {req.rejectedAt && (
                             <div className="text-red-600 flex items-center gap-1">
-                              <Clock size={10} className="text-red-400" /> Recusado em: {parseDateSafely(req.rejectedAt)?.toLocaleString('pt-BR') || '---'}
+                              <Clock size={10} className="text-red-400" /> {t('dentistRequisitions.rejectedAt', 'Recusado em:')} {parseDateSafely(req.rejectedAt)?.toLocaleString('pt-BR') || '---'}
                             </div>
                           )}
                         </div>
 
                         {req.rejectionReason && (
                           <div className="p-2.5 bg-red-50 border border-red-100 rounded-xl text-xs text-red-700">
-                            <span className="font-bold uppercase text-[9px] tracking-wider block mb-0.5 text-red-800">Motivo da Recusa:</span>
+                            <span className="font-bold uppercase text-[9px] tracking-wider block mb-0.5 text-red-800">{t('dentistRequisitions.rejectionReason', 'Motivo da Recusa:')}</span>
                             {req.rejectionReason}
                           </div>
                         )}
@@ -1222,7 +1224,7 @@ export const DentistRequisitions = () => {
                             onClick={() => handleReuseRequisition(req)}
                             className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-black uppercase tracking-tight transition flex items-center gap-1 focus:outline-none shadow-sm"
                           >
-                            <RefreshCw size={10} /> Corrigir e Reenviar
+                            <RefreshCw size={10} /> {t('dentistRequisitions.fixAndResend', 'Corrigir e Reenviar')}
                           </button>
                         </div>
                       </div>
@@ -1232,7 +1234,7 @@ export const DentistRequisitions = () => {
             ) : (
               dentistActiveJobs.length === 0 ? (
                 <div className="p-12 text-center text-slate-400 italic text-xs">
-                  Nenhum caso ativo em produção no laboratório no momento.
+                  {t('dentistRequisitions.noActiveCases', 'Nenhum caso ativo em produção no laboratório no momento.')}
                 </div>
               ) : (
                 dentistActiveJobs.map(job => {
@@ -1255,15 +1257,15 @@ export const DentistRequisitions = () => {
 
                   const getTranslatedStatus = (status: string) => {
                     switch (status) {
-                      case 'WAITING_APPROVAL': return 'Aguardando Aprovação';
-                      case 'PENDING': return 'Pendente';
-                      case 'IN_PROGRESS': return 'Em Produção';
-                      case 'COMPLETED': return 'Concluído';
-                      case 'DELIVERED': return 'Entregue';
-                      case 'REJECTED': return 'Rejeitado';
-                      case 'CANCELED': return 'Cancelado';
-                      case 'RETURNED': return 'Devolvido';
-                      case 'SECTOR_TRANSITION': return 'Em Transição';
+                      case 'WAITING_APPROVAL': return t('orders.status.WAITING_APPROVAL', 'Aguardando Aprovação');
+                      case 'PENDING': return t('orders.status.PENDING', 'Pendente');
+                      case 'IN_PROGRESS': return t('orders.status.IN_PROGRESS', 'Em Produção');
+                      case 'COMPLETED': return t('orders.status.COMPLETED', 'Concluído');
+                      case 'DELIVERED': return t('orders.status.DELIVERED', 'Entregue');
+                      case 'REJECTED': return t('orders.status.REJECTED', 'Rejeitado');
+                      case 'CANCELED': return t('orders.status.CANCELED', 'Cancelado');
+                      case 'RETURNED': return t('orders.status.RETURNED', 'Devolvido');
+                      case 'SECTOR_TRANSITION': return t('orders.status.SECTOR_TRANSITION', 'Em Transição');
                       default: return status;
                     }
                   };
@@ -1291,8 +1293,8 @@ export const DentistRequisitions = () => {
                             {getTranslatedStatus(job.status)}
                           </span>
                         ) : (
-                          <span className="inline-block text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider bg-slate-100 text-slate-400 border border-slate-200 inline-flex items-center gap-1" title="Visualização desativada pelo laboratório">
-                            <Lock size={8} /> Oculto
+                          <span className="inline-block text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider bg-slate-100 text-slate-400 border border-slate-200 inline-flex items-center gap-1" title={t('dentistRequisitions.hiddenTooltip', 'Visualização desativada pelo laboratório')}>
+                            <Lock size={8} /> {t('dentistRequisitions.hiddenStatus', 'Oculto')}
                           </span>
                         )}
                       </div>
@@ -1300,33 +1302,33 @@ export const DentistRequisitions = () => {
                       {/* Info grid */}
                       <div className="grid grid-cols-2 gap-2 mt-0.5 py-1.5 px-2.5 bg-white border border-slate-50 rounded-xl text-[10px]">
                         <div>
-                          <span className="text-slate-400 block text-[8px] uppercase font-black">Etapa Atual</span>
+                          <span className="text-slate-400 block text-[8px] uppercase font-black">{t('dentistRequisitions.currentStep', 'Etapa Atual')}</span>
                           <span className="font-bold text-slate-800 uppercase">
-                            {revealJobStatus ? (job.currentSector || 'Triagem') : 'Indisponível'}
+                            {revealJobStatus ? (job.currentSector || t('common.triage', 'Triagem')) : t('common.unavailable', 'Indisponível')}
                           </span>
                         </div>
                         <div>
-                          <span className="text-slate-400 block text-[8px] uppercase font-black">Previsão</span>
+                          <span className="text-slate-400 block text-[8px] uppercase font-black">{t('dentistRequisitions.forecast', 'Previsão')}</span>
                           <span className="font-bold text-slate-800">
-                            {revealJobStatus && job.dueDate ? new Date(job.dueDate).toLocaleDateString() : 'Indisponível'}
+                            {revealJobStatus && job.dueDate ? new Date(job.dueDate).toLocaleDateString() : t('common.unavailable', 'Indisponível')}
                           </span>
                         </div>
                       </div>
 
                       {/* Summary of services/items */}
                       <div className="text-[10px] text-slate-600 py-1.5 px-2.5 bg-slate-50 border border-slate-100 rounded-xl">
-                        <span className="text-slate-400 block text-[8px] uppercase font-black">Serviços</span>
+                        <span className="text-slate-400 block text-[8px] uppercase font-black">{t('dentistRequisitions.services', 'Serviços')}</span>
                         <div className="font-semibold text-slate-700 mt-0.5 line-clamp-2">
                           {job.items && job.items.length > 0 
                             ? job.items.map(item => `${item.quantity || 1}x ${item.name}`).join(', ') 
-                            : 'Nenhum serviço cadastrado'}
+                            : t('dentistRequisitions.noServicesRegistered', 'Nenhum serviço cadastrado')}
                         </div>
                       </div>
 
                       {job.boxNumber && revealJobStatus && job.origin !== 'ONLINE_ORDER' && job.origin !== 'ONLINE_REQUISITION' && (
                         <div className="flex items-center gap-1.5 text-[9px] font-bold text-slate-500 mt-0.5">
                           <span className="w-2 h-2 rounded-full border border-slate-300 inline-block" style={{ backgroundColor: job.boxColor?.hex || '#cbd5e1' }} />
-                          Caixa #{job.boxNumber}
+                          {t('dentistRequisitions.box', 'Caixa')} #{job.boxNumber}
                         </div>
                       )}
 
@@ -1335,21 +1337,21 @@ export const DentistRequisitions = () => {
                         {/* 1. Status do Trabalho Section */}
                         <div className="flex flex-col gap-1 mt-1">
                           <div className="flex items-center justify-between text-[10px]">
-                            <span className="text-slate-400 font-bold uppercase text-[8px]">Status do Trabalho:</span>
+                            <span className="text-slate-400 font-bold uppercase text-[8px]">{t('dentistRequisitions.jobStatus', 'Status do Trabalho:')}</span>
                             {revealJobStatus ? (
                               <span className="font-black text-slate-700 uppercase">
                                 {getTranslatedStatus(job.status)}
                               </span>
                             ) : (
                               <span className="text-slate-400 font-black uppercase text-[8px] flex items-center gap-1">
-                                <Lock size={8} /> Desativado
+                                <Lock size={8} /> {t('common.disabled', 'Desativado')}
                               </span>
                             )}
                           </div>
                           
                           {job.paymentStatus && (
                             <div className="flex items-center justify-between text-[10px] mt-1 border-t border-slate-100 pt-1">
-                              <span className="text-slate-400 font-bold uppercase text-[8px]">Status de Pagamento:</span>
+                              <span className="text-slate-400 font-bold uppercase text-[8px]">{t('dentistRequisitions.paymentStatusLabel', 'Status de Pagamento:')}</span>
                               <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider border ${
                                 job.paymentStatus === 'VOUCHER' ? 'bg-purple-50 text-purple-700 border-purple-200' :
                                 job.paymentStatus === 'AUTHORIZED' ? 'bg-blue-50 text-blue-700 border-blue-200' :
@@ -1357,10 +1359,10 @@ export const DentistRequisitions = () => {
                                 'bg-yellow-50 text-yellow-700 border-yellow-200'
                               }`}>
                                 {
-                                  job.paymentStatus === 'VOUCHER' ? 'Voucher' :
-                                  job.paymentStatus === 'AUTHORIZED' ? 'Pré-Autorizado' :
-                                  job.paymentStatus === 'PAID' ? 'Pago' :
-                                  'Aguardando Pagamento'
+                                  job.paymentStatus === 'VOUCHER' ? t('orders.status.VOUCHER', 'Voucher') :
+                                  job.paymentStatus === 'AUTHORIZED' ? t('orders.status.AUTHORIZED', 'Pré-Autorizado') :
+                                  job.paymentStatus === 'PAID' ? t('orders.status.PAID', 'Pago') :
+                                  t('orders.status.PENDING_PAYMENT', 'Aguardando Pagamento')
                                 }
                               </span>
                             </div>
@@ -1369,18 +1371,18 @@ export const DentistRequisitions = () => {
 
                         {/* 2. Chat Section */}
                         <div className="flex items-center justify-between text-[10px]">
-                          <span className="text-slate-400 font-bold uppercase text-[8px]">Chat de Acompanhamento:</span>
+                          <span className="text-slate-400 font-bold uppercase text-[8px]">{t('dentistRequisitions.followUpChat', 'Chat de Acompanhamento:')}</span>
                           {job.chatEnabled ? (
                             <button
                               type="button"
                               onClick={() => setChatJob(job)}
                               className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[9px] uppercase tracking-wider rounded-lg transition-all flex items-center gap-1 shadow-sm active:scale-95"
                             >
-                              <MessageSquare size={10} className="animate-pulse" /> Abrir Chat
+                              <MessageSquare size={10} className="animate-pulse" /> {t('dentistRequisitions.openChat', 'Abrir Chat')}
                             </button>
                           ) : (
-                            <span className="text-slate-400 font-black uppercase text-[8px] flex items-center gap-1" title="Canal de chat desativado para esta OS">
-                              <Lock size={8} /> Desativado
+                            <span className="text-slate-400 font-black uppercase text-[8px] flex items-center gap-1" title={t('dentistRequisitions.chatDisabledTooltip', 'Canal de chat desativado para esta OS')}>
+                              <Lock size={8} /> {t('common.disabled', 'Desativado')}
                             </span>
                           )}
                         </div>
@@ -1392,7 +1394,7 @@ export const DentistRequisitions = () => {
                           onClick={() => setPopupJob(job)}
                           className="text-[9px] font-black text-indigo-600 hover:text-indigo-800 uppercase tracking-wider flex items-center gap-1 cursor-pointer hover:underline"
                         >
-                          Visualizar Resumo &rarr;
+                          {t('dentistRequisitions.viewSummary', 'Visualizar Resumo')} &rarr;
                         </button>
                       </div>
                     </div>
@@ -1423,15 +1425,15 @@ export const DentistRequisitions = () => {
 
         const modalStatusTranslation = (status: string) => {
           switch (status) {
-            case 'WAITING_APPROVAL': return 'Aguardando Aprovação';
-            case 'PENDING': return 'Pendente';
-            case 'IN_PROGRESS': return 'Em Produção';
-            case 'COMPLETED': return 'Concluído';
-            case 'DELIVERED': return 'Entregue';
-            case 'REJECTED': return 'Rejeitado';
-            case 'CANCELED': return 'Cancelado';
-            case 'RETURNED': return 'Devolvido';
-            case 'SECTOR_TRANSITION': return 'Em Transição';
+            case 'WAITING_APPROVAL': return t('orders.status.WAITING_APPROVAL', 'Aguardando Aprovação');
+            case 'PENDING': return t('orders.status.PENDING', 'Pendente');
+            case 'IN_PROGRESS': return t('orders.status.IN_PROGRESS', 'Em Produção');
+            case 'COMPLETED': return t('orders.status.COMPLETED', 'Concluído');
+            case 'DELIVERED': return t('orders.status.DELIVERED', 'Entregue');
+            case 'REJECTED': return t('orders.status.REJECTED', 'Rejeitado');
+            case 'CANCELED': return t('orders.status.CANCELED', 'Cancelado');
+            case 'RETURNED': return t('orders.status.RETURNED', 'Devolvido');
+            case 'SECTOR_TRANSITION': return t('orders.status.SECTOR_TRANSITION', 'Em Transição');
             default: return status;
           }
         };
@@ -1443,7 +1445,7 @@ export const DentistRequisitions = () => {
               {/* Header */}
               <div className="p-5 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
                 <div>
-                  <h3 className="font-extrabold text-slate-900 text-sm">Resumo do Caso</h3>
+                  <h3 className="font-extrabold text-slate-900 text-sm">{t('dentistRequisitions.caseSummary', 'Resumo do Caso')}</h3>
                   <p className="text-[10px] font-mono text-indigo-600 font-extrabold mt-0.5">
                     OS #{popupJob.osNumber || '---'}
                   </p>
@@ -1463,7 +1465,7 @@ export const DentistRequisitions = () => {
                 <div className="bg-indigo-50/10 border border-indigo-50/30 rounded-2xl p-4 space-y-3">
                   <div className="flex justify-between items-start">
                     <div>
-                      <span className="text-[8px] uppercase tracking-wider font-extrabold text-slate-400 block mb-0.5">Paciente</span>
+                      <span className="text-[8px] uppercase tracking-wider font-extrabold text-slate-400 block mb-0.5">{t('common.patient', 'Paciente')}</span>
                       <span className="font-black text-slate-800 text-sm uppercase">{popupJob.patientName}</span>
                     </div>
                     {popupJob.urgency === 'VIP' && (
@@ -1475,15 +1477,15 @@ export const DentistRequisitions = () => {
 
                   <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-100 text-xs">
                     <div>
-                      <span className="text-[8px] uppercase tracking-wider font-extrabold text-slate-400 block mb-0.5">Etapa / Setor Atual</span>
+                      <span className="text-[8px] uppercase tracking-wider font-extrabold text-slate-400 block mb-0.5">{t('dentistRequisitions.currentStepSector', 'Etapa / Setor Atual')}</span>
                       <span className="font-semibold text-slate-800 uppercase">
-                        {revealJobStatus ? (popupJob.currentSector || 'Triagem') : 'Indisponível'}
+                        {revealJobStatus ? (popupJob.currentSector || t('common.triage', 'Triagem')) : t('common.unavailable', 'Indisponível')}
                       </span>
                     </div>
                     <div>
-                      <span className="text-[8px] uppercase tracking-wider font-extrabold text-slate-400 block mb-0.5">Previsão</span>
+                      <span className="text-[8px] uppercase tracking-wider font-extrabold text-slate-400 block mb-0.5">{t('dentistRequisitions.forecast', 'Previsão')}</span>
                       <span className="font-semibold text-slate-800">
-                        {revealJobStatus && popupJob.dueDate ? new Date(popupJob.dueDate).toLocaleDateString() : 'Indisponível'}
+                        {revealJobStatus && popupJob.dueDate ? new Date(popupJob.dueDate).toLocaleDateString() : t('common.unavailable', 'Indisponível')}
                       </span>
                     </div>
                   </div>
@@ -1491,7 +1493,7 @@ export const DentistRequisitions = () => {
 
                 {/* Serviços Solicitados */}
                 <div>
-                  <span className="text-[9px] uppercase tracking-wider font-black text-slate-400 block mb-2">Serviços Solicitados</span>
+                  <span className="text-[9px] uppercase tracking-wider font-black text-slate-400 block mb-2">{t('dentistRequisitions.requestedServicesTitle', 'Serviços Solicitados')}</span>
                   <div className="space-y-2">
                     {popupJob.items && popupJob.items.length > 0 ? (
                       popupJob.items.map((item, idx) => (
@@ -1506,7 +1508,7 @@ export const DentistRequisitions = () => {
                       ))
                     ) : (
                       <div className="text-center p-4 bg-slate-50 rounded-xl border border-slate-100 text-xs text-slate-400 italic">
-                        Nenhum detalhe de serviço disponível
+                        {t('dentistRequisitions.noServiceDetails', 'Nenhum detalhe de serviço disponível')}
                       </div>
                     )}
                   </div>
@@ -1515,7 +1517,7 @@ export const DentistRequisitions = () => {
                 {/* Anexos */}
                 {popupJob.attachments && popupJob.attachments.length > 0 && (
                   <div>
-                    <span className="text-[9px] uppercase tracking-wider font-black text-slate-400 block mb-2">Arquivos Digitais ({popupJob.attachments.length})</span>
+                    <span className="text-[9px] uppercase tracking-wider font-black text-slate-400 block mb-2">{t('dentistRequisitions.digitalFiles', 'Arquivos Digitais')} ({popupJob.attachments.length})</span>
                     <div className="flex flex-wrap gap-2">
                       {popupJob.attachments.map((file, i) => (
                         <button
@@ -1526,7 +1528,7 @@ export const DentistRequisitions = () => {
                             setAllAttachmentsForPreview(popupJob.attachments || []);
                           }}
                           className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl text-[10px] font-black uppercase hover:bg-slate-50 hover:border-blue-300 hover:text-blue-600 transition-all shadow-sm focus:outline-none"
-                          title="Clique de visualização/download de arquivo"
+                          title={t('dentistRequisitions.fileClickTooltip', 'Clique de visualização/download de arquivo')}
                         >
                           <FileText size={14} className="shrink-0" /> <span className="max-w-[120px] truncate">{file.name}</span>
                         </button>
@@ -1537,33 +1539,33 @@ export const DentistRequisitions = () => {
 
                 {/* Detalhes de Status */}
                 <div>
-                  <span className="text-[9px] uppercase tracking-wider font-black text-slate-400 block mb-2">Campos de Status</span>
+                  <span className="text-[9px] uppercase tracking-wider font-black text-slate-400 block mb-2">{t('dentistRequisitions.statusFields', 'Campos de Status')}</span>
                   <div className="p-4 bg-slate-50 rounded-[20px] border border-slate-100 space-y-3 text-xs">
                     <div className="flex justify-between items-center pb-2.5 border-b border-slate-200/50">
-                      <span className="text-slate-500 font-bold">Status do Trabalho:</span>
+                      <span className="text-slate-500 font-bold">{t('dentistRequisitions.jobStatus', 'Status do Trabalho:')}</span>
                       {revealJobStatus ? (
                         <span className={`px-2.5 py-1 rounded-full uppercase font-black text-[9px] tracking-wider border ${modalStatusColor(popupJob.status)}`}>
                           {modalStatusTranslation(popupJob.status)}
                         </span>
                       ) : (
                         <span className="text-slate-400 font-bold flex items-center gap-1 text-[10px]">
-                          <Lock size={10} /> Oculto pelo laboratório
+                          <Lock size={10} /> {t('dentistRequisitions.hiddenByLab', 'Oculto pelo laboratório')}
                         </span>
                       )}
                     </div>
                     
                     {popupJob.boxNumber && revealJobStatus && popupJob.origin !== 'ONLINE_ORDER' && popupJob.origin !== 'ONLINE_REQUISITION' && (
                       <div className="flex justify-between items-center pb-2.5 border-b border-slate-200/50">
-                        <span className="text-slate-500 font-bold">Número da Caixa:</span>
+                        <span className="text-slate-500 font-bold">{t('dentistRequisitions.boxNumber', 'Número da Caixa:')}</span>
                         <span className="font-extrabold text-slate-800 flex items-center gap-1.5">
                           <span className="w-2.5 h-2.5 rounded-full border border-slate-300 inline-block" style={{ backgroundColor: popupJob.boxColor?.hex || '#cbd5e1' }} />
-                          Caixa #{popupJob.boxNumber}
+                          {t('dentistRequisitions.box', 'Caixa')} #{popupJob.boxNumber}
                         </span>
                       </div>
                     )}
 
                     <div className="flex justify-between items-center pb-2.5 border-b border-slate-200/50">
-                      <span className="text-slate-500 font-bold">Data de Envio:</span>
+                      <span className="text-slate-500 font-bold">{t('dentistRequisitions.sentDate', 'Data de Envio:')}</span>
                       <span className="font-extrabold text-slate-800">
                         {parseDateSafely(popupJob.sentAt || popupJob.createdAt)?.toLocaleString('pt-BR') || '---'}
                       </span>
@@ -1571,7 +1573,7 @@ export const DentistRequisitions = () => {
 
                     {popupJob.acceptedAt && (
                       <div className="flex justify-between items-center pb-2.5 border-b border-slate-200/50">
-                        <span className="text-slate-500 font-bold">Data de Aceite:</span>
+                        <span className="text-slate-500 font-bold">{t('dentistRequisitions.acceptedDate', 'Data de Aceite:')}</span>
                         <span className="font-extrabold text-emerald-600">
                           {parseDateSafely(popupJob.acceptedAt)?.toLocaleString('pt-BR') || '---'}
                         </span>
@@ -1580,7 +1582,7 @@ export const DentistRequisitions = () => {
 
                     {popupJob.rejectedAt && (
                       <div className="flex justify-between items-center pb-2.5 border-b border-slate-200/50">
-                        <span className="text-slate-500 font-bold">Data de Recusa:</span>
+                        <span className="text-slate-500 font-bold">{t('dentistRequisitions.rejectedDate', 'Data de Recusa:')}</span>
                         <span className="font-extrabold text-red-650">
                           {parseDateSafely(popupJob.rejectedAt)?.toLocaleString('pt-BR') || '---'}
                         </span>
@@ -1588,9 +1590,9 @@ export const DentistRequisitions = () => {
                     )}
 
                     <div className="flex justify-between items-center">
-                      <span className="text-slate-500 font-bold">Canal de Chat:</span>
+                      <span className="text-slate-500 font-bold">{t('dentistRequisitions.chatChannel', 'Canal de Chat:')}</span>
                       <span className="font-black text-slate-700 uppercase text-[10px]">
-                        {popupJob.chatEnabled ? 'Ativo' : 'Desabilitado'}
+                        {popupJob.chatEnabled ? t('common.active', 'Ativo') : t('common.disabled', 'Desabilitado')}
                       </span>
                     </div>
                   </div>
@@ -1607,11 +1609,11 @@ export const DentistRequisitions = () => {
                       }}
                       className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs uppercase tracking-wider rounded-2xl transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg active:scale-[0.98]"
                     >
-                      <MessageSquare size={16} className="animate-pulse" /> Abrir Chat de Acompanhamento
+                      <MessageSquare size={16} className="animate-pulse" /> {t('dentistRequisitions.openFollowUpChat', 'Abrir Chat de Acompanhamento')}
                     </button>
                   ) : (
                     <div className="w-full text-center p-3 bg-slate-100 rounded-2xl text-[10px] text-slate-400 font-extrabold uppercase flex items-center justify-center gap-2">
-                      <Lock size={12} /> Chat de Acompanhamento Desabilitado
+                      <Lock size={12} /> {t('dentistRequisitions.followUpChatDisabled', 'Chat de Acompanhamento Desabilitado')}
                     </div>
                   )}
                 </div>
@@ -1624,7 +1626,7 @@ export const DentistRequisitions = () => {
                   onClick={() => setPopupJob(null)}
                   className="px-5 py-2.5 bg-slate-200 hover:bg-slate-300 font-bold text-xs uppercase tracking-wider text-slate-700 rounded-xl transition"
                 >
-                  Fechar
+                  {t('common.close', 'Fechar')}
                 </button>
               </div>
 
@@ -1651,7 +1653,7 @@ export const DentistRequisitions = () => {
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 bg-indigo-500 rounded-full animate-ping"></span>
                 <h3 className="font-extrabold text-slate-900 text-sm">
-                  Canal Direto com o Lab • OS #{chatJob.osNumber}
+                  {t('dentistRequisitions.directChannelTitle', 'Canal Direto com o Lab • OS #')}{chatJob.osNumber}
                 </h3>
               </div>
               <button

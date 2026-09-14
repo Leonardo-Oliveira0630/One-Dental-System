@@ -7,6 +7,7 @@ import { Attachment } from '../types';
 import { Eye, EyeOff, Layers, X, Box, Sun, AlertTriangle, Download } from 'lucide-react';
 import * as THREE from 'three';
 import FileSaver from 'file-saver';
+import { useTranslation, Trans } from 'react-i18next';
 
 // Define R3F elements as any to avoid TypeScript errors with IntrinsicElements
 const Mesh = 'mesh' as any;
@@ -16,6 +17,7 @@ const Color = 'color' as any;
 // --- Error Boundary for 3D Loading ---
 interface ViewerErrorBoundaryProps {
   children?: ReactNode;
+  t: (key: string, defaultValue: string) => string;
 }
 
 interface ViewerErrorBoundaryState {
@@ -52,13 +54,13 @@ class ViewerErrorBoundary extends React.Component<ViewerErrorBoundaryProps, View
           <div className="bg-red-500/20 p-4 rounded-full mb-4">
              <AlertTriangle size={48} className="text-red-500" />
           </div>
-          <h2 className="text-xl font-bold mb-2">Não foi possível carregar o modelo 3D</h2>
+          <h2 className="text-xl font-bold mb-2">{this.props.t('stl.loadErrorTitle', 'Não foi possível carregar o modelo 3D')}</h2>
           <p className="text-slate-400 text-sm max-w-md mb-6">
-            O navegador bloqueou o carregamento do arquivo. Isso geralmente ocorre devido a restrições de segurança (CORS) no servidor de arquivos.
+            {this.props.t('stl.loadErrorMessage', 'O navegador bloqueou o carregamento do arquivo. Isso geralmente ocorre devido a restrições de segurança (CORS) no servidor de arquivos.')}
           </p>
           <div className="bg-slate-800 p-4 rounded-xl text-left border border-slate-700 text-xs text-slate-300 w-full max-w-lg">
-             <p className="font-bold text-yellow-500 mb-2">Dica Técnica para o Administrador:</p>
-             <p>Configure o CORS no Firebase Storage para permitir requisições deste domínio.</p>
+             <p className="font-bold text-yellow-500 mb-2">{this.props.t('stl.adminTipTitle', 'Dica Técnica para o Administrador:')}</p>
+             <p>{this.props.t('stl.adminTipDesc', 'Configure o CORS no Firebase Storage para permitir requisições deste domínio.')}</p>
              <code className="block bg-black p-2 mt-2 rounded font-mono text-green-400">
                [<br/>
                &nbsp;&nbsp;{'{'}<br/>
@@ -140,13 +142,13 @@ const Model: React.FC<ModelProps> = ({ url, color, opacity, visible }) => {
 };
 
 // --- Loader Visual ---
-const Loader = () => {
+const Loader = ({ t }: { t: (key: string, defaultValue: string) => string }) => {
   const { progress } = useProgress();
   return (
     <Html center>
       <div className="flex flex-col items-center bg-white p-4 rounded-xl shadow-lg">
         <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-2"></div>
-        <p className="text-sm font-bold text-slate-700">{progress.toFixed(0)}% Carregando...</p>
+        <p className="text-sm font-bold text-slate-700">{progress.toFixed(0)}% {t('stl.loading', 'Carregando...')}</p>
       </div>
     </Html>
   );
@@ -169,6 +171,8 @@ interface MeshConfig {
 const DEFAULT_COLORS = ['#e2e8f0', '#fca5a5', '#93c5fd', '#86efac', '#fde047'];
 
 export const STLViewer: React.FC<STLViewerProps> = ({ files, onClose }) => {
+  const { t } = useTranslation();
+  
   // Filtra apenas arquivos STL
   const stlFiles = files.filter(f => f.name.toLowerCase().endsWith('.stl'));
   
@@ -208,8 +212,8 @@ export const STLViewer: React.FC<STLViewerProps> = ({ files, onClose }) => {
     return (
         <div className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center text-white">
             <div className="text-center">
-                <p className="text-xl mb-4">Nenhum arquivo STL encontrado neste pedido.</p>
-                <button onClick={onClose} className="px-4 py-2 bg-white text-black rounded font-bold">Fechar</button>
+                <p className="text-xl mb-4">{t('stl.noStlFound', 'Nenhum arquivo STL encontrado neste pedido.')}</p>
+                <button onClick={onClose} className="px-4 py-2 bg-white text-black rounded font-bold">{t('common.close', 'Fechar')}</button>
             </div>
         </div>
     )
@@ -234,23 +238,23 @@ export const STLViewer: React.FC<STLViewerProps> = ({ files, onClose }) => {
             <div className="bg-amber-500/10 p-5 rounded-full mb-4">
               <AlertTriangle size={48} className="text-amber-500 animate-pulse" />
             </div>
-            <h3 className="text-xl font-bold text-white mb-2 uppercase tracking-tight">Arquivos de Visualização Expirados</h3>
+            <h3 className="text-xl font-bold text-white mb-2 uppercase tracking-tight">{t('stl.staleFilesTitle', 'Arquivos de Visualização Expirados')}</h3>
             <p className="text-slate-400 text-sm max-w-md mb-2 leading-relaxed">
-              Os arquivos associados a esta requisição foram anexados em uma versão anterior usando links temporários locais do navegador, que expiraram ao fechar a página.
+              {t('stl.staleFilesDesc', 'Os arquivos associados a esta requisição foram anexados em uma versão anterior usando links temporários locais do navegador, que expiraram ao fechar a página.')}
             </p>
             <p className="text-blue-400 text-xs max-w-sm font-semibold">
-              Por favor, reenvie (upload) os arquivos STL originais acessando os detalhes do pedido ou da requisição.
+              {t('stl.staleFilesInstruction', 'Por favor, reenvie (upload) os arquivos STL originais acessando os detalhes do pedido ou da requisição.')}
             </p>
           </div>
         ) : null}
 
         {/* Wrapping the Canvas in ViewerErrorBoundary to catch 3D rendering or model loading issues */}
         {!allStale && (
-          <ViewerErrorBoundary>
+          <ViewerErrorBoundary t={t}>
               <Canvas shadows camera={{ position: [0, 0, 100], fov: 50 }}>
               <Color attach="background" args={['#1e293b']} /> {/* Slate-800 Background */}
               
-              <Suspense fallback={<Loader />}>
+              <Suspense fallback={<Loader t={t} />}>
                   {/* Stage provides default environment lighting. Center ensures model is in camera focus. */}
                   <Stage environment="city" intensity={0.6} adjustCamera={false}>
                       <Center>
@@ -283,7 +287,7 @@ export const STLViewer: React.FC<STLViewerProps> = ({ files, onClose }) => {
         )}
         
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/50 text-xs pointer-events-none select-none">
-            Botão Esq: Rotacionar • Botão Dir: Mover • Scroll: Zoom
+            {t('stl.controlsHint', 'Botão Esq: Rotacionar • Botão Dir: Mover • Scroll: Zoom')}
         </div>
       </div>
 
@@ -308,21 +312,21 @@ export const STLViewer: React.FC<STLViewerProps> = ({ files, onClose }) => {
                                 <button 
                                     onClick={() => updateMesh(mesh.id, { visible: !mesh.visible })}
                                     className={`p-1.5 rounded-lg shrink-0 ${mesh.visible ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-400'}`}
-                                    title={mesh.visible ? "Ocultar malha" : "Mostrar malha"}
+                                    title={mesh.visible ? t('stl.hideMesh', "Ocultar malha") : t('stl.showMesh', "Mostrar malha")}
                                 >
                                     {mesh.visible ? <Eye size={16} /> : <EyeOff size={16} />}
                                 </button>
                                 <button 
                                     onClick={() => handleDownload(mesh.id, mesh.name)}
                                     className="p-1.5 bg-slate-100 hover:bg-blue-50 text-slate-500 hover:text-blue-600 rounded-lg transition-colors shrink-0"
-                                    title="Baixar arquivo "
+                                    title={t('stl.downloadFile', "Baixar arquivo")}
                                 >
                                     <Download size={14} />
                                 </button>
                               </>
                             ) : (
-                              <div className="p-1 px-1.5 bg-red-100 border border-red-200 text-red-700 text-[9px] font-black uppercase rounded shrink-0" title="Upload local expirou">
-                                Expirado
+                              <div className="p-1 px-1.5 bg-red-100 border border-red-200 text-red-700 text-[9px] font-black uppercase rounded shrink-0" title={t('stl.localUploadExpired', "Upload local expirou")}>
+                                {t('common.expired', 'Expirado')}
                               </div>
                             )}
                             <span className={`text-xs font-bold truncate flex-1 ${mesh.isStale ? 'text-red-600 line-through' : 'text-slate-700'}`} title={mesh.name}>{mesh.name}</span>
@@ -339,12 +343,12 @@ export const STLViewer: React.FC<STLViewerProps> = ({ files, onClose }) => {
                     
                     {mesh.isStale ? (
                       <p className="text-[9px] text-red-500/80 leading-normal font-medium">
-                        Este arquivo STL foi anexado via link local provisório no passado. Reenvie o arquivo real para visualizá-lo.
+                        {t('stl.meshStaleDesc', 'Este arquivo STL foi anexado via link local provisório no passado. Reenvie o arquivo real para visualizá-lo.')}
                       </p>
                     ) : (
                       <div className="space-y-1">
                           <div className="flex justify-between text-xs text-slate-500 font-medium">
-                              <span>Opacidade</span>
+                              <span>{t('stl.opacity', 'Opacidade')}</span>
                               <span>{(mesh.opacity * 100).toFixed(0)}%</span>
                           </div>
                           <input 
@@ -363,11 +367,11 @@ export const STLViewer: React.FC<STLViewerProps> = ({ files, onClose }) => {
         </div>
 
         <div className="p-4 bg-slate-50 border-t border-slate-200 text-xs text-slate-500">
-            <p className="flex items-center gap-2 mb-2"><Sun size={14} /> Dicas de Visualização:</p>
+            <p className="flex items-center gap-2 mb-2"><Sun size={14} /> {t('stl.viewTips', 'Dicas de Visualização:')}</p>
             <ul className="list-disc pl-4 space-y-1">
-                <li>O modelo foi centralizado automaticamente.</li>
-                <li>Use cores contrastantes para antagonistas.</li>
-                <li>Reduza opacidade para ver oclusão interna.</li>
+                <li>{t('stl.tipCentered', 'O modelo foi centralizado automaticamente.')}</li>
+                <li>{t('stl.tipColors', 'Use cores contrastantes para antagonistas.')}</li>
+                <li>{t('stl.tipOpacity', 'Reduza opacidade para ver oclusão interna.')}</li>
             </ul>
         </div>
       </div>

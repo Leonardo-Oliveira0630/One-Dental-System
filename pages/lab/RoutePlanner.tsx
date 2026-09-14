@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { DeliveryRoute, RouteItem, Job, ManualDentist, User, Courier, JobStatus } from '../../types';
@@ -10,6 +11,7 @@ import * as api from '../../services/firebaseService';
 import { notifyJobLogistics } from '../../services/ycloudService';
 
 export const RoutePlanner = () => {
+  const { t } = useTranslation();
     const { 
         currentOrg, manualDentists, allUsers, triggerRoutePrint, currentUser,
         couriers, addCourier, updateCourier, deleteCourier, jobs, updateJob
@@ -271,7 +273,7 @@ export const RoutePlanner = () => {
                     <h1 className="text-2xl font-black text-slate-900 flex items-center gap-2" id="route-planner-title">
                         <Truck className="text-blue-600 animate-pulse" /> Roteiros de Entrega
                     </h1>
-                    <p className="text-slate-500">Organize as saídas de motoboy e coletas externas em tempo real.</p>
+                    <p className="text-slate-500">{t("routes.subtitle", "Organize as saídas de motoboy e coletas externas em tempo real.")}</p>
                 </div>
                 {activeRoute && (
                     <button 
@@ -287,14 +289,14 @@ export const RoutePlanner = () => {
             {/* FILTRO DE DATA E TURNO */}
             <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col md:flex-row gap-4 sm:p-6" id="route-filters-card">
                 <div className="flex-1">
-                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Data do Roteiro</label>
+                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">{t("routes.routeDate", "Data do Roteiro")}</label>
                     <div className="relative">
                         <Calendar className="absolute left-3 top-2.5 text-slate-400" size={18} />
                         <input id="route-date-input" type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-800" />
                     </div>
                 </div>
                 <div className="flex-1">
-                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Turno da Rota</label>
+                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">{t("routes.routeShift", "Turno da Rota")}</label>
                     <div className="flex bg-slate-100 p-1 rounded-xl" id="route-shift-tabs">
                         <button id="shift-morning-btn" onClick={() => setSelectedShift('MORNING')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${selectedShift === 'MORNING' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Manhã</button>
                         <button id="shift-afternoon-btn" onClick={() => setSelectedShift('AFTERNOON')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${selectedShift === 'AFTERNOON' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Tarde</button>
@@ -308,8 +310,8 @@ export const RoutePlanner = () => {
                     {!activeRoute ? (
                         <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-3xl p-12 text-center" id="no-route-display">
                             <Truck size={48} className="mx-auto text-slate-300 mb-4" />
-                            <h3 className="text-lg font-black text-slate-700">Nenhum roteiro para este período</h3>
-                            <p className="text-slate-500 mb-6 text-sm">Organize as coletas e entregas designando um motoboy.</p>
+                            <h3 className="text-lg font-black text-slate-700">{t("routes.noRoutesTitle", "Nenhum roteiro para este período")}</h3>
+                            <p className="text-slate-500 mb-6 text-sm">{t("routes.noRoutesDesc", "Organize as coletas e entregas designando um motoboy.")}</p>
                             <button 
                                 id="init-route-btn"
                                 onClick={() => {
@@ -328,7 +330,7 @@ export const RoutePlanner = () => {
                                 <div className="flex items-center gap-3">
                                     <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl"><UserIcon size={20}/></div>
                                     <div>
-                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Motoboy Responsável</p>
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">{t("routes.courierResponsible", "Motoboy Responsável")}</p>
                                         <p className="font-black text-slate-800 text-lg leading-tight mt-1">{activeRoute.driverName}</p>
                                     </div>
                                 </div>
@@ -477,7 +479,7 @@ export const RoutePlanner = () => {
                                                                 <p className={`text-xs font-medium ${item.observations ? 'text-slate-600' : 'text-slate-400 italic'}`}>
                                                                     {item.observations || 'Adicionar observações de entrega...'}
                                                                 </p>
-                                                                <span className="opacity-0 group-hover/obs:opacity-100 text-xs text-indigo-500 font-bold whitespace-nowrap">Editar</span>
+                                                                <span className="opacity-0 group-hover/obs:opacity-100 text-xs text-indigo-500 font-bold whitespace-nowrap">{t("common.edit", "Editar")}</span>
                                                             </div>
                                                         )}
                                                     </div>
@@ -519,8 +521,8 @@ export const RoutePlanner = () => {
                                     <Truck size={18} />
                                 </div>
                                 <div>
-                                    <h3 className="font-black text-slate-800 text-sm md:text-base leading-none">Motoboys</h3>
-                                    <span className="text-[10px] uppercase font-black text-slate-400 tracking-wider">Entregadores cadastrados</span>
+                                    <h3 className="font-black text-slate-800 text-sm md:text-base leading-none">{t("routes.couriers", "Motoboys")}</h3>
+                                    <span className="text-[10px] uppercase font-black text-slate-400 tracking-wider">{t("routes.registeredCouriers", "Entregadores cadastrados")}</span>
                                 </div>
                             </div>
                             {canCreate && (
@@ -538,7 +540,7 @@ export const RoutePlanner = () => {
                         {/* FORMULÁRIO DE CADASTRO */}
                         {showCourierForm && (
                             <form id="new-courier-form" onSubmit={handleAddCourierSubmit} className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3 animate-in slide-in-from-top-2 duration-300">
-                                <h4 className="text-xs font-black text-slate-600 uppercase tracking-widest">Novo Cadastro</h4>
+                                <h4 className="text-xs font-black text-slate-600 uppercase tracking-widest">{t("routes.newRegistration", "Novo Cadastro")}</h4>
                                 <div>
                                     <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Nome completo *</label>
                                     <input 
@@ -646,7 +648,7 @@ export const RoutePlanner = () => {
 
                     <div className="bg-indigo-950 rounded-3xl p-4 sm:p-6 text-white shadow-xl relative overflow-hidden" id="logistics-tips-sidebar">
                         <Truck size={80} className="absolute -bottom-4 -right-4 opacity-10" />
-                        <h3 className="font-black text-lg mb-4 flex items-center gap-2"><Navigation size={20}/> Dica de Logística</h3>
+                        <h3 className="font-black text-lg mb-4 flex items-center gap-2"><Navigation size={20}/> {t('routes.logisticsTip', 'Dica de Logística')}</h3>
                         <p className="text-sm text-indigo-100 leading-relaxed font-bold">
                             Ordene as paradas para otimizar os custos de transporte do seu laboratório. Cada parada pode ser facilmente visualizada no Waze ou Google Maps correspondente pelo entregador.
                         </p>
@@ -667,7 +669,7 @@ export const RoutePlanner = () => {
 
                         <div className="space-y-4">
                             <div>
-                                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Selecione o Motoboy Cadastrado</label>
+                                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">{t("routes.selectRegisteredCourier", "Selecione o Motoboy Cadastrado")}</label>
                                 {activeCouriers.length > 0 ? (
                                     <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1" id="active-couriers-select-list">
                                         {activeCouriers.map(c => (
@@ -695,12 +697,12 @@ export const RoutePlanner = () => {
 
                             <div className="relative flex py-2 items-center">
                                 <div className="flex-grow border-t border-slate-200"></div>
-                                <span className="flex-shrink mx-4 text-xs font-black text-slate-400 uppercase tracking-wider">OU</span>
+                                <span className="flex-shrink mx-4 text-xs font-black text-slate-400 uppercase tracking-wider">{t('common.or', 'OU')}</span>
                                 <div className="flex-grow border-t border-slate-200"></div>
                             </div>
 
                             <div>
-                                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Nome do Entregador Esporádico</label>
+                                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">{t("routes.sporadicCourierName", "Nome do Entregador Esporádico")}</label>
                                 <div className="flex gap-2">
                                     <input 
                                         id="manual-courier-name-input"
@@ -769,7 +771,7 @@ export const RoutePlanner = () => {
                                     </button>
                                 ))}
                                 {dentistSearch && filteredDentists.length === 0 && (
-                                    <p className="text-center text-xs text-slate-400 py-6 italic" id="pickup-no-results">Nenhum consultório ou dentista encontrado.</p>
+                                    <p className="text-center text-xs text-slate-400 py-6 italic" id="pickup-no-results">{t("routes.noClinicFound", "Nenhum consultório ou dentista encontrado.")}</p>
                                 )}
                             </div>
                         </div>

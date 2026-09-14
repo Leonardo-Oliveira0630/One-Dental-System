@@ -1707,7 +1707,7 @@ export const JobDetails = () => {
                 {job.notes ? (
                   <p className="text-slate-700 text-xs font-semibold whitespace-pre-wrap">{job.notes}</p>
                 ) : (
-                  <p className="text-slate-400 text-xs italic">Nenhuma observação ou instrução adicional informada.</p>
+                  <p className="text-slate-400 text-xs italic">{t("job.noAdditionalNotes", "Nenhuma observação ou instrução adicional informada.")}</p>
                 )}
               </div>
             )}
@@ -1715,7 +1715,7 @@ export const JobDetails = () => {
 
           {/* Action / Status Buttons Section */}
           <div className="border-t border-slate-100 pt-6">
-            <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-4">Ações de Controle de Status</span>
+            <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-4">{t("job.statusControlActions", "Ações de Controle de Status")}</span>
             
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {/* Botão de Status */}
@@ -1796,7 +1796,7 @@ export const JobDetails = () => {
           <div className="flex gap-3">
             <XCircle className="text-red-500 shrink-0 mt-0.5 md:mt-0 animate-bounce" size={24} />
             <div>
-              <h4 className="font-extrabold text-sm uppercase tracking-tight text-red-900">Requisição Recusada</h4>
+              <h4 className="font-extrabold text-sm uppercase tracking-tight text-red-900">{t("job.reqRejected", "Requisição Recusada")}</h4>
               {job.rejectionReason ? (
                 <div className="mt-2 text-xs font-semibold text-red-700 bg-red-100/50 p-3 rounded-2xl border border-red-200">
                   <span className="font-bold block uppercase text-[10px] tracking-wide mb-1 text-red-800">Motivo fornecido pelo laboratório:</span>
@@ -1848,7 +1848,7 @@ export const JobDetails = () => {
           <div className="flex gap-3">
             <Clock className="text-amber-500 shrink-0 mt-0.5 md:mt-0" size={24} />
             <div>
-              <h4 className="font-extrabold text-sm uppercase tracking-tight text-amber-900">Requisição Online Pendente</h4>
+              <h4 className="font-extrabold text-sm uppercase tracking-tight text-amber-900">{t("job.reqPending", "Requisição Online Pendente")}</h4>
               <p className="text-xs font-semibold text-amber-700 mt-1 max-w-2xl">
                 {isLabStaff 
                   ? "Esta é uma nova requisição enviada por um dentista parceiro. Você pode aceitá-la para iniciar a produção ou recusá-la informando o motivo."
@@ -1897,7 +1897,7 @@ export const JobDetails = () => {
                   <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
                       <RefreshCw size={32} className="text-indigo-600" />
                   </div>
-                  <h3 className="text-2xl font-black text-slate-800 mb-2 uppercase tracking-tight">Cadastrar Retorno</h3>
+                  <h3 className="text-2xl font-black text-slate-800 mb-2 uppercase tracking-tight">{t("job.registerReturn", "Cadastrar Retorno")}</h3>
                   <p className="text-sm text-slate-500 font-bold mb-8">O que deseja fazer com esta Ordem de Serviço?</p>
                   
                   <div className="grid grid-cols-1 gap-3">
@@ -1905,8 +1905,8 @@ export const JobDetails = () => {
                           <div className="flex items-center gap-3">
                               <ArrowRightCircle size={20} className="text-indigo-500" />
                               <div className="text-left">
-                                  <div className="text-sm">Prosseguimento</div>
-                                  <div className="text-[10px] text-indigo-400 font-bold tracking-widest mt-0.5">Criar OS limpa para a próxima fase</div>
+                                  <div className="text-sm">{t("job.continuation", "Prosseguimento")}</div>
+                                  <div className="text-[10px] text-indigo-400 font-bold tracking-widest mt-0.5">{t("job.createCleanOS", "Criar OS limpa para a próxima fase")}</div>
                               </div>
                           </div>
                       </button>
@@ -1915,8 +1915,8 @@ export const JobDetails = () => {
                           <div className="flex items-center gap-3">
                               <RotateCcw size={20} className="text-red-500" />
                               <div className="text-left">
-                                  <div className="text-sm">Repetição</div>
-                                  <div className="text-[10px] text-red-400 font-bold tracking-widest mt-0.5">Copiar OS com itens de repetição</div>
+                                  <div className="text-sm">{t("job.repetition", "Repetição")}</div>
+                                  <div className="text-[10px] text-red-400 font-bold tracking-widest mt-0.5">{t("job.copyOSRepetition", "Copiar OS com itens de repetição")}</div>
                               </div>
                           </div>
                       </button>
@@ -1925,8 +1925,8 @@ export const JobDetails = () => {
                           <div className="flex items-center gap-3">
                               <Edit3 size={20} className="text-orange-500" />
                               <div className="text-left">
-                                  <div className="text-sm">Ajuste</div>
-                                  <div className="text-[10px] text-orange-400 font-bold tracking-widest mt-0.5">Copiar OS com itens para ajuste</div>
+                                  <div className="text-sm">{t("job.adjustment", "Ajuste")}</div>
+                                  <div className="text-[10px] text-orange-400 font-bold tracking-widest mt-0.5">{t("job.copyOSAdjustment", "Copiar OS com itens para ajuste")}</div>
                               </div>
                           </div>
                       </button>
@@ -1969,7 +1969,7 @@ export const JobDetails = () => {
                               {expandedStageSectors[sector.name] && (
                                   <div className="p-4 bg-white border-t border-slate-100 space-y-2">
                                       {(!sector.stages || sector.stages.length === 0) ? (
-                                          <p className="text-xs text-slate-400 font-bold text-center py-2">Nenhuma etapa cadastrada neste setor.</p>
+                                          <p className="text-xs text-slate-400 font-bold text-center py-2">{t("job.noStepsInSector", "Nenhuma etapa cadastrada neste setor.")}</p>
                                       ) : (
                                           sector.stages.map((stage, idx) => {
                                               const isChecked = tempItemStages[sector.name]?.includes(stage) || false;
@@ -2064,18 +2064,18 @@ export const JobDetails = () => {
                   
                   <div className="space-y-4">
                       <div>
-                          <label className="block text-[10px] font-black uppercase text-slate-400 mb-1 tracking-widest pl-2">Setor</label>
+                          <label className="block text-[10px] font-black uppercase text-slate-400 mb-1 tracking-widest pl-2">{t("job.sector", "Setor")}</label>
                           <div className="w-full bg-slate-50 text-slate-600 p-3 rounded-xl border border-slate-200 font-bold">{editingExecution.sector}</div>
                       </div>
 
                       <div>
-                          <label className="block text-[10px] font-black uppercase text-blue-500 mb-1 tracking-widest pl-2">Funcionário</label>
+                          <label className="block text-[10px] font-black uppercase text-blue-500 mb-1 tracking-widest pl-2">{t("job.employee", "Funcionário")}</label>
                           <select
                               value={editingExecution.userId}
                               onChange={e => setEditingExecution({ ...editingExecution, userId: e.target.value })}
                               className="w-full bg-white border-2 border-blue-100 text-blue-900 rounded-xl p-3 font-bold focus:ring-0 focus:border-blue-400"
                           >
-                              <option value="">Selecione...</option>
+                              <option value="">{t("common.select", "Selecione...")}</option>
                               {labUsers.filter(u => u.sector === editingExecution.sector || u.sectors?.includes(editingExecution.sector) || u.id === editingExecution.userId).map(u => (
                                   <option key={u.id} value={u.id}>{u.name}</option>
                               ))}
@@ -2120,7 +2120,7 @@ export const JobDetails = () => {
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-2 sm:p-4">
               <div className="bg-white rounded-[24px] md:rounded-[32px] shadow-2xl w-full max-w-2xl max-h-[95vh] flex flex-col overflow-hidden animate-in zoom-in duration-200">
                   <div className="p-4 md:p-4 sm:p-6 border-b flex justify-between items-center bg-slate-50 shrink-0">
-                      <h3 className="text-lg md:text-xl font-bold text-slate-800 flex items-center gap-2"><Edit className="text-blue-600" /> Editar Ordem</h3>
+                      <h3 className="text-lg md:text-xl font-bold text-slate-800 flex items-center gap-2"><Edit className="text-blue-600" /> {t("job.editOrder", "Editar Ordem")}</h3>
                       <button onClick={() => setShowEditModal(false)} className="text-slate-400 hover:text-slate-600 p-1"><X size={24}/></button>
                   </div>
                   <div className="flex-1 overflow-y-auto p-4 md:p-4 sm:p-6 space-y-6 no-scrollbar">
@@ -2144,7 +2144,7 @@ export const JobDetails = () => {
                               {showDentistSuggestions && (
                                   <div className="absolute z-[110] left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2">
                                       <div className="p-2 bg-slate-50 border-b flex justify-between items-center">
-                                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-2">Sugestões</span>
+                                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-2">{t("job.suggestions", "Sugestões")}</span>
                                           <button onClick={() => setShowDentistSuggestions(false)} className="text-slate-400 p-1 hover:bg-slate-200 rounded-lg"><X size={14}/></button>
                                       </div>
                                       <div className="max-h-[240px] overflow-y-auto">
@@ -2160,7 +2160,7 @@ export const JobDetails = () => {
                                                               {d.clinicName && <div className="text-[9px] font-bold text-slate-400 uppercase">{d.clinicName}</div>}
                                                           </div>
                                                       </div>
-                                                      {d.type === 'ONLINE' && <span className="text-[8px] font-black bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded uppercase">Online</span>}
+                                                      {d.type === 'ONLINE' && <span className="text-[8px] font-black bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded uppercase">{t("job.online", "Online")}</span>}
                                                   </button>
                                               ))
                                           ) : dentistSearchQuery.length > 2 && (
@@ -2179,7 +2179,7 @@ export const JobDetails = () => {
                               )}
                           </div>
                           <div>
-                              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Paciente</label>
+                              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">{t("job.patient", "Paciente")}</label>
                               <input type="text" value={editPatientName} onChange={e => setEditPatientName(e.target.value.toUpperCase())} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold uppercase" />
                           </div>
                           <div>
@@ -2189,13 +2189,13 @@ export const JobDetails = () => {
                           {!job.isBudget && (
                           <>
                           <div>
-                              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Caixa</label>
+                              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">{t("job.box", "Caixa")}</label>
                               <input type="text" value={editBoxNumber} onChange={e => setEditBoxNumber(e.target.value)} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold" />
                               {activeJobsWithSameBox.length > 0 && (
                                   <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-xl relative z-10">
                                       <div className="flex items-center gap-2 text-amber-700 font-bold mb-2 text-[10px] uppercase">
                                           <AlertTriangle size={14} />
-                                          <span>Caixa em uso!</span>
+                                          <span>{t("job.boxInUse", "Caixa em uso!")}</span>
                                       </div>
                                       <ul className="space-y-2">
                                           {activeJobsWithSameBox.map(conflictingJob => (
@@ -2212,7 +2212,7 @@ export const JobDetails = () => {
                           </div>
                           {boxColors.length > 0 && (
                               <div>
-                                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Cor da Caixa</label>
+                                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">{t("job.boxColor", "Cor da Caixa")}</label>
                                   <div className="flex flex-wrap gap-1.5">
                                       {boxColors.map(color => (
                                           <button 
@@ -2242,19 +2242,19 @@ export const JobDetails = () => {
                               <input type="number" step="0.01" value={editTotalValue} onChange={e => setEditTotalValue(parseFloat(e.target.value) || 0)} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold" />
                           </div>
                           <div>
-                              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Nova Entrega</label>
+                              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">{t("job.newDelivery", "Nova Entrega")}</label>
                               <input type="date" value={editDueDate} onChange={e => setEditDueDate(e.target.value)} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold" />
                           </div>
                           <div>
-                              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Hora da Entrega</label>
+                              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">{t("job.deliveryTime", "Hora da Entrega")}</label>
                               <input type="time" value={editDueTime} onChange={e => setEditDueTime(e.target.value)} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold" />
                           </div>
                           <div className="md:col-span-2">
-                              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Prioridade</label>
+                              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">{t("job.priority", "Prioridade")}</label>
                               <select value={editUrgency} onChange={e => setEditUrgency(e.target.value as UrgencyLevel)} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold">
-                                  <option value={UrgencyLevel.LOW}>Baixa</option>
-                                  <option value={UrgencyLevel.NORMAL}>Normal</option>
-                                  <option value={UrgencyLevel.HIGH}>Alta</option>
+                                  <option value={UrgencyLevel.LOW}>{t("job.low", "Baixa")}</option>
+                                  <option value={UrgencyLevel.NORMAL}>{t("job.normal", "Normal")}</option>
+                                  <option value={UrgencyLevel.HIGH}>{t("job.high", "Alta")}</option>
                                   <option value={UrgencyLevel.VIP}>VIP / Urgente</option>
                               </select>
                           </div>
@@ -2305,9 +2305,9 @@ export const JobDetails = () => {
                                                   <p className="text-[10px] text-indigo-600 font-bold mt-1">Dentes selecionados: {item.selectedTeeth.sort().join(', ')}</p>
                                               )}
                                               <div className="flex flex-wrap gap-2 mt-2">
-                                                  <button type="button" onClick={() => handleUpdateEditItem(item.id, { nature: 'NORMAL' })} className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors border ${item.nature === 'NORMAL' ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>Normal</button>
-                                                  <button type="button" onClick={() => handleUpdateEditItem(item.id, { nature: 'REPETITION' })} className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors border ${item.nature === 'REPETITION' ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>Repetição</button>
-                                                  <button type="button" onClick={() => handleUpdateEditItem(item.id, { nature: 'ADJUSTMENT' })} className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors border ${item.nature === 'ADJUSTMENT' ? 'bg-purple-500 text-white border-purple-500' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>Ajuste</button>
+                                                  <button type="button" onClick={() => handleUpdateEditItem(item.id, { nature: 'NORMAL' })} className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors border ${item.nature === 'NORMAL' ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>{t("job.normal", "Normal")}</button>
+                                                  <button type="button" onClick={() => handleUpdateEditItem(item.id, { nature: 'REPETITION' })} className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors border ${item.nature === 'REPETITION' ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>{t("job.repetition", "Repetição")}</button>
+                                                  <button type="button" onClick={() => handleUpdateEditItem(item.id, { nature: 'ADJUSTMENT' })} className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors border ${item.nature === 'ADJUSTMENT' ? 'bg-purple-500 text-white border-purple-500' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>{t("job.adjustment", "Ajuste")}</button>
                                               </div>
                                               {(() => {
                                                   const type = jobTypes.find(t => t.id === item.jobTypeId);
@@ -2439,9 +2439,9 @@ export const JobDetails = () => {
                                )}
 
                                <div className="flex flex-wrap gap-2">
-                                   <button onClick={() => setNewItemNature('NORMAL')} className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors border ${newItemNature === 'NORMAL' ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>Normal</button>
-                                   <button onClick={() => setNewItemNature('REPETITION')} className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors border ${newItemNature === 'REPETITION' ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>Repetição</button>
-                                   <button onClick={() => setNewItemNature('ADJUSTMENT')} className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors border ${newItemNature === 'ADJUSTMENT' ? 'bg-purple-500 text-white border-purple-500' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>Ajuste</button>
+                                   <button onClick={() => setNewItemNature('NORMAL')} className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors border ${newItemNature === 'NORMAL' ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>{t("job.normal", "Normal")}</button>
+                                   <button onClick={() => setNewItemNature('REPETITION')} className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors border ${newItemNature === 'REPETITION' ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>{t("job.repetition", "Repetição")}</button>
+                                   <button onClick={() => setNewItemNature('ADJUSTMENT')} className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors border ${newItemNature === 'ADJUSTMENT' ? 'bg-purple-500 text-white border-purple-500' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>{t("job.adjustment", "Ajuste")}</button>
                                </div>
                                {(() => {
                                    const type = jobTypes.find(t => t.id === newItemTypeId);

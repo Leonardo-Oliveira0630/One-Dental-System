@@ -296,25 +296,25 @@ export const SupplierSettings = () => {
   };
 
   return (
-    <main id="supplier-settings" className="flex-1 p-4 sm:p-6 space-y-6 overflow-y-auto bg-slate-50 text-slate-900 min-h-screen">
+    <main id="supplier-settings" className="flex-1 p-4 sm:p-6 space-y-6 overflow-y-auto bg-slate-50 dark:bg-[#06080F] text-slate-900 dark:text-white min-h-screen">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 sm:p-6 bg-white border border-slate-200 rounded-2xl">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 sm:p-6 bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 rounded-2xl">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Configurações de Fornecedor</h1>
-          <p className="text-slate-500 text-sm mt-1">
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Configurações de Fornecedor</h1>
+          <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
             Personalize seu tema e vitrine autoral, confira seu plano atual, limites ou configure sua wallet do Asaas.
           </p>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-slate-200 gap-1 overflow-x-auto no-scrollbar">
+      <div className="flex border-b border-slate-200 dark:border-slate-800 gap-1 overflow-x-auto no-scrollbar">
         <button
           onClick={() => setActiveTab('store')}
-          className={`px-5 py-3 border-b-2 font-bold text-sm flex items-center gap-2 transition-all whitespace-nowrap ${
+          className={`px-5 py-3 border-b-2 font-bold text-sm flex items-center gap-2 transition-all whitespace-nowrap cursor-pointer rounded-t-xl ${
             activeTab === 'store' 
-              ? 'border-indigo-600 text-indigo-700 bg-indigo-50/50' 
-              : 'border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-100'
+              ? 'border-indigo-600 text-indigo-700 dark:text-indigo-400 bg-indigo-50/70 dark:bg-indigo-950/40' 
+              : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#0E1626]'
           }`}
         >
           <Store size={18} />
@@ -322,10 +322,10 @@ export const SupplierSettings = () => {
         </button>
         <button
           onClick={() => setActiveTab('policies')}
-          className={`px-5 py-3 border-b-2 font-bold text-sm flex items-center gap-2 transition-all whitespace-nowrap ${
+          className={`px-5 py-3 border-b-2 font-bold text-sm flex items-center gap-2 transition-all whitespace-nowrap cursor-pointer rounded-t-xl ${
             activeTab === 'policies' 
-              ? 'border-indigo-600 text-indigo-700 bg-indigo-50/50' 
-              : 'border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-100'
+              ? 'border-indigo-600 text-indigo-700 dark:text-indigo-400 bg-indigo-50/70 dark:bg-indigo-950/40' 
+              : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#0E1626]'
           }`}
         >
           <Scale size={18} />
@@ -338,10 +338,10 @@ export const SupplierSettings = () => {
         </button>
         <button
           onClick={() => setActiveTab('plans')}
-          className={`px-5 py-3 border-b-2 font-bold text-sm flex items-center gap-2 transition-all whitespace-nowrap ${
+          className={`px-5 py-3 border-b-2 font-bold text-sm flex items-center gap-2 transition-all whitespace-nowrap cursor-pointer rounded-t-xl ${
             activeTab === 'plans' 
-              ? 'border-indigo-600 text-indigo-700 bg-indigo-50/50' 
-              : 'border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-100'
+              ? 'border-indigo-600 text-indigo-700 dark:text-indigo-400 bg-indigo-50/70 dark:bg-indigo-950/40' 
+              : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#0E1626]'
           }`}
         >
           <Crown size={18} />
@@ -349,10 +349,10 @@ export const SupplierSettings = () => {
         </button>
         <button
           onClick={() => setActiveTab('asaas')}
-          className={`px-5 py-3 border-b-2 font-bold text-sm flex items-center gap-2 transition-all whitespace-nowrap ${
+          className={`px-5 py-3 border-b-2 font-bold text-sm flex items-center gap-2 transition-all whitespace-nowrap cursor-pointer rounded-t-xl ${
             activeTab === 'asaas' 
-              ? 'border-indigo-600 text-indigo-700 bg-indigo-50/50' 
-              : 'border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-100'
+              ? 'border-indigo-600 text-indigo-700 dark:text-indigo-400 bg-indigo-50/70 dark:bg-indigo-950/40' 
+              : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#0E1626]'
           }`}
         >
           <Wallet size={18} />
@@ -564,14 +564,14 @@ export const SupplierSettings = () => {
               </div>
 
               {/* Categories Management & Category Images */}
-              <div className="bg-white border border-slate-200 p-4 sm:p-6 rounded-2xl space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+              <div className="bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 p-4 sm:p-6 rounded-2xl space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
                   <div>
-                    <h3 className="font-bold text-md flex items-center gap-2 text-slate-900">
+                    <h3 className="font-bold text-md flex items-center gap-2 text-slate-900 dark:text-white">
                       <Folder className="text-indigo-500" />
                       Categorias da Loja e Imagens
                     </h3>
-                    <p className="text-slate-500 text-xs mt-0.5">
+                    <p className="text-slate-500 dark:text-slate-400 text-xs mt-0.5">
                       Crie e gerencie categorias de produtos e defina imagens para a seção "Explorar Nossas Categorias".
                     </p>
                   </div>
@@ -581,7 +581,7 @@ export const SupplierSettings = () => {
                       setIsAddingCategory(!isAddingCategory);
                       setEditingCategoryId(null);
                     }}
-                    className="px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-bold rounded-xl text-xs flex items-center gap-1.5 border border-indigo-200 transition-colors w-fit"
+                    className="px-4 py-2 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 font-bold rounded-xl text-xs flex items-center gap-1.5 border border-indigo-200 dark:border-indigo-800 transition-colors w-fit cursor-pointer"
                   >
                     {isAddingCategory ? <X size={15} /> : <FolderPlus size={15} />}
                     {isAddingCategory ? 'Fechar Formulário' : '+ Nova Categoria'}
@@ -590,16 +590,16 @@ export const SupplierSettings = () => {
 
                 {/* Inline Category Creation Form */}
                 {isAddingCategory && (
-                  <form onSubmit={handleCreateCategory} className="bg-slate-50 border-2 border-indigo-200 rounded-2xl p-4 sm:p-5 space-y-4 animate-in fade-in zoom-in-95 duration-200">
+                  <form onSubmit={handleCreateCategory} className="bg-slate-50 dark:bg-[#0E1626] border-2 border-indigo-200 dark:border-indigo-800 rounded-2xl p-4 sm:p-5 space-y-4 animate-in fade-in zoom-in-95 duration-200">
                     <div className="flex items-center justify-between">
-                      <h4 className="font-bold text-sm text-indigo-900 flex items-center gap-1.5">
-                        <FolderPlus size={16} className="text-indigo-600" />
+                      <h4 className="font-bold text-sm text-indigo-900 dark:text-indigo-300 flex items-center gap-1.5">
+                        <FolderPlus size={16} className="text-indigo-600 dark:text-indigo-400" />
                         Cadastrar Nova Categoria
                       </h4>
                       <button 
                         type="button" 
                         onClick={() => setIsAddingCategory(false)}
-                        className="text-slate-400 hover:text-slate-600 p-1"
+                        className="text-slate-400 hover:text-slate-600 dark:hover:text-white p-1 cursor-pointer"
                       >
                         <X size={16} />
                       </button>
@@ -607,23 +607,23 @@ export const SupplierSettings = () => {
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-xs font-bold text-slate-600 mb-1">Nome da Categoria *</label>
+                        <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Nome da Categoria *</label>
                         <input
                           type="text"
                           required
                           value={newCatName}
                           onChange={e => setNewCatName(e.target.value)}
                           placeholder="Ex: Resinas 3D, Fresadoras, Descartáveis..."
-                          className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500"
+                          className="w-full bg-white dark:bg-[#080C14] border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-indigo-500"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-xs font-bold text-slate-600 mb-1">Tipo de Item</label>
+                        <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Tipo de Item</label>
                         <select
                           value={newCatType}
                           onChange={e => setNewCatType(e.target.value as InventoryItemType)}
-                          className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500"
+                          className="w-full bg-white dark:bg-[#080C14] border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-indigo-500"
                         >
                           <option value="MATERIAL">Insumo / Material Odontológico</option>
                           <option value="SUPPLY">Suprimento / Consumível</option>
@@ -635,13 +635,13 @@ export const SupplierSettings = () => {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-slate-600 mb-1">Imagem Representativa da Categoria (Opcional)</label>
+                      <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Imagem Representativa da Categoria (Opcional)</label>
                       <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-xl bg-white border border-slate-200 overflow-hidden flex items-center justify-center flex-shrink-0">
+                        <div className="w-12 h-12 rounded-xl bg-white dark:bg-[#080C14] border border-slate-200 dark:border-slate-700 overflow-hidden flex items-center justify-center flex-shrink-0">
                           {newCatImageUrl ? (
                             <img src={newCatImageUrl} alt="Preview" className="w-full h-full object-cover" />
                           ) : (
-                            <ImageIcon size={18} className="text-slate-300" />
+                            <ImageIcon size={18} className="text-slate-300 dark:text-slate-600" />
                           )}
                         </div>
                         <input
@@ -649,7 +649,7 @@ export const SupplierSettings = () => {
                           placeholder="URL da imagem da categoria..."
                           value={newCatImageUrl}
                           onChange={e => setNewCatImageUrl(e.target.value)}
-                          className="flex-1 bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500"
+                          className="flex-1 bg-white dark:bg-[#080C14] border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-indigo-500"
                         />
                         <input
                           type="file"
@@ -660,25 +660,25 @@ export const SupplierSettings = () => {
                         />
                         <label
                           htmlFor="new-cat-image-file"
-                          className="px-3.5 py-2 bg-white hover:bg-slate-100 text-slate-700 font-bold rounded-xl text-xs flex items-center justify-center cursor-pointer transition-colors border border-slate-200 whitespace-nowrap"
+                          className="px-3.5 py-2 bg-white dark:bg-[#080C14] hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs flex items-center justify-center cursor-pointer transition-colors border border-slate-200 dark:border-slate-700 whitespace-nowrap"
                         >
                           Upload
                         </label>
                       </div>
                     </div>
 
-                    <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
+                    <div className="flex justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
                       <button
                         type="button"
                         onClick={() => setIsAddingCategory(false)}
-                        className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 font-bold rounded-xl text-xs transition-colors"
+                        className="px-4 py-2 bg-white dark:bg-[#080C14] border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs transition-colors cursor-pointer"
                       >
                         Cancelar
                       </button>
                       <button
                         type="submit"
                         disabled={savingCategory}
-                        className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs transition-colors shadow-sm flex items-center gap-1.5"
+                        className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs transition-colors shadow-sm flex items-center gap-1.5 cursor-pointer"
                       >
                         {savingCategory ? 'Salvando...' : 'Criar Categoria'}
                       </button>
@@ -694,10 +694,10 @@ export const SupplierSettings = () => {
                       const isEditing = editingCategoryId === cat.id;
 
                       return (
-                        <div key={cat.id} className="p-3.5 border border-slate-200 bg-slate-50/70 hover:bg-white rounded-xl transition-colors space-y-3">
+                        <div key={cat.id} className="p-3.5 border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-[#0E1626] hover:bg-white dark:hover:bg-[#131B2E] rounded-xl transition-colors space-y-3">
                           <div className="flex items-center justify-between gap-3">
                             <div className="flex items-center gap-3 min-w-0">
-                              <div className="w-12 h-12 rounded-xl bg-white border border-slate-200 overflow-hidden flex-shrink-0 flex items-center justify-center shadow-xs">
+                              <div className="w-12 h-12 rounded-xl bg-white dark:bg-[#080C14] border border-slate-200 dark:border-slate-700 overflow-hidden flex-shrink-0 flex items-center justify-center shadow-xs">
                                 {cat.imageUrl ? (
                                   <img src={cat.imageUrl} alt={cat.name} className="w-full h-full object-cover" />
                                 ) : (
@@ -711,12 +711,12 @@ export const SupplierSettings = () => {
                                       type="text"
                                       value={editingCatName}
                                       onChange={e => setEditingCatName(e.target.value)}
-                                      className="bg-white border border-indigo-400 rounded-lg px-2.5 py-1 text-xs text-slate-900 outline-none"
+                                      className="bg-white dark:bg-[#080C14] border border-indigo-400 dark:border-indigo-500 rounded-lg px-2.5 py-1 text-xs text-slate-900 dark:text-white outline-none"
                                     />
                                     <select
                                       value={editingCatType}
                                       onChange={e => setEditingCatType(e.target.value as InventoryItemType)}
-                                      className="bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs text-slate-800"
+                                      className="bg-white dark:bg-[#080C14] border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs text-slate-800 dark:text-slate-200"
                                     >
                                       <option value="MATERIAL">Insumo/Material</option>
                                       <option value="SUPPLY">Suprimento</option>
@@ -727,14 +727,14 @@ export const SupplierSettings = () => {
                                     <button
                                       type="button"
                                       onClick={() => handleUpdateCategoryData(cat.id)}
-                                      className="px-2.5 py-1 bg-indigo-600 text-white font-bold rounded-lg text-xs"
+                                      className="px-2.5 py-1 bg-indigo-600 text-white font-bold rounded-lg text-xs cursor-pointer"
                                     >
                                       Salvar
                                     </button>
                                     <button
                                       type="button"
                                       onClick={() => setEditingCategoryId(null)}
-                                      className="text-slate-400 hover:text-slate-600 p-1 text-xs"
+                                      className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 text-xs cursor-pointer"
                                     >
                                       ✕
                                     </button>
@@ -742,12 +742,12 @@ export const SupplierSettings = () => {
                                 ) : (
                                   <>
                                     <div className="flex items-center gap-2">
-                                      <p className="font-bold text-sm text-slate-900 truncate">{cat.name}</p>
-                                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-100">
+                                      <p className="font-bold text-sm text-slate-900 dark:text-white truncate">{cat.name}</p>
+                                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-900/50">
                                         {cat.type === 'MACHINERY' ? 'Equipamento' : cat.type === 'IMPLANT' ? 'Implante' : cat.type === 'SUPPLY' ? 'Suprimento' : cat.type === 'OTHER' ? 'Outro' : 'Insumo/Material'}
                                       </span>
                                     </div>
-                                    <p className="text-[11px] text-slate-500 mt-0.5">
+                                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                                       {productCount} {productCount === 1 ? 'produto vinculado' : 'produtos vinculados'}
                                     </p>
                                   </>
@@ -762,26 +762,26 @@ export const SupplierSettings = () => {
                                 id={`cat-image-${cat.id}`}
                                 className="hidden"
                                 onChange={async (e) => {
-                                  const file = e.target.files?.[0];
-                                  if (!file) return;
-                                  try {
-                                    const compressed = await smartCompress(file);
-                                    const reader = new FileReader();
-                                    reader.onload = async (evt) => {
-                                      const base64 = evt.target?.result as string;
-                                      await updateInventoryCategory(cat.id, { imageUrl: base64 });
-                                      alert('Imagem da categoria atualizada com sucesso!');
-                                    };
-                                    reader.readAsDataURL(compressed);
-                                  } catch (err) {
-                                    console.error(err);
-                                    alert('Erro ao atualizar imagem da categoria.');
-                                  }
+                                   const file = e.target.files?.[0];
+                                   if (!file) return;
+                                   try {
+                                     const compressed = await smartCompress(file);
+                                     const reader = new FileReader();
+                                     reader.onload = async (evt) => {
+                                       const base64 = evt.target?.result as string;
+                                       await updateInventoryCategory(cat.id, { imageUrl: base64 });
+                                       alert('Imagem da categoria atualizada com sucesso!');
+                                     };
+                                     reader.readAsDataURL(compressed);
+                                   } catch (err) {
+                                     console.error(err);
+                                     alert('Erro ao atualizar imagem da categoria.');
+                                   }
                                 }}
                               />
                               <label
                                 htmlFor={`cat-image-${cat.id}`}
-                                className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-100 rounded-lg text-xs font-bold text-indigo-600 cursor-pointer transition-colors shadow-xs"
+                                className="px-3 py-1.5 bg-white dark:bg-[#080C14] border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-xs font-bold text-indigo-600 dark:text-indigo-400 cursor-pointer transition-colors shadow-xs"
                               >
                                 Alterar Imagem
                               </label>
@@ -794,7 +794,7 @@ export const SupplierSettings = () => {
                                     setEditingCatName(cat.name);
                                     setEditingCatType(cat.type || 'MATERIAL');
                                   }}
-                                  className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition-colors"
+                                  className="p-1.5 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
                                   title="Editar Categoria"
                                 >
                                   <Edit2 size={15} />
@@ -804,7 +804,7 @@ export const SupplierSettings = () => {
                               <button
                                 type="button"
                                 onClick={() => handleDeleteCategory(cat.id, cat.name)}
-                                className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                className="p-1.5 text-slate-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-colors cursor-pointer"
                                 title="Excluir Categoria"
                               >
                                 <Trash2 size={15} />
@@ -815,7 +815,7 @@ export const SupplierSettings = () => {
                       );
                     })
                   ) : (
-                    <div className="text-center py-8 text-slate-500 text-xs border border-dashed border-slate-200 rounded-xl bg-slate-50">
+                    <div className="text-center py-8 text-slate-500 dark:text-slate-400 text-xs border border-dashed border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-[#0E1626]">
                       Nenhuma categoria cadastrada. Clique em "+ Nova Categoria" acima para criar a primeira categoria da sua loja.
                     </div>
                   )}

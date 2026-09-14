@@ -1,5 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useApp } from '../context/AppContext';
 import { UserRole, CommissionStatus, Job } from '../types';
 import { DollarSign, CheckCircle, Clock, Calendar, User, Search, Filter, Download, FileText, FileSpreadsheet, Users } from 'lucide-react';
@@ -24,6 +25,7 @@ interface EnrichedCommission {
 }
 
 export const Commissions = () => {
+  const { t } = useTranslation();
   const { commissions, currentUser, updateCommissionStatus, allUsers, jobs, activeOrganization } = useApp();
   const [filterUser, setFilterUser] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -119,17 +121,17 @@ export const Commissions = () => {
   // Exportar para Excel (Geral)
   const exportToExcel = () => {
     const data = filteredCommissions.map(c => ({
-      'Data': c.createdAt.toLocaleDateString(),
-      'Hora': c.createdAt.toLocaleTimeString(),
-      'Colaborador': c.userName,
-      'OS': c.osNumber,
-      'Paciente': c.patientName,
-      'Dentista': c.dentistName,
-      'Serviços': c.serviceTypes,
-      'Qtd': c.quantity,
-      'Setor': c.sector,
-      'Valor': c.amount,
-      'Status': c.status === CommissionStatus.PAID ? 'PAGO' : 'PENDENTE'
+      [t('commissions.excelDate', 'Data')]: c.createdAt.toLocaleDateString(),
+      [t('commissions.excelTime', 'Hora')]: c.createdAt.toLocaleTimeString(),
+      [t('commissions.excelCollaborator', 'Colaborador')]: c.userName,
+      [t('commissions.excelOs', 'OS')]: c.osNumber,
+      [t('commissions.excelPatient', 'Paciente')]: c.patientName,
+      [t('commissions.excelDentist', 'Dentista')]: c.dentistName,
+      [t('commissions.excelServices', 'Serviços')]: c.serviceTypes,
+      [t('commissions.excelQty', 'Qtd')]: c.quantity,
+      [t('commissions.excelSector', 'Setor')]: c.sector,
+      [t('commissions.excelAmount', 'Valor')]: c.amount,
+      [t('commissions.excelStatus', 'Status')]: c.status === CommissionStatus.PAID ? t('commissions.statusPaid', 'PAGO') : t('commissions.statusPending', 'PENDENTE')
     }));
 
     const ws = XLSX.utils.json_to_sheet(data);
@@ -144,9 +146,9 @@ export const Commissions = () => {
     const doc = new jsPDF();
 
     if (mode === 'GENERAL') {
-      doc.text("Extrato de Comissões - Geral", 14, 15);
+      doc.text(t('commissions.pdfGeneralTitle', "Extrato de Comissões - Geral"), 14, 15);
       doc.setFontSize(10);
-      doc.text(`Gerado em: ${new Date().toLocaleString()}`, 14, 22);
+      doc.text(`${t('commissions.pdfGeneratedAt', 'Gerado em:')} ${new Date().toLocaleString()}`, 14, 22);
 
       const tableData = filteredCommissions.map(c => [
         c.createdAt.toLocaleDateString(),
@@ -158,11 +160,22 @@ export const Commissions = () => {
         c.quantity,
         c.sector,
         `R$ ${c.amount.toFixed(2)}`,
-        c.status === CommissionStatus.PAID ? 'PAGO' : 'PENDENTE'
+        c.status === CommissionStatus.PAID ? t('commissions.statusPaid', 'PAGO') : t('commissions.statusPending', 'PENDENTE')
       ]);
 
       autoTable(doc, {
-        head: [['Data', 'Colaborador', 'OS', 'Paciente', 'Dentista', 'Serviço', 'Qtd', 'Setor', 'Valor', 'Status']],
+        head: [[
+          t('commissions.excelDate', 'Data'), 
+          t('commissions.excelCollaborator', 'Colaborador'), 
+          t('commissions.excelOs', 'OS'), 
+          t('commissions.excelPatient', 'Paciente'), 
+          t('commissions.excelDentist', 'Dentista'), 
+          t('commissions.excelServices', 'Serviço'), 
+          t('commissions.excelQty', 'Qtd'), 
+          t('commissions.excelSector', 'Setor'), 
+          t('commissions.excelAmount', 'Valor'), 
+          t('commissions.excelStatus', 'Status')
+        ]],
         body: tableData,
         startY: 25,
         styles: { fontSize: 8 },
@@ -172,11 +185,11 @@ export const Commissions = () => {
       // Totais
       const finalY = (doc as any).lastAutoTable.finalY + 10;
       doc.setFontSize(10);
-      doc.text(`Total Pendente: R$ ${stats.pending.toFixed(2)}`, 14, finalY);
-      doc.text(`Total Pago: R$ ${stats.paid.toFixed(2)}`, 14, finalY + 5);
-      doc.text(`Total Geral: R$ ${stats.total.toFixed(2)}`, 14, finalY + 10);
+      doc.text(`${t('commissions.totalPending', 'Total Pendente:')} R$ ${stats.pending.toFixed(2)}`, 14, finalY);
+      doc.text(`${t('commissions.totalPaid', 'Total Pago:')} R$ ${stats.paid.toFixed(2)}`, 14, finalY + 5);
+      doc.text(`${t('commissions.totalGeneral', 'Total Geral:')} R$ ${stats.total.toFixed(2)}`, 14, finalY + 10);
 
-      doc.save("Comissoes_Geral.pdf");
+      doc.save(t('commissions.pdfGeneralFilename', "Comissoes_Geral.pdf"));
     } else if (mode === 'BATCH') {
       // Agrupar por usuário
       const grouped = filteredCommissions.reduce((acc, curr) => {
@@ -197,9 +210,9 @@ export const Commissions = () => {
         const userPaid = userCommissions.filter(c => c.status === CommissionStatus.PAID).reduce((acc, c) => acc + c.amount, 0);
 
         doc.setFontSize(16);
-        doc.text(`Extrato de Comissões: ${userName}`, 14, 15);
+        doc.text(`${t('commissions.pdfExtratoUser', 'Extrato de Comissões:')} ${userName}`, 14, 15);
         doc.setFontSize(10);
-        doc.text(`Gerado em: ${new Date().toLocaleString()}`, 14, 22);
+        doc.text(`${t('commissions.pdfGeneratedAt', 'Gerado em:')} ${new Date().toLocaleString()}`, 14, 22);
 
         const tableData = userCommissions.map(c => [
           c.createdAt.toLocaleDateString(),
@@ -210,11 +223,21 @@ export const Commissions = () => {
           c.quantity,
           c.sector,
           `R$ ${c.amount.toFixed(2)}`,
-          c.status === CommissionStatus.PAID ? 'PAGO' : 'PENDENTE'
+          c.status === CommissionStatus.PAID ? t('commissions.statusPaid', 'PAGO') : t('commissions.statusPending', 'PENDENTE')
         ]);
 
         autoTable(doc, {
-          head: [['Data', 'OS', 'Paciente', 'Dentista', 'Serviço', 'Qtd', 'Setor', 'Valor', 'Status']],
+          head: [[
+            t('commissions.excelDate', 'Data'), 
+            t('commissions.excelOs', 'OS'), 
+            t('commissions.excelPatient', 'Paciente'), 
+            t('commissions.excelDentist', 'Dentista'), 
+            t('commissions.excelServices', 'Serviço'), 
+            t('commissions.excelQty', 'Qtd'), 
+            t('commissions.excelSector', 'Setor'), 
+            t('commissions.excelAmount', 'Valor'), 
+            t('commissions.excelStatus', 'Status')
+          ]],
           body: tableData,
           startY: 25,
           styles: { fontSize: 8 },
@@ -223,12 +246,12 @@ export const Commissions = () => {
 
         const finalY = (doc as any).lastAutoTable.finalY + 10;
         doc.setFontSize(10);
-        doc.text(`Total Pendente: R$ ${userPending.toFixed(2)}`, 14, finalY);
-        doc.text(`Total Pago: R$ ${userPaid.toFixed(2)}`, 14, finalY + 5);
-        doc.text(`Total Geral: R$ ${userTotal.toFixed(2)}`, 14, finalY + 10);
+        doc.text(`${t('commissions.totalPending', 'Total Pendente:')} R$ ${userPending.toFixed(2)}`, 14, finalY);
+        doc.text(`${t('commissions.totalPaid', 'Total Pago:')} R$ ${userPaid.toFixed(2)}`, 14, finalY + 5);
+        doc.text(`${t('commissions.totalGeneral', 'Total Geral:')} R$ ${userTotal.toFixed(2)}`, 14, finalY + 10);
       });
 
-      doc.save("Comissoes_Por_Funcionario.pdf");
+      doc.save(t('commissions.pdfBatchFilename', "Comissoes_Por_Funcionario.pdf"));
     }
     setIsExportMenuOpen(false);
   };
@@ -237,8 +260,8 @@ export const Commissions = () => {
     <div className="space-y-6 pb-12">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Extrato de Comissões</h1>
-          <p className="text-slate-500">Relatório de ganhos por produção e produtividade.</p>
+          <h1 className="text-2xl font-bold text-slate-900">{t('commissions.title', 'Extrato de Comissões')}</h1>
+          <p className="text-slate-500">{t('commissions.subtitle', 'Relatório de ganhos por produção e produtividade.')}</p>
         </div>
         
         <div className="relative">
@@ -246,19 +269,19 @@ export const Commissions = () => {
             onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
             className="flex items-center gap-2 px-4 py-2 border border-slate-200 bg-white text-slate-700 rounded-lg hover:bg-slate-50 font-medium shadow-sm"
           >
-            <Download size={18} /> Exportar Relatório
+            <Download size={18} /> {t('commissions.export', 'Exportar Relatório')}
           </button>
           
           {isExportMenuOpen && (
             <div className="absolute right-0 mt-2 w-56 bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in duration-200">
               <button onClick={exportToExcel} className="w-full text-left px-4 py-3 hover:bg-slate-50 flex items-center gap-3 text-sm text-slate-700">
-                <FileSpreadsheet size={16} className="text-green-600" /> Excel (Geral)
+                <FileSpreadsheet size={16} className="text-green-600" /> {t('commissions.exportExcel', 'Excel (Geral)')}
               </button>
               <button onClick={() => exportToPDF('GENERAL')} className="w-full text-left px-4 py-3 hover:bg-slate-50 flex items-center gap-3 text-sm text-slate-700">
-                <FileText size={16} className="text-red-600" /> PDF (Geral)
+                <FileText size={16} className="text-red-600" /> {t('commissions.exportPdf', 'PDF (Geral)')}
               </button>
               <button onClick={() => exportToPDF('BATCH')} className="w-full text-left px-4 py-3 hover:bg-slate-50 flex items-center gap-3 text-sm text-slate-700 border-t border-slate-100">
-                <Users size={16} className="text-blue-600" /> PDF (Por Funcionário)
+                <Users size={16} className="text-blue-600" /> {t('commissions.exportByEmployee', 'PDF (Por Funcionário)')}
               </button>
             </div>
           )}
@@ -268,15 +291,15 @@ export const Commissions = () => {
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:p-6">
         <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-100">
-            <p className="text-sm font-bold text-slate-500 mb-1 uppercase">A Receber</p>
+            <p className="text-sm font-bold text-slate-500 mb-1 uppercase">{t('commissions.pendingAmount', 'A Receber')}</p>
             <h3 className="text-3xl font-black text-orange-600">R$ {stats.pending.toFixed(2)}</h3>
         </div>
         <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-100">
-            <p className="text-sm font-bold text-slate-500 mb-1 uppercase">Pago (Acumulado)</p>
+            <p className="text-sm font-bold text-slate-500 mb-1 uppercase">{t('commissions.paidAmount', 'Pago (Acumulado)')}</p>
             <h3 className="text-3xl font-black text-green-600">R$ {stats.paid.toFixed(2)}</h3>
         </div>
         <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-100">
-            <p className="text-sm font-bold text-slate-500 mb-1 uppercase">Total Período</p>
+            <p className="text-sm font-bold text-slate-500 mb-1 uppercase">{t('commissions.totalAmount', 'Total Período')}</p>
             <h3 className="text-3xl font-black text-blue-600">R$ {stats.total.toFixed(2)}</h3>
         </div>
       </div>
@@ -291,7 +314,7 @@ export const Commissions = () => {
                     value={filterUser}
                     onChange={e => setFilterUser(e.target.value)}
                   >
-                    <option value="">Todos os Colaboradores</option>
+                    <option value="">{t('commissions.allTechnicians', 'Todos os Colaboradores')}</option>
                     {allUsers
                       .filter(u => u.role !== UserRole.CLIENT)
                       .map(user => (
@@ -301,16 +324,16 @@ export const Commissions = () => {
                   </select>
               </div>
           )}
-                    <div className="relative min-w-[200px]">
+          <div className="relative min-w-[200px]">
             <Filter className="absolute left-3 top-3 text-slate-400" size={18} />
             <select 
               className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg bg-white outline-none font-medium appearance-none"
               value={statusFilter}
               onChange={e => setStatusFilter(e.target.value)}
             >
-                <option value="ALL">Todos os Status</option>
-                <option value={CommissionStatus.PENDING}>Pendente</option>
-                <option value={CommissionStatus.PAID}>Pago</option>
+                <option value="ALL">{t('commissions.allStatuses', 'Todos os Status')}</option>
+                <option value={CommissionStatus.PENDING}>{t('commissions.statusPending', 'Pendente')}</option>
+                <option value={CommissionStatus.PAID}>{t('commissions.statusPaid', 'Pago')}</option>
             </select>
           </div>
           <div className="flex gap-2">
@@ -335,14 +358,14 @@ export const Commissions = () => {
             <table className="w-full text-left">
                 <thead>
                     <tr className="bg-slate-50 text-xs font-bold text-slate-500 uppercase border-b border-slate-200">
-                        <th className="p-4">Data</th>
-                        <th className="p-4">Colaborador</th>
-                        <th className="p-4">Detalhes do Trabalho</th>
-                        <th className="p-4">Serviço / Qtd</th>
-                        <th className="p-4">Setor</th>
-                        <th className="p-4 text-right">Valor</th>
-                        <th className="p-4">Status</th>
-                        {isManager && <th className="p-4 text-center">Ações</th>}
+                        <th className="p-4">{t('commissions.date', 'Data')}</th>
+                        <th className="p-4">{t('commissions.technician', 'Colaborador')}</th>
+                        <th className="p-4">{t('commissions.jobDetails', 'Detalhes do Trabalho')}</th>
+                        <th className="p-4">{t('commissions.service', 'Serviço / Qtd')}</th>
+                        <th className="p-4">{t('commissions.sector', 'Setor')}</th>
+                        <th className="p-4 text-right">{t('commissions.amount', 'Valor')}</th>
+                        <th className="p-4">{t('commissions.status', 'Status')}</th>
+                        {isManager && <th className="p-4 text-center">{t('common.actions', 'Ações')}</th>}
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -365,7 +388,7 @@ export const Commissions = () => {
                             <td className="p-4">
                                 <div className="flex flex-col">
                                   <span className="text-xs font-medium text-slate-700 line-clamp-1" title={rec.serviceTypes}>{rec.serviceTypes}</span>
-                                  <span className="text-[10px] font-bold text-slate-400 uppercase">Qtd: {rec.quantity}</span>
+                                  <span className="text-[10px] font-bold text-slate-400 uppercase">{t('commissions.quantity', 'Qtd')}: {rec.quantity}</span>
                                 </div>
                             </td>
                             <td className="p-4">
@@ -374,7 +397,7 @@ export const Commissions = () => {
                             <td className="p-4 text-right font-black text-slate-800 whitespace-nowrap">R$ {rec.amount.toFixed(2)}</td>
                             <td className="p-4">
                                 <span className={`px-2 py-1 rounded-full text-[10px] font-bold ${rec.status === CommissionStatus.PAID ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
-                                    {rec.status === CommissionStatus.PAID ? 'PAGO' : 'PENDENTE'}
+                                    {rec.status === CommissionStatus.PAID ? t('commissions.statusPaid', 'PAGO') : t('commissions.statusPending', 'PENDENTE')}
                                 </span>
                             </td>
                             {isManager && (
@@ -383,7 +406,7 @@ export const Commissions = () => {
                                         <button 
                                             onClick={() => updateCommissionStatus(rec.id, CommissionStatus.PAID)}
                                             className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                                            title="Marcar como Pago"
+                                            title={t('commissions.markAsPaid', 'Marcar como Pago')}
                                         >
                                             <CheckCircle size={20} />
                                         </button>
@@ -393,7 +416,7 @@ export const Commissions = () => {
                         </tr>
                     ))}
                     {filteredCommissions.length === 0 && (
-                        <tr><td colSpan={8} className="p-12 text-center text-slate-400 italic">Nenhum registro de comissão encontrado.</td></tr>
+                        <tr><td colSpan={8} className="p-12 text-center text-slate-400 italic">{t('commissions.empty', 'Nenhum registro de comissão encontrado.')}</td></tr>
                     )}
                 </tbody>
             </table>
@@ -401,4 +424,5 @@ export const Commissions = () => {
       </div>
     </div>
   );
+
 };

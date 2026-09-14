@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useApp } from '../../context/AppContext';
 import { InventoryCategory, InventoryItem, InventoryItemType } from '../../types';
 import { Package, Plus, Trash2, Edit2, Search, X, Layers, Box, Tag, Key, Info, Check, Save, ArrowLeft, ChevronDown, User as UserIcon, Sparkles, Upload, FileText } from 'lucide-react';
 
 export const Inventory = () => {
+    const { t } = useTranslation();
     const { 
         inventoryCategories, inventoryItems, productCatalogItems,
         addInventoryCategory, updateInventoryCategory, deleteInventoryCategory,
@@ -538,39 +540,39 @@ export const Inventory = () => {
     };
 
     return (
-        <div className="px-4 pb-4 sm:px-6 sm:pb-6 md:p-4 sm:p-8 max-w-7xl mx-auto space-y-8 pb-32">
+        <div className="px-3 sm:px-6 md:px-8 py-4 sm:py-8 max-w-7xl mx-auto space-y-6 pb-32 w-full overflow-x-hidden">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-100">
                 <div>
-                    <h1 className="text-2xl font-black text-slate-900 flex items-center gap-2 tracking-tight">
-                        <Package className="text-indigo-600" /> CONTROLE DE ESTOQUE E INVENTÁRIO
+                    <h1 className="text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-2 tracking-tight flex-wrap">
+                        <Package className="text-indigo-600 shrink-0" /> <span className="break-words min-w-0 flex-1">CONTROLE DE ESTOQUE E INVENTÁRIO</span>
                     </h1>
-                    <p className="text-slate-500 mt-1">Gerencie produtos, categorias, insumos, maquinários e implantes do laboratório.</p>
+                    <p className="text-slate-500 mt-1 text-sm sm:text-base break-words">{t("inventory.subtitle", "Gerencie produtos, categorias, insumos, maquinários e implantes do laboratório.")}</p>
                 </div>
             </div>
 
-            <div className="flex gap-4 border-b border-slate-200">
+            <div className="flex gap-4 border-b border-slate-200 overflow-x-auto whitespace-nowrap scrollbar-hide">
                 <button 
                   onClick={() => setActiveTab('ITEMS')}
-                  className={`px-6 py-3 font-bold text-sm tracking-wide transition-all border-b-2 ${activeTab === 'ITEMS' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+                  className={`px-4 sm:px-6 py-3 font-bold text-xs sm:text-sm tracking-wide transition-all border-b-2 ${activeTab === 'ITEMS' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
                 >
                   PRODUTOS & INSUMOS
                 </button>
                 <button 
                   onClick={() => setActiveTab('CATEGORIES')}
-                  className={`px-6 py-3 font-bold text-sm tracking-wide transition-all border-b-2 ${activeTab === 'CATEGORIES' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+                  className={`px-4 sm:px-6 py-3 font-bold text-xs sm:text-sm tracking-wide transition-all border-b-2 ${activeTab === 'CATEGORIES' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
                 >
                   CATEGORIAS
                 </button>
                 <button 
                   onClick={() => setActiveTab('CATALOG')}
-                  className={`px-6 py-3 font-bold text-sm tracking-wide transition-all border-b-2 ${activeTab === 'CATALOG' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+                  className={`px-4 sm:px-6 py-3 font-bold text-xs sm:text-sm tracking-wide transition-all border-b-2 ${activeTab === 'CATALOG' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
                 >
                   BANCO DE PRODUTOS
                 </button>
             </div>
 
-            <div className="flex items-center gap-4 mb-6">
-                <div className="relative flex-1">
+            <div className="flex flex-col xl:flex-row xl:items-center gap-4 mb-6">
+                <div className="relative flex-1 w-full">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
                     <input 
                         type="text" 
@@ -580,42 +582,44 @@ export const Inventory = () => {
                         className="w-full pl-12 pr-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
                     />
                 </div>
-                {(activeTab === 'ITEMS' || activeTab === 'CATALOG') && canCreate && (
-                    <button onClick={() => setIsBulkModalOpen(true)} className="px-6 py-3 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 shadow-md flex items-center gap-2 whitespace-nowrap">
-                        <Sparkles size={20} /> Importação Inteligente
-                    </button>
-                )}
-                {activeTab === 'ITEMS' && canCreate && activeOwnerGroup === null && (
-                    <button onClick={() => setShowCreateStockModal(true)} className="px-6 py-3 bg-amber-600 text-white font-bold rounded-xl hover:bg-amber-700 shadow-md flex items-center gap-2 whitespace-nowrap">
-                        <Layers size={20} /> Criar Estoque
-                    </button>
-                )}
-                {activeTab === 'ITEMS' && canCreate && (
-                    <button onClick={() => openItemModal()} className="px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-md flex items-center gap-2 whitespace-nowrap">
-                        <Plus size={20} /> Novo Produto no Estoque
-                    </button>
-                )}
-                {activeTab === 'CATEGORIES' && canCreate && (
-                    <button onClick={() => openCatModal()} className="px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-md flex items-center gap-2 whitespace-nowrap">
-                        <Plus size={20} /> Nova Categoria
-                    </button>
-                )}
-                {activeTab === 'CATALOG' && canCreate && (
-                    <button onClick={() => openCatalogModal()} className="px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-md flex items-center gap-2 whitespace-nowrap">
-                        <Plus size={20} /> Novo Produto Base
-                    </button>
-                )}
+                <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 sm:gap-4 w-full xl:w-auto">
+                    {(activeTab === 'ITEMS' || activeTab === 'CATALOG') && canCreate && (
+                        <button onClick={() => setIsBulkModalOpen(true)} className="w-full sm:flex-1 xl:w-auto justify-center px-4 sm:px-6 py-3 bg-emerald-600 text-white text-sm sm:text-base font-bold rounded-xl hover:bg-emerald-700 shadow-md flex items-center gap-2">
+                            <Sparkles size={20} /> Importação Inteligente
+                        </button>
+                    )}
+                    {activeTab === 'ITEMS' && canCreate && activeOwnerGroup === null && (
+                        <button onClick={() => setShowCreateStockModal(true)} className="w-full sm:flex-1 xl:w-auto justify-center px-4 sm:px-6 py-3 bg-amber-600 text-white text-sm sm:text-base font-bold rounded-xl hover:bg-amber-700 shadow-md flex items-center gap-2">
+                            <Layers size={20} /> Criar Estoque
+                        </button>
+                    )}
+                    {activeTab === 'ITEMS' && canCreate && (
+                        <button onClick={() => openItemModal()} className="w-full sm:flex-1 xl:w-auto justify-center px-4 sm:px-6 py-3 bg-indigo-600 text-white text-sm sm:text-base font-bold rounded-xl hover:bg-indigo-700 shadow-md flex items-center gap-2">
+                            <Plus size={20} /> Novo Produto
+                        </button>
+                    )}
+                    {activeTab === 'CATEGORIES' && canCreate && (
+                        <button onClick={() => openCatModal()} className="w-full sm:flex-1 xl:w-auto justify-center px-4 sm:px-6 py-3 bg-indigo-600 text-white text-sm sm:text-base font-bold rounded-xl hover:bg-indigo-700 shadow-md flex items-center gap-2">
+                            <Plus size={20} /> Nova Categoria
+                        </button>
+                    )}
+                    {activeTab === 'CATALOG' && canCreate && (
+                        <button onClick={() => openCatalogModal()} className="w-full sm:flex-1 xl:w-auto justify-center px-4 sm:px-6 py-3 bg-indigo-600 text-white text-sm sm:text-base font-bold rounded-xl hover:bg-indigo-700 shadow-md flex items-center gap-2">
+                            <Plus size={20} /> Novo Produto Base
+                        </button>
+                    )}
+                </div>
             </div>
 
             {activeTab === 'CATALOG' && (
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-x-auto">
-                    <table className="w-full text-left">
+                    <table className="w-full text-left min-w-[600px]">
                         <thead>
                             <tr className="border-b border-slate-100 bg-slate-50/50">
-                                <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-widest">Produto Base</th>
-                                <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-widest">Categoria</th>
+                                <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-widest">{t("inventory.baseProduct", "Produto Base")}</th>
+                                <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-widest">{t("inventory.category", "Categoria")}</th>
                                 <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-widest">Custo / Venda</th>
-                                <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-widest w-24">Ações</th>
+                                <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-widest w-24">{t("common.actions", "Ações")}</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
@@ -650,7 +654,7 @@ export const Inventory = () => {
                             })}
                             {filteredCatalogItems.length === 0 && (
                                 <tr>
-                                    <td colSpan={4} className="p-12 text-center text-slate-500">Nenhum produto base encontrado.</td>
+                                    <td colSpan={4} className="p-12 text-center text-slate-500">{t("inventory.noBaseProduct", "Nenhum produto base encontrado.")}</td>
                                 </tr>
                             )}
                         </tbody>
@@ -671,7 +675,7 @@ export const Inventory = () => {
                                     {canDelete && <button onClick={() => deleteInventoryCategory(cat.id)} className="p-2 bg-red-50 text-red-600 rounded-lg"><Trash2 size={16}/></button>}
                                 </div>
                             </div>
-                            <h3 className="text-lg font-black text-slate-800">{cat.name}</h3>
+                            <h3 className="text-lg font-black text-slate-800 break-words">{cat.name}</h3>
                             <div className="mt-2 inline-flex items-center px-3 py-1 bg-slate-100 text-slate-600 text-xs font-bold rounded-full">
                                 TIPO: {cat.type}
                             </div>
@@ -720,18 +724,18 @@ export const Inventory = () => {
                             )}
                         </div>
                     ) : (
-                        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-x-auto">
-                            <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                            <div className="p-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                                 <div className="flex items-center gap-4">
                                     <button onClick={() => setActiveOwnerGroup(null)} className="p-2 bg-white border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors">
                                         <ArrowLeft size={18} className="text-slate-600" />
                                     </button>
-                                    <h2 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                                    <h2 className="text-lg font-black text-slate-800 flex items-center gap-2 flex-1 min-w-0 break-words">
                                         {activeOwnerGroup === 'LAB' ? <Box className="text-indigo-600"/> : <UserIcon className="text-amber-600"/>}
                                         {getDentistName(activeOwnerGroup === 'LAB' ? null : activeOwnerGroup)}
                                     </h2>
                                 </div>
-                                <div className="flex items-center gap-2">
+                                <div className="flex flex-wrap items-center gap-2 mt-4 sm:mt-0">
                                     <div className="text-xs font-bold text-slate-500 bg-white px-3 py-1.5 rounded-lg border border-slate-200 hidden sm:block">
                                         {filteredItems.length} Produtos
                                     </div>
@@ -762,7 +766,8 @@ export const Inventory = () => {
                                     </button>
                                 </div>
                             </div>
-                            <table className="w-full text-left border-collapse min-w-[800px]">
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left border-collapse min-w-[800px]">
                                 <thead>
                                     <tr className="bg-slate-50 border-b border-slate-200">
                                         {isSelectionMode && (
@@ -778,11 +783,11 @@ export const Inventory = () => {
                                                 />
                                             </th>
                                         )}
-                                        <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-widest">Produto</th>
-                                        <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-widest">Categoria</th>
-                                        <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-widest text-right">Estoque</th>
-                                        <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-widest text-right">Preço Venda</th>
-                                        <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-widest text-right">Ações</th>
+                                        <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-widest">{t("inventory.product", "Produto")}</th>
+                                        <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-widest">{t("inventory.category", "Categoria")}</th>
+                                        <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-widest text-right">{t("inventory.stock", "Estoque")}</th>
+                                        <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-widest text-right">{t("inventory.salePrice", "Preço Venda")}</th>
+                                        <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-widest text-right">{t("common.actions", "Ações")}</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
@@ -843,6 +848,7 @@ export const Inventory = () => {
                                     )}
                                 </tbody>
                             </table>
+                            </div>
                         </div>
                     )}
                 </>
@@ -852,14 +858,14 @@ export const Inventory = () => {
             {isCatalogModalOpen && (
                 <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4 overflow-y-auto">
                     <form onSubmit={saveCatalogItem} className="bg-white rounded-3xl p-4 sm:p-8 max-w-2xl w-full shadow-2xl relative my-auto">
-                        <button type="button" onClick={() => setIsCatalogModalOpen(false)} className="absolute top-4 sm:p-6 right-6 p-2 bg-slate-100 text-slate-500 hover:text-slate-800 rounded-full">
+                        <button type="button" onClick={() => setIsCatalogModalOpen(false)} className="absolute top-4 sm:top-6 right-4 sm:right-6 p-2 bg-slate-100 text-slate-500 hover:text-slate-800 rounded-full">
                             <X size={20}/>
                         </button>
                         <h2 className="text-2xl font-black text-slate-900 mb-6">{editingCatalogId ? 'Editar Produto Base' : 'Novo Produto Base'}</h2>
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="md:col-span-2">
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Nome do Produto</label>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">{t("inventory.productName", "Nome do Produto")}</label>
                                 <input required type="text" value={catalogForm.name || ''} onChange={e => setCatalogForm({...catalogForm, name: e.target.value})} className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none" />
                             </div>
                             
@@ -869,20 +875,20 @@ export const Inventory = () => {
                             </div>
                             
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Categoria</label>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">{t("inventory.category", "Categoria")}</label>
                                 <select required value={catalogForm.categoryId || ''} onChange={e => setCatalogForm({...catalogForm, categoryId: e.target.value})} className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none">
-                                    <option value="" disabled>Selecione...</option>
+                                    <option value="" disabled>{t("common.select", "Selecione...")}</option>
                                     {inventoryCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                                 </select>
                             </div>
 
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Tipo</label>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">{t("inventory.type", "Tipo")}</label>
                                 <select required value={catalogForm.type || 'MATERIAL'} onChange={e => setCatalogForm({...catalogForm, type: e.target.value as any})} className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none">
                                     <option value="MATERIAL">Insumo/Material</option>
                                     <option value="EQUIPMENT">Equipamento/Ferramenta</option>
-                                    <option value="IMPLANT">Implante</option>
-                                    <option value="SERVICE">Serviço Terceirizado</option>
+                                    <option value="IMPLANT">{t("inventory.typeImplant", "Implante")}</option>
+                                    <option value="SERVICE">{t("inventory.typeService", "Serviço Terceirizado")}</option>
                                 </select>
                             </div>
                             
@@ -916,24 +922,24 @@ export const Inventory = () => {
             {isCatModalOpen && (
                 <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
                     <form onSubmit={saveCat} className="bg-white rounded-3xl p-4 sm:p-8 max-w-md w-full shadow-2xl relative">
-                        <button type="button" onClick={() => setIsCatModalOpen(false)} className="absolute top-4 sm:p-6 right-6 p-2 bg-slate-100 text-slate-500 hover:text-slate-800 rounded-full">
+                        <button type="button" onClick={() => setIsCatModalOpen(false)} className="absolute top-4 sm:top-6 right-4 sm:right-6 p-2 bg-slate-100 text-slate-500 hover:text-slate-800 rounded-full">
                             <X size={20}/>
                         </button>
                         <h2 className="text-2xl font-black text-slate-900 mb-6">{editingCatId ? 'Editar Categoria' : 'Nova Categoria'}</h2>
                         
                         <div className="space-y-4">
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Nome da Categoria</label>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">{t("inventory.categoryName", "Nome da Categoria")}</label>
                                 <input required type="text" value={catForm.name || ''} onChange={e => setCatForm({...catForm, name: e.target.value})} className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none" />
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Tipo</label>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">{t("inventory.type", "Tipo")}</label>
                                 <select required value={catForm.type || 'MATERIAL'} onChange={e => setCatForm({...catForm, type: e.target.value as any})} className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none appearance-none">
-                                    <option value="MATERIAL">Material Geral</option>
-                                    <option value="SUPPLY">Insumo</option>
-                                    <option value="MACHINERY">Maquinário</option>
+                                    <option value="MATERIAL">{t("inventory.materialGeneral", "Material Geral")}</option>
+                                    <option value="SUPPLY">{t("inventory.supply", "Insumo")}</option>
+                                    <option value="MACHINERY">{t("inventory.machinery", "Maquinário")}</option>
                                     <option value="IMPLANT">Implante / Componente</option>
-                                    <option value="OTHER">Outros</option>
+                                    <option value="OTHER">{t("inventory.other", "Outros")}</option>
                                 </select>
                             </div>
                         </div>
@@ -951,7 +957,7 @@ export const Inventory = () => {
             {isItemModalOpen && (
                 <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
                     <form onSubmit={saveItem} className="bg-white rounded-3xl p-4 sm:p-8 max-w-3xl w-full shadow-2xl relative max-h-[90vh] overflow-y-auto">
-                        <button type="button" onClick={() => setIsItemModalOpen(false)} className="absolute top-4 sm:p-6 right-6 p-2 bg-slate-100 text-slate-500 hover:text-slate-800 rounded-full">
+                        <button type="button" onClick={() => setIsItemModalOpen(false)} className="absolute top-4 sm:top-6 right-4 sm:right-6 p-2 bg-slate-100 text-slate-500 hover:text-slate-800 rounded-full">
                             <X size={20}/>
                         </button>
                         <h2 className="text-2xl font-black text-slate-900 mb-6">{editingItemId ? 'Editar Produto' : 'Novo Produto'}</h2>
@@ -960,7 +966,7 @@ export const Inventory = () => {
                             <div className="md:col-span-2 space-y-4">
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <div className="md:col-span-2 relative">
-                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Nome do Produto</label>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">{t("inventory.productName", "Nome do Produto")}</label>
                                         <input 
                                             required type="text" 
                                             value={itemForm.name || ''} 
@@ -1003,7 +1009,7 @@ export const Inventory = () => {
                                                     </div>
                                                 ))}
                                                 {productCatalogItems.filter(p => p.name.toLowerCase().includes((itemForm.name || '').toLowerCase())).length === 0 && (
-                                                    <div className="p-3 text-xs text-slate-500 text-center">Nenhum produto base encontrado.</div>
+                                                    <div className="p-3 text-xs text-slate-500 text-center">{t("inventory.noBaseProduct", "Nenhum produto base encontrado.")}</div>
                                                 )}
                                             </div>
                                         )}
@@ -1020,12 +1026,12 @@ export const Inventory = () => {
                             </div>
                             
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Categoria</label>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">{t("inventory.category", "Categoria")}</label>
                                 <select required value={itemForm.categoryId || ''} onChange={e => {
                                     const cat = inventoryCategories.find(c => c.id === e.target.value);
                                     setItemForm({...itemForm, categoryId: e.target.value, type: cat ? cat.type : 'MATERIAL'});
                                 }} className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none appearance-none">
-                                    <option value="" disabled>Selecione uma categoria</option>
+                                    <option value="" disabled>{t("inventory.selectCategory", "Selecione uma categoria")}</option>
                                     {inventoryCategories.map(c => (
                                         <option key={c.id} value={c.id}>{c.name} ({c.type})</option>
                                     ))}
@@ -1065,7 +1071,7 @@ export const Inventory = () => {
                                             <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg"><Box size={16}/></div>
                                             <div>
                                                 <div className="font-bold text-slate-800">Laboratório (Geral)</div>
-                                                <div className="text-xs text-slate-500">Estoque do próprio laboratório</div>
+                                                <div className="text-xs text-slate-500">{t("inventory.labStock", "Estoque do próprio laboratório")}</div>
                                             </div>
                                         </button>
                                         {activeDentistSuggestions.map(d => (
@@ -1078,17 +1084,17 @@ export const Inventory = () => {
                                                 <div className="p-2 bg-amber-50 text-amber-600 rounded-lg"><UserIcon size={16}/></div>
                                                 <div>
                                                     <div className="font-bold text-slate-800">{d.clinicName || d.name}</div>
-                                                    <div className="text-xs text-slate-500">Estoque Especial do Cliente</div>
+                                                    <div className="text-xs text-slate-500">{t("inventory.clientSpecialStock", "Estoque Especial do Cliente")}</div>
                                                 </div>
                                             </button>
                                         ))}
                                     </div>
                                 )}
-                                <p className="text-[10px] mt-2 text-amber-600 font-medium">Você pode criar um estoque isolado de itens de clientes.</p>
+                                <p className="text-[10px] mt-2 text-amber-600 font-medium">{t("inventory.isolatedStockInfo", "Você pode criar um estoque isolado de itens de clientes.")}</p>
                             </div>
 
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Estoque Atual</label>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">{t("inventory.currentStock", "Estoque Atual")}</label>
                                 <input required type="number" step="1" value={itemForm.currentStock || 0} onChange={e => setItemForm({...itemForm, currentStock: Number(e.target.value)})} className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none" />
                             </div>
                             <div>
@@ -1119,7 +1125,7 @@ export const Inventory = () => {
             {isBulkModalOpen && (
                 <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4 overflow-y-auto">
                     <div className="bg-white rounded-3xl p-4 sm:p-8 max-w-3xl w-full shadow-2xl relative my-auto">
-                        <button type="button" onClick={() => setIsBulkModalOpen(false)} className="absolute top-4 sm:p-6 right-6 p-2 bg-slate-100 text-slate-500 hover:text-slate-800 rounded-full transition-colors">
+                        <button type="button" onClick={() => setIsBulkModalOpen(false)} className="absolute top-4 sm:top-6 right-4 sm:right-6 p-2 bg-slate-100 text-slate-500 hover:text-slate-800 rounded-full transition-colors">
                             <X size={20}/>
                         </button>
                         <h2 className="text-2xl font-black text-slate-900 mb-1 flex items-center gap-2">
@@ -1137,8 +1143,8 @@ export const Inventory = () => {
                                 <ol className="list-decimal pl-4 mt-2 font-mono font-bold">
                                     <li>Código (SKU)</li>
                                     <li>Produto (Nome do Item) - Obrigatório</li>
-                                    <li>Categoria</li>
-                                    <li>Estoque Atual</li>
+                                    <li>{t("inventory.category", "Categoria")}</li>
+                                    <li>{t("inventory.currentStock", "Estoque Atual")}</li>
                                     <li>Custo Médio (Custo de compra)</li>
                                     <li>Valor Total de Vendas (Coluna ignorada, mas deve existir)</li>
                                     <li>Preço de Venda</li>

@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useApp } from '../../context/AppContext';
 import { UserRole, ManualDentist, Job, JobStatus, DentistPayment, BillingBatch } from '../../types';
 import { Stethoscope, Building, Search, Loader2, ArrowRight, Tag, Percent, Save, X, DollarSign, Globe, HardDrive, UserCheck, Package, Table, FileText, Lock, Unlock, RefreshCw, Check, Calendar, ArrowUpCircle, ArrowDownCircle, Receipt, History, CreditCard, Banknote, Wallet, FileSpreadsheet, Plus, Info, MinusCircle, Printer, Download, ChevronLeft, ChevronRight, Users, Filter, RotateCcw } from 'lucide-react';
@@ -23,6 +24,7 @@ const translatePaymentMethod = (method: string) => {
 };
 
 export const Dentists = () => {
+    const { t } = useTranslation();
     const { 
         jobTypes, updateUser, manualDentists, updateManualDentist, jobs, priceTables, allUsers, 
         currentUser, billingBatches, generateBatchBoleto, dentistPayments, addDentistPayment, updateBillingBatchStatus,
@@ -260,11 +262,11 @@ export const Dentists = () => {
                 await updateUser(selectedClient.id, updates);
             }
 
-            alert("Client settings updated!");
+            alert(t('dentists.clientSettingsUpdated', 'Client settings updated!'));
             setSelectedClient(null);
         } catch (error) {
             console.error("Erro ao salvar preços:", error);
-            alert("Erro ao salvar preços. Verifique suas permissões.");
+            alert(t('dentists.errorSavingPricing', 'Erro ao salvar preços. Verifique suas permissões.'));
         } finally {
             setIsSaving(false);
         }
@@ -277,7 +279,7 @@ export const Dentists = () => {
         
         const amount = parseFloat(manualEntryAmount);
         if (isNaN(amount) || amount <= 0) {
-            alert("Digite um valor válido.");
+            alert(t('dentists.enterValidValue', 'Digite um valor válido.'));
             return;
         }
 
@@ -290,16 +292,16 @@ export const Dentists = () => {
                 paymentMethod: 'CASH',
                 paymentDate: new Date(),
                 type: manualEntryType === 'MANUAL_DEBIT' ? 'MANUAL_DEBIT' : 'MANUAL_CREDIT',
-                notes: manualEntryNotes || (manualEntryType === 'MANUAL_DEBIT' ? 'Ajuste a Débito' : 'Ajuste a Crédito')
+                notes: manualEntryNotes || (manualEntryType === 'MANUAL_DEBIT' ? t('dentists.manualDebitAdjustment', 'Ajuste a Débito') : t('dentists.manualCreditAdjustment', 'Ajuste a Crédito'))
             } as any);
             
             setShowManualEntryModal(false);
             setManualEntryAmount('');
             setManualEntryNotes('');
-            alert('Lançamento manual registrado com sucesso!');
+            alert(t('dentists.manualEntrySuccess', 'Lançamento manual registrado com sucesso!'));
         } catch (error) {
             console.error(error);
-            alert('Erro ao registrar lançamento manual.');
+            alert(t('dentists.manualEntryError', 'Erro ao registrar lançamento manual.'));
         } finally {
             setIsAddingManualEntry(false);
         }
@@ -333,7 +335,7 @@ export const Dentists = () => {
             setShowPaymentForm(false);
         } catch (err) {
             console.error(err);
-            alert("Erro ao salvar pagamento.");
+            alert(t('dentists.errorSavingPayment', 'Erro ao salvar pagamento.'));
         } finally {
             setIsSaving(false);
         }
@@ -505,23 +507,23 @@ export const Dentists = () => {
         doc.setFontSize(9);
         doc.setTextColor(0, 0, 0);
         doc.setFont("helvetica", "bold");
-        doc.text("Cliente:", 14, 45);
+        doc.text(t('dentists.clientLabel', 'Cliente:'), 14, 45);
         doc.setFont("helvetica", "normal");
         doc.text(statementClient.name.toUpperCase(), 30, 45);
 
         doc.setFont("helvetica", "bold");
-        doc.text("Documento:", 14, 52);
+        doc.text(t('dentists.documentLabel', 'Documento:'), 14, 52);
         doc.setFont("helvetica", "normal");
         doc.text(statementClient.cpfCnpj || '-', 36, 52);
         
         doc.setFont("helvetica", "bold");
-        doc.text("Período:", 14, 59);
+        doc.text(t('dentists.periodLabel', 'Período:'), 14, 59);
         doc.setFont("helvetica", "normal");
         doc.text(`${startDateStr} - ${endDateStr}`, 30, 59);
 
         // Address Right Side
         doc.setFont("helvetica", "bold");
-        doc.text("Endereço:", 120, 45);
+        doc.text(t('dentists.addressLabel', 'Endereço:'), 120, 45);
         doc.setFont("helvetica", "normal");
         
         let addressStr = '';
@@ -533,7 +535,7 @@ export const Dentists = () => {
             if (statementClient.city) secondLine.push(`${statementClient.city}${statementClient.state ? `, ${statementClient.state}` : ''}`);
             if(secondLine.length > 0) addressStr += `\n${secondLine.join(', ')}`;
         } else {
-            addressStr = statementClient.clinicName || 'Não informado';
+            addressStr = statementClient.clinicName || t('dentists.notInformed', 'Não informado');
         }
 
         const splitAddr = doc.splitTextToSize(addressStr, 60);
@@ -545,7 +547,7 @@ export const Dentists = () => {
         const tableBody: any[] = [];
         tableBody.push([
             { content: '', styles: { lineWidth: { bottom: 0.1 } as any, lineColor: [220,220,220] } },
-            { content: 'Saldo anterior', styles: { fontStyle: 'normal', lineWidth: { bottom: 0.1 } as any, lineColor: [220,220,220] } },
+            { content: t('dentists.previousBalance', 'Saldo anterior'), styles: { fontStyle: 'normal', lineWidth: { bottom: 0.1 } as any, lineColor: [220,220,220] } },
             { content: '', styles: { lineWidth: { bottom: 0.1 } as any, lineColor: [220,220,220] } },
             { content: `R$ ${chronoHistory.previousBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, styles: { halign: 'left', fontStyle: 'normal', lineWidth: { bottom: 0.1 } as any, lineColor: [220,220,220] } }
         ]);
@@ -606,7 +608,7 @@ export const Dentists = () => {
 
         autoTable(doc, {
             startY: 70,
-            head: [['Data', 'Descrição', 'Valor', 'Saldo']],
+            head: [[t('financial.tableDate', 'Data'), t('financial.tableDesc', 'Descrição'), t('financial.tableValue', 'Valor'), t('financial.tableBalance', 'Saldo')]],
             body: tableBody,
             theme: 'plain',
             headStyles: { fontStyle: 'bold', fontSize: 9, fillColor: [255, 255, 255], textColor: [0, 0, 0], lineWidth: { bottom: 0.1 } as any, lineColor: [220,220,220] },
@@ -627,7 +629,7 @@ export const Dentists = () => {
         const valX = 195;
         let cY = finalY;
 
-        doc.text("Saldo anterior", summaryX, cY);
+        doc.text(t('dentists.previousBalance', 'Saldo anterior'), summaryX, cY);
         doc.setTextColor(239, 68, 68);
         doc.text(`R$ ${chronoHistory.previousBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, valX, cY, { align: 'right' });
         
@@ -636,7 +638,7 @@ export const Dentists = () => {
         doc.line(summaryX, cY - 4, valX, cY - 4);
         
         doc.setTextColor(0, 0, 0);
-        doc.text("Total de serviços", summaryX, cY);
+        doc.text(t('dentists.totalServices', 'Total de serviços'), summaryX, cY);
         doc.setTextColor(239, 68, 68);
         doc.text(`R$ -${totalServices.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, valX, cY, { align: 'right' });
 
@@ -644,7 +646,7 @@ export const Dentists = () => {
         doc.line(summaryX, cY - 4, valX, cY - 4);
 
         doc.setTextColor(0, 0, 0);
-        doc.text("Total de produtos", summaryX, cY);
+        doc.text(t('dentists.totalProducts', 'Total de produtos'), summaryX, cY);
         doc.setTextColor(239, 68, 68);
         doc.text(`R$ -0,00`, valX, cY, { align: 'right' });
 
@@ -652,7 +654,7 @@ export const Dentists = () => {
         doc.line(summaryX, cY - 4, valX, cY - 4);
 
         doc.setTextColor(0, 0, 0);
-        doc.text("Total de pagamentos", summaryX, cY);
+        doc.text(t('dentists.totalPayments', 'Total de pagamentos'), summaryX, cY);
         doc.setTextColor(34, 197, 94);
         doc.text(`R$ ${totalPayments.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, valX, cY, { align: 'right' });
 
@@ -661,7 +663,7 @@ export const Dentists = () => {
 
         doc.setTextColor(0, 0, 0);
         doc.setFontSize(10);
-        doc.text("Saldo atual no período", summaryX, cY);
+        doc.text(t('dentists.currentPeriodBalance', 'Saldo atual no período'), summaryX, cY);
         const balanceColor = currentBalance < 0 ? [239, 68, 68] : [34, 197, 94];
         doc.setTextColor(balanceColor[0], balanceColor[1], balanceColor[2] as number);
         doc.text(`R$ ${currentBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, valX, cY, { align: 'right' });
@@ -685,20 +687,20 @@ export const Dentists = () => {
         doc.setFont("helvetica", "bold");
         doc.setTextColor(30, 41, 59);
         doc.setFontSize(16);
-        doc.text("RECIBO DE PAGAMENTOS", 14, 25);
+        doc.text(t('dentists.paymentReceiptTitle', 'RECIBO DE PAGAMENTOS'), 14, 25);
         
         doc.setFontSize(10);
-        doc.text("Cliente: ", 14, 45);
+        doc.text(t('dentists.clientLabel', 'Cliente: '), 14, 45);
         doc.setFont("helvetica", "normal");
         doc.text(statementClient.name.toUpperCase(), 30, 45);
         
         doc.setFont("helvetica", "bold");
-        doc.text("Documento: ", 14, 52);
+        doc.text(t('dentists.documentLabel', 'Documento: '), 14, 52);
         doc.setFont("helvetica", "normal");
         doc.text(statementClient.cpfCnpj || '-', 36, 52);
         
         doc.setFont("helvetica", "bold");
-        doc.text("Período:", 14, 59);
+        doc.text(t('dentists.periodLabel', 'Período:'), 14, 59);
         doc.setFont("helvetica", "normal");
         doc.text(`${startDateStr} - ${endDateStr}`, 30, 59);
 
@@ -711,11 +713,11 @@ export const Dentists = () => {
             if (statementClient.city) secondLine.push(`${statementClient.city}${statementClient.state ? `, ${statementClient.state}` : ''}`);
             if(secondLine.length > 0) addressStr += `\n${secondLine.join(', ')}`;
         } else {
-            addressStr = statementClient.clinicName || 'Não informado';
+            addressStr = statementClient.clinicName || t('dentists.notInformed', 'Não informado');
         }
 
         doc.setFont("helvetica", "bold");
-        doc.text("Endereço: ", 120, 45);
+        doc.text(t('dentists.addressLabel', 'Endereço: '), 120, 45);
         doc.setFont("helvetica", "normal");
         const splitAddr = doc.splitTextToSize(addressStr, 75);
         doc.text(splitAddr, 140, 45);
@@ -731,20 +733,20 @@ export const Dentists = () => {
             totalPaid += p.amount;
             tableBody.push([
                 new Date(p.paymentDate).toLocaleDateString('pt-BR'),
-                p.notes || 'Recebimento de valores',
+                p.notes || t('dentists.receiptOfValues', 'Recebimento de valores'),
                 `R$ ${p.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`
             ]);
         });
 
         tableBody.push([
-            { content: 'TOTAL', styles: { fontStyle: 'bold', halign: 'right' } },
+            { content: t('dentists.total', 'TOTAL'), styles: { fontStyle: 'bold', halign: 'right' } },
             '',
             { content: `R$ ${totalPaid.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`, styles: { fontStyle: 'bold' } }
         ]);
 
         autoTable(doc, {
             startY: 70,
-            head: [['Data', 'Observação / Forma de Pagamento', 'Valor']],
+            head: [[t('financial.tableDate', 'Data'), t('dentists.obsOrPaymentMethod', 'Observação / Forma de Pagamento'), t('financial.tableValue', 'Valor')]],
             body: tableBody,
             theme: 'plain',
             headStyles: { fontStyle: 'bold', fontSize: 9, fillColor: [255, 255, 255], textColor: [0, 0, 0], lineWidth: { bottom: 0.1 } as any, lineColor: [220,220,220] },
@@ -755,7 +757,7 @@ export const Dentists = () => {
         const finalY = (doc as any).lastAutoTable.finalY + 20;
         doc.setFontSize(9);
         doc.text("_____________________________________________________", 105, finalY, { align: 'center' });
-        doc.text(currentOrg.name || 'Laboratório', 105, finalY + 5, { align: 'center' });
+        doc.text(currentOrg.name || t('dentists.lab', 'Laboratório'), 105, finalY + 5, { align: 'center' });
         doc.text((currentOrg as any).document || '', 105, finalY + 10, { align: 'center' });
 
         doc.save(`Recibos_${statementClient.name.replace(/\s+/g, '_')}_${startDateStr.replace(/\//g,'-')}_a_${endDateStr.replace(/\//g,'-')}.pdf`);
@@ -763,57 +765,57 @@ export const Dentists = () => {
 
     const exportFilteredClientsCSV = () => {
         if (filtered.length === 0) {
-            alert("Nenhum cliente filtrado para exportar.");
+            alert(t('dentists.noFilteredClientsToExport', 'Nenhum cliente filtrado para exportar.'));
             return;
         }
 
         const headers = [
-            'Nome do Cliente',
-            'E-mail',
-            'Telefone / WhatsApp',
-            'Tipo',
-            'Consultório / Clínica',
-            'CPF / CNPJ',
-            'Tabela Pertencente',
-            'Desconto Global (%)',
-            'Limite de Faturamento (R$)',
-            'Status',
-            'Motivo do Bloqueio',
-            'Origem'
+            t('dentists.csvClientName', 'Nome do Cliente'),
+            t('users.email', 'E-mail'),
+            t('dentists.csvPhone', 'Telefone / WhatsApp'),
+            t('dentists.clientType', 'Tipo'),
+            t('dentists.csvClinic', 'Consultório / Clínica'),
+            t('dentists.csvDoc', 'CPF / CNPJ'),
+            t('dentists.csvPriceTable', 'Tabela Pertencente'),
+            t('dentists.csvGlobalDiscount', 'Desconto Global (%)'),
+            t('dentists.csvBillingLimit', 'Limite de Faturamento (R$)'),
+            t('users.status', 'Status'),
+            t('dentists.csvBlockReason', 'Motivo do Bloqueio'),
+            t('dentists.csvOrigin', 'Origem')
         ];
 
         const getClientTypeLabel = (type?: string) => {
             switch (type) {
-                case 'PESSOA_FISICA': return 'Pessoa Física';
-                case 'CLINICA': return 'Clínica';
-                case 'LABORATORIO': return 'Laboratório';
-                default: return type || 'Clínica';
+                case 'PESSOA_FISICA': return t('dentists.typePerson', 'Pessoa Física');
+                case 'CLINICA': return t('dentists.typeClinic', 'Clínica');
+                case 'LABORATORIO': return t('dentists.typeLab', 'Laboratório');
+                default: return type || t('dentists.typeClinic', 'Clínica');
             }
         };
 
         const getPriceTableName = (client: any) => {
             const isCustom = Boolean(client.isCustomPricing || (client.customPrices && client.customPrices.length > 0));
             const baseTableName = client.priceTableId 
-                ? (priceTables.find(t => t.id === client.priceTableId)?.name || 'Tabela Vinculada') 
-                : 'Tabela Genérica';
+                ? (priceTables.find(t => t.id === client.priceTableId)?.name || t('dentists.specialTable', 'Tabela Vinculada')) 
+                : t('dentists.genericTable', 'Tabela Genérica');
 
             if (isCustom) {
-                return `Personalizada (Base: ${baseTableName})`;
+                return t('dentists.csvCustomBase', 'Personalizada (Base: {{base}})', { base: baseTableName });
             }
             return baseTableName;
         };
 
         const getStatusLabel = (client: any) => {
-            if (!client.isBlocked) return 'Ativo';
-            if (client.blockReason === 'DEBT') return 'Bloqueado por Inadimplência';
-            if (client.blockReason === 'FINANCIAL_APPROVAL') return 'Bloqueado por Análise de Crédito';
-            return 'Bloqueado';
+            if (!client.isBlocked) return t('dentists.active', 'Ativo');
+            if (client.blockReason === 'DEBT') return t('dentists.blockedDebt', 'Bloqueado por Inadimplência');
+            if (client.blockReason === 'FINANCIAL_APPROVAL') return t('dentists.blockedFinancial', 'Bloqueado por Análise de Crédito');
+            return t('dentists.blocked', 'Bloqueado');
         };
 
         const getBlockReasonLabel = (reason?: string) => {
             switch (reason) {
-                case 'DEBT': return 'Inadimplência';
-                case 'FINANCIAL_APPROVAL': return 'Análise de Crédito';
+                case 'DEBT': return t('dentists.debt', 'Inadimplência');
+                case 'FINANCIAL_APPROVAL': return t('dentists.financialApproval', 'Análise de Crédito');
                 default: return reason || '-';
             }
         };
@@ -827,10 +829,10 @@ export const Dentists = () => {
             const doc = client.cpfCnpj || '-';
             const tableName = getPriceTableName(client);
             const discount = `${client.globalDiscountPercent || 0}%`;
-            const billingLimit = client.billingLimit ? `R$ ${Number(client.billingLimit).toFixed(2)}` : 'Sem Limite';
+            const billingLimit = client.billingLimit ? `R$ ${Number(client.billingLimit).toFixed(2)}` : t('dentists.noLimit', 'Sem Limite');
             const status = getStatusLabel(client);
             const blockReason = client.isBlocked ? getBlockReasonLabel(client.blockReason) : '-';
-            const origin = client.isManual ? 'Interno (Manual)' : 'Portal Web';
+            const origin = client.isManual ? t('dentists.originInternal', 'Interno (Manual)') : t('dentists.originWeb', 'Portal Web');
 
             return [
                 cleanName,
@@ -890,8 +892,8 @@ export const Dentists = () => {
         <div className="space-y-6 animate-in fade-in duration-500">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900">Gestão de Clientes</h1>
-                    <p className="text-slate-500">Administre as tabelas de preços, limites e extratos de todos os seus dentistas.</p>
+                    <h1 className="text-2xl font-bold text-slate-900">{t('dentists.title', 'Gestão de Clientes')}</h1>
+                    <p className="text-slate-500">{t('dentists.subtitle', 'Administre as tabelas de preços, limites e extratos de todos os seus dentistas.')}</p>
                 </div>
 
                 <div className="flex items-center gap-2.5 flex-wrap">
@@ -904,9 +906,9 @@ export const Dentists = () => {
                         <Users size={16} className={hasActiveFilters ? 'text-blue-600' : 'text-slate-500'} />
                         <span>
                             {hasActiveFilters ? (
-                                <>Filtrados: <strong className="text-blue-900 font-extrabold">{filtered.length}</strong> de {combinedClients.length}</>
+                                <>{t('dentists.filtered', 'Filtrados')}: <strong className="text-blue-900 font-extrabold">{filtered.length}</strong> {t('dentists.of', 'de')} {combinedClients.length}</>
                             ) : (
-                                <>Total: <strong className="text-slate-900 font-extrabold">{combinedClients.length}</strong> clientes</>
+                                <>{t('dentists.total', 'Total')}: <strong className="text-slate-900 font-extrabold">{combinedClients.length}</strong> {t('dentists.clients', 'clientes')}</>
                             )}
                         </span>
                     </div>
@@ -920,10 +922,10 @@ export const Dentists = () => {
                                 ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed' 
                                 : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-200/60 cursor-pointer'
                         }`}
-                        title="Exportar dados dos clientes filtrados para planilha (.csv compatível com Excel)"
+                        title={t('dentists.exportTooltip', 'Exportar dados dos clientes filtrados para planilha (.csv compatível com Excel)')}
                     >
                         <FileSpreadsheet size={18} className="shrink-0" />
-                        <span>Exportar Clientes ({filtered.length})</span>
+                        <span>{t('dentists.exportClients', 'Exportar Clientes')} ({filtered.length})</span>
                     </button>
                 </div>
             </div>
@@ -935,7 +937,7 @@ export const Dentists = () => {
                         <input 
                             value={searchTerm}
                             onChange={e => setSearchTerm(e.target.value)}
-                            placeholder="Pesquisar por nome ou consultório..."
+                            placeholder={t('dentists.searchPlaceholder', 'Pesquisar por nome ou consultório...')}
                             className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
                         />
                     </div>
@@ -945,10 +947,10 @@ export const Dentists = () => {
                             onChange={e => setClientTypeFilter(e.target.value as any)}
                             className="px-4 py-2 border border-slate-200 rounded-xl text-sm font-bold bg-white text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
                         >
-                            <option value="ALL">Todos os Tipos</option>
-                            <option value="CLINICA">Clínica</option>
-                            <option value="PESSOA_FISICA">Pessoa Física</option>
-                            <option value="LABORATORIO">Laboratório</option>
+                            <option value="ALL">{t('dentists.filterTypeAll', 'Todos os Tipos')}</option>
+                            <option value="CLINICA">{t('dentists.filterTypeClinic', 'Clínica')}</option>
+                            <option value="PESSOA_FISICA">{t('dentists.filterTypeIndividual', 'Pessoa Física')}</option>
+                            <option value="LABORATORIO">{t('dentists.filterTypeLab', 'Laboratório')}</option>
                         </select>
 
                         {/* Filtro de Tabela Base */}
@@ -960,12 +962,12 @@ export const Dentists = () => {
                                     ? 'bg-blue-50 border-blue-300 text-blue-900 font-extrabold shadow-xs'
                                     : 'bg-white border-slate-200 text-slate-700'
                             }`}
-                            title="Filtrar pela tabela de preços base associada ao cliente"
+                            title={t('dentists.filterTableTooltip', 'Filtrar pela tabela de preços base associada ao cliente')}
                         >
-                            <option value="ALL">Tabela Base: Todas</option>
-                            <option value="GENERIC">🏛️ Tabela Genérica (Padrão)</option>
+                            <option value="ALL">{t('dentists.filterTableAll', 'Tabela Base: Todas')}</option>
+                            <option value="GENERIC">🏛️ {t('dentists.filterTableGeneric', 'Tabela Genérica (Padrão)')}</option>
                             {priceTables.length > 0 && (
-                                <optgroup label="Tabelas Cadastradas">
+                                <optgroup label={t('dentists.filterTableCustomGroup', 'Tabelas Cadastradas')}>
                                     {priceTables.map(t => (
                                         <option key={t.id} value={t.id}>{t.name}</option>
                                     ))}
@@ -982,11 +984,11 @@ export const Dentists = () => {
                                     ? 'bg-indigo-50 border-indigo-300 text-indigo-900 font-extrabold shadow-xs'
                                     : 'bg-white border-slate-200 text-slate-700'
                             }`}
-                            title="Filtrar se possui preços personalizados individualmente em cima da tabela base"
+                            title={t('dentists.filterCustomPricingTooltip', 'Filtrar se possui preços personalizados individualmente em cima da tabela base')}
                         >
-                            <option value="ALL">Personalização: Todas</option>
-                            <option value="CUSTOM">🏷️ Preços Personalizados</option>
-                            <option value="NOT_CUSTOM">📋 Sem Personalização (Preço Direto)</option>
+                            <option value="ALL">{t('dentists.filterCustomAll', 'Personalização: Todas')}</option>
+                            <option value="CUSTOM">🏷️ {t('dentists.filterCustomYes', 'Preços Personalizados')}</option>
+                            <option value="NOT_CUSTOM">📋 {t('dentists.filterCustomNo', 'Sem Personalização (Preço Direto)')}</option>
                         </select>
 
                         <select 
@@ -994,11 +996,11 @@ export const Dentists = () => {
                             onChange={e => setStatusFilter(e.target.value as any)}
                             className="px-4 py-2 border border-slate-200 rounded-xl text-sm font-bold bg-white text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
                         >
-                            <option value="ALL">Todos os Status</option>
-                            <option value="ACTIVE">Clientes Ativos</option>
-                            <option value="BLOCKED">Todos os Bloqueados</option>
-                            <option value="DEBT">Por Inadimplência</option>
-                            <option value="FINANCIAL_APPROVAL">Por Análise de Crédito</option>
+                            <option value="ALL">{t('dentists.filterStatusAll', 'Todos os Status')}</option>
+                            <option value="ACTIVE">{t('dentists.filterStatusActive', 'Clientes Ativos')}</option>
+                            <option value="BLOCKED">{t('dentists.filterStatusBlocked', 'Todos os Bloqueados')}</option>
+                            <option value="DEBT">{t('dentists.filterStatusDebt', 'Por Inadimplência')}</option>
+                            <option value="FINANCIAL_APPROVAL">{t('dentists.filterStatusFinancial', 'Por Análise de Crédito')}</option>
                         </select>
                     </div>
                 </div>
@@ -1007,14 +1009,14 @@ export const Dentists = () => {
                     <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
                         <div className="flex items-center gap-2 text-slate-500">
                             <Filter size={14} className="text-blue-500" />
-                            <span>Filtros ativos: exibindo <strong>{filtered.length}</strong> de <strong>{combinedClients.length}</strong> clientes</span>
+                            <span>{t('dentists.activeFiltersCount1', 'Filtros ativos: exibindo')} <strong>{filtered.length}</strong> {t('dentists.of', 'de')} <strong>{combinedClients.length}</strong> {t('dentists.clients', 'clientes')}</span>
                         </div>
                         <button
                             onClick={handleClearFilters}
                             className="flex items-center gap-1 text-slate-500 hover:text-blue-600 font-bold transition-colors cursor-pointer"
                         >
                             <RotateCcw size={12} />
-                            Limpar filtros
+                            {t('dentists.clearFiltersText', 'Limpar filtros')}
                         </button>
                     </div>
                 )}
@@ -1026,9 +1028,9 @@ export const Dentists = () => {
                         <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-4 text-slate-400 border border-slate-100">
                             <Search size={28} />
                         </div>
-                        <h3 className="text-lg font-bold text-slate-800 mb-1">Nenhum cliente encontrado</h3>
+                        <h3 className="text-lg font-bold text-slate-800 mb-1">{t('dentists.noClientsTitle', 'Nenhum cliente encontrado')}</h3>
                         <p className="text-sm text-slate-500 max-w-sm mx-auto mb-4">
-                            Nenhum cliente corresponde aos filtros selecionados. Tente ajustar o termo de busca ou filtros.
+                            {t('dentists.noClientsMsg', 'Nenhum cliente corresponde aos filtros selecionados. Tente ajustar o termo de busca ou filtros.')}
                         </p>
                         {hasActiveFilters && (
                             <button
@@ -1036,7 +1038,7 @@ export const Dentists = () => {
                                 className="px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold text-xs rounded-xl transition-all inline-flex items-center gap-1.5 cursor-pointer"
                             >
                                 <RotateCcw size={14} />
-                                Limpar todos os filtros
+                                {t('dentists.clearFilters', 'Limpar todos os filtros')}
                             </button>
                         )}
                     </div>
@@ -1049,7 +1051,7 @@ export const Dentists = () => {
                     return (
                         <div key={client.id} className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-100 hover:shadow-md transition-all group relative overflow-hidden">
                         {client.deliveryViaPost && (
-                          <div className="absolute top-4 right-4 bg-orange-100 text-orange-600 p-2 rounded-lg" title="Entrega via Correios">
+                          <div className="absolute top-4 right-4 bg-orange-100 text-orange-600 p-2 rounded-lg" title={t('dentists.postDeliveryTooltip', 'Entrega via Correios')}>
                              <Package size={16} />
                           </div>
                         )}
@@ -1063,7 +1065,7 @@ export const Dentists = () => {
                                     <h3 className="font-bold text-slate-900 text-lg truncate" title={client.name}>{client.name}</h3>
                                     {client.isManual ? (
                                         <span className="bg-slate-200 text-slate-600 text-[9px] font-black px-1.5 py-0.5 rounded flex items-center gap-1 shrink-0">
-                                            INTERNO
+                                            {t('dentists.internal', 'INTERNO')}
                                         </span>
                                     ) : (
                                         <span className="bg-blue-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded flex items-center gap-1 shrink-0">
@@ -1072,59 +1074,59 @@ export const Dentists = () => {
                                     )}
                                     {client.isBlocked && (
                                         <span className="bg-red-100 text-red-700 text-[9px] font-black px-1.5 py-0.5 rounded flex items-center gap-1 shrink-0">
-                                            BLOQUEADO
+                                            {t('dentists.blocked', 'BLOQUEADO')}
                                         </span>
                                     )}
                                 </div>
                                 <div className="flex items-center gap-1.5 text-slate-500 text-sm mt-0.5">
                                     <Building size={14} className="shrink-0" />
-                                    <span className="truncate">{client.clinicName || 'Consultório Particular'}</span>
+                                    <span className="truncate">{client.clinicName || t('dentists.privatePractice', 'Consultório Particular')}</span>
                                 </div>
                             </div>
                         </div>
 
                         <div className="space-y-3 py-4 border-y border-slate-50">
                             <div className="flex justify-between items-center text-sm">
-                                <span className="text-slate-500">Tabela de Preços:</span>
+                                <span className="text-slate-500">{t('dentists.priceTableLabel', 'Tabela de Preços:')}</span>
                                 <div className="flex items-center gap-1.5 flex-wrap justify-end">
                                     {(client.isCustomPricing || (client.customPrices && client.customPrices.length > 0)) ? (
-                                        <span className="font-bold text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded-lg flex items-center gap-1" title={`Preços personalizados individualmente (Base: ${client.priceTableId ? (priceTables.find(t => t.id === client.priceTableId)?.name || 'Específica') : 'Tabela Genérica'})`}>
-                                            <Tag size={12} className="text-indigo-500 shrink-0" /> Personalizada
-                                            <span className="text-[10px] text-indigo-500 font-medium">({client.priceTableId ? (priceTables.find(t => t.id === client.priceTableId)?.name || 'Específica') : 'Genérica'})</span>
+                                        <span className="font-bold text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded-lg flex items-center gap-1" title={t('dentists.customPricesTooltip', 'Preços personalizados individualmente (Base: {{tableName}})', { tableName: client.priceTableId ? (priceTables.find(t => t.id === client.priceTableId)?.name || 'Específica') : 'Tabela Genérica' })}>
+                                            <Tag size={12} className="text-indigo-500 shrink-0" /> {t('dentists.customized', 'Personalizada')}
+                                            <span className="text-[10px] text-indigo-500 font-medium">({client.priceTableId ? (priceTables.find(t => t.id === client.priceTableId)?.name || 'Específica') : t('dentists.generic', 'Genérica')})</span>
                                         </span>
                                     ) : client.priceTableId ? (
-                                        <span className="font-bold text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-lg flex items-center gap-1 max-w-[180px] truncate" title="Tabela de preço vinculada">
-                                            <Table size={12} className="text-blue-500 shrink-0" /> <span className="truncate">{priceTables.find(t => t.id === client.priceTableId)?.name || 'Tabela Especial'}</span>
+                                        <span className="font-bold text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-lg flex items-center gap-1 max-w-[180px] truncate" title={t('dentists.linkedTableTooltip', 'Tabela de preço vinculada')}>
+                                            <Table size={12} className="text-blue-500 shrink-0" /> <span className="truncate">{priceTables.find(t => t.id === client.priceTableId)?.name || t('dentists.specialTable', 'Tabela Especial')}</span>
                                         </span>
                                     ) : (
                                         <span className="font-bold text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-lg">
-                                            Tabela Genérica
+                                            {t('dentists.genericTable', 'Tabela Genérica')}
                                         </span>
                                     )}
                                 </div>
                             </div>
                             <div className="flex justify-between items-center text-sm">
-                                <span className="text-slate-500">Desconto Global:</span>
+                                <span className="text-slate-500">{t('dentists.globalDiscount', 'Desconto Global:')}</span>
                                 <span className="font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-lg">{client.globalDiscountPercent || 0}%</span>
                             </div>
                             <div className="flex justify-between items-center text-sm">
-                                <span className="text-slate-500">Logística:</span>
-                                <span className="font-bold text-slate-700">{client.deliveryViaPost ? 'Correios' : 'Entrega Direta'}</span>
+                                <span className="text-slate-500">{t('dentists.logistics', 'Logística:')}</span>
+                                <span className="font-bold text-slate-700">{client.deliveryViaPost ? t('dentists.postDelivery', 'Correios') : t('dentists.directDelivery', 'Entrega Direta')}</span>
                             </div>
                         </div>
 
                         {/* Estatísticas de Boletos */}
                         <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex justify-between items-center text-[10px] uppercase font-black text-slate-500 gap-1 mt-3">
                             <div className="text-center flex-1 border-r border-slate-100">
-                                <span className="block text-[8px] text-slate-400 font-bold uppercase">Gerados</span>
+                                <span className="block text-[8px] text-slate-400 font-bold uppercase">{t('dentists.generated', 'Gerados')}</span>
                                 <span className="text-blue-600 font-black text-xs">{gBatches.length} (R$ {gBatches.reduce((sum, b) => sum + b.totalAmount, 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 })})</span>
                             </div>
                             <div className="text-center flex-1 border-r border-slate-100">
-                                <span className="block text-[8px] text-slate-400 font-bold uppercase">Expirados</span>
+                                <span className="block text-[8px] text-slate-400 font-bold uppercase">{t('dentists.expired', 'Expirados')}</span>
                                 <span className="text-red-500 font-black text-xs">{eBatches.length} (R$ {eBatches.reduce((sum, b) => sum + b.totalAmount, 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 })})</span>
                             </div>
                             <div className="text-center flex-1">
-                                <span className="block text-[8px] text-slate-400 font-bold uppercase">Pagos</span>
+                                <span className="block text-[8px] text-slate-400 font-bold uppercase">{t('dentists.paid', 'Pagos')}</span>
                                 <span className="text-green-600 font-black text-xs">{pBatches.length} (R$ {pBatches.reduce((sum, b) => sum + b.totalAmount, 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 })})</span>
                             </div>
                         </div>
@@ -1136,7 +1138,7 @@ export const Dentists = () => {
                                         onClick={() => handleOpenPricing(client)}
                                         className="py-2.5 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-indigo-50 hover:text-indigo-600 transition-all flex items-center justify-center gap-2 text-[11px] border border-slate-200"
                                     >
-                                        <Tag size={14} /> Tabela Preços
+                                        <Tag size={14} /> {t('dentists.priceTableBtn', 'Tabela Preços')}
                                     </button>
                                 )}
                                 {hasPerm('jobs:view') && (
@@ -1144,7 +1146,7 @@ export const Dentists = () => {
                                         onClick={() => navigate(`/jobs?dentist=${client.id}`)}
                                         className="py-2.5 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-blue-50 hover:text-blue-600 transition-all flex items-center justify-center gap-2 text-[11px] border border-slate-200"
                                     >
-                                        <Package size={14} /> Trabalhos
+                                        <Package size={14} /> {t('dentists.jobsBtn', 'Trabalhos')}
                                     </button>
                                 )}
                             </div>
@@ -1157,7 +1159,7 @@ export const Dentists = () => {
                                     }}
                                     className="w-full py-3 bg-blue-600 text-white font-black rounded-xl hover:bg-blue-700 transition-all flex items-center justify-center gap-2 text-[11px] shadow-lg shadow-blue-100 uppercase tracking-widest"
                                 >
-                                    <DollarSign size={14} /> Financeiro
+                                    <DollarSign size={14} /> {t('dentists.financialBtn', 'Financeiro')}
                                 </button>
                             )}
                         </div>
@@ -1169,12 +1171,12 @@ export const Dentists = () => {
             {selectedClient && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
                     <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col animate-in zoom-in duration-200">
-                        <div className="px-4 pb-4 sm:px-6 sm:pb-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-3xl">
-                            <div>
-                                <h3 className="text-xl font-black text-slate-800">Tabela de Preços: {selectedClient.name}</h3>
-                                <p className="text-xs text-slate-500 font-bold uppercase">Personalize os descontos para este cliente</p>
+                        <div className="p-4 sm:p-6 border-b border-slate-100 flex justify-between items-start gap-4 bg-slate-50 rounded-t-3xl shrink-0">
+                            <div className="flex-1 min-w-0">
+                                <h3 className="text-xl font-black text-slate-800 truncate" title={`${t('dentists.priceTableModalTitle', 'Tabela de Preços:')} ${selectedClient.name}`}>{t('dentists.priceTableModalTitle', 'Tabela de Preços:')} {selectedClient.name}</h3>
+                                <p className="text-xs text-slate-500 font-bold uppercase truncate" title={t('dentists.priceTableModalSubtitle', 'Personalize os descontos para este cliente')}>{t('dentists.priceTableModalSubtitle', 'Personalize os descontos para este cliente')}</p>
                             </div>
-                            <button onClick={() => setSelectedClient(null)} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><X size={24}/></button>
+                            <button onClick={() => setSelectedClient(null)} className="p-2 hover:bg-slate-200 rounded-full transition-colors shrink-0"><X size={24}/></button>
                         </div>
 
                             <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-8">
@@ -1185,10 +1187,10 @@ export const Dentists = () => {
                                                 <div className="flex items-center gap-3">
                                                     {isBlocked ? <Lock size={20} className="text-red-600" /> : <Unlock size={20} className="text-green-600" />}
                                                     <div>
-                                                        <span className="text-sm font-black text-slate-800 uppercase block">Status: {isBlocked ? 'BLOQUEADO' : 'ATIVO'}</span>
-                                                        <span className="text-[10px] font-medium text-slate-500 block leading-tight">Clientes bloqueados não podem criar novos trabalhos.</span>
+                                                        <span className="text-sm font-black text-slate-800 uppercase block">{t('dentists.status', 'Status:')} {isBlocked ? t('dentists.blocked', 'BLOQUEADO') : t('dentists.active', 'ATIVO')}</span>
+                                                        <span className="text-[10px] font-medium text-slate-500 block leading-tight">{t('dentists.blockedDesc', 'Clientes bloqueados não podem criar novos trabalhos.')}</span>
                                                         {blockReason === 'DEBT' && isBlocked && (
-                                                            <span className="text-[9px] font-bold text-red-500 block leading-tight mt-1">Para desbloqueio definitivo, desative ou aumente o Limite de Fatura.</span>
+                                                            <span className="text-[9px] font-bold text-red-500 block leading-tight mt-1">{t('dentists.blockedDebtDesc', 'Para desbloqueio definitivo, desative ou aumente o Limite de Fatura.')}</span>
                                                         )}
                                                     </div>
                                                 </div>
@@ -1206,19 +1208,19 @@ export const Dentists = () => {
                                             {(isBlocked || blockReason) && (
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in slide-in-from-top-2">
                                                     <div>
-                                                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Motivo do Bloqueio</label>
+                                                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">{t('dentists.blockReason', 'Motivo do Bloqueio')}</label>
                                                         <select 
                                                             value={blockReason}
                                                             onChange={e => setBlockReason(e.target.value as any)}
                                                             className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500"
                                                         >
-                                                            <option value="">Selecione um motivo...</option>
-                                                            <option value="DEBT">Inadimplência</option>
-                                                            <option value="FINANCIAL_APPROVAL">Aguardando Aprovação Financeira</option>
+                                                            <option value="">{t('dentists.selectReason', 'Selecione um motivo...')}</option>
+                                                            <option value="DEBT">{t('dentists.debt', 'Inadimplência')}</option>
+                                                            <option value="FINANCIAL_APPROVAL">{t('dentists.financialApproval', 'Aguardando Aprovação Financeira')}</option>
                                                         </select>
                                                     </div>
                                                     <div>
-                                                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Desbloqueio Temporário</label>
+                                                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">{t('dentists.tempUnblock', 'Desbloqueio Temporário')}</label>
                                                         <button 
                                                             type="button"
                                                             onClick={() => {
@@ -1229,7 +1231,7 @@ export const Dentists = () => {
                                                             }}
                                                             className="w-full px-3 py-2 bg-amber-100 text-amber-700 border border-amber-200 rounded-xl text-[10px] font-black uppercase hover:bg-amber-200 transition-all flex items-center justify-center gap-2"
                                                         >
-                                                            <RefreshCw size={14} /> Liberar por 24h
+                                                            <RefreshCw size={14} /> {t('dentists.unblock24h', 'Liberar por 24h')}
                                                         </button>
                                                         {(() => {
                                                             if (!temporaryUnblockUntil) return null;
@@ -1237,7 +1239,7 @@ export const Dentists = () => {
                                                             if (unblockDate > new Date()) {
                                                                 return (
                                                                     <p className="text-[9px] text-amber-600 font-bold mt-1 ml-1 flex items-center gap-1">
-                                                                        <Check size={10} /> Liberado até {unblockDate.toLocaleString()}
+                                                                        <Check size={10} /> {t('dentists.unblockedUntil', 'Liberado até')} {unblockDate.toLocaleString()}
                                                                     </p>
                                                                 );
                                                             }
@@ -1253,13 +1255,13 @@ export const Dentists = () => {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:p-6">
                                 {hasPerm('catalog:prices_view') && (
                                     <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Tabela de Preços Base</label>
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{t('dentists.basePriceTable', 'Tabela de Preços Base')}</label>
                                         <select 
                                             value={priceTableId}
                                             onChange={e => setPriceTableId(e.target.value)}
                                             className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-700"
                                         >
-                                            <option value="">Tabela Genérica (Padrão do Laboratório)</option>
+                                            <option value="">{t('dentists.genericTableDefault', 'Tabela Genérica (Padrão do Laboratório)')}</option>
                                             {priceTables.map(table => (
                                                 <option key={table.id} value={table.id}>{table.name}</option>
                                             ))}
@@ -1268,15 +1270,15 @@ export const Dentists = () => {
                                 )}
 
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Tipo de Cliente</label>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{t('dentists.clientType', 'Tipo de Cliente')}</label>
                                     <select 
                                         value={clientType}
                                         onChange={e => setClientType(e.target.value as any)}
                                         className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-700"
                                     >
-                                        <option value="CLINICA">Clínica</option>
-                                        <option value="PESSOA_FISICA">Pessoa Física</option>
-                                        <option value="LABORATORIO">Laboratório</option>
+                                        <option value="CLINICA">{t('dentists.typeClinic', 'Clínica')}</option>
+                                        <option value="PESSOA_FISICA">{t('dentists.typePerson', 'Pessoa Física')}</option>
+                                        <option value="LABORATORIO">{t('dentists.typeLab', 'Laboratório')}</option>
                                     </select>
                                 </div>
                                 
@@ -1284,8 +1286,8 @@ export const Dentists = () => {
                                      <div className="space-y-3 col-span-1 md:col-span-2 bg-slate-50 p-4 rounded-xl border border-slate-200">
                                          <div className="flex items-center justify-between">
                                              <div>
-                                                 <p className="text-xs font-black text-slate-700 uppercase">Técnico Responsável</p>
-                                                 <p className="text-[10px] text-slate-500 font-bold">Responsável técnico vinculado à clínica ou laboratório</p>
+                                                 <p className="text-xs font-black text-slate-700 uppercase">{t('dentists.techManager', 'Técnico Responsável')}</p>
+                                                 <p className="text-[10px] text-slate-500 font-bold">{t('dentists.techManagerDesc', 'Responsável técnico vinculado à clínica ou laboratório')}</p>
                                              </div>
                                              {!showTechnicalManager ? (
                                                  <button
@@ -1293,7 +1295,7 @@ export const Dentists = () => {
                                                      onClick={() => setShowTechnicalManager(true)}
                                                      className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg font-bold hover:bg-blue-700 flex items-center gap-1.5 shadow-sm"
                                                  >
-                                                     <Plus size={14} /> Adicionar Técnico Responsável
+                                                     <Plus size={14} /> {t('dentists.addTechManager', 'Adicionar Técnico Responsável')}
                                                  </button>
                                              ) : (
                                                  <button
@@ -1307,7 +1309,7 @@ export const Dentists = () => {
                                                      }}
                                                      className="text-xs text-red-600 hover:text-red-700 font-bold flex items-center gap-1"
                                                  >
-                                                     <MinusCircle size={14} /> Remover Técnico
+                                                     <MinusCircle size={14} /> {t('dentists.removeTechManager', 'Remover Técnico')}
                                                  </button>
                                              )}
                                          </div>
@@ -1315,27 +1317,27 @@ export const Dentists = () => {
                                          {showTechnicalManager && (
                                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
                                                  <div className="space-y-1">
-                                                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Nome do Técnico Responsável</label>
+                                                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{t('dentists.techManagerName', 'Nome do Técnico Responsável')}</label>
                                                      <input 
                                                          type="text" 
-                                                         placeholder="Ex: Dr. Carlos Silva" 
+                                                         placeholder={t('dentists.techManagerNamePlaceholder', 'Ex: Dr. Carlos Silva')} 
                                                          value={technicalManagerName}
                                                          onChange={e => setTechnicalManagerName(e.target.value)}
                                                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
                                                      />
                                                  </div>
                                                  <div className="space-y-1">
-                                                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">E-mail</label>
+                                                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{t('common.email', 'E-mail')}</label>
                                                      <input 
                                                          type="email" 
-                                                         placeholder="tecnico@email.com" 
+                                                         placeholder={t('dentists.techManagerEmailPlaceholder', 'tecnico@email.com')} 
                                                          value={technicalManagerEmail}
                                                          onChange={e => setTechnicalManagerEmail(e.target.value)}
                                                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
                                                      />
                                                  </div>
                                                  <div className="space-y-1">
-                                                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">CPF</label>
+                                                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{t('common.cpf', 'CPF')}</label>
                                                      <input 
                                                          type="text" 
                                                          placeholder="000.000.000-00" 
@@ -1345,7 +1347,7 @@ export const Dentists = () => {
                                                      />
                                                  </div>
                                                  <div className="space-y-1">
-                                                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">CRO</label>
+                                                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{t('common.cro', 'CRO')}</label>
                                                      <input 
                                                          type="text" 
                                                          placeholder="CRO/UF 00000" 
@@ -1362,23 +1364,23 @@ export const Dentists = () => {
                                  {clientType === 'CLINICA' && (
                                     <div className="space-y-3 col-span-1 md:col-span-2">
                                         <div className="flex items-center justify-between">
-                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Dentistas Associados (Sub-contas)</label>
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{t('dentists.associatedDentists', 'Dentistas Associados (Sub-contas)')}</label>
                                             <button 
                                                 onClick={() => setSubDentists([...subDentists, { id: Math.random().toString(36).substring(2, 9), name: '', cro: '' }])}
                                                 className="text-[10px] bg-blue-100 text-blue-700 px-2 py-1 rounded font-bold hover:bg-blue-200 flex items-center gap-1"
                                             >
-                                                <Plus size={12} /> Adicionar Dentista
+                                                <Plus size={12} /> {t('dentists.addDentist', 'Adicionar Dentista')}
                                             </button>
                                         </div>
                                         {subDentists.length === 0 ? (
-                                            <p className="text-xs text-slate-400 italic px-1">Nenhum dentista cadastrado para esta clínica.</p>
+                                            <p className="text-xs text-slate-400 italic px-1">{t('dentists.noDentistsRegistered', 'Nenhum dentista cadastrado para esta clínica.')}</p>
                                         ) : (
                                             <div className="space-y-2">
                                                 {subDentists.map((sd, idx) => (
                                                     <div key={sd.id || idx} className="flex gap-2 items-center bg-slate-50 p-2 rounded-lg border border-slate-200">
                                                         <input 
                                                             type="text" 
-                                                            placeholder="Nome do Dentista" 
+                                                            placeholder={t('dentists.dentistNamePlaceholder', 'Nome do Dentista')} 
                                                             value={sd.name}
                                                             onChange={e => {
                                                                 const newArr = [...subDentists];
@@ -1389,7 +1391,7 @@ export const Dentists = () => {
                                                         />
                                                         <input 
                                                             type="text" 
-                                                            placeholder="CRO (opcional)" 
+                                                            placeholder={t('dentists.croOptionalPlaceholder', 'CRO (opcional)')} 
                                                             value={sd.cro || ''}
                                                             onChange={e => {
                                                                 const newArr = [...subDentists];
@@ -1418,8 +1420,8 @@ export const Dentists = () => {
                                 <div className="space-y-4">
                                      <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 flex items-center justify-between">
                                         <div>
-                                            <p className="text-xs font-black text-blue-800 uppercase">Tabela Personalizada</p>
-                                            <p className="text-[10px] text-blue-600 font-bold">Personalize descontos e preços fixos específicos para este cliente</p>
+                                            <p className="text-xs font-black text-blue-800 uppercase">{t('dentists.customTable', 'Tabela Personalizada')}</p>
+                                            <p className="text-[10px] text-blue-600 font-bold">{t('dentists.customTableDesc', 'Personalize descontos e preços fixos específicos para este cliente')}</p>
                                         </div>
                                         <label className="relative inline-flex items-center cursor-pointer">
                                             <input 
@@ -1440,8 +1442,8 @@ export const Dentists = () => {
                                             <div className={`p-4 rounded-xl border transition-all ${isBlocked ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200'}`}>
                                                 <div className="flex items-center justify-between mb-3">
                                                     <div>
-                                                        <p className={`text-xs font-black uppercase ${isBlocked ? 'text-red-800' : 'text-slate-700'}`}>Status do Cliente</p>
-                                                        <p className={`text-[10px] font-bold ${isBlocked ? 'text-red-600' : 'text-slate-400'}`}>{isBlocked ? 'CLIENTE BLOQUEADO' : 'CLIENTE ATIVO'}</p>
+                                                        <p className={`text-xs font-black uppercase ${isBlocked ? 'text-red-800' : 'text-slate-700'}`}>{t('dentists.clientStatus', 'Status do Cliente')}</p>
+                                                        <p className={`text-[10px] font-bold ${isBlocked ? 'text-red-600' : 'text-slate-400'}`}>{isBlocked ? t('dentists.clientBlocked', 'CLIENTE BLOQUEADO') : t('dentists.clientActive', 'CLIENTE ATIVO')}</p>
                                                     </div>
                                                     <label className="relative inline-flex items-center cursor-pointer">
                                                         <input 
@@ -1454,31 +1456,31 @@ export const Dentists = () => {
                                                     </label>
                                                 </div>
                                                 <div className="flex items-center gap-2">
-                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Limite de Fatura (R$)</label>
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{t('dentists.billingLimit', 'Limite de Fatura (R$)')}</label>
                                                     <input 
                                                         type="number" 
                                                         value={billingLimit || ''}
                                                         onChange={e => setBillingLimit(parseFloat(e.target.value) || 0)}
-                                                        placeholder="Ex: 5000"
+                                                        placeholder={t('dentists.billingLimitPlaceholder', 'Ex: 5000')}
                                                         className="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500"
                                                     />
                                                 </div>
 
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3 pt-3 border-t border-red-100">
                                                     <div>
-                                                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 px-1">Motivo do Bloqueio</label>
+                                                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 px-1">{t('dentists.blockReason', 'Motivo do Bloqueio')}</label>
                                                         <select 
                                                             value={blockReason}
                                                             onChange={e => setBlockReason(e.target.value as any)}
                                                             className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold outline-none"
                                                         >
-                                                            <option value="">Selecione um motivo...</option>
-                                                            <option value="DEBT">Inadimplência</option>
-                                                            <option value="FINANCIAL_APPROVAL">Aguardando Aprovação Financeira</option>
+                                                            <option value="">{t('dentists.selectReason', 'Selecione um motivo...')}</option>
+                                                            <option value="DEBT">{t('dentists.debt', 'Inadimplência')}</option>
+                                                            <option value="FINANCIAL_APPROVAL">{t('dentists.financialApproval', 'Aguardando Aprovação Financeira')}</option>
                                                         </select>
                                                     </div>
                                                     <div>
-                                                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 px-1">Ação Rápida</label>
+                                                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 px-1">{t('dentists.quickAction', 'Ação Rápida')}</label>
                                                         <button 
                                                             type="button"
                                                             onClick={() => {
@@ -1489,11 +1491,11 @@ export const Dentists = () => {
                                                             }}
                                                             className="w-full px-3 py-1.5 bg-amber-100 text-amber-700 border border-amber-200 rounded-lg text-[10px] font-black uppercase hover:bg-amber-200 transition-all flex items-center justify-center gap-1"
                                                         >
-                                                            <Unlock size={12}/> Liberar por 24h
+                                                            <Unlock size={12}/> {t('dentists.unblock24h', 'Liberar por 24h')}
                                                         </button>
                                                         {temporaryUnblockUntil && new Date(temporaryUnblockUntil) > new Date() && (
                                                             <p className="text-[9px] text-amber-600 font-bold mt-1">
-                                                                Liberado até {temporaryUnblockUntil.toLocaleString()}
+                                                                {t('dentists.unblockedUntil', 'Liberado até')} {new Date(temporaryUnblockUntil).toLocaleString()}
                                                             </p>
                                                         )}
                                                     </div>
@@ -1511,25 +1513,25 @@ export const Dentists = () => {
                                             <div className="flex items-center gap-3 text-green-800">
                                                 <Percent size={24} />
                                                 <div>
-                                                    <h4 className="font-black uppercase tracking-widest text-sm">Desconto Global Customizado</h4>
-                                                    <p className="text-[10px] text-green-700 font-medium">Aplica-se a todos os serviços e variações sem preço fixo individual</p>
+                                                    <h4 className="font-black uppercase tracking-widest text-sm">{t('dentists.customGlobalDiscount', 'Desconto Global Customizado')}</h4>
+                                                    <p className="text-[10px] text-green-700 font-medium">{t('dentists.customGlobalDiscountDesc', 'Aplica-se a todos os serviços e variações sem preço fixo individual')}</p>
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 <button
                                                     type="button"
                                                     onClick={() => setCustomPrices([])}
-                                                    title="Limpar personalizações individuais para que todos usem o desconto global"
+                                                    title={t('dentists.useGlobalAllTooltip', 'Limpar personalizações individuais para que todos usem o desconto global')}
                                                     className="px-2.5 py-1 text-[10px] font-bold bg-white text-green-800 border border-green-200 hover:bg-green-100 rounded-lg transition-all shadow-xs"
                                                 >
-                                                    Usar Global em Todos
+                                                    {t('dentists.useGlobalAll', 'Usar Global em Todos')}
                                                 </button>
                                                 <button
                                                     type="button"
                                                     onClick={() => { setGlobalDiscount(0); }}
                                                     className="px-2.5 py-1 text-[10px] font-bold bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 rounded-lg transition-all shadow-xs"
                                                 >
-                                                    Zerar Global
+                                                    {t('dentists.resetGlobal', 'Zerar Global')}
                                                 </button>
                                             </div>
                                         </div>
@@ -1549,10 +1551,10 @@ export const Dentists = () => {
                                         <div className="space-y-4">
                                             <div className="flex items-center justify-between">
                                                 <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                                    <DollarSign size={14}/> Preços e Descontos Individuais
+                                                    <DollarSign size={14}/> {t('dentists.individualPrices', 'Preços e Descontos Individuais')}
                                                 </h4>
                                                 <span className="text-[10px] text-slate-400 font-bold">
-                                                    Valores base herdados de: {priceTables.find(t => t.id === priceTableId)?.name || 'Tabela Genérica'}
+                                                    {t('dentists.inheritedBaseValues', 'Valores base herdados de:')} {priceTables.find(t => t.id === priceTableId)?.name || t('dentists.genericTable', 'Tabela Genérica')}
                                                 </span>
                                             </div>
                                             
@@ -1582,17 +1584,17 @@ export const Dentists = () => {
                                                             <div className="mb-2 sm:mb-0">
                                                                 <p className="font-bold text-slate-800">{type.name}</p>
                                                                 <p className="text-xs text-slate-400">
-                                                                    {assignedTable ? `Preço Tabela (${assignedTable.name}): R$ ${basePriceForService.toFixed(2)}` : `Preço Padrão: R$ ${type.basePrice.toFixed(2)}`}
+                                                                    {assignedTable ? `${t('dentists.tablePrice', 'Preço Tabela')} (${assignedTable.name}): R$ ${basePriceForService.toFixed(2)}` : `${t('dentists.standardPrice', 'Preço Padrão')}: R$ ${type.basePrice.toFixed(2)}`}
                                                                     {effectiveServiceDiscount > 0 && !hasCustomFixed && (
                                                                         <span className="ml-2 text-green-600 font-bold">
-                                                                            ({effectiveServiceDiscount}% desc. {hasCustomDiscount ? 'individual' : 'global'})
+                                                                            ({effectiveServiceDiscount}% desc. {hasCustomDiscount ? t('dentists.individual', 'individual') : t('dentists.global', 'global')})
                                                                         </span>
                                                                     )}
                                                                 </p>
                                                             </div>
                                                             <div className="flex items-center gap-4">
                                                                 <div className="text-right">
-                                                                    <p className="text-[10px] font-bold text-slate-400 uppercase">Preço Final</p>
+                                                                    <p className="text-[10px] font-bold text-slate-400 uppercase">{t('dentists.finalPrice', 'Preço Final')}</p>
                                                                     <p className="font-black text-blue-700">R$ {finalPrice.toFixed(2)}</p>
                                                                 </div>
                                                                 
@@ -1660,9 +1662,9 @@ export const Dentists = () => {
                                                             </div>
                                                             {((type.variationGroups && type.variationGroups.length > 0) || (type.variations && type.variations.length > 0)) && (
                                                                 <div className="mt-2 pt-4 border-t border-slate-200">
-                                                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3">Variações / Adicionais</p>
+                                                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3">{t('dentists.variationsAdditional', 'Variações / Adicionais')}</p>
                                                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
-                                                                        {(type.variationGroups && type.variationGroups.length > 0 ? type.variationGroups : [{ id: 'default', name: 'Opções', options: type.variations || [] }]).map((group: any) => (
+                                                                        {(type.variationGroups && type.variationGroups.length > 0 ? type.variationGroups : [{ id: 'default', name: t('common.options', 'Opções'), options: type.variations || [] }]).map((group: any) => (
                                                                             <div key={group.id} className="space-y-3">
                                                                                 <p className="text-[10px] font-bold text-slate-600 bg-slate-100 px-3 py-1 rounded-full inline-block">{group.name}</p>
                                                                                 <div className="space-y-2">
@@ -1677,10 +1679,10 @@ export const Dentists = () => {
 
                                                                                         if (customVarPrice !== undefined && customVarPrice !== null && !isNaN(customVarPrice)) {
                                                                                             finalVariationPrice = customVarPrice;
-                                                                                            variationDiscountLabel = 'Personalizado';
+                                                                                            variationDiscountLabel = t('dentists.customized', 'Personalizado');
                                                                                         } else if (opt.isDiscountExempt) {
                                                                                             finalVariationPrice = baseVariationPrice;
-                                                                                            variationDiscountLabel = 'Isento de desc.';
+                                                                                            variationDiscountLabel = t('dentists.discountExempt', 'Isento de desc.');
                                                                                         } else if (effectiveServiceDiscount > 0) {
                                                                                             finalVariationPrice = baseVariationPrice * (1 - effectiveServiceDiscount / 100);
                                                                                             variationDiscountLabel = `${effectiveServiceDiscount}% desc.`;
@@ -1691,10 +1693,10 @@ export const Dentists = () => {
                                                                                                 <div className="flex flex-col">
                                                                                                     <span className="text-slate-600 font-bold">{opt.name}</span>
                                                                                                     <span className="text-[10px] text-slate-400">
-                                                                                                        Base: R$ {baseVariationPrice.toFixed(2)}
+                                                                                                        {t('common.base', 'Base')}: R$ {baseVariationPrice.toFixed(2)}
                                                                                                         {variationDiscountLabel && (
                                                                                                             <span className={`ml-1.5 font-bold ${opt.isDiscountExempt ? 'text-amber-600' : 'text-green-600'}`}>
-                                                                                                                → Final: R$ {finalVariationPrice.toFixed(2)} ({variationDiscountLabel})
+                                                                                                                → {t('dentists.final', 'Final')}: R$ {finalVariationPrice.toFixed(2)} ({variationDiscountLabel})
                                                                                                             </span>
                                                                                                         )}
                                                                                                     </span>
@@ -1752,21 +1754,21 @@ export const Dentists = () => {
                                     <div className="w-16 h-16 bg-white rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center mx-auto mb-4 text-slate-400">
                                         <Table size={32} />
                                     </div>
-                                    <p className="font-bold text-slate-600">Usando Tabela de Preços Base</p>
-                                    <p className="text-xs text-slate-400 max-w-sm mx-auto mt-2">Os preços serão calculados automaticamente com base na tabela selecionada acima. Ative o modo personalizado se precisar de descontos específicos para este cliente.</p>
+                                    <p className="font-bold text-slate-600">{t('dentists.usingBaseTable', 'Usando Tabela de Preços Base')}</p>
+                                    <p className="text-xs text-slate-400 max-w-sm mx-auto mt-2">{t('dentists.usingBaseTableDesc', 'Os preços serão calculados automaticamente com base na tabela selecionada acima. Ative o modo personalizado se precisar de descontos específicos para este cliente.')}</p>
                                 </div>
                             )}
                         </div>
 
-                        <div className="px-4 pb-4 sm:px-6 sm:pb-6 border-t bg-slate-50 rounded-b-3xl flex justify-end gap-3">
-                            <button onClick={() => setSelectedClient(null)} className="px-6 py-3 font-bold text-slate-500 hover:bg-slate-200 rounded-xl transition-all">Cancelar</button>
+                        <div className="p-4 sm:p-6 border-t border-slate-100 bg-slate-50 rounded-b-3xl flex flex-col-reverse sm:flex-row justify-end items-center gap-3 shrink-0">
+                            <button onClick={() => setSelectedClient(null)} className="w-full sm:w-auto px-6 py-3 font-bold text-slate-500 hover:bg-slate-200 rounded-xl transition-all">{t('common.cancel', 'Cancelar')}</button>
                             <button 
                                 onClick={handleSavePricing}
                                 disabled={isSaving}
-                                className="px-10 py-3 bg-blue-600 text-white font-black rounded-xl shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                                className="w-full sm:w-auto px-8 py-3 bg-blue-600 text-white font-black rounded-xl shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 shrink-0"
                             >
                                 {isSaving ? <Loader2 className="animate-spin" /> : <Save size={18} />}
-                                SALVAR TABELA
+                                {t('dentists.saveTable', 'SALVAR TABELA')}
                             </button>
                         </div>
                     </div>
@@ -1784,9 +1786,9 @@ export const Dentists = () => {
                                     <FileSpreadsheet size={20} className="sm:w-6 sm:h-6" />
                                 </div>
                                 <div className="min-w-0">
-                                    <h3 className="text-base sm:text-xl font-black text-slate-800 truncate">Painel Financeiro do Cliente</h3>
+                                    <h3 className="text-base sm:text-xl font-black text-slate-800 truncate">{t('dentists.financialDashboard', 'Painel Financeiro do Cliente')}</h3>
                                     <p className="text-[10px] sm:text-xs text-slate-500 font-bold uppercase flex items-center gap-1 sm:gap-2 truncate">
-                                        <Building size={11} className="shrink-0" /> <span className="truncate">{statementClient.clinicName || 'Consultório'}</span> | <UserCheck size={11} className="shrink-0" /> <span className="truncate">{statementClient.name}</span>
+                                        <Building size={11} className="shrink-0" /> <span className="truncate">{statementClient.clinicName || t('dentists.clinic', 'Consultório')}</span> | <UserCheck size={11} className="shrink-0" /> <span className="truncate">{statementClient.name}</span>
                                     </p>
                                 </div>
                             </div>
@@ -1800,7 +1802,7 @@ export const Dentists = () => {
                             <div className="bg-white p-3 sm:p-5 rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm transition-all hover:shadow-md group">
                                 <div className="flex items-center gap-1.5 sm:gap-2 mb-1 sm:mb-2 text-red-500">
                                     <MinusCircle size={14} className="sm:w-4 sm:h-4" />
-                                    <p className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest truncate">Saldo Devedor Atual</p>
+                                    <p className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest truncate">{t('dentists.currentDebtBalance', 'Saldo Devedor Atual')}</p>
                                 </div>
                                 <p className={`text-base sm:text-2xl font-black ${totals.currentBalance < 0 ? 'text-red-600' : 'text-slate-400'}`}>
                                     R$ {totals.currentBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
@@ -1813,7 +1815,7 @@ export const Dentists = () => {
                             <div className="bg-white p-3 sm:p-5 rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm transition-all hover:shadow-md group">
                                 <div className="flex items-center gap-1.5 sm:gap-2 mb-1 sm:mb-2 text-slate-400">
                                     <Banknote size={14} className="sm:w-4 sm:h-4" />
-                                    <p className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest truncate">Boletos Pendentes</p>
+                                    <p className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest truncate">{t('dentists.pendingBoletos', 'Boletos Pendentes')}</p>
                                 </div>
                                 <p className="text-base sm:text-2xl font-black text-slate-700">
                                     R$ {totals.pendingInvoices.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
@@ -1826,7 +1828,7 @@ export const Dentists = () => {
                             <div className="bg-white p-3 sm:p-5 rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm transition-all hover:shadow-md group">
                                 <div className="flex items-center gap-1.5 sm:gap-2 mb-1 sm:mb-2 text-slate-400">
                                     <History size={14} className="sm:w-4 sm:h-4" />
-                                    <p className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest truncate">Parcelas Pendentes</p>
+                                    <p className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest truncate">{t('dentists.pendingInstallments', 'Parcelas Pendentes')}</p>
                                 </div>
                                 <p className="text-base sm:text-2xl font-black text-slate-700 font-mono">
                                     R$ 0,00
@@ -1840,7 +1842,7 @@ export const Dentists = () => {
                                 <div className="relative z-10">
                                     <div className="flex items-center gap-1.5 sm:gap-2 mb-1 sm:mb-2 text-blue-200">
                                         <Wallet size={14} className="sm:w-4 sm:h-4" />
-                                        <p className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest truncate">Saldo Devedor Total</p>
+                                        <p className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest truncate">{t('dentists.totalDebtBalance', 'Saldo Devedor Total')}</p>
                                     </div>
                                     <p className="text-base sm:text-2xl font-black text-white">
                                         R$ {totals.currentBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
@@ -1857,7 +1859,7 @@ export const Dentists = () => {
                                 className={`px-4 sm:px-6 py-3 sm:py-4 text-xs font-black uppercase tracking-widest border-b-2 transition-all whitespace-nowrap shrink-0 ${activeSubTab === 'EXTRATO' ? 'border-blue-600 text-blue-600 bg-blue-50/50' : 'border-transparent text-slate-400 hover:text-slate-600 hover:bg-slate-50'}`}
                             >
                                 <div className="flex items-center gap-2">
-                                    <FileText size={16} /> Extrato
+                                    <FileText size={16} /> {t('dentists.statement', 'Extrato')}
                                 </div>
                             </button>
                             <button 
@@ -1865,7 +1867,7 @@ export const Dentists = () => {
                                 className={`px-4 sm:px-6 py-3 sm:py-4 text-xs font-black uppercase tracking-widest border-b-2 transition-all whitespace-nowrap shrink-0 ${activeSubTab === 'RECEBIMENTOS' ? 'border-blue-600 text-blue-600 bg-blue-50/50' : 'border-transparent text-slate-400 hover:text-slate-600 hover:bg-slate-50'}`}
                             >
                                 <div className="flex items-center gap-2">
-                                    <CreditCard size={16} /> Recebimentos
+                                    <CreditCard size={16} /> {t('dentists.receipts', 'Recebimentos')}
                                 </div>
                             </button>
                             <button 
@@ -1873,7 +1875,7 @@ export const Dentists = () => {
                                 className={`px-4 sm:px-6 py-3 sm:py-4 text-xs font-black uppercase tracking-widest border-b-2 transition-all whitespace-nowrap shrink-0 ${activeSubTab === 'FATURAS' ? 'border-blue-600 text-blue-600 bg-blue-50/50' : 'border-transparent text-slate-400 hover:text-slate-600 hover:bg-slate-50'}`}
                             >
                                 <div className="flex items-center gap-2">
-                                    <Receipt size={16} /> Faturas
+                                    <Receipt size={16} /> {t('dentists.invoices', 'Faturas')}
                                 </div>
                             </button>
                         </div>
@@ -1883,8 +1885,8 @@ export const Dentists = () => {
                             {isLoadingStatement && (
                                 <div className="absolute inset-0 z-10 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center animate-in fade-in duration-300">
                                     <Loader2 className="w-10 h-10 text-blue-600 animate-spin mb-4" />
-                                    <p className="text-sm font-black text-slate-800 uppercase tracking-widest">Carregando Histórico Completo...</p>
-                                    <p className="text-xs text-slate-400 font-bold mt-1">Isso pode levar alguns segundos dependendo do volume de dados.</p>
+                                    <p className="text-sm font-black text-slate-800 uppercase tracking-widest">{t('dentists.loadingHistory', 'Carregando Histórico Completo...')}</p>
+                                    <p className="text-xs text-slate-400 font-bold mt-1">{t('dentists.loadingHistoryDesc', 'Isso pode levar alguns segundos dependendo do volume de dados.')}</p>
                                 </div>
                             )}
 
@@ -1899,7 +1901,7 @@ export const Dentists = () => {
                                                     onChange={(e) => setFilterStartDate(e.target.value)}
                                                     className="px-2 sm:px-3 py-1 bg-transparent text-xs sm:text-sm font-bold text-slate-700 outline-none w-full sm:w-auto"
                                                 />
-                                                <span className="text-slate-400 font-bold px-1 text-xs">até</span>
+                                                <span className="text-slate-400 font-bold px-1 text-xs">{t('common.to', 'até')}</span>
                                                 <input 
                                                     type="date"
                                                     value={filterEndDate}
@@ -1907,20 +1909,20 @@ export const Dentists = () => {
                                                     className="px-2 sm:px-3 py-1 bg-transparent text-xs sm:text-sm font-bold text-slate-700 outline-none w-full sm:w-auto"
                                                 />
                                             </div>
-                                            <p className="text-[10px] font-bold text-slate-400 leading-tight">Mude o período para ver o saldo anterior.</p>
+                                            <p className="text-[10px] font-bold text-slate-400 leading-tight">{t('dentists.changePeriodToSeeBalance', 'Mude o período para ver o saldo anterior.')}</p>
                                         </div>
                                         <div className="flex gap-2">
                                             <button 
                                                 onClick={() => setShowManualEntryModal(true)}
                                                 className="flex-1 sm:flex-initial px-3 sm:px-4 py-2.5 sm:py-3 bg-blue-600 text-white text-[10px] font-black uppercase rounded-xl hover:bg-blue-700 transition-all flex items-center justify-center gap-1.5 sm:gap-2 shadow-lg shadow-blue-500/30"
                                             >
-                                                <Plus size={14} /> Lançamento
+                                                <Plus size={14} /> {t('dentists.manualEntry', 'Lançamento')}
                                             </button>
                                             <button 
                                                 onClick={generateStatementPDF}
                                                 className="px-3 sm:px-4 py-2.5 sm:py-3 bg-slate-900 text-white text-[10px] font-black uppercase rounded-xl hover:bg-slate-800 transition-all flex items-center justify-center gap-1.5 sm:gap-2 shadow-lg shadow-slate-200"
                                             >
-                                                <Download size={14} /> PDF
+                                                <Download size={14} /> {t('dentists.pdf', 'PDF')}
                                             </button>
                                         </div>
                                     </div>
@@ -1930,10 +1932,10 @@ export const Dentists = () => {
                                             <table className="w-full text-left min-w-[500px]">
                                                 <thead className="bg-slate-50 border-b border-slate-100">
                                                     <tr>
-                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Data</th>
-                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Descrição</th>
-                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Valor</th>
-                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Saldo</th>
+                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('common.date', 'Data')}</th>
+                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('common.description', 'Descrição')}</th>
+                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">{t('common.amount', 'Valor')}</th>
+                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">{t('common.balance', 'Saldo')}</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-slate-50">
@@ -1941,7 +1943,7 @@ export const Dentists = () => {
                                                         <td className="px-4 sm:px-6 py-3 sm:py-4 text-xs text-slate-400">
                                                             {filterStartDate ? new Date(`${filterStartDate}T00:00:00`).toLocaleDateString('pt-BR') : '-'}
                                                         </td>
-                                                        <td className="px-4 sm:px-6 py-3 sm:py-4 text-xs text-slate-500 uppercase tracking-widest">Saldo Anterior Carregado</td>
+                                                        <td className="px-4 sm:px-6 py-3 sm:py-4 text-xs text-slate-500 uppercase tracking-widest">{t('dentists.previousBalanceLoaded', 'Saldo Anterior Carregado')}</td>
                                                         <td className="px-4 sm:px-6 py-3 sm:py-4 text-right text-xs">-</td>
                                                         <td className={`px-4 sm:px-6 py-3 sm:py-4 text-right text-xs font-black ${chronoHistory.previousBalance < 0 ? 'text-red-500' : 'text-green-600'}`}>
                                                             R$ {chronoHistory.previousBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
@@ -1950,7 +1952,7 @@ export const Dentists = () => {
                                                     {chronoHistory.history.length === 0 ? (
                                                         <tr>
                                                             <td colSpan={4} className="px-4 sm:px-6 py-12 text-center text-slate-400 font-bold italic bg-slate-50/10">
-                                                                Nenhum registro encontrado neste período.
+                                                                {t('dentists.noRecordsInPeriod', 'Nenhum registro encontrado neste período.')}
                                                             </td>
                                                         </tr>
                                                     ) : (
@@ -1977,7 +1979,7 @@ export const Dentists = () => {
                                                                                 ))}
                                                                                 {(item as any).job.products?.map((prod:any, pIdx:number) => (
                                                                                     <div key={`prod-${pIdx}`} className="flex items-center gap-4 text-[9px] font-extrabold text-amber-600 uppercase">
-                                                                                        <span>{prod.quantity || 1} x [IMPLANTE/PRODUTO] {prod.name}</span>
+                                                                                        <span>{prod.quantity || 1} x [{t('dentists.implantProduct', 'IMPLANTE/PRODUTO')}] {prod.name}</span>
                                                                                         <span className="text-amber-500">R$ {((prod.unitPrice || 0) * (prod.quantity || 1)).toFixed(2)}</span>
                                                                                 </div>
                                                                             ))}
@@ -2004,21 +2006,21 @@ export const Dentists = () => {
                             {activeSubTab === 'RECEBIMENTOS' && (
                                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
                                     <div className="flex justify-between items-center">
-                                        <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest">Histórico de Recebimentos</h4>
+                                        <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest">{t('dentists.receiptHistory', 'Histórico de Recebimentos')}</h4>
                                         <div className="flex gap-2">
                                             <button 
                                                 onClick={generateReceiptsPDF}
                                                 className="px-4 py-2 bg-indigo-50 text-indigo-700 text-[10px] font-black uppercase rounded-xl hover:bg-indigo-100 transition-all flex items-center gap-2"
                                             >
                                                 <Printer size={14} />
-                                                Recibo em PDF
+                                                {t('dentists.pdfReceipt', 'Recibo em PDF')}
                                             </button>
                                             <button 
                                                 onClick={() => setShowPaymentForm(!showPaymentForm)}
                                                 className="px-4 py-2 bg-green-600 text-white text-[10px] font-black uppercase rounded-xl hover:bg-green-700 transition-all shadow-lg shadow-green-100 flex items-center gap-2"
                                             >
                                                 {showPaymentForm ? <MinusCircle size={14} /> : <Plus size={14} />}
-                                                Novo Recebimento Manual
+                                                {t('dentists.newManualReceipt', 'Novo Recebimento Manual')}
                                             </button>
                                         </div>
                                     </div>
@@ -2027,7 +2029,7 @@ export const Dentists = () => {
                                         <div className="bg-white p-4 sm:p-6 rounded-2xl border-2 border-green-200 animate-in slide-in-from-top-4 duration-300">
                                             <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-6 gap-4">
                                                 <div className="md:col-span-1">
-                                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Valor Recebido (R$)</label>
+                                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">{t('dentists.receivedAmount', 'Valor Recebido (R$)')}</label>
                                                     <input 
                                                         type="number"
                                                         value={paymentAmount || ''}
@@ -2037,7 +2039,7 @@ export const Dentists = () => {
                                                     />
                                                 </div>
                                                 <div className="md:col-span-1">
-                                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest text-red-500">Juros/Mora (+)</label>
+                                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest text-red-500">{t('dentists.interestLateFee', 'Juros/Mora (+)')}</label>
                                                     <input 
                                                         type="number"
                                                         value={paymentInterest || ''}
@@ -2047,7 +2049,7 @@ export const Dentists = () => {
                                                     />
                                                 </div>
                                                 <div className="md:col-span-1">
-                                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest text-green-600">Desconto (-)</label>
+                                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest text-green-600">{t('dentists.discountMinus', 'Desconto (-)')}</label>
                                                     <input 
                                                         type="number"
                                                         value={paymentDiscount || ''}
@@ -2057,7 +2059,7 @@ export const Dentists = () => {
                                                     />
                                                 </div>
                                                 <div className="md:col-span-1">
-                                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest text-orange-600">Taxas (-)</label>
+                                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest text-orange-600">{t('dentists.feesMinus', 'Taxas (-)')}</label>
                                                     <input 
                                                         type="number"
                                                         value={paymentFees || ''}
@@ -2067,32 +2069,32 @@ export const Dentists = () => {
                                                     />
                                                 </div>
                                                 <div className="md:col-span-1">
-                                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Forma</label>
+                                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">{t('common.method', 'Forma')}</label>
                                                     <select 
                                                         value={paymentMethod}
                                                         onChange={e => setPaymentMethod(e.target.value as any)}
                                                         className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none font-bold text-slate-700 h-[46px]"
                                                     >
                                                         <option value="PIX">PIX</option>
-                                                        <option value="CASH">Dinheiro</option>
-                                                        <option value="CREDIT_CARD">Cartão de Crédito</option>
-                                                        <option value="DEBIT_CARD">Cartão de Débito</option>
-                                                        <option value="BANK_TRANSFER">Transferência Bancária</option>
-                                                        <option value="BOLETO">Boleto (Pago)</option>
-                                                        <option value="DISCOUNT">Desconto/Cortesia</option>
-                                                        <option value="CLIENT_CREDIT">Saldo de Crédito</option>
+                                                        <option value="CASH">{t('dentists.cash', 'Dinheiro')}</option>
+                                                        <option value="CREDIT_CARD">{t('dentists.creditCard', 'Cartão de Crédito')}</option>
+                                                        <option value="DEBIT_CARD">{t('dentists.debitCard', 'Cartão de Débito')}</option>
+                                                        <option value="BANK_TRANSFER">{t('dentists.bankTransfer', 'Transferência Bancária')}</option>
+                                                        <option value="BOLETO">{t('dentists.boletoPaid', 'Boleto (Pago)')}</option>
+                                                        <option value="DISCOUNT">{t('dentists.courtesyDiscount', 'Desconto/Cortesia')}</option>
+                                                        <option value="CLIENT_CREDIT">{t('dentists.creditBalance', 'Saldo de Crédito')}</option>
                                                     </select>
                                                 </div>
 
                                                 {(paymentMethod === 'CREDIT_CARD' || paymentMethod === 'DEBIT_CARD') && (
                                                     <div className="md:col-span-1 animate-in slide-in-from-top-2">
-                                                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Máquina</label>
+                                                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">{t('dentists.machine', 'Máquina')}</label>
                                                         <select 
                                                             value={paymentCardMachineId}
                                                             onChange={e => setPaymentCardMachineId(e.target.value)}
                                                             className="w-full px-4 py-2.5 bg-blue-50 border border-blue-100 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-blue-700 h-[46px]"
                                                         >
-                                                            <option value="">Selecione...</option>
+                                                            <option value="">{t('common.select', 'Selecione...')}</option>
                                                             {cardMachines.map(m => (
                                                                 <option key={m.id} value={m.id}>{m.name}</option>
                                                             ))}
@@ -2102,13 +2104,13 @@ export const Dentists = () => {
 
                                                 {paymentMethod === 'BANK_TRANSFER' && (
                                                     <div className="md:col-span-1 animate-in slide-in-from-top-2">
-                                                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Conta</label>
+                                                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">{t('dentists.account', 'Conta')}</label>
                                                         <select 
                                                             value={paymentBankAccountId}
                                                             onChange={e => setPaymentBankAccountId(e.target.value)}
                                                             className="w-full px-4 py-2.5 bg-blue-50 border border-blue-100 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-blue-700 h-[46px]"
                                                         >
-                                                            <option value="">Selecione...</option>
+                                                            <option value="">{t('common.select', 'Selecione...')}</option>
                                                             {bankAccounts.map(b => (
                                                                 <option key={b.id} value={b.id}>{b.name}</option>
                                                             ))}
@@ -2117,29 +2119,29 @@ export const Dentists = () => {
                                                 )}
 
                                                 <div className="md:col-span-1">
-                                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest italic">Total Líquido</label>
+                                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest italic">{t('dentists.netTotal', 'Total Líquido')}</label>
                                                     <div className="w-full px-4 py-2.5 bg-slate-200 border border-slate-300 rounded-xl font-black text-slate-800 h-[46px] flex items-center">
                                                         R$ {(paymentAmount + paymentInterest - paymentDiscount - paymentFees).toFixed(2)}
                                                     </div>
                                                 </div>
                                                 <div className="md:col-span-full">
-                                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Observações/Ref.</label>
+                                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">{t('dentists.notesRef', 'Observações/Ref.')}</label>
                                                     <input 
                                                         value={paymentNotes}
                                                         onChange={e => setPaymentNotes(e.target.value)}
                                                         className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none font-bold text-slate-700"
-                                                        placeholder="Ex: Ref. OS 123, Promoção especial..."
+                                                        placeholder={t('dentists.notesRefPlaceholder', 'Ex: Ref. OS 123, Promoção especial...')}
                                                     />
                                                 </div>
                                             </div>
                                             <div className="flex justify-end mt-4 gap-3">
-                                                <button onClick={() => setShowPaymentForm(false)} className="px-4 py-2 text-xs font-black text-slate-400 uppercase hover:bg-slate-50 rounded-xl transition-all">Cancelar</button>
+                                                <button onClick={() => setShowPaymentForm(false)} className="px-4 py-2 text-xs font-black text-slate-400 uppercase hover:bg-slate-50 rounded-xl transition-all">{t('common.cancel', 'Cancelar')}</button>
                                                 <button 
                                                     disabled={isSaving || paymentAmount <= 0}
                                                     onClick={handleSavePayment}
                                                     className="px-8 py-2 bg-green-600 text-white text-xs font-black uppercase rounded-xl hover:bg-green-700 transition-all disabled:opacity-50 flex items-center gap-2"
                                                 >
-                                                    {isSaving ? <Loader2 className="animate-spin" size={14}/> : <Save size={14} />} Confirmar Recebimento (R$ {(paymentAmount + paymentInterest - paymentDiscount - paymentFees).toFixed(2)})
+                                                    {isSaving ? <Loader2 className="animate-spin" size={14}/> : <Save size={14} />} {t('dentists.confirmReceipt', 'Confirmar Recebimento')} (R$ {(paymentAmount + paymentInterest - paymentDiscount - paymentFees).toFixed(2)})
                                                 </button>
                                             </div>
                                         </div>
@@ -2150,16 +2152,16 @@ export const Dentists = () => {
                                             <table className="w-full text-left min-w-[500px]">
                                                 <thead className="bg-slate-50 border-b border-slate-100">
                                                     <tr>
-                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Data</th>
-                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Forma</th>
-                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Observação</th>
-                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Valor</th>
+                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('common.date', 'Data')}</th>
+                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('common.method', 'Forma')}</th>
+                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('common.notes', 'Observação')}</th>
+                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">{t('common.amount', 'Valor')}</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-slate-50">
                                                     {dentistPayments.filter(p => p.dentistId === statementClient.id && new Date(p.paymentDate) >= new Date(`${filterStartDate}T00:00:00`) && new Date(p.paymentDate) <= new Date(`${filterEndDate}T23:59:59`)).length === 0 ? (
                                                         <tr>
-                                                            <td colSpan={4} className="px-4 sm:px-6 py-12 text-center text-slate-400 font-bold italic">Nenhum recebimento registrado neste período.</td>
+                                                            <td colSpan={4} className="px-4 sm:px-6 py-12 text-center text-slate-400 font-bold italic">{t('dentists.noReceiptsInPeriod', 'Nenhum recebimento registrado neste período.')}</td>
                                                         </tr>
                                                     ) : (
                                                         dentistPayments.filter(p => p.dentistId === statementClient.id && new Date(p.paymentDate) >= new Date(`${filterStartDate}T00:00:00`) && new Date(p.paymentDate) <= new Date(`${filterEndDate}T23:59:59`)).map((p, idx) => (
@@ -2191,7 +2193,7 @@ export const Dentists = () => {
                             {activeSubTab === 'FATURAS' && (
                                 <div className="space-y-4 sm:space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
                                     <div className="flex justify-between items-center">
-                                        <h4 className="text-xs sm:text-sm font-black text-slate-800 uppercase tracking-widest">Faturas & Boletos</h4>
+                                        <h4 className="text-xs sm:text-sm font-black text-slate-800 uppercase tracking-widest">{t('dentists.invoicesAndBoletos', 'Faturas & Boletos')}</h4>
                                     </div>
 
                                     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -2199,17 +2201,17 @@ export const Dentists = () => {
                                             <table className="w-full text-left min-w-[480px]">
                                                 <thead className="bg-slate-50 border-b border-slate-100">
                                                     <tr>
-                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">ID</th>
-                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Vencimento</th>
-                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
-                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Valor</th>
-                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Ações</th>
+                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('common.id', 'ID')}</th>
+                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('common.dueDate', 'Vencimento')}</th>
+                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('common.status', 'Status')}</th>
+                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">{t('common.amount', 'Valor')}</th>
+                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">{t('common.actions', 'Ações')}</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-slate-50">
                                                     {billingBatches.filter(b => b.dentistId === statementClient.id).length === 0 ? (
                                                         <tr>
-                                                            <td colSpan={5} className="px-4 sm:px-6 py-12 text-center text-slate-400 font-bold italic">Nenhuma fatura gerada para este cliente.</td>
+                                                            <td colSpan={5} className="px-4 sm:px-6 py-12 text-center text-slate-400 font-bold italic">{t('dentists.noInvoicesForClient', 'Nenhuma fatura gerada para este cliente.')}</td>
                                                         </tr>
                                                     ) : (
                                                         billingBatches.filter(b => b.dentistId === statementClient.id).map((b) => (
@@ -2223,7 +2225,7 @@ export const Dentists = () => {
                                                                         b.status === 'PAID' ? 'bg-green-100 text-green-700' : 
                                                                         b.status === 'OVERDUE' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
                                                                     }`}>
-                                                                        {b.status === 'PAID' ? 'Paga' : b.status === 'OVERDUE' ? 'Atrasada' : 'Pendente'}
+                                                                        {b.status === 'PAID' ? t('common.paid', 'Paga') : b.status === 'OVERDUE' ? t('common.overdue', 'Atrasada') : t('common.pending', 'Pendente')}
                                                                     </span>
                                                                 </td>
                                                                 <td className="px-4 sm:px-6 py-3 sm:py-4 text-xs font-black text-right text-slate-800">
@@ -2235,13 +2237,13 @@ export const Dentists = () => {
                                                                             <button 
                                                                                 onClick={() => updateBillingBatchStatus(b.id, 'PAID')}
                                                                                 className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-all"
-                                                                                title="Marcar como Pago"
+                                                                                title={t('dentists.markAsPaid', 'Marcar como Pago')}
                                                                             >
                                                                                 <Check size={16} />
                                                                             </button>
                                                                         )}
                                                                         {b.boletoUrl && (
-                                                                            <a href={b.boletoUrl} target="_blank" className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Ver Boleto">
+                                                                            <a href={b.boletoUrl} target="_blank" className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title={t('dentists.viewBoleto', 'Ver Boleto')}>
                                                                                 <FileText size={16} />
                                                                             </a>
                                                                         )}
@@ -2262,14 +2264,14 @@ export const Dentists = () => {
                         <div className="p-3 sm:px-6 sm:py-4 border-t border-slate-100 bg-white flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
                             <div className="flex items-center justify-between sm:justify-start gap-4">
                                 <div className="flex flex-col">
-                                    <span className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest">Saldo Devedor Total</span>
+                                    <span className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('dentists.totalDebtBalance', 'Saldo Devedor Total')}</span>
                                     <span className={`text-lg sm:text-xl font-black ${totals.currentBalance < 0 ? 'text-red-600' : 'text-green-600'}`}>
                                         R$ {totals.currentBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                     </span>
                                 </div>
                                 <div className="h-8 w-px bg-slate-100 mx-2 hidden sm:block" />
                                 <div className="flex flex-col text-right sm:text-left">
-                                    <span className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest">Último Pagamento</span>
+                                    <span className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('dentists.lastPayment', 'Último Pagamento')}</span>
                                     <span className="text-xs sm:text-sm font-bold text-slate-600">
                                         {chronoHistory.history.filter(i => i.type === 'PAYMENT').pop()?.date ? new Date(chronoHistory.history.filter(i => i.type === 'PAYMENT').pop()!.date).toLocaleDateString('pt-BR') : '--/--/----'}
                                     </span>
@@ -2285,7 +2287,7 @@ export const Dentists = () => {
                                     }}
                                     className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-4 sm:px-8 py-2.5 sm:py-3 bg-blue-600 text-white font-black rounded-xl sm:rounded-2xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 uppercase text-xs whitespace-nowrap"
                                 >
-                                    <Receipt size={16} /> Fechar Faturamento
+                                    <Receipt size={16} /> {t('dentists.closeBilling', 'Fechar Faturamento')}
                                 </button>
                                 <button
                                     onClick={() => {
@@ -2294,7 +2296,7 @@ export const Dentists = () => {
                                     }}
                                     className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-4 sm:px-8 py-2.5 sm:py-3 bg-slate-100 text-slate-600 font-bold rounded-xl sm:rounded-2xl hover:bg-slate-200 transition-all uppercase text-xs whitespace-nowrap"
                                 >
-                                    <Banknote size={18} /> Pagar Manual
+                                    <Banknote size={18} /> {t('dentists.payManual', 'Pagar Manual')}
                                 </button>
                             </div>
                         </div>
@@ -2306,26 +2308,26 @@ export const Dentists = () => {
                 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
                     <div className="bg-white rounded-3xl p-4 sm:p-8 max-w-md w-full shadow-2xl animate-in fade-in zoom-in duration-300">
                         <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">Gerar Boleto de Cobrança</h3>
+                            <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">{t('dentists.generateBoleto', 'Gerar Boleto de Cobrança')}</h3>
                             <button onClick={() => setShowBoletoModal(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
                                 <X size={20} />
                             </button>
                         </div>
                         <div className="space-y-4">
                             <div>
-                                <label className="block text-xs font-black text-slate-400 uppercase tracking-wider mb-2">Valor da Cobrança (R$)</label>
+                                <label className="block text-xs font-black text-slate-400 uppercase tracking-wider mb-2">{t('dentists.billingAmount', 'Valor da Cobrança (R$)')}</label>
                                 <input 
                                     type="number"
                                     step="0.01"
                                     value={customBoletoAmount}
                                     onChange={e => setCustomBoletoAmount(Math.max(0, parseFloat(e.target.value) || 0))}
                                     className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-800"
-                                    placeholder="Valor em R$"
+                                    placeholder={t('dentists.amountInBRL', 'Valor em R$')}
                                 />
-                                <span className="block text-[10px] text-slate-400 font-bold mt-1 font-mono">Saldo devedor atual do cliente: R$ {totals.currentBalance < 0 ? Math.abs(totals.currentBalance).toFixed(2) : '0.00'}</span>
+                                <span className="block text-[10px] text-slate-400 font-bold mt-1 font-mono">{t('dentists.currentClientDebt', 'Saldo devedor atual do cliente')}: R$ {totals.currentBalance < 0 ? Math.abs(totals.currentBalance).toFixed(2) : '0.00'}</span>
                             </div>
                             <div>
-                                <label className="block text-xs font-black text-slate-400 uppercase tracking-wider mb-2">Data de Vencimento</label>
+                                <label className="block text-xs font-black text-slate-400 uppercase tracking-wider mb-2">{t('common.dueDate', 'Data de Vencimento')}</label>
                                 <input 
                                     type="date"
                                     value={customBoletoDueDate}
@@ -2338,16 +2340,16 @@ export const Dentists = () => {
                                     onClick={() => setShowBoletoModal(false)}
                                     className="flex-1 py-3 px-4 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-all uppercase text-xs"
                                 >
-                                    Cancelar
+                                    {t('common.cancel', 'Cancelar')}
                                 </button>
                                 <button 
                                     onClick={async () => {
                                         if (customBoletoAmount <= 0) {
-                                            alert('Por favor, informe um valor maior que zero para o boleto.');
+                                            alert(t('dentists.boletoAmountError', 'Por favor, informe um valor maior que zero para o boleto.'));
                                             return;
                                         }
                                         if (!customBoletoDueDate) {
-                                            alert('Por favor, informe uma data de vencimento válida.');
+                                            alert(t('dentists.dueDateError', 'Por favor, informe uma data de vencimento válida.'));
                                             return;
                                         }
 
@@ -2357,7 +2359,7 @@ export const Dentists = () => {
 
                                         try {
                                             await generateBatchBoleto(statementClient.id, pendingJobIds, new Date(customBoletoDueDate), customBoletoAmount);
-                                            alert('Boleto de cobrança gerado com sucesso!');
+                                            alert(t('dentists.boletoGeneratedSuccess', 'Boleto de cobrança gerado com sucesso!'));
                                             setShowBoletoModal(false);
                                             setActiveSubTab('FATURAS');
                                         } catch (err: any) {
@@ -2366,13 +2368,13 @@ export const Dentists = () => {
                                                 setShowBoletoModal(false);
                                                 setShowAsaasError(true);
                                             } else {
-                                                alert('Erro ao gerar boleto.');
+                                                alert(t('dentists.errorGeneratingBoleto', 'Erro ao gerar boleto.'));
                                             }
                                         }
                                     }}
                                     className="flex-1 py-3 px-4 bg-blue-600 text-white font-black rounded-xl hover:bg-blue-700 transition-all uppercase text-xs"
                                 >
-                                    Confirmar
+                                    {t('common.confirm', 'Confirmar')}
                                 </button>
                              </div>
                          </div>
@@ -2387,18 +2389,18 @@ export const Dentists = () => {
                             <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center text-red-500 mb-2">
                                 <Info size={40} />
                             </div>
-                            <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight text-red-600">Erro de Geração de Boleto</h3>
+                            <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight text-red-600">{t('dentists.boletoGenerationError', 'Erro de Geração de Boleto')}</h3>
                             <p className="text-slate-500 font-bold">
-                                Sua conta Asaas não está devidamente criada ou configurada para esta operação.
+                                {t('dentists.asaasNotConfigured', 'Sua conta Asaas não está devidamente criada ou configurada para esta operação.')}
                             </p>
                             <p className="text-slate-400 text-sm">
-                                Verifique as chaves de API e o ID da Carteira nas configurações do seu laboratório.
+                                {t('dentists.checkApiKeys', 'Verifique as chaves de API e o ID da Carteira nas configurações do seu laboratório.')}
                             </p>
                             <button 
                                 onClick={() => setShowAsaasError(false)}
                                 className="w-full mt-6 py-4 bg-slate-800 text-white font-black uppercase rounded-2xl hover:bg-slate-900 transition-all shadow-xl shadow-slate-200"
                             >
-                                Entendido
+                                {t('common.understood', 'Entendido')}
                             </button>
                         </div>
                     </div>
@@ -2412,7 +2414,7 @@ export const Dentists = () => {
                         <div className="flex justify-between items-center mb-6">
                             <h3 className="text-xl font-black text-slate-800 tracking-tight flex items-center gap-2">
                                 <Plus className="text-blue-600" />
-                                Lançamento Manual
+                                {t('dentists.manualEntryModalTitle', 'Lançamento Manual')}
                             </h3>
                             <button onClick={() => setShowManualEntryModal(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
                                 <X size={20} className="text-slate-500" />
@@ -2421,7 +2423,7 @@ export const Dentists = () => {
                         
                         <form onSubmit={handleAddManualEntry} className="space-y-4">
                             <div>
-                                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Tipo de Lançamento</label>
+                                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">{t('dentists.entryType', 'Tipo de Lançamento')}</label>
                                 <div className="grid grid-cols-2 gap-2">
                                     <button
                                         type="button"
@@ -2432,7 +2434,7 @@ export const Dentists = () => {
                                             : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
                                         }`}
                                     >
-                                        Débito (Dívida)
+                                        {t('dentists.debitDebt', 'Débito (Dívida)')}
                                     </button>
                                     <button
                                         type="button"
@@ -2443,18 +2445,18 @@ export const Dentists = () => {
                                             : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
                                         }`}
                                     >
-                                        Crédito (Abatimento)
+                                        {t('dentists.creditDiscount', 'Crédito (Abatimento)')}
                                     </button>
                                 </div>
                                 <p className="text-[10px] text-slate-400 font-bold mt-2">
                                     {manualEntryType === 'MANUAL_DEBIT' 
-                                        ? 'Débito aumenta o saldo devedor do dentista (ex: dívida antiga).'
-                                        : 'Crédito diminui o saldo devedor (ex: saldo positivo a favor do dentista).'}
+                                        ? t('dentists.debitDesc', 'Débito aumenta o saldo devedor do dentista (ex: dívida antiga).')
+                                        : t('dentists.creditDesc', 'Crédito diminui o saldo devedor (ex: saldo positivo a favor do dentista).')}
                                 </p>
                             </div>
                             
                             <div>
-                                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Valor (R$)</label>
+                                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">{t('common.amount', 'Valor (R$)')}</label>
                                 <input 
                                     type="text" 
                                     required
@@ -2472,11 +2474,11 @@ export const Dentists = () => {
                             </div>
                             
                             <div>
-                                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Observações / Motivo (Opcional)</label>
+                                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">{t('dentists.notesReasonOptional', 'Observações / Motivo (Opcional)')}</label>
                                 <textarea 
                                     value={manualEntryNotes}
                                     onChange={(e) => setManualEntryNotes(e.target.value)}
-                                    placeholder="Ex: Dívida referente ao ano passado..."
+                                    placeholder={t('dentists.notesReasonPlaceholder', 'Ex: Dívida referente ao ano passado...')}
                                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none h-24"
                                 />
                             </div>
@@ -2487,7 +2489,7 @@ export const Dentists = () => {
                                 className="w-full mt-2 py-4 bg-blue-600 text-white font-black uppercase tracking-widest rounded-xl hover:bg-blue-700 transition-all shadow-xl shadow-blue-500/30 flex items-center justify-center gap-2"
                             >
                                 {isAddingManualEntry ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
-                                SALVAR LANÇAMENTO
+                                {t('dentists.saveEntry', 'SALVAR LANÇAMENTO')}
                             </button>
                         </form>
                     </div>

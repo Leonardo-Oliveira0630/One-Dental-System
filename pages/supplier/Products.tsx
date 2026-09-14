@@ -478,32 +478,32 @@ export const SupplierProducts = () => {
   };
 
   return (
-    <main id="supplier-products" className="flex-1 p-4 sm:p-6 space-y-6 overflow-y-auto bg-slate-50 text-slate-900 min-h-screen">
+    <main id="supplier-products" className="flex-1 p-4 sm:p-6 space-y-6 overflow-y-auto bg-slate-50 dark:bg-[#06080F] text-slate-900 dark:text-white min-h-screen">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Cadastro de Produtos</h1>
-          <p className="text-slate-500 text-sm mt-0.5">Efetue o controle e exponha fotos adicionais, variações inteligentes ou crie combos.</p>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Cadastro de Produtos</h1>
+          <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">Efetue o controle e exponha fotos adicionais, variações inteligentes ou crie combos.</p>
         </div>
 
         <div className="flex flex-wrap gap-2.5">
           <button
             onClick={handleShareStore}
-            className="bg-slate-100 hover:bg-slate-200 text-slate-900 font-bold p-3 px-5 rounded-xl transition-all shadow-lg flex items-center gap-2 self-start"
+            className="bg-slate-100 dark:bg-[#0E1626] hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-900 dark:text-white font-bold p-3 px-5 rounded-xl transition-all shadow-sm border border-slate-200 dark:border-slate-800 flex items-center gap-2 self-start cursor-pointer"
           >
             <ClipboardCheck size={18} /> Copiar Link da Loja
           </button>
           
           <button
             onClick={() => openModal()}
-            className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold p-3 px-5 rounded-xl transition-all shadow-lg shadow-indigo-950/40 flex items-center gap-2 self-start"
+            className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold p-3 px-5 rounded-xl transition-all shadow-lg shadow-indigo-950/40 flex items-center gap-2 self-start cursor-pointer"
           >
             <Plus size={18} /> Novo Produto
           </button>
           
           <button
             onClick={openComboModal}
-            className="bg-purple-650 bg-purple-600 hover:bg-purple-500 text-white font-bold p-3 px-5 rounded-xl transition-all shadow-lg shadow-purple-950/40 flex items-center gap-2 self-start"
+            className="bg-purple-600 hover:bg-purple-500 text-white font-bold p-3 px-5 rounded-xl transition-all shadow-lg shadow-purple-950/40 flex items-center gap-2 self-start cursor-pointer"
           >
             <Layers size={18} /> Novo Combo
           </button>
@@ -511,27 +511,27 @@ export const SupplierProducts = () => {
       </div>
 
       {/* Control Bar */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col md:flex-row gap-4 items-center justify-between">
+      <div className="bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 rounded-2xl p-4 flex flex-col md:flex-row gap-4 items-center justify-between">
         <div className="relative flex-1 w-full">
-          <Search className="absolute left-3.5 top-3.5 text-slate-500" size={18} />
+          <Search className="absolute left-3.5 top-3.5 text-slate-500 dark:text-slate-400" size={18} />
           <input
             type="text"
             placeholder="Pesquisar por nome, código ou descrição..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-4 py-3 text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 text-sm placeholder-slate-650"
+            className="w-full bg-slate-50 dark:bg-[#0E1626] border border-slate-200 dark:border-slate-700 rounded-xl pl-11 pr-4 py-3 text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 text-sm placeholder-slate-400 dark:placeholder-slate-500"
           />
         </div>
 
         {/* Filter Type Options */}
-        <div className="flex bg-slate-100 bg-slate-50 border border-slate-200 rounded-xl p-1 gap-1 w-full md:w-auto">
+        <div className="flex bg-slate-100 dark:bg-[#0E1626] border border-slate-200 dark:border-slate-800 rounded-xl p-1 gap-1 w-full md:w-auto">
           <button
             type="button"
             onClick={() => setFilterType('ALL')}
-            className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+            className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
               filterType === 'ALL' 
-                ? 'bg-slate-100 text-slate-900' 
-                : 'text-slate-500 hover:text-slate-900'
+                ? 'bg-white dark:bg-[#0B0F17] text-slate-900 dark:text-white shadow-xs' 
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             Todos os Itens
@@ -539,10 +539,10 @@ export const SupplierProducts = () => {
           <button
             type="button"
             onClick={() => setFilterType('PRODUCTS')}
-            className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+            className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
               filterType === 'PRODUCTS' 
-                ? 'bg-slate-100 text-slate-900' 
-                : 'text-slate-500 hover:text-slate-900'
+                ? 'bg-white dark:bg-[#0B0F17] text-slate-900 dark:text-white shadow-xs' 
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             Apenas Produtos
@@ -550,10 +550,10 @@ export const SupplierProducts = () => {
           <button
             type="button"
             onClick={() => setFilterType('COMBOS')}
-            className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+            className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
               filterType === 'COMBOS' 
-                ? 'bg-slate-100 text-slate-900' 
-                : 'text-slate-500 hover:text-slate-900'
+                ? 'bg-white dark:bg-[#0B0F17] text-slate-900 dark:text-white shadow-xs' 
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             Apenas Combos
@@ -564,13 +564,13 @@ export const SupplierProducts = () => {
       {/* Product List Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {filteredItems.length === 0 ? (
-          <div className="col-span-full bg-white border border-slate-200 rounded-2xl p-12 text-center text-slate-500 space-y-2">
-            <Package className="w-12 h-12 mx-auto stroke-1" />
+          <div className="col-span-full bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 rounded-2xl p-12 text-center text-slate-500 dark:text-slate-400 space-y-2">
+            <Package className="w-12 h-12 mx-auto stroke-1 text-slate-400 dark:text-slate-600" />
             <p className="text-sm">Nenhum produto cadastrado até o momento.</p>
           </div>
         ) : (
           filteredItems.map(item => (
-            <div key={item.id} className="bg-white border border-slate-200 rounded-2xl overflow-hidden flex flex-col justify-between group hover:border-indigo-500/50 transition-all">
+            <div key={item.id} className="bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden flex flex-col justify-between group hover:border-indigo-500/50 transition-all shadow-xs">
               {/* Product Preview Header */}
               <div className="p-5 space-y-4">
                 <div className="flex justify-between items-start">
@@ -579,32 +579,32 @@ export const SupplierProducts = () => {
                       <img 
                         src={item.imageUrl} 
                         alt={item.name} 
-                        className="w-12 h-12 rounded-xl object-cover bg-slate-50 border border-slate-200"
+                        className="w-12 h-12 rounded-xl object-cover bg-slate-50 dark:bg-[#0E1626] border border-slate-200 dark:border-slate-800"
                         referrerPolicy="no-referrer"
                       />
                     ) : (
-                      <div className="w-12 h-12 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-600">
+                      <div className="w-12 h-12 rounded-xl bg-slate-50 dark:bg-[#0E1626] border border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-400">
                         <Package size={20} />
                       </div>
                     )}
                     <div>
-                      <h3 className="font-bold text-slate-800 line-clamp-1 group-hover:text-indigo-600 transition-colors">
+                      <h3 className="font-bold text-slate-800 dark:text-slate-100 line-clamp-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
                         {item.name}
                       </h3>
                       <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
-                        <span className="text-slate-500 text-[10px] font-mono">{item.code || 'S/ CÓDIGO'}</span>
+                        <span className="text-slate-500 dark:text-slate-400 text-[10px] font-mono">{item.code || 'S/ CÓDIGO'}</span>
                         {item.isCombo && (
-                          <span className="bg-purple-50 text-purple-600 text-[9px] px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider flex items-center gap-0.5">
+                          <span className="bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-300 text-[9px] px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider flex items-center gap-0.5 border border-purple-100 dark:border-purple-900/50">
                             <Layers size={8} /> Combo
                           </span>
                         )}
                         {item.variations && item.variations.length > 0 && (
-                          <span className="bg-orange-50 text-orange-600 text-[9px] px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider flex items-center gap-0.5">
+                          <span className="bg-orange-50 dark:bg-orange-950/60 text-orange-600 dark:text-orange-300 text-[9px] px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider flex items-center gap-0.5 border border-orange-100 dark:border-orange-900/50">
                             <Sparkles size={8} /> {item.variations.length} Opções
                           </span>
                         )}
                         {item.variationGroups && item.variationGroups.length > 0 && (
-                          <span className="bg-orange-50 text-orange-600 text-[9px] px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider flex items-center gap-0.5">
+                          <span className="bg-orange-50 dark:bg-orange-950/60 text-orange-600 dark:text-orange-300 text-[9px] px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider flex items-center gap-0.5 border border-orange-100 dark:border-orange-900/50">
                             <Plus size={8} /> {item.variationGroups.length} Atributos
                           </span>
                         )}
@@ -614,27 +614,27 @@ export const SupplierProducts = () => {
 
                   <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
                     item.isVisibleInStore 
-                      ? 'bg-emerald-500/10 text-emerald-600' 
-                      : 'bg-slate-100 text-slate-500'
+                      ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' 
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700'
                   }`}>
                     {item.isVisibleInStore ? <Eye size={10} /> : <EyeOff size={10} />}
                     {item.isVisibleInStore ? 'Exposto' : 'Oculto'}
                   </span>
                 </div>
 
-                <p className="text-slate-500 text-xs line-clamp-2 h-8">
+                <p className="text-slate-500 dark:text-slate-400 text-xs line-clamp-2 h-8">
                   {item.description || 'Nenhuma descrição informada para este produto.'}
                 </p>
 
                 {/* Sub components inside combo */}
                 {item.isCombo && item.comboItems && item.comboItems.length > 0 && (
-                  <div className="bg-slate-50/70 border border-slate-200 p-2.5 rounded-xl space-y-1.5">
-                    <p className="text-[9px] text-purple-600 font-bold uppercase tracking-wider">Produtos inclusos no Combo:</p>
+                  <div className="bg-slate-50/70 dark:bg-[#0E1626] border border-slate-200 dark:border-slate-800 p-2.5 rounded-xl space-y-1.5">
+                    <p className="text-[9px] text-purple-600 dark:text-purple-400 font-bold uppercase tracking-wider">Produtos inclusos no Combo:</p>
                     <div className="space-y-1 max-h-24 overflow-y-auto pr-1">
                       {item.comboItems.map((c, i) => (
-                        <div key={i} className="flex justify-between items-center text-[10px] text-slate-700 font-mono">
+                        <div key={i} className="flex justify-between items-center text-[10px] text-slate-700 dark:text-slate-300 font-mono">
                           <span className="truncate max-w-[80%]">• {c.name}</span>
-                          <span className="text-indigo-600 font-bold">x {c.quantity}</span>
+                          <span className="text-indigo-600 dark:text-indigo-400 font-bold">x {c.quantity}</span>
                         </div>
                       ))}
                     </div>
@@ -642,37 +642,37 @@ export const SupplierProducts = () => {
                 )}
 
                 {/* Stock tracker */}
-                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200">
-                  <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-center">
-                    <p className="text-[10px] text-slate-500 font-mono uppercase">EM ESTOQUE</p>
+                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+                  <div className="bg-slate-50 dark:bg-[#0E1626] p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-center">
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono uppercase">EM ESTOQUE</p>
                     <p className={`text-md font-bold font-mono mt-1 ${
-                      item.currentStock <= item.minStock ? 'text-red-400' : 'text-slate-250'
+                      item.currentStock <= item.minStock ? 'text-red-500 dark:text-red-400' : 'text-slate-800 dark:text-slate-200'
                     }`}>
                       {item.currentStock} un
                     </p>
                   </div>
-                  <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-center">
-                    <p className="text-[10px] text-slate-500 font-mono uppercase">PREÇO VENDA</p>
-                    <p className="text-md font-bold font-mono mt-1 text-teal-600">
+                  <div className="bg-slate-50 dark:bg-[#0E1626] p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-center">
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono uppercase">PREÇO VENDA</p>
+                    <p className="text-md font-bold font-mono mt-1 text-teal-600 dark:text-teal-400">
                       R$ {item.sellPrice.toFixed(2)}
                     </p>
                   </div>
                 </div>
               </div>
 
-              {/* Action Buttons */}
-              <div className="p-3 bg-slate-50/45 border-t border-slate-200 flex items-center justify-end gap-2">
+              {/* Action Buttons - Card Footer */}
+              <div className="p-3 bg-slate-50/70 dark:bg-[#0E1626] border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-2">
                 <button
                   onClick={() => openModal(item)}
-                  className="p-2 hover:bg-slate-100 text-slate-500 hover:text-indigo-600 rounded-lg transition-all"
+                  className="p-2 hover:bg-slate-200/60 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg transition-all cursor-pointer"
                   title="Editar Produto"
                 >
                   <Edit2 size={16} />
                 </button>
                 <button
                   onClick={() => handleDelete(item.id)}
-                  className="p-2 hover:bg-red-500/10 text-slate-500 hover:text-red-400 rounded-lg transition-all"
-                  title="remover Produto"
+                  className="p-2 hover:bg-red-500/10 dark:hover:bg-red-500/20 text-slate-500 dark:text-slate-400 hover:text-red-500 dark:hover:text-red-400 rounded-lg transition-all cursor-pointer"
+                  title="Remover Produto"
                 >
                   <Trash2 size={16} />
                 </button>

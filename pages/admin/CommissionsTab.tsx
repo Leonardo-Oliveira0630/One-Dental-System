@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useApp } from '../../context/AppContext';
 import { User, UserRole, UserCommissionSetting } from '../../types';
 import { Edit, DollarSign, X, Loader2, Save, Settings } from 'lucide-react';
 
 export const CommissionsTab = () => {
+  const { t } = useTranslation();
   const { allUsers, jobTypes, updateUser } = useApp();
   const [configUser, setConfigUser] = useState<User | null>(null);
   const [tempCommissions, setTempCommissions] = useState<UserCommissionSetting[]>([]);
@@ -95,16 +97,16 @@ export const CommissionsTab = () => {
           try {
             await updateUser(configUser.id, { commissionSettings: tempCommissions });
             setConfigUser(null);
-            alert("Comissões salvas!");
-          } catch(e: any) { alert("Erro ao salvar."); } finally { setIsSubmitting(false); }
+            alert(t('admin.commissions.saveSuccess', "Comissões salvas!"));
+          } catch(e: any) { alert(t('admin.commissions.saveError', "Erro ao salvar.")); } finally { setIsSubmitting(false); }
       }
   };
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 sm:p-6">
-          <h3 className="text-lg font-bold text-slate-800 mb-2">Ganhos por Técnico</h3>
-          <p className="text-sm text-slate-500 mb-6">Configure quanto o técnico recebe por cada serviço finalizado e por etapas concluídas.</p>
+          <h3 className="text-lg font-bold text-slate-800 mb-2">{t('admin.commissions.title', 'Ganhos por Técnico')}</h3>
+          <p className="text-sm text-slate-500 mb-6">{t('admin.commissions.subtitle', 'Configure quanto o técnico recebe por cada serviço finalizado e por etapas concluídas.')}</p>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {allUsers.filter(u => u.role !== UserRole.CLIENT).map(user => (
                   <div key={user.id} className="p-4 border border-slate-200 rounded-xl hover:border-blue-500 transition-all bg-slate-50 group">
@@ -116,7 +118,7 @@ export const CommissionsTab = () => {
                           </div>
                       </div>
                       <button onClick={() => { setConfigUser(user); setTempCommissions(user.commissionSettings || []); }} className="w-full py-2.5 bg-slate-900 text-white text-sm font-bold rounded-lg hover:bg-blue-600 flex items-center justify-center gap-2">
-                        <Edit size={14}/> Definir Ganhos
+                        <Edit size={14}/> {t('admin.commissions.defineEarnings', 'Definir Ganhos')}
                       </button>
                   </div>
               ))}
@@ -128,8 +130,8 @@ export const CommissionsTab = () => {
               <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col animate-in zoom-in duration-200">
                   <div className="px-4 pb-4 sm:px-6 sm:pb-6 border-b flex justify-between items-center bg-slate-50 rounded-t-3xl">
                       <div>
-                          <h3 className="text-xl font-black text-slate-800">Tabela: {configUser.name}</h3>
-                          <p className="text-xs text-slate-500 font-bold uppercase">Deixe em branco para usar a comissão base do serviço</p>
+                          <h3 className="text-xl font-black text-slate-800">{t('admin.commissions.table', 'Tabela:')} {configUser.name}</h3>
+                          <p className="text-xs text-slate-500 font-bold uppercase">{t('admin.commissions.leaveBlank', 'Deixe em branco para usar a comissão base do serviço')}</p>
                       </div>
                       <button onClick={() => setConfigUser(null)} className="p-2 hover:bg-slate-200 rounded-full"><X size={24}/></button>
                   </div>
@@ -142,9 +144,9 @@ export const CommissionsTab = () => {
                                       <div className="flex-1">
                                           <p className="font-bold text-slate-800">{type.name}</p>
                                           <div className="flex gap-2">
-                                            <p className="text-xs text-slate-400">Base: R$ {type.basePrice.toFixed(2)}</p>
+                                            <p className="text-xs text-slate-400">{t('admin.commissions.base', 'Base:')} R$ {type.basePrice.toFixed(2)}</p>
                                             {type.baseCommission !== undefined && (
-                                                <p className="text-xs text-indigo-500 font-bold text-right mt-1 w-full flex justify-end gap-1"><span className="text-slate-400 font-normal mt-0.5">Comissão Base:</span> R$ {type.baseCommission.toFixed(2)}</p>
+                                                <p className="text-xs text-indigo-500 font-bold text-right mt-1 w-full flex justify-end gap-1"><span className="text-slate-400 font-normal mt-0.5">{t('admin.commissions.baseCommission', 'Comissão Base:')}</span> R$ {type.baseCommission.toFixed(2)}</p>
                                             )}
                                           </div>
                                       </div>
@@ -158,7 +160,7 @@ export const CommissionsTab = () => {
                                   </div>
                                   {type.variationGroups && type.variationGroups.length > 0 && (
                                       <div className="pl-4 border-l-2 border-slate-200 space-y-2 mt-2">
-                                          <p className="text-xs font-bold text-slate-500 uppercase">Comissão Específica por Variação (Substitui raiz)</p>
+                                          <p className="text-xs font-bold text-slate-500 uppercase">{t('admin.commissions.specificVariation', 'Comissão Específica por Variação (Substitui raiz)')}</p>
                                           {type.variationGroups.map(group => (
                                               <div key={group.id} className="space-y-1">
                                                   <p className="text-xs font-bold text-slate-400">{group.name}</p>
@@ -189,7 +191,7 @@ export const CommissionsTab = () => {
                           <div className="mt-8 pt-6 border-t border-slate-200">
                               <h4 className="text-lg font-black text-slate-800 mb-4 flex items-center gap-2">
                                   <Settings size={18} className="text-slate-400" />
-                                  Comissão por Etapas de Serviço
+                                  {t('admin.commissions.stageCommission', 'Comissão por Etapas de Serviço')}
                               </h4>
                               <div className="space-y-4">
                                   {jobTypes.map(type => {
@@ -244,9 +246,9 @@ export const CommissionsTab = () => {
                       )}
                   </div>
                   <div className="px-4 pb-4 sm:px-6 sm:pb-6 border-t bg-slate-50 rounded-b-3xl flex justify-end gap-3">
-                      <button onClick={() => setConfigUser(null)} className="px-6 py-3 font-bold text-slate-500">Cancelar</button>
+                      <button onClick={() => setConfigUser(null)} className="px-6 py-3 font-bold text-slate-500">{t('common.cancel', 'Cancelar')}</button>
                       <button onClick={saveCommissions} disabled={isSubmitting} className="px-10 py-3 bg-blue-600 text-white font-black rounded-xl shadow-lg flex items-center gap-2">
-                        {isSubmitting ? <Loader2 className="animate-spin" /> : <><Save size={18}/> SALVAR</>}
+                        {isSubmitting ? <Loader2 className="animate-spin" /> : <><Save size={18}/> {t('common.save', 'SALVAR')}</>}
                       </button>
                   </div>
               </div>

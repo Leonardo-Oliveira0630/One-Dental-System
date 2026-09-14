@@ -162,25 +162,25 @@ export const SupplierDashboard = () => {
   };
 
   return (
-    <main id="supplier-dashboard" className="flex-1 p-4 sm:p-6 space-y-6 overflow-y-auto bg-slate-50 text-slate-900 min-h-screen">
+    <main id="supplier-dashboard" className="flex-1 p-4 sm:p-6 space-y-6 overflow-y-auto bg-slate-50 dark:bg-[#06080F] text-slate-900 dark:text-white min-h-screen">
       
       {/* Welcome Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 sm:p-6 bg-white border border-slate-200 rounded-2xl shadow-xs">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 sm:p-6 bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-black tracking-tight text-slate-900">Painel do Fornecedor</h1>
-            <span className="px-2.5 py-0.5 bg-indigo-100 text-indigo-800 font-mono text-xs font-bold rounded-md">
+            <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">Painel do Fornecedor</h1>
+            <span className="px-2.5 py-0.5 bg-indigo-100 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-400 font-mono text-xs font-bold rounded-md">
               Labprox Hub
             </span>
           </div>
-          <p className="text-slate-500 text-xs sm:text-sm mt-1">
+          <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm mt-1">
             Gestão de pedidos em tempo real, expedição com picking list, rastreamento e controle financeiro completo.
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <div className="px-4 py-2 bg-slate-100 border border-slate-200 rounded-xl text-slate-800 font-bold text-xs flex items-center gap-2">
-            <Building2 size={15} className="text-indigo-600" />
+          <div className="px-4 py-2 bg-slate-100 dark:bg-[#0E1626] border border-slate-200 dark:border-slate-800 rounded-xl text-slate-800 dark:text-slate-200 font-bold text-xs flex items-center gap-2">
+            <Building2 size={15} className="text-indigo-600 dark:text-indigo-400" />
             <span>{currentOrg?.name || 'Fornecedor Oficial'}</span>
           </div>
 
@@ -201,14 +201,14 @@ export const SupplierDashboard = () => {
 
       {/* Compliance / Terms Notice (if needed) */}
       {isPoliciesPending && (
-        <div className="p-4 sm:p-5 bg-amber-50 border border-amber-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in fade-in duration-300">
+        <div className="p-4 sm:p-5 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in fade-in duration-300">
           <div className="flex items-start gap-3.5">
-            <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 border border-amber-200">
+            <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 flex items-center justify-center shrink-0 border border-amber-200 dark:border-amber-800">
               <ShieldAlert size={20} />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-amber-950">Homologação da Loja & Aceite dos Termos Pendente</h3>
-              <p className="text-xs text-amber-800 mt-0.5">
+              <h3 className="text-sm font-bold text-amber-950 dark:text-amber-200">Homologação da Loja & Aceite dos Termos Pendente</h3>
+              <p className="text-xs text-amber-800 dark:text-amber-300 mt-0.5">
                 Configure suas políticas de envio, devolução (CDC), conformidade ANVISA e homologue os Termos do Marketplace para ativar o selo de garantia oficial.
               </p>
             </div>
@@ -224,7 +224,7 @@ export const SupplierDashboard = () => {
       )}
 
       {/* Main Mode Navigation: Orders vs Finance */}
-      <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+      <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
         <div className="flex items-center gap-2">
           <button
             onClick={() => {
@@ -233,13 +233,13 @@ export const SupplierDashboard = () => {
             }}
             className={`px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center gap-2 cursor-pointer ${
               mainView === 'ORDERS'
-                ? 'bg-slate-900 text-white shadow-sm'
-                : 'bg-white hover:bg-slate-100 text-slate-600 border border-slate-200'
+                ? 'bg-slate-900 text-white shadow-sm dark:bg-indigo-600'
+                : 'bg-white dark:bg-[#0B0F17] hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800'
             }`}
           >
             <Package size={16} />
             <span>Gestão de Pedidos & Expedição</span>
-            <span className="px-2 py-0.5 bg-slate-800 text-white rounded-full text-[10px] font-mono">
+            <span className="px-2 py-0.5 bg-slate-800 dark:bg-indigo-950 text-white rounded-full text-[10px] font-mono">
               {tabCounts.SEPARATION + tabCounts.READY_TO_SHIP + tabCounts.SHIPPED} ativos
             </span>
           </button>
@@ -251,20 +251,20 @@ export const SupplierDashboard = () => {
             }}
             className={`px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center gap-2 cursor-pointer ${
               mainView === 'FINANCE'
-                ? 'bg-slate-900 text-white shadow-sm'
-                : 'bg-white hover:bg-slate-100 text-slate-600 border border-slate-200'
+                ? 'bg-slate-900 text-white shadow-sm dark:bg-indigo-600'
+                : 'bg-white dark:bg-[#0B0F17] hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800'
             }`}
           >
             <DollarSign size={16} className="text-emerald-500" />
             <span>Financeiro & Faturamento</span>
-            <span className="hidden sm:inline-block text-[11px] font-mono text-emerald-600 font-black">
+            <span className="hidden sm:inline-block text-[11px] font-mono text-emerald-600 dark:text-emerald-400 font-black">
               R$ {totalFaturado.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
             </span>
           </button>
         </div>
 
         {mainView === 'ORDERS' && (
-          <div className="hidden md:flex items-center gap-2 text-xs text-slate-500 font-medium">
+          <div className="hidden md:flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 font-medium">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             <span>Sincronização em tempo real</span>
           </div>
@@ -284,7 +284,7 @@ export const SupplierDashboard = () => {
       {mainView === 'ORDERS' && (
         <div className="space-y-5">
           {/* Sub-Tabs: Orders Lifecycle */}
-          <div className="p-3 bg-white border border-slate-200 rounded-2xl shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="p-3 bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
             
             {/* Tab navigation pills */}
             <div className="flex flex-wrap gap-1.5">
@@ -294,13 +294,13 @@ export const SupplierDashboard = () => {
                 className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
                   orderTab === 'SEPARATION'
                     ? 'bg-yellow-500 text-slate-950 shadow-xs ring-2 ring-yellow-400/30'
-                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                    : 'bg-slate-100 dark:bg-[#0E1626] hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
                 }`}
               >
                 <Clock size={14} />
                 <span>A Separar</span>
                 <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-                  orderTab === 'SEPARATION' ? 'bg-slate-950 text-white' : 'bg-yellow-200 text-yellow-900'
+                  orderTab === 'SEPARATION' ? 'bg-slate-950 text-white' : 'bg-yellow-200 dark:bg-yellow-900/60 text-yellow-900 dark:text-yellow-300'
                 }`}>
                   {tabCounts.SEPARATION}
                 </span>
@@ -312,13 +312,13 @@ export const SupplierDashboard = () => {
                 className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
                   orderTab === 'READY_TO_SHIP'
                     ? 'bg-purple-600 text-white shadow-xs ring-2 ring-purple-400/30'
-                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                    : 'bg-slate-100 dark:bg-[#0E1626] hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
                 }`}
               >
                 <Package size={14} />
                 <span>A Despachar</span>
                 <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-                  orderTab === 'READY_TO_SHIP' ? 'bg-white text-purple-900' : 'bg-purple-100 text-purple-800'
+                  orderTab === 'READY_TO_SHIP' ? 'bg-white text-purple-900' : 'bg-purple-100 dark:bg-purple-950 text-purple-800 dark:text-purple-300'
                 }`}>
                   {tabCounts.READY_TO_SHIP}
                 </span>
@@ -330,13 +330,13 @@ export const SupplierDashboard = () => {
                 className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
                   orderTab === 'SHIPPED'
                     ? 'bg-blue-600 text-white shadow-xs ring-2 ring-blue-400/30'
-                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                    : 'bg-slate-100 dark:bg-[#0E1626] hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
                 }`}
               >
                 <Truck size={14} />
                 <span>Enviados</span>
                 <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-                  orderTab === 'SHIPPED' ? 'bg-white text-blue-900' : 'bg-blue-100 text-blue-800'
+                  orderTab === 'SHIPPED' ? 'bg-white text-blue-900' : 'bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-300'
                 }`}>
                   {tabCounts.SHIPPED}
                 </span>
@@ -348,13 +348,13 @@ export const SupplierDashboard = () => {
                 className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
                   orderTab === 'DELIVERED'
                     ? 'bg-emerald-600 text-white shadow-xs ring-2 ring-emerald-400/30'
-                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                    : 'bg-slate-100 dark:bg-[#0E1626] hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
                 }`}
               >
                 <CheckCircle2 size={14} />
                 <span>Entregues</span>
                 <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-                  orderTab === 'DELIVERED' ? 'bg-white text-emerald-900' : 'bg-emerald-100 text-emerald-800'
+                  orderTab === 'DELIVERED' ? 'bg-white text-emerald-900' : 'bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300'
                 }`}>
                   {tabCounts.DELIVERED}
                 </span>
@@ -366,14 +366,14 @@ export const SupplierDashboard = () => {
                 className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
                   orderTab === 'RETURNED'
                     ? 'bg-amber-600 text-white shadow-xs ring-2 ring-amber-400/30'
-                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                    : 'bg-slate-100 dark:bg-[#0E1626] hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
                 }`}
               >
                 <AlertTriangle size={14} />
                 <span>Devolvidos</span>
                 {tabCounts.RETURNED > 0 && (
                   <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-                    orderTab === 'RETURNED' ? 'bg-white text-amber-900' : 'bg-amber-200 text-amber-900'
+                    orderTab === 'RETURNED' ? 'bg-white text-amber-900' : 'bg-amber-200 dark:bg-amber-900/60 text-amber-900 dark:text-amber-300'
                   }`}>
                     {tabCounts.RETURNED}
                   </span>
@@ -385,8 +385,8 @@ export const SupplierDashboard = () => {
                 onClick={() => setOrderTab('ALL')}
                 className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
                   orderTab === 'ALL'
-                    ? 'bg-slate-900 text-white shadow-xs'
-                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                    ? 'bg-slate-900 dark:bg-indigo-600 text-white shadow-xs'
+                    : 'bg-slate-100 dark:bg-[#0E1626] hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
                 }`}
               >
                 <span>Todos ({tabCounts.ALL})</span>
@@ -401,16 +401,16 @@ export const SupplierDashboard = () => {
                 placeholder="Buscar pedido, cliente, item..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-9 pr-3 py-1.5 text-xs text-slate-900 outline-none focus:border-indigo-600"
+                className="w-full bg-slate-50 dark:bg-[#0E1626] border border-slate-300 dark:border-slate-700 rounded-xl pl-9 pr-3 py-1.5 text-xs text-slate-900 dark:text-white outline-none focus:border-indigo-600 dark:focus:border-indigo-500 placeholder-slate-400 dark:placeholder-slate-500"
               />
             </div>
           </div>
 
           {/* Orders Table Container */}
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
-            <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/50">
+          <div className="bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs overflow-hidden">
+            <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/80 dark:bg-[#0E1626]">
               <div className="flex items-center gap-2">
-                <h3 className="font-black text-sm text-slate-900">
+                <h3 className="font-black text-sm text-slate-900 dark:text-white">
                   {orderTab === 'SEPARATION' ? '📦 Pedidos Pagos a Separar (Picking List)' :
                    orderTab === 'READY_TO_SHIP' ? '🏷️ Pedidos Separados e Prontos para Despacho' :
                    orderTab === 'SHIPPED' ? '🚚 Pedidos em Trânsito com Rastreio' :
@@ -418,13 +418,13 @@ export const SupplierDashboard = () => {
                    orderTab === 'RETURNED' ? '⚠️ Pedidos com Devolução / Logística Reversa' :
                    '📋 Todos os Pedidos Recebidos'}
                 </h3>
-                <span className="text-xs text-slate-500 font-mono">
+                <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">
                   ({filteredOrders.length} pedido{filteredOrders.length !== 1 ? 's' : ''})
                 </span>
               </div>
 
               {orderTab === 'SEPARATION' && (
-                <div className="text-[11px] text-emerald-700 font-bold bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 flex items-center gap-1.5">
+                <div className="text-[11px] text-emerald-700 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-lg border border-emerald-200 dark:border-emerald-800 flex items-center gap-1.5">
                   <ShieldCheck size={13} />
                   <span>Pagamentos confirmados automaticamente via PIX/Cartão</span>
                 </div>
@@ -432,8 +432,8 @@ export const SupplierDashboard = () => {
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs divide-y divide-slate-200">
-                <thead className="bg-slate-50 text-slate-500 font-mono uppercase text-[10px]">
+              <table className="w-full text-left text-xs divide-y divide-slate-200 dark:divide-slate-800">
+                <thead className="bg-slate-50 dark:bg-[#0E1626] text-slate-500 dark:text-slate-400 font-mono uppercase text-[10px]">
                   <tr>
                     <th className="p-3.5">Pedido / Data</th>
                     <th className="p-3.5">Comprador (Cliente)</th>
@@ -445,15 +445,15 @@ export const SupplierDashboard = () => {
                     <th className="p-3.5 text-center">Ações Rápidas</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 bg-white">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 bg-white dark:bg-[#0B0F17]">
                   {filteredOrders.length === 0 ? (
                     <tr>
                       <td colSpan={8} className="p-12 text-center">
-                        <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-2">
+                        <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-[#0E1626] text-slate-400 flex items-center justify-center mx-auto mb-2">
                           <Package size={24} />
                         </div>
-                        <p className="font-bold text-slate-800 text-sm">Nenhum pedido nesta aba</p>
-                        <p className="text-slate-500 text-xs mt-0.5">
+                        <p className="font-bold text-slate-800 dark:text-slate-200 text-sm">Nenhum pedido nesta aba</p>
+                        <p className="text-slate-500 dark:text-slate-400 text-xs mt-0.5">
                           {orderTab === 'SEPARATION' ? 'Novos pedidos pagos pelos clientes aparecerão aqui automaticamente.' : 'Nenhum pedido encontrado para o filtro selecionado.'}
                         </p>
                       </td>
@@ -466,13 +466,13 @@ export const SupplierDashboard = () => {
                       const isRefunded = o.paymentStatus === 'REFUNDED' || o.status === 'RETURNED';
 
                       return (
-                        <tr key={o.id} className="hover:bg-slate-50/80 transition-colors">
+                        <tr key={o.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
                           {/* Order ID & Date */}
                           <td className="p-3.5 whitespace-nowrap">
-                            <span className="font-mono font-black text-slate-900 block text-xs">
+                            <span className="font-mono font-black text-slate-900 dark:text-white block text-xs">
                               #{orderShortId}
                             </span>
-                            <span className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
+                            <span className="text-[10px] text-slate-400 dark:text-slate-500 flex items-center gap-1 mt-0.5">
                               <Calendar size={11} />
                               {dateStr}
                             </span>
@@ -480,14 +480,14 @@ export const SupplierDashboard = () => {
 
                           {/* Buyer Information */}
                           <td className="p-3.5">
-                            <p className="font-bold text-slate-900 truncate max-w-[180px]">
+                            <p className="font-bold text-slate-900 dark:text-white truncate max-w-[180px]">
                               {o.buyerOrgName || o.buyerName}
                             </p>
-                            <p className="text-[11px] text-slate-500 truncate max-w-[180px]">
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-[180px]">
                               {o.buyerName} {o.buyerPhone ? `• ${o.buyerPhone}` : ''}
                             </p>
                             {o.buyerCpfCnpj && (
-                              <span className="text-[10px] text-slate-400 font-mono block">
+                              <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono block">
                                 {o.buyerCpfCnpj}
                               </span>
                             )}
@@ -497,8 +497,8 @@ export const SupplierDashboard = () => {
                           <td className="p-3.5">
                             <div className="space-y-1 max-w-[220px]">
                               {o.items?.map((it, idx) => (
-                                <p key={idx} className="text-slate-800 text-[11px] truncate">
-                                  <strong className="text-indigo-600 font-mono">{it.quantity}x</strong> {it.name}
+                                <p key={idx} className="text-slate-800 dark:text-slate-200 text-[11px] truncate">
+                                  <strong className="text-indigo-600 dark:text-indigo-400 font-mono">{it.quantity}x</strong> {it.name}
                                   {it.variationName ? ` (${it.variationName})` : ''}
                                 </p>
                               ))}
@@ -506,36 +506,36 @@ export const SupplierDashboard = () => {
                           </td>
 
                           {/* Shipping Destination */}
-                          <td className="p-3.5 text-[11px] text-slate-700">
+                          <td className="p-3.5 text-[11px] text-slate-700 dark:text-slate-300">
                             {o.buyerAddress ? (
                               <div>
-                                <p className="font-medium text-slate-900">
+                                <p className="font-medium text-slate-900 dark:text-white">
                                   {o.buyerAddress.city || '-'} / {o.buyerAddress.state || '-'}
                                 </p>
-                                <p className="text-[10px] text-slate-500 font-mono">
+                                <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
                                   CEP: {o.buyerAddress.zipCode || '-'} • {o.shippingMethod || 'Frete'}
                                 </p>
                               </div>
                             ) : (
-                              <span className="text-slate-400 italic">A combinar</span>
+                              <span className="text-slate-400 dark:text-slate-500 italic">A combinar</span>
                             )}
                           </td>
 
                           {/* Total Value */}
-                          <td className="p-3.5 text-right font-mono font-bold text-slate-900 whitespace-nowrap">
+                          <td className="p-3.5 text-right font-mono font-bold text-slate-900 dark:text-white whitespace-nowrap">
                             R$ {o.totalValue.toFixed(2)}
                           </td>
 
                           {/* Payment Status Badge */}
                           <td className="p-3.5 text-center whitespace-nowrap">
                             <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                              isRefunded ? 'bg-amber-100 text-amber-800 border border-amber-200' :
-                              isPaid ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' :
-                              'bg-yellow-100 text-yellow-800 border border-yellow-200'
+                              isRefunded ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800' :
+                              isPaid ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800' :
+                              'bg-yellow-100 dark:bg-yellow-950/60 text-yellow-800 dark:text-yellow-300 border border-yellow-200 dark:border-yellow-800'
                             }`}>
                               {isRefunded ? 'Reembolsado' : isPaid ? 'Pago' : 'Pendente'}
                             </span>
-                            <span className="text-[10px] text-slate-400 block mt-0.5">
+                            <span className="text-[10px] text-slate-400 dark:text-slate-500 block mt-0.5">
                               {o.paymentMethod === 'PIX' ? 'PIX' : o.paymentMethod === 'CREDIT_CARD' ? 'Cartão' : 'Boleto'}
                             </span>
                           </td>
@@ -543,11 +543,11 @@ export const SupplierDashboard = () => {
                           {/* Shipping Status */}
                           <td className="p-3.5 text-center whitespace-nowrap">
                             <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold inline-flex items-center gap-1 ${
-                              o.status === 'DELIVERED' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
-                              o.status === 'SHIPPED' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
-                              o.status === 'READY_TO_SHIP' ? 'bg-purple-50 text-purple-700 border border-purple-200' :
-                              o.status === 'RETURNED' || !!o.returnRequest ? 'bg-amber-50 text-amber-700 border border-amber-200' :
-                              'bg-yellow-50 text-yellow-700 border border-yellow-200'
+                              o.status === 'DELIVERED' ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800' :
+                              o.status === 'SHIPPED' ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800' :
+                              o.status === 'READY_TO_SHIP' ? 'bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800' :
+                              o.status === 'RETURNED' || !!o.returnRequest ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800' :
+                              'bg-yellow-50 dark:bg-yellow-950/40 text-yellow-700 dark:text-yellow-300 border border-yellow-200 dark:border-yellow-800'
                             }`}>
                               {o.status === 'DELIVERED' ? 'Entregue' :
                                o.status === 'SHIPPED' ? 'Em Trânsito' :
@@ -556,7 +556,7 @@ export const SupplierDashboard = () => {
                                'A Separar'}
                             </span>
                             {o.trackingCode && (
-                              <span className="text-[10px] font-mono text-indigo-700 font-bold block mt-0.5 truncate max-w-[100px] mx-auto">
+                              <span className="text-[10px] font-mono text-indigo-700 dark:text-indigo-400 font-bold block mt-0.5 truncate max-w-[100px] mx-auto">
                                 {o.trackingCode}
                               </span>
                             )}
@@ -568,7 +568,7 @@ export const SupplierDashboard = () => {
                               {/* Open Details */}
                               <button
                                 onClick={() => setSelectedOrder(o)}
-                                className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer"
+                                className="px-2.5 py-1 bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-500 text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer"
                               >
                                 Detalhes
                               </button>
@@ -576,7 +576,7 @@ export const SupplierDashboard = () => {
                               {/* Print Packing Slip */}
                               <button
                                 onClick={() => setOrderToPrint(o)}
-                                className="p-1 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all border border-slate-200 cursor-pointer"
+                                className="p-1 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all border border-slate-200 dark:border-slate-700 cursor-pointer"
                                 title="Imprimir Ficha de Separação (Picking Slip)"
                               >
                                 <Printer size={14} />
@@ -585,7 +585,7 @@ export const SupplierDashboard = () => {
                               {/* Open Chat */}
                               <button
                                 onClick={() => navigate(`/supplier/chat?orderId=${o.id}&buyerOrgId=${o.buyerOrgId}&buyerOrgName=${encodeURIComponent(o.buyerOrgName || '')}&buyerUserId=${o.buyerUserId || ''}&buyerUserName=${encodeURIComponent(o.buyerName || '')}`)}
-                                className="p-1 text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 rounded-lg transition-all border border-indigo-200 cursor-pointer"
+                                className="p-1 text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-200 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 rounded-lg transition-all border border-indigo-200 dark:border-indigo-800 cursor-pointer"
                                 title="Conversar com o Cliente no Chat"
                               >
                                 <MessageSquare size={14} />

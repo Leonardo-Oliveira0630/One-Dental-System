@@ -158,12 +158,12 @@ export const Schedule = () => {
     <div className="space-y-6 h-[calc(100vh-100px)] flex flex-col animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-            <CalendarIcon className="text-indigo-600" /> Agenda da Clínica
+          <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+            <CalendarIcon className="text-indigo-600 dark:text-indigo-400" /> Agenda da Clínica
           </h1>
-          <p className="text-slate-500 font-medium">Gestão de atendimentos, salas e equipe clínica.</p>
+          <p className="text-slate-500 dark:text-slate-400 font-medium">Gestão de atendimentos, salas e equipe clínica.</p>
         </div>
-        <button onClick={() => handleOpenModal()} className="w-full md:w-auto px-6 py-3 bg-indigo-600 text-white rounded-2xl font-black flex items-center justify-center gap-2 hover:bg-indigo-700 shadow-xl shadow-indigo-100 transition-all active:scale-95">
+        <button onClick={() => handleOpenModal()} className="w-full md:w-auto px-6 py-3 bg-indigo-600 text-white rounded-2xl font-black flex items-center justify-center gap-2 hover:bg-indigo-700 shadow-xl shadow-indigo-100 dark:shadow-none transition-all active:scale-95">
           <Plus size={20} /> NOVO AGENDAMENTO
         </button>
       </div>
@@ -171,13 +171,13 @@ export const Schedule = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:p-6 flex-1 min-h-0">
         {/* CALENDÁRIO LATERAL */}
         <div className="lg:col-span-3 space-y-6">
-            <div className="bg-white p-4 sm:p-6 rounded-[32px] shadow-sm border border-slate-100">
+            <div className="bg-white dark:bg-[#131B2A] p-4 sm:p-6 rounded-[32px] shadow-sm border border-slate-100 dark:border-slate-800">
               <div className="flex justify-between items-center mb-6">
-                <button onClick={() => setSelectedDate(new Date(selectedDate.setMonth(selectedDate.getMonth() - 1)))} className="p-2 hover:bg-slate-100 rounded-xl transition-colors"><ChevronLeft size={20}/></button>
-                <h2 className="font-black text-sm text-slate-800 uppercase tracking-widest text-center">
+                <button onClick={() => setSelectedDate(new Date(selectedDate.setMonth(selectedDate.getMonth() - 1)))} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors text-slate-600 dark:text-slate-300"><ChevronLeft size={20}/></button>
+                <h2 className="font-black text-sm text-slate-800 dark:text-white uppercase tracking-widest text-center">
                   {selectedDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
                 </h2>
-                <button onClick={() => setSelectedDate(new Date(selectedDate.setMonth(selectedDate.getMonth() + 1)))} className="p-2 hover:bg-slate-100 rounded-xl transition-colors"><ChevronRight size={20}/></button>
+                <button onClick={() => setSelectedDate(new Date(selectedDate.setMonth(selectedDate.getMonth() + 1)))} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors text-slate-600 dark:text-slate-300"><ChevronRight size={20}/></button>
               </div>
               <div className="grid grid-cols-7 gap-1 text-center text-[10px] mb-3 font-black text-slate-400 uppercase tracking-tighter">
                 {['D','S','T','Q','Q','S','S'].map(d => <div key={d}>{d}</div>)}
@@ -192,7 +192,7 @@ export const Schedule = () => {
                     return d.getDate() === day && d.getMonth() === selectedDate.getMonth();
                   });
                   return (
-                    <button key={day} onClick={() => handleDayClick(day)} className={`h-9 w-9 rounded-xl flex flex-col items-center justify-center relative transition-all text-xs font-bold ${isSelected ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'hover:bg-slate-50 text-slate-600'}`}>
+                    <button key={day} onClick={() => handleDayClick(day)} className={`h-9 w-9 rounded-xl flex flex-col items-center justify-center relative transition-all text-xs font-bold ${isSelected ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100 dark:shadow-none' : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300'}`}>
                       {day}
                       {hasAppt && !isSelected && <div className="w-1 h-1 bg-indigo-400 rounded-full absolute bottom-1.5"></div>}
                     </button>
@@ -202,7 +202,7 @@ export const Schedule = () => {
             </div>
 
             {/* MINI STATS DA AGENDA */}
-            <div className="bg-indigo-900 rounded-[32px] p-4 sm:p-6 text-white shadow-xl relative overflow-hidden hidden lg:block">
+            <div className="bg-indigo-900 dark:bg-indigo-950/80 rounded-[32px] p-4 sm:p-6 text-white shadow-xl border border-indigo-800/40 relative overflow-hidden hidden lg:block">
                 <div className="absolute top-0 right-0 p-4 opacity-10"><Clock size={80}/></div>
                 <p className="text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-1">Carga Horária</p>
                 <h3 className="text-2xl font-black">{filteredAppointments.length} Atendimentos</h3>
@@ -211,13 +211,13 @@ export const Schedule = () => {
         </div>
 
         {/* LISTA DE AGENDAMENTOS E FILTROS */}
-        <div className="lg:col-span-9 bg-white rounded-[32px] shadow-sm border border-slate-100 flex flex-col overflow-hidden">
+        <div className="lg:col-span-9 bg-white dark:bg-[#131B2A] rounded-[32px] shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col overflow-hidden">
           
           {/* BARRA DE FILTROS REFINADA */}
-          <div className="p-4 md:p-4 sm:p-6 border-b border-slate-50 bg-slate-50/50 flex flex-col md:flex-row items-center gap-4">
+          <div className="p-4 md:p-4 sm:p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-[#0E1626] flex flex-col md:flex-row items-center gap-4">
             <div className="flex items-center gap-2 text-slate-400 mr-2">
                 <Filter size={18} />
-                <span className="text-xs font-black uppercase tracking-widest">Filtros:</span>
+                <span className="text-xs font-black uppercase tracking-widest text-slate-600 dark:text-slate-400">Filtros:</span>
             </div>
             
             <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
@@ -227,7 +227,7 @@ export const Schedule = () => {
                     <select 
                         value={filterRoomId} 
                         onChange={e => setFilterRoomId(e.target.value)}
-                        className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500 appearance-none shadow-sm"
+                        className="w-full pl-9 pr-4 py-2.5 bg-white dark:bg-[#131B2A] border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 appearance-none shadow-sm"
                     >
                         <option value="ALL">Todos os Consultórios</option>
                         {clinicRooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
@@ -240,7 +240,7 @@ export const Schedule = () => {
                     <select 
                         value={filterDentistId} 
                         onChange={e => setFilterDentistId(e.target.value)}
-                        className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500 appearance-none shadow-sm"
+                        className="w-full pl-9 pr-4 py-2.5 bg-white dark:bg-[#131B2A] border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 appearance-none shadow-sm"
                     >
                         <option value="ALL">Todos os Dentistas</option>
                         <option value="">Dr. Titular (Dono)</option>
@@ -252,7 +252,7 @@ export const Schedule = () => {
             {(filterRoomId !== 'ALL' || filterDentistId !== 'ALL') && (
                 <button 
                     onClick={() => { setFilterRoomId('ALL'); setFilterDentistId('ALL'); }}
-                    className="p-2.5 text-red-500 hover:bg-red-50 rounded-xl transition-colors"
+                    className="p-2.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-xl transition-colors"
                     title="Limpar Filtros"
                 >
                     <RotateCcw size={20} />
@@ -265,14 +265,14 @@ export const Schedule = () => {
                 <div className="flex items-center gap-3">
                     <div className="bg-indigo-600 text-white px-3 py-1 rounded-lg text-lg font-black">{selectedDate.getDate()}</div>
                     <div>
-                        <h3 className="font-bold text-slate-800 leading-none">{selectedDate.toLocaleDateString('pt-BR', { weekday: 'long' })}</h3>
+                        <h3 className="font-bold text-slate-800 dark:text-white leading-none capitalize">{selectedDate.toLocaleDateString('pt-BR', { weekday: 'long' })}</h3>
                         <p className="text-[10px] text-slate-400 font-black uppercase mt-1">Fluxo de Caixa e Pacientes</p>
                     </div>
                 </div>
             </div>
 
             {filteredAppointments.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 text-slate-300">
+              <div className="flex flex-col items-center justify-center py-20 text-slate-300 dark:text-slate-600">
                 <Search size={48} className="mb-4 opacity-20" />
                 <p className="font-black uppercase text-xs tracking-widest">Nenhum registro para os filtros atuais</p>
               </div>
@@ -281,49 +281,49 @@ export const Schedule = () => {
                 const room = clinicRooms.find(r => r.id === appt.roomId);
                 const dentist = clinicDentists.find(d => d.id === appt.clinicDentistId);
                 return (
-                    <div key={appt.id} className="flex gap-4 p-5 rounded-[24px] border border-slate-100 hover:shadow-xl hover:border-indigo-100 transition-all bg-white group relative overflow-hidden">
+                    <div key={appt.id} className="flex gap-4 p-5 rounded-[24px] border border-slate-100 dark:border-slate-800 hover:shadow-xl hover:border-indigo-100 dark:hover:border-indigo-800/50 transition-all bg-white dark:bg-[#0E1626] group relative overflow-hidden">
                         <div className="absolute top-0 left-0 w-1.5 h-full" style={{ backgroundColor: dentist?.color || '#6366f1' }} />
-                        <div className="text-center min-w-[75px] flex flex-col justify-center border-r border-slate-50 pr-4">
-                            <span className="block font-black text-xl text-slate-900 leading-none">{new Date(appt.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                            <span className="text-[10px] font-black text-slate-400 uppercase mt-1.5 tracking-tighter bg-slate-50 rounded px-1">{appt.durationMinutes} MIN</span>
+                        <div className="text-center min-w-[75px] flex flex-col justify-center border-r border-slate-50 dark:border-slate-800 pr-4">
+                            <span className="block font-black text-xl text-slate-900 dark:text-white leading-none">{new Date(appt.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                            <span className="text-[10px] font-black text-slate-400 uppercase mt-1.5 tracking-tighter bg-slate-50 dark:bg-slate-800 rounded px-1">{appt.durationMinutes} MIN</span>
                         </div>
                         <div className="flex-1 min-w-0">
                             <div className="flex justify-between items-start mb-2 gap-2">
-                                <h4 className="font-black text-slate-800 text-lg uppercase tracking-tight truncate pr-4">{appt.patientName}</h4>
+                                <h4 className="font-black text-slate-800 dark:text-white text-lg uppercase tracking-tight truncate pr-4">{appt.patientName}</h4>
                                 <select 
                                     value={appt.status} 
                                     onChange={(e) => {
                                         updateAppointment(appt.id, { status: e.target.value as AppointmentStatus });
                                     }}
                                     className={`px-2 py-1 rounded text-[10px] font-black uppercase border tracking-wider outline-none cursor-pointer transition-all ${
-                                        appt.status === AppointmentStatus.COMPLETED ? 'bg-emerald-100 text-emerald-800 border-emerald-200' :
-                                        appt.status === AppointmentStatus.CONFIRMED ? 'bg-teal-100 text-teal-800 border-teal-200' :
-                                        appt.status === AppointmentStatus.CANCELED ? 'bg-red-105 bg-red-100 text-red-700 border-red-200' :
-                                        'bg-slate-100 text-slate-700 border-slate-200'
+                                        appt.status === AppointmentStatus.COMPLETED ? 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800' :
+                                        appt.status === AppointmentStatus.CONFIRMED ? 'bg-teal-100 dark:bg-teal-950/50 text-teal-800 dark:text-teal-300 border-teal-200 dark:border-teal-800' :
+                                        appt.status === AppointmentStatus.CANCELED ? 'bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800' :
+                                        'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
                                     }`}
                                 >
-                                    <option value={AppointmentStatus.SCHEDULED}>Agendado</option>
-                                    <option value={AppointmentStatus.CONFIRMED}>Confirmado</option>
-                                    <option value={AppointmentStatus.COMPLETED}>Concluído (Faturado)</option>
-                                    <option value={AppointmentStatus.CANCELED}>Cancelado</option>
+                                    <option value={AppointmentStatus.SCHEDULED} className="dark:bg-[#131B2A] dark:text-white">Agendado</option>
+                                    <option value={AppointmentStatus.CONFIRMED} className="dark:bg-[#131B2A] dark:text-white">Confirmado</option>
+                                    <option value={AppointmentStatus.COMPLETED} className="dark:bg-[#131B2A] dark:text-white">Concluído (Faturado)</option>
+                                    <option value={AppointmentStatus.CANCELED} className="dark:bg-[#131B2A] dark:text-white">Cancelado</option>
                                 </select>
                             </div>
-                            <p className="text-sm text-indigo-600 font-bold mb-4 flex items-center gap-1.5"><Briefcase size={14}/> {appt.procedure}</p>
+                            <p className="text-sm text-indigo-600 dark:text-indigo-400 font-bold mb-4 flex items-center gap-1.5"><Briefcase size={14}/> {appt.procedure}</p>
                             
                             <div className="flex flex-wrap gap-2">
-                                <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1.5 rounded-xl border border-slate-100">
+                                <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/60 px-2.5 py-1.5 rounded-xl border border-slate-100 dark:border-slate-700/60">
                                     <MapPin size={12} className="text-slate-400" />
-                                    <span className="text-[10px] font-black text-slate-600 uppercase tracking-tighter">{room?.name || 'A DEFINIR SALA'}</span>
+                                    <span className="text-[10px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-tighter">{room?.name || 'A DEFINIR SALA'}</span>
                                 </div>
-                                <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1.5 rounded-xl border border-slate-100">
+                                <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/60 px-2.5 py-1.5 rounded-xl border border-slate-100 dark:border-slate-700/60">
                                     <Stethoscope size={12} className="text-slate-400" />
-                                    <span className="text-[10px] font-black text-slate-600 uppercase tracking-tighter">{dentist?.name || 'DR. TITULAR'}</span>
+                                    <span className="text-[10px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-tighter">{dentist?.name || 'DR. TITULAR'}</span>
                                 </div>
                             </div>
                             
                             <div className="mt-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-y-2 group-hover:translate-y-0">
-                                <button onClick={() => handleOpenModal(appt)} className="px-4 py-1.5 bg-slate-900 text-white text-[10px] font-black rounded-xl hover:bg-indigo-600 transition-colors">EDITAR FICHA</button>
-                                <button onClick={() => deleteAppointment(appt.id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-xl transition-colors"><Trash2 size={18}/></button>
+                                <button onClick={() => handleOpenModal(appt)} className="px-4 py-1.5 bg-slate-900 dark:bg-slate-700 text-white text-[10px] font-black rounded-xl hover:bg-indigo-600 dark:hover:bg-indigo-600 transition-colors">EDITAR FICHA</button>
+                                <button onClick={() => deleteAppointment(appt.id)} className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-xl transition-colors"><Trash2 size={18}/></button>
                             </div>
                         </div>
                     </div>
@@ -336,11 +336,11 @@ export const Schedule = () => {
 
       {/* Modal Agendamento */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-xl p-4 sm:p-8 animate-in zoom-in duration-200 overflow-y-auto max-h-[90vh]">
-            <div className="flex justify-between items-center mb-8 border-b border-slate-100 pb-4">
-              <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight">{selectedAppt ? 'Reagendar / Editar' : 'Marcar Consulta'}</h2>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={24}/></button>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-[#131B2A] rounded-[32px] shadow-2xl w-full max-w-xl p-4 sm:p-8 border border-slate-100 dark:border-slate-800 animate-in zoom-in-95 duration-200 overflow-y-auto max-h-[90vh]">
+            <div className="flex justify-between items-center mb-8 border-b border-slate-100 dark:border-slate-800 pb-4">
+              <h2 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">{selectedAppt ? 'Reagendar / Editar' : 'Marcar Consulta'}</h2>
+              <button onClick={() => setIsModalOpen(false)} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"><X size={20}/></button>
             </div>
             <form onSubmit={handleSave} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -348,9 +348,9 @@ export const Schedule = () => {
                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Paciente da Clínica</label>
                     <div className="relative">
                         <User className="absolute left-3 top-3 text-slate-400" size={18} />
-                        <select required value={patientId} onChange={e => setPatientId(e.target.value)} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none focus:ring-2 focus:ring-indigo-500 appearance-none">
-                            <option value="">Selecione o paciente...</option>
-                            {patients.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                        <select required value={patientId} onChange={e => setPatientId(e.target.value)} className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-[#0E1626] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white rounded-2xl font-bold outline-none focus:ring-2 focus:ring-indigo-500 appearance-none">
+                            <option value="" className="dark:bg-[#131B2A]">Selecione o paciente...</option>
+                            {patients.map(p => <option key={p.id} value={p.id} className="dark:bg-[#131B2A]">{p.name}</option>)}
                         </select>
                     </div>
                 </div>
@@ -363,11 +363,11 @@ export const Schedule = () => {
                             required 
                             value={procedure} 
                             onChange={e => handleServiceChange(e.target.value)}
-                            className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none focus:ring-2 focus:ring-indigo-500 appearance-none"
+                            className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-[#0E1626] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white rounded-2xl font-bold outline-none focus:ring-2 focus:ring-indigo-500 appearance-none"
                         >
-                            <option value="">Escolha o procedimento...</option>
+                            <option value="" className="dark:bg-[#131B2A]">Escolha o procedimento...</option>
                             {activeServices.map(s => (
-                                <option key={s.id} value={s.name}>{s.name} - {s.category}</option>
+                                <option key={s.id} value={s.name} className="dark:bg-[#131B2A]">{s.name} - {s.category}</option>
                             ))}
                         </select>
                     </div>
@@ -376,7 +376,7 @@ export const Schedule = () => {
                 {procedure && (
                     <div className="md:col-span-2">
                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Dentes Relacionados (Opcional)</label>
-                        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex justify-center items-center overflow-hidden w-full max-w-full">
+                        <div className="bg-slate-50 dark:bg-[#0E1626] border border-slate-200 dark:border-slate-700 rounded-2xl p-4 flex justify-center items-center overflow-hidden w-full max-w-full">
                             <Odontogram 
                                 selectedTeeth={selectedTeeth} 
                                 onChange={setSelectedTeeth}
@@ -384,7 +384,7 @@ export const Schedule = () => {
                             />
                         </div>
                         {selectedTeeth.length > 0 && (
-                            <p className="text-xs text-indigo-600 font-bold mt-2 ml-1">Dentes selecionados: {selectedTeeth.sort().join(', ')}</p>
+                            <p className="text-xs text-indigo-600 dark:text-indigo-400 font-bold mt-2 ml-1">Dentes selecionados: {selectedTeeth.sort().join(', ')}</p>
                         )}
                     </div>
                 )}
@@ -393,21 +393,21 @@ export const Schedule = () => {
                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Horário</label>
                     <div className="relative">
                         <Clock className="absolute left-3 top-3 text-slate-400" size={18} />
-                        <input type="time" required value={time} onChange={e => setTime(e.target.value)} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none" />
+                        <input type="time" required value={time} onChange={e => setTime(e.target.value)} className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-[#0E1626] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white rounded-2xl font-bold outline-none" />
                     </div>
                 </div>
                 <div>
                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Duração (Min)</label>
-                    <input type="number" required value={duration} onChange={e => setDuration(parseInt(e.target.value))} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none" step="15" />
+                    <input type="number" required value={duration} onChange={e => setDuration(parseInt(e.target.value))} className="w-full px-4 py-3 bg-slate-50 dark:bg-[#0E1626] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white rounded-2xl font-bold outline-none" step="15" />
                 </div>
                 
                 <div>
                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Alocar em Sala</label>
                     <div className="relative">
                         <LayoutGrid className="absolute left-3 top-3 text-slate-400" size={18} />
-                        <select value={roomId} onChange={e => setRoomId(e.target.value)} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none appearance-none">
-                            <option value="">A definir...</option>
-                            {clinicRooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                        <select value={roomId} onChange={e => setRoomId(e.target.value)} className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-[#0E1626] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white rounded-2xl font-bold outline-none appearance-none">
+                            <option value="" className="dark:bg-[#131B2A]">A definir...</option>
+                            {clinicRooms.map(r => <option key={r.id} value={r.id} className="dark:bg-[#131B2A]">{r.name}</option>)}
                         </select>
                     </div>
                 </div>
@@ -415,21 +415,21 @@ export const Schedule = () => {
                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Dentista Responsável</label>
                     <div className="relative">
                         <Stethoscope className="absolute left-3 top-3 text-slate-400" size={18} />
-                        <select value={clinicDentistId} onChange={e => setClinicDentistId(e.target.value)} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none appearance-none">
-                            <option value="">Dr. Titular (Eu)</option>
-                            {clinicDentists.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                        <select value={clinicDentistId} onChange={e => setClinicDentistId(e.target.value)} className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-[#0E1626] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white rounded-2xl font-bold outline-none appearance-none">
+                            <option value="" className="dark:bg-[#131B2A]">Dr. Titular (Eu)</option>
+                            {clinicDentists.map(d => <option key={d.id} value={d.id} className="dark:bg-[#131B2A]">{d.name}</option>)}
                         </select>
                     </div>
                 </div>
 
-                <div className="md:col-span-2 bg-slate-50 p-4 rounded-2xl border border-slate-200/60">
+                <div className="md:col-span-2 bg-slate-50 dark:bg-[#0E1626] p-4 rounded-2xl border border-slate-200/60 dark:border-slate-800">
                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Status do Atendimento</label>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                         {[
-                            { value: AppointmentStatus.SCHEDULED, label: 'Agendado', color: 'bg-indigo-50 border-indigo-200 text-indigo-700' },
-                            { value: AppointmentStatus.CONFIRMED, label: 'Confirmado', color: 'bg-teal-50 border-teal-200 text-teal-700' },
-                            { value: AppointmentStatus.COMPLETED, label: 'Concluído (Fatura)', color: 'bg-emerald-50 border-emerald-200 text-emerald-700' },
-                            { value: AppointmentStatus.CANCELED, label: 'Cancelado', color: 'bg-red-50 border-red-200 text-red-700' },
+                            { value: AppointmentStatus.SCHEDULED, label: 'Agendado', color: 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300' },
+                            { value: AppointmentStatus.CONFIRMED, label: 'Confirmado', color: 'bg-teal-50 dark:bg-teal-950/40 border-teal-200 dark:border-teal-800 text-teal-700 dark:text-teal-300' },
+                            { value: AppointmentStatus.COMPLETED, label: 'Concluído (Fatura)', color: 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300' },
+                            { value: AppointmentStatus.CANCELED, label: 'Cancelado', color: 'bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300' },
                         ].map(opt => (
                             <button
                                 key={opt.value}
@@ -438,7 +438,7 @@ export const Schedule = () => {
                                 className={`py-2.5 px-3 text-xs font-bold rounded-xl border text-center transition-all ${
                                     status === opt.value 
                                         ? `${opt.color} ring-2 ring-indigo-500 scale-95 shadow-inner` 
-                                        : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-600'
+                                        : 'bg-white dark:bg-[#131B2A] border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300'
                                 }`}
                             >
                                 {opt.label}
@@ -446,12 +446,12 @@ export const Schedule = () => {
                         ))}
                     </div>
                     {status === AppointmentStatus.COMPLETED && (
-                        <p className="text-[11px] text-emerald-600 font-bold mt-2 flex items-center gap-1">
+                        <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold mt-2 flex items-center gap-1">
                             <CheckCircle size={14} /> Faturar: O valor do procedimento será faturado para o paciente e integrado ao fluxo de caixa da clínica.
                         </p>
                     )}
                     {status === AppointmentStatus.CANCELED && (
-                        <p className="text-[11px] text-red-500 font-bold mt-2 flex items-center gap-1">
+                        <p className="text-[11px] text-red-500 dark:text-red-400 font-bold mt-2 flex items-center gap-1">
                             <AlertCircle size={14} /> Cancelado: Esta consulta não gera faturamento ou lançamentos.
                         </p>
                     )}
@@ -459,10 +459,10 @@ export const Schedule = () => {
                 
                 <div className="md:col-span-2">
                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Notas Internas</label>
-                    <textarea value={notes} onChange={e => setNotes(e.target.value)} className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-medium h-24 resize-none outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Histórico resumido ou observações importantes..." />
+                    <textarea value={notes} onChange={e => setNotes(e.target.value)} className="w-full px-5 py-4 bg-slate-50 dark:bg-[#0E1626] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white rounded-2xl text-sm font-medium h-24 resize-none outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Histórico resumido ou observações importantes..." />
                 </div>
               </div>
-              <button type="submit" className="w-full py-5 bg-indigo-600 text-white font-black rounded-[24px] shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95">
+              <button type="submit" className="w-full py-5 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-[24px] shadow-xl shadow-indigo-100 dark:shadow-none transition-all active:scale-95">
                   {selectedAppt ? 'SALVAR ALTERAÇÕES' : 'CONFIRMAR AGENDAMENTO'}
               </button>
             </form>

@@ -619,7 +619,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
           <MobileNavItem to="/profile" icon={<UserCircle size={22}/>} label={t('navigation.profile', 'Perfil')} active={location.pathname === '/profile'} />
       </nav>
 
-      <main style={{ marginTop: '-38px' }} className={`flex-1 bg-white dark:bg-[#0B0F17] text-slate-800 dark:text-slate-100 transition-all duration-300 print:hidden flex flex-col min-h-screen overflow-x-hidden relative ${isSidebarHovered ? 'md:ml-64' : 'md:ml-20'}`}>
+      <main style={isStoreRoute ? { marginTop: '0px' } : { marginTop: '-38px' }} className={`flex-1 bg-white dark:bg-[#0B0F17] text-slate-800 dark:text-slate-100 transition-all duration-300 print:hidden flex flex-col min-h-screen overflow-x-hidden relative ${isSidebarHovered ? 'md:ml-64' : 'md:ml-20'}`}>
         <header 
           id="app-top-header"
           style={{ paddingTop: '0px', paddingBottom: '0px', marginBottom: '0px', marginTop: '37px' }}
@@ -659,7 +659,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
           </div>
         </header>
 
-        <div className={`${isStoreRoute ? "mt-[104px] md:mt-[104px] px-0 pb-24 md:pb-0 max-w-full" : "mt-[104px] md:mt-[40px] px-4 pb-24 md:px-8 md:pb-8 max-w-[1400px]"} w-full mx-auto print:mt-0 print:p-0 flex-1 flex flex-col overflow-x-hidden overflow-y-auto relative`}>
+        <div className={`${isStoreRoute ? "mt-[112px] md:mt-16 px-0 pb-20 md:pb-0 max-w-full" : "mt-[104px] md:mt-[40px] px-4 pb-24 md:px-8 md:pb-8 max-w-[1400px]"} w-full mx-auto print:mt-0 print:p-0 flex-1 flex flex-col overflow-x-hidden overflow-y-auto relative`}>
           {isClinicPendingApproval() ? (
             <div className="flex-1 flex items-center justify-center py-12 px-4">
               <div className="bg-white rounded-3xl p-4 sm:p-8 max-w-xl w-full shadow-xl border border-teal-50 text-center animate-in zoom-in duration-300">

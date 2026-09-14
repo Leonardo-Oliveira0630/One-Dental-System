@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useApp } from '../../context/AppContext';
 import { JobStatus, UserRole, Expense, Job, TransactionCategory, BillingBatch, DentistPayment } from '../../types';
 import * as api from '../../services/firebaseService';
@@ -8,21 +9,22 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { SendDebtsEmailModal } from '../../components/SendDebtsEmailModal';
 
-const translatePaymentMethod = (method: string) => {
+const translatePaymentMethod = (method: string, t?: (key: string, def?: string) => string) => {
     switch (method) {
-        case 'PIX': return 'PIX';
-        case 'CASH': return 'Dinheiro';
-        case 'CREDIT_CARD': return 'Cartão Crédito';
-        case 'DEBIT_CARD': return 'Cartão Débito';
-        case 'BANK_TRANSFER': return 'Transf. Bancária';
-        case 'BOLETO': return 'Boleto';
-        case 'DISCOUNT': return 'Desconto/Cortesia';
-        case 'CLIENT_CREDIT': return 'Saldo Crédito';
+        case 'PIX': return t ? t('finance.paymentMethods.PIX', 'PIX') : 'PIX';
+        case 'CASH': return t ? t('finance.paymentMethods.CASH', 'Dinheiro') : 'Dinheiro';
+        case 'CREDIT_CARD': return t ? t('finance.paymentMethods.CREDIT_CARD', 'Cartão Crédito') : 'Cartão Crédito';
+        case 'DEBIT_CARD': return t ? t('finance.paymentMethods.DEBIT_CARD', 'Cartão Débito') : 'Cartão Débito';
+        case 'BANK_TRANSFER': return t ? t('finance.paymentMethods.BANK_TRANSFER', 'Transf. Bancária') : 'Transf. Bancária';
+        case 'BOLETO': return t ? t('finance.paymentMethods.BOLETO', 'Boleto') : 'Boleto';
+        case 'DISCOUNT': return t ? t('finance.paymentMethods.DISCOUNT', 'Desconto/Cortesia') : 'Desconto/Cortesia';
+        case 'CLIENT_CREDIT': return t ? t('finance.paymentMethods.CLIENT_CREDIT', 'Saldo Crédito') : 'Saldo Crédito';
         default: return method;
     }
 };
 
 export const Finance = () => {
+  const { t } = useTranslation();
   const { 
     jobs, allUsers, manualDentists, currentOrg, dentistPayments, billingBatches, 
     addDentistPayment, updateDentistPayment, uploadFile, updateBillingBatchStatus, generateBatchBoleto,
@@ -1503,8 +1505,8 @@ export const Finance = () => {
     <div className="space-y-6 pb-20 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 flex items-center gap-2"><Wallet className="text-blue-600" /> Financeiro do Laboratório</h1>
-          <p className="text-slate-500 font-medium">Gestão de faturamento acumulado e fluxo de caixa.</p>
+          <h1 className="text-2xl font-black text-slate-900 flex items-center gap-2"><Wallet className="text-blue-600" /> {t('finance.title', 'Financeiro do Laboratório')}</h1>
+          <p className="text-slate-500 font-medium">{t('finance.subtitle', 'Gestão de faturamento acumulado e fluxo de caixa.')}</p>
         </div>
       </div>
 
@@ -1516,10 +1518,10 @@ export const Finance = () => {
                   <div className="flex items-center justify-center md:justify-start gap-2 text-blue-400 font-black text-[10px] uppercase tracking-widest mb-2">
                       <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div> Conta Digital Ativa (Split ProTrack)
                   </div>
-                  <h2 className="text-sm font-bold text-slate-400 uppercase">Saldo Disponível para Saque</h2>
+                  <h2 className="text-sm font-bold text-slate-400 uppercase">{t('finance.summary.netBalance', 'Saldo Disponível para Saque')}</h2>
                   <p className="text-4xl font-black text-white mt-1">R$ {(currentOrg.financialSettings.balance || 0).toFixed(2)}</p>
                   <p className="text-xs text-slate-400 mt-2 font-medium flex items-center justify-center md:justify-start gap-2">
-                      <Clock size={12} /> Lançamentos a liberar: <strong>R$ {(currentOrg.financialSettings.pendingBalance || 0).toFixed(2)}</strong>
+                      <Clock size={12} /> {t('finance.summary.overdue', 'Lançamentos a liberar')}: <strong>R$ {(currentOrg.financialSettings.pendingBalance || 0).toFixed(2)}</strong>
                   </p>
               </div>
               <div className="flex flex-col gap-2 w-full md:w-auto relative z-10">
@@ -1540,12 +1542,12 @@ export const Finance = () => {
        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
            <div className="w-full overflow-x-auto pb-1 no-scrollbar">
                <div className="flex bg-slate-200 p-1 rounded-2xl w-max gap-1">
-                  <button onClick={() => setActiveTab('DASHBOARD')} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'DASHBOARD' ? 'bg-white text-blue-600 shadow' : 'text-slate-500 hover:text-slate-700'}`}>Métricas</button>
-                  <button onClick={() => setActiveTab('RECEIVABLES')} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'RECEIVABLES' ? 'bg-white text-blue-600 shadow' : 'text-slate-500 hover:text-slate-700'}`}>Extrato p/ Faturamento</button>
-                  <button onClick={() => setActiveTab('BATCHES')} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'BATCHES' ? 'bg-white text-blue-600 shadow' : 'text-slate-500 hover:text-slate-700'}`}>Faturas & Boletos</button>
-                  <button onClick={() => setActiveTab('EXPENSES')} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'EXPENSES' ? 'bg-white text-blue-600 shadow' : 'text-slate-500 hover:text-slate-700'}`}>Despesas</button>
-                  <button onClick={() => setActiveTab('REPORTS')} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'REPORTS' ? 'bg-white text-blue-600 shadow' : 'text-slate-500 hover:text-slate-700'}`}>Relatórios</button>
-                  <button onClick={() => setActiveTab('SETTINGS')} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'SETTINGS' ? 'bg-white text-blue-600 shadow' : 'text-slate-500 hover:text-slate-700'}`}>Configurações</button>
+                  <button onClick={() => setActiveTab('DASHBOARD')} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'DASHBOARD' ? 'bg-white text-blue-600 shadow' : 'text-slate-500 hover:text-slate-700'}`}>{t('finance.tabs.dashboard', 'Métricas')}</button>
+                  <button onClick={() => setActiveTab('RECEIVABLES')} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'RECEIVABLES' ? 'bg-white text-blue-600 shadow' : 'text-slate-500 hover:text-slate-700'}`}>{t('finance.tabs.receivables', 'Extrato p/ Faturamento')}</button>
+                  <button onClick={() => setActiveTab('BATCHES')} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'BATCHES' ? 'bg-white text-blue-600 shadow' : 'text-slate-500 hover:text-slate-700'}`}>{t('finance.tabs.batches', 'Faturas & Boletos')}</button>
+                  <button onClick={() => setActiveTab('EXPENSES')} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'EXPENSES' ? 'bg-white text-blue-600 shadow' : 'text-slate-500 hover:text-slate-700'}`}>{t('finance.tabs.expenses', 'Despesas')}</button>
+                  <button onClick={() => setActiveTab('REPORTS')} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'REPORTS' ? 'bg-white text-blue-600 shadow' : 'text-slate-500 hover:text-slate-700'}`}>{t('finance.tabs.reports', 'Relatórios')}</button>
+                  <button onClick={() => setActiveTab('SETTINGS')} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'SETTINGS' ? 'bg-white text-blue-600 shadow' : 'text-slate-500 hover:text-slate-700'}`}>{t('finance.tabs.settings', 'Configurações')}</button>
                </div>
            </div>
        </div>
@@ -1554,19 +1556,19 @@ export const Finance = () => {
           <div className="space-y-8 animate-in fade-in duration-300">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm">
-                      <p className="text-xs font-bold text-slate-400 uppercase mb-1">Receita Realizada (Paga)</p>
+                      <p className="text-xs font-bold text-slate-400 uppercase mb-1">{t('finance.summary.received', 'Receita Realizada (Paga)')}</p>
                       <h3 className="text-2xl font-black text-green-600">R$ {stats.paidRevenue.toFixed(2)}</h3>
                   </div>
                   <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm">
-                      <p className="text-xs font-bold text-slate-400 uppercase mb-1">Faturado Pendente (Boletos)</p>
+                      <p className="text-xs font-bold text-slate-400 uppercase mb-1">{t('finance.summary.overdue', 'Faturado Pendente (Boletos)')}</p>
                       <h3 className="text-2xl font-black text-orange-600">R$ {stats.inBatchesPending.toFixed(2)}</h3>
                   </div>
                   <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm">
-                      <p className="text-xs font-bold text-slate-400 uppercase mb-1">A Faturar (Concluídos)</p>
+                      <p className="text-xs font-bold text-slate-400 uppercase mb-1">{t('finance.summary.toReceive', 'A Faturar (Concluídos)')}</p>
                       <h3 className="text-2xl font-black text-blue-600">R$ {stats.pendingRevenue.toFixed(2)}</h3>
                   </div>
                    <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm">
-                      <p className="text-xs font-bold text-slate-400 uppercase mb-1">Total Despesas Pagas</p>
+                      <p className="text-xs font-bold text-slate-400 uppercase mb-1">{t('finance.summary.totalExpenses', 'Total Despesas Pagas')}</p>
                       <h3 className="text-2xl font-black text-red-500">R$ {stats.totalExpenses.toFixed(2)}</h3>
                   </div>
               </div>
@@ -1578,12 +1580,12 @@ export const Finance = () => {
               <div className="bg-white p-4 sm:p-6 rounded-3xl border border-slate-100 shadow-sm">
                   <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-8">
                       <div>
-                        <h2 className="text-xl font-bold text-slate-800">Prontos para Cobrança</h2>
-                        <p className="text-sm text-slate-500">Apenas trabalhos internos **concluídos** que ainda não foram faturados.</p>
+                        <h2 className="text-xl font-bold text-slate-800">{t('finance.receivables.title', 'Prontos para Cobrança')}</h2>
+                        <p className="text-sm text-slate-500">{t('finance.receivables.pendingCases', 'Apenas trabalhos internos concluídos que ainda não foram faturados.')}</p>
                       </div>
                       <div className="relative w-full md:w-80">
                           <Search className="absolute left-3 top-2.5 text-slate-400" size={18} />
-                          <input placeholder="Buscar dentista..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
+                          <input placeholder={t('finance.receivables.searchPlaceholder', 'Buscar dentista...')} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
                       </div>
                   </div>
 
@@ -1598,28 +1600,28 @@ export const Finance = () => {
                               <div key={d.id} onClick={() => { setStatementClient(d); setShowStatement(true); }} className="p-5 border border-slate-100 rounded-2xl hover:border-blue-500 cursor-pointer transition-all bg-slate-50 group flex flex-col justify-between">
                                   <div className="flex items-center gap-3 mb-4">
                                       <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center font-black text-blue-600 shadow-sm">{d.name.charAt(0)}</div>
-                                      <div className="flex-1 overflow-hidden"><p className="font-bold text-slate-800 truncate">{d.name}</p><p className="text-[10px] text-slate-400 font-bold uppercase truncate">{d.clinicName || 'Consultório'}</p></div>
+                                      <div className="flex-1 overflow-hidden"><p className="font-bold text-slate-800 truncate">{d.name}</p><p className="text-[10px] text-slate-400 font-bold uppercase truncate">{d.clinicName || t('finance.receivables.client', 'Consultório')}</p></div>
                                       <div className="flex gap-1">
                                           <ChevronRight size={20} className="text-slate-300 group-hover:text-blue-500" />
                                       </div>
                                   </div>
                                   <div className="grid grid-cols-1 gap-2 border-t border-slate-200/50 pt-4">
-                                      <p className="text-[9px] font-bold text-slate-400 uppercase">Débito na Gaveta</p>
+                                      <p className="text-[9px] font-bold text-slate-400 uppercase">{t('finance.receivables.totalDebt', 'Débito na Gaveta')}</p>
                                       <p className="text-xl font-black text-red-600">R$ {d.totalPending.toFixed(2)}</p>
                                   </div>
 
                                   {/* Estatísticas de Boletos */}
                                   <div className="bg-white p-3 rounded-xl border border-slate-100 flex justify-between items-center text-[9px] uppercase font-black text-slate-500 gap-1 mt-3">
                                       <div className="text-center flex-1 border-r border-slate-100">
-                                          <span className="block text-[8px] text-slate-400 font-bold uppercase">Gerados</span>
+                                          <span className="block text-[8px] text-slate-400 font-bold uppercase">{t('finance.batches.status', 'Gerados')}</span>
                                           <span className="text-blue-600 font-black text-xs">{gBatches.length} (R$ {gBatches.reduce((sum, b) => sum + b.totalAmount, 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 })})</span>
                                       </div>
                                       <div className="text-center flex-1 border-r border-slate-100">
-                                          <span className="block text-[8px] text-slate-400 font-bold uppercase">Expirados</span>
+                                          <span className="block text-[8px] text-slate-400 font-bold uppercase">{t('finance.summary.overdue', 'Expirados')}</span>
                                           <span className="text-red-500 font-black text-xs">{eBatches.length} (R$ {eBatches.reduce((sum, b) => sum + b.totalAmount, 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 })})</span>
                                       </div>
                                       <div className="text-center flex-1">
-                                          <span className="block text-[8px] text-slate-400 font-bold uppercase">Pagos</span>
+                                          <span className="block text-[8px] text-slate-400 font-bold uppercase">{t('finance.expenses.statusPaid', 'Pagos')}</span>
                                           <span className="text-green-600 font-black text-xs">{pBatches.length} (R$ {pBatches.reduce((sum, b) => sum + b.totalAmount, 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 })})</span>
                                       </div>
                                   </div>
@@ -1628,7 +1630,7 @@ export const Finance = () => {
                       })}
                       {dentistSummary.length === 0 && (
                           <div className="col-span-full py-20 text-center text-slate-400 border-2 border-dashed rounded-3xl italic">
-                              Nenhum trabalho concluído aguardando faturamento.
+                              {t('finance.receivables.empty', 'Nenhum trabalho concluído aguardando faturamento.')}
                           </div>
                       )}
                   </div>

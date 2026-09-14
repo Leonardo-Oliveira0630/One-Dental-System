@@ -178,16 +178,8 @@ export const isPlanAccessible = ({
 
   // Target audience matching
   if (targetAudience) {
-    if (targetAudience === 'CLINIC' && plan.targetAudience !== 'CLINIC') {
-      return false;
-    }
-    if (targetAudience === 'SUPPLIER' && plan.targetAudience !== 'SUPPLIER') {
-      return false;
-    }
-    if (targetAudience === 'LAB' && plan.targetAudience === 'CLINIC') {
-      return false;
-    }
-    if (targetAudience === 'LAB_OUTSOURCED' && plan.targetAudience === 'CLINIC') {
+    const planAudience = plan.targetAudience || 'LAB';
+    if (planAudience !== targetAudience) {
       return false;
     }
   }

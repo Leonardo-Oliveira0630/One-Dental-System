@@ -446,13 +446,13 @@ export const ClinicFinance = () => {
         <div className="space-y-6 pb-20 animate-in fade-in duration-500 max-w-7xl mx-auto px-1 md:px-4">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tighter flex items-center gap-2">
-                        <Wallet className="text-teal-600" /> FINANCEIRO DA CLÍNICA
+                    <h1 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter flex items-center gap-2">
+                        <Wallet className="text-teal-600 dark:text-teal-400" /> FINANCEIRO DA CLÍNICA
                     </h1>
-                    <p className="text-slate-500 font-medium text-sm">Controle de caixa, faturamento individual de pacientes, emissão de boletos e cartões de crédito.</p>
+                    <p className="text-slate-500 dark:text-slate-400 font-medium text-sm">Controle de caixa, faturamento individual de pacientes, emissão de boletos e cartões de crédito.</p>
                 </div>
                 <div className="flex gap-2 w-full md:w-auto">
-                    <button onClick={() => { setEntryType('EXPENSE'); setShowEntryModal(true); }} className="flex-1 md:flex-none px-5 py-2.5 bg-red-50 text-red-600 font-black rounded-xl hover:bg-red-100 transition-all flex items-center justify-center gap-2 text-xs">
+                    <button onClick={() => { setEntryType('EXPENSE'); setShowEntryModal(true); }} className="flex-1 md:flex-none px-5 py-2.5 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 border border-transparent dark:border-red-800/50 font-black rounded-xl hover:bg-red-100 dark:hover:bg-red-900/50 transition-all flex items-center justify-center gap-2 text-xs">
                         <Plus size={18} /> GASTO CLÍNICO
                     </button>
                     <button onClick={() => { setEntryType('INCOME'); setShowEntryModal(true); }} className="flex-1 md:flex-none px-5 py-2.5 bg-teal-600 text-white font-black rounded-xl hover:bg-teal-700 transition-all shadow-lg flex items-center justify-center gap-2 text-xs">
@@ -463,31 +463,31 @@ export const ClinicFinance = () => {
 
             {/* KPI CARDS */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:p-6">
-                <div className="bg-white p-4 sm:p-6 rounded-[32px] shadow-sm border border-slate-150 relative overflow-hidden">
+                <div className="bg-white dark:bg-[#131B2A] p-4 sm:p-6 rounded-[32px] shadow-sm border border-slate-150 dark:border-slate-800 relative overflow-hidden">
                     <div className="flex justify-between items-start mb-4">
-                        <div className="p-3 bg-teal-50 text-teal-600 rounded-2xl"><ArrowUpRight size={24}/></div>
-                        <span className="text-[10px] font-black text-teal-500 bg-teal-50 px-2 py-1 rounded-full uppercase tracking-widest">Procedimentos Prontos</span>
+                        <div className="p-3 bg-teal-50 dark:bg-teal-950/50 text-teal-600 dark:text-teal-400 rounded-2xl"><ArrowUpRight size={24}/></div>
+                        <span className="text-[10px] font-black text-teal-500 bg-teal-50 dark:bg-teal-950/60 px-2 py-1 rounded-full uppercase tracking-widest border border-transparent dark:border-teal-800/40">Procedimentos Prontos</span>
                     </div>
                     <p className="text-xs font-bold text-slate-400 uppercase">Receita Bruto Produzido</p>
-                    <h3 className="text-2xl font-black text-slate-800">
+                    <h3 className="text-2xl font-black text-slate-800 dark:text-white">
                         {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.income)}
                     </h3>
                     <div className="absolute -bottom-4 -right-4 opacity-5 text-teal-600"><TrendingUp size={100}/></div>
                 </div>
 
-                <div className="bg-white p-4 sm:p-6 rounded-[32px] shadow-sm border border-slate-150 relative overflow-hidden">
+                <div className="bg-white dark:bg-[#131B2A] p-4 sm:p-6 rounded-[32px] shadow-sm border border-slate-150 dark:border-slate-800 relative overflow-hidden">
                     <div className="flex justify-between items-start mb-4">
-                        <div className="p-3 bg-red-50 text-red-600 rounded-2xl"><ArrowDownRight size={24}/></div>
-                        <span className="text-[10px] font-black text-red-500 bg-red-50 px-2 py-1 rounded-full uppercase tracking-widest">Saídas & Custos</span>
+                        <div className="p-3 bg-red-50 dark:bg-red-950/50 text-red-600 dark:text-red-400 rounded-2xl"><ArrowDownRight size={24}/></div>
+                        <span className="text-[10px] font-black text-red-500 bg-red-50 dark:bg-red-950/60 px-2 py-1 rounded-full uppercase tracking-widest border border-transparent dark:border-red-800/40">Saídas & Custos</span>
                     </div>
                     <p className="text-xs font-bold text-slate-400 uppercase">Total Geral Despesas</p>
-                    <h3 className="text-2xl font-black text-slate-800">
+                    <h3 className="text-2xl font-black text-slate-800 dark:text-white">
                         {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.expense)}
                     </h3>
                     <div className="absolute -bottom-4 -right-4 opacity-5 text-red-600"><TrendingDown size={100}/></div>
                 </div>
 
-                <div className={`p-6 rounded-[32px] shadow-xl border relative overflow-hidden transition-all ${stats.balance >= 0 ? 'bg-slate-900 border-slate-850 text-white' : 'bg-rose-600 border-rose-500 text-white'}`}>
+                <div className={`p-6 rounded-[32px] shadow-xl border relative overflow-hidden transition-all ${stats.balance >= 0 ? 'bg-slate-900 border-slate-850 dark:bg-[#0E1626] dark:border-slate-800 text-white' : 'bg-rose-600 border-rose-500 text-white'}`}>
                     <div className="flex justify-between items-start mb-4">
                         <div className={`p-3 rounded-2xl ${stats.balance >= 0 ? 'bg-white/10 text-teal-300' : 'bg-white/20 text-white'}`}><DollarSign size={24}/></div>
                         <span className="text-[10px] font-black uppercase tracking-widest opacity-60">Rentabilidade de Caixa</span>
@@ -501,11 +501,11 @@ export const ClinicFinance = () => {
             </div>
 
             {/* BARRA DE NAVEGAÇÃO INTERNA */}
-            <div className="flex bg-slate-200/60 p-1 rounded-2xl w-fit flex-wrap gap-1">
-                <button onClick={() => setActiveTab('DASHBOARD')} className={`px-5 py-2.5 rounded-xl text-xs font-bold uppercase transition-all ${activeTab === 'DASHBOARD' ? 'bg-white text-slate-900 shadow-sm font-black' : 'text-slate-500 hover:text-slate-700'}`}>Visão Geral</button>
-                <button onClick={() => setActiveTab('CASHFLOW')} className={`px-5 py-2.5 rounded-xl text-xs font-bold uppercase transition-all ${activeTab === 'CASHFLOW' ? 'bg-white text-slate-900 shadow-sm font-black' : 'text-slate-500 hover:text-slate-700'}`}>Fluxo de Caixa (Livro)</button>
-                <button onClick={() => setActiveTab('PATIENT_BILLS')} className={`px-5 py-2.5 rounded-xl text-xs font-bold uppercase transition-all ${activeTab === 'PATIENT_BILLS' ? 'bg-white text-slate-900 shadow-sm font-black' : 'text-slate-500 hover:text-slate-700'}`}>Faturamento de Pacientes</button>
-                <button onClick={() => setActiveTab('ASAAS_SETUP')} className={`px-5 py-2.5 rounded-xl text-xs font-bold uppercase transition-all ${activeTab === 'ASAAS_SETUP' ? 'bg-white text-slate-900 shadow-sm font-black flex items-center gap-1.5' : 'text-slate-500 hover:text-slate-700 flex items-center gap-1.5'}`}>
+            <div className="flex bg-slate-200/60 dark:bg-[#131B2A] border border-transparent dark:border-slate-800 p-1 rounded-2xl w-fit flex-wrap gap-1 shadow-sm">
+                <button onClick={() => setActiveTab('DASHBOARD')} className={`px-5 py-2.5 rounded-xl text-xs font-bold uppercase transition-all ${activeTab === 'DASHBOARD' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm font-black' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}>Visão Geral</button>
+                <button onClick={() => setActiveTab('CASHFLOW')} className={`px-5 py-2.5 rounded-xl text-xs font-bold uppercase transition-all ${activeTab === 'CASHFLOW' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm font-black' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}>Fluxo de Caixa (Livro)</button>
+                <button onClick={() => setActiveTab('PATIENT_BILLS')} className={`px-5 py-2.5 rounded-xl text-xs font-bold uppercase transition-all ${activeTab === 'PATIENT_BILLS' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm font-black' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}>Faturamento de Pacientes</button>
+                <button onClick={() => setActiveTab('ASAAS_SETUP')} className={`px-5 py-2.5 rounded-xl text-xs font-bold uppercase transition-all ${activeTab === 'ASAAS_SETUP' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm font-black flex items-center gap-1.5' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 flex items-center gap-1.5'}`}>
                     <ShieldCheck size={14}/> Cobrança Asaas
                 </button>
             </div>
@@ -513,7 +513,7 @@ export const ClinicFinance = () => {
             {/* ABA: VISÃO GERAL */}
             {activeTab === 'DASHBOARD' && (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:p-8 animate-in fade-in duration-300">
-                    <div className="bg-white p-4 sm:p-6 rounded-[32px] shadow-sm border border-slate-100">
+                    <div className="bg-white dark:bg-[#131B2A] p-4 sm:p-6 rounded-[32px] shadow-sm border border-slate-100 dark:border-slate-800">
                         <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6">Comparativo Financeiro</h3>
                         <div className="h-[280px]">
                             <ResponsiveContainer width="100%" height="100%">
@@ -521,10 +521,10 @@ export const ClinicFinance = () => {
                                     { name: 'Receita Est.', value: stats.income },
                                     { name: 'Custos Totais', value: stats.expense }
                                 ]}>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" />
                                     <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'bold' }} />
                                     <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
-                                    <Tooltip cursor={{ fill: '#f8fafc' }} />
+                                    <Tooltip cursor={{ fill: 'rgba(15, 23, 42, 0.4)' }} />
                                     <Bar dataKey="value" radius={[8, 8, 0, 0]}>
                                         <Cell fill="#0d9488" />
                                         <Cell fill="#f43f5e" />
@@ -534,30 +534,30 @@ export const ClinicFinance = () => {
                         </div>
                     </div>
 
-                    <div className="bg-white p-4 sm:p-6 rounded-[32px] shadow-sm border border-slate-100 flex flex-col justify-between">
+                    <div className="bg-white dark:bg-[#131B2A] p-4 sm:p-6 rounded-[32px] shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col justify-between">
                         <div>
                             <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6">Educação e Alerts Clínicos</h3>
                             <div className="space-y-4">
-                                <div className="p-4 bg-teal-50/50 border border-teal-150 rounded-2xl flex gap-3">
-                                    <div className="p-2 bg-teal-600 text-white rounded-xl h-fit"><TrendingUp size={16}/></div>
+                                <div className="p-4 bg-teal-50/50 dark:bg-teal-950/40 border border-teal-150 dark:border-teal-800/60 rounded-2xl flex gap-3">
+                                    <div className="p-2 bg-teal-600 dark:bg-teal-500 text-white rounded-xl h-fit"><TrendingUp size={16}/></div>
                                     <div>
-                                        <p className="text-xs font-black text-teal-900 uppercase tracking-tight">Relação Procedimento x Laboratório</p>
-                                        <p className="text-xs text-slate-600 mt-1">Os custos laboratoriais são o maior item de estoque indireto na sua clínica. Compare suas tabelas de clínicas com nossos preços parceiros.</p>
+                                        <p className="text-xs font-black text-teal-900 dark:text-teal-300 uppercase tracking-tight">Relação Procedimento x Laboratório</p>
+                                        <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">Os custos laboratoriais são o maior item de estoque indireto na sua clínica. Compare suas tabelas de clínicas com nossos preços parceiros.</p>
                                     </div>
                                 </div>
-                                <div className="p-4 bg-orange-50/50 border border-orange-100 rounded-2xl flex gap-3">
-                                    <div className="p-2 bg-orange-600 text-white rounded-xl h-fit"><Clock size={16}/></div>
+                                <div className="p-4 bg-orange-50/50 dark:bg-orange-950/40 border border-orange-100 dark:border-orange-800/60 rounded-2xl flex gap-3">
+                                    <div className="p-2 bg-orange-600 dark:bg-orange-500 text-white rounded-xl h-fit"><Clock size={16}/></div>
                                     <div>
-                                        <p className="text-xs font-black text-orange-950 uppercase tracking-tight">Previsibilidade futura</p>
-                                        <p className="text-xs text-slate-600 mt-1">Você possui consultas em agendamento prontas para se tornarem debito. Configure cobranças automáticas no Asaas para aumentar pontualidade.</p>
+                                        <p className="text-xs font-black text-orange-950 dark:text-orange-300 uppercase tracking-tight">Previsibilidade futura</p>
+                                        <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">Você possui consultas em agendamento prontas para se tornarem debito. Configure cobranças automáticas no Asaas para aumentar pontualidade.</p>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="mt-6 p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
-                            <span className="text-xs font-bold text-slate-500">Cobrança Direta por Telefone/PIX ativa</span>
-                            <div className="text-xs font-black text-teal-600">Labprox PLATINUM</div>
+                        <div className="mt-6 p-4 bg-slate-50 dark:bg-[#0E1626] rounded-2xl border border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Cobrança Direta por Telefone/PIX ativa</span>
+                            <div className="text-xs font-black text-teal-600 dark:text-teal-400">Labprox PLATINUM</div>
                         </div>
                     </div>
                 </div>
@@ -565,11 +565,11 @@ export const ClinicFinance = () => {
 
             {/* ABA: FLUXO DE CAIXA (CASHFLOW) */}
             {activeTab === 'CASHFLOW' && (
-                <div className="bg-white rounded-[32px] shadow-sm border border-slate-150 overflow-hidden animate-in slide-in-from-right-4 duration-300">
+                <div className="bg-white dark:bg-[#0B0F17] rounded-[32px] shadow-sm border border-slate-150 dark:border-slate-800 overflow-hidden animate-in slide-in-from-right-4 duration-300">
                     <div className="overflow-x-auto">
                         <table className="w-full text-left">
                             <thead>
-                                <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
+                                <tr className="bg-slate-50 dark:bg-[#0E1626] text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest border-b border-slate-100 dark:border-slate-800">
                                     <th className="px-4 pb-4 sm:px-6 sm:pb-6">Data</th>
                                     <th className="px-4 pb-4 sm:px-6 sm:pb-6">Descrição</th>
                                     <th className="px-4 pb-4 sm:px-6 sm:pb-6">Categoria</th>
@@ -578,36 +578,36 @@ export const ClinicFinance = () => {
                                     <th className="px-4 pb-4 sm:px-6 sm:pb-6 text-right">Ações</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-50">
+                            <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
                                 {cashFlow.map((item, idx) => (
-                                    <tr key={item.id || idx} className="hover:bg-slate-50/50 transition-colors group">
-                                        <td className="px-4 pb-4 sm:px-6 sm:pb-6 text-xs font-bold text-slate-500">{new Date(item.date).toLocaleDateString()}</td>
+                                    <tr key={item.id || idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors group">
+                                        <td className="px-4 pb-4 sm:px-6 sm:pb-6 text-xs font-bold text-slate-500 dark:text-slate-400">{new Date(item.date).toLocaleDateString()}</td>
                                         <td className="px-4 pb-4 sm:px-6 sm:pb-6">
-                                            <p className="text-sm font-black text-slate-800 leading-tight">{item.description}</p>
+                                            <p className="text-sm font-black text-slate-800 dark:text-white leading-tight">{item.description}</p>
                                         </td>
                                         <td className="px-4 pb-4 sm:px-6 sm:pb-6">
-                                            <span className="text-[9px] font-black bg-slate-100 text-slate-500 px-2.5 py-1 rounded-full uppercase tracking-tighter">
+                                            <span className="text-[9px] font-black bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-2.5 py-1 rounded-full uppercase tracking-tighter">
                                                 {item.category}
                                             </span>
                                         </td>
-                                        <td className={`p-6 text-right font-black text-sm ${item.type === 'INCOME' ? 'text-teal-600' : 'text-red-500'}`}>
+                                        <td className={`p-6 text-right font-black text-sm ${item.type === 'INCOME' ? 'text-teal-600 dark:text-teal-400' : 'text-red-500 dark:text-red-400'}`}>
                                             {item.type === 'INCOME' ? '+' : '-'} R$ {Math.abs(item.amount).toFixed(2)}
                                         </td>
                                         <td className="px-4 pb-4 sm:px-6 sm:pb-6">
-                                            <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${item.type === 'INCOME' ? 'bg-teal-50 text-teal-600 border-teal-100' : 'bg-red-50 text-red-600 border-red-100'}`}>
+                                            <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${item.type === 'INCOME' ? 'bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-400 border-teal-100 dark:border-teal-800/60' : 'bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 border-red-100 dark:border-red-800/60'}`}>
                                                 {item.type === 'INCOME' ? <ArrowUpRight size={10}/> : <ArrowDownRight size={10}/>}
                                                 {item.type === 'INCOME' ? 'Entrada' : 'Saída'}
                                             </div>
                                         </td>
                                         <td className="px-4 pb-4 sm:px-6 sm:pb-6 text-right">
                                             {item.id?.startsWith('trans_') && (
-                                                <button onClick={() => currentOrg && api.apiDeleteExpense(currentOrg.id, item.id)} className="p-2 text-slate-200 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={18}/></button>
+                                                <button onClick={() => currentOrg && api.apiDeleteExpense(currentOrg.id, item.id)} className="p-2 text-slate-300 dark:text-slate-600 hover:text-red-500 dark:hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={18}/></button>
                                             )}
                                         </td>
                                     </tr>
                                 ))}
                                 {cashFlow.length === 0 && (
-                                    <tr><td colSpan={6} className="p-20 text-center text-slate-400 italic font-medium">Nenhuma entrada ou saída extra cadastrada.</td></tr>
+                                    <tr><td colSpan={6} className="p-20 text-center text-slate-400 dark:text-slate-500 italic font-medium">Nenhuma entrada ou saída extra cadastrada.</td></tr>
                                 )}
                             </tbody>
                         </table>
@@ -619,7 +619,7 @@ export const ClinicFinance = () => {
             {activeTab === 'PATIENT_BILLS' && (
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:p-8 animate-in slide-in-from-right-4 duration-300">
                     {/* Lista esquerda: Pacientes */}
-                    <div className="lg:col-span-4 bg-white p-4 sm:p-6 rounded-[32px] border border-slate-150 flex flex-col gap-4">
+                    <div className="lg:col-span-4 bg-white dark:bg-[#0B0F17] p-4 sm:p-6 rounded-[32px] border border-slate-150 dark:border-slate-800 flex flex-col gap-4">
                         <div className="relative">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                             <input 
@@ -627,7 +627,7 @@ export const ClinicFinance = () => {
                                 placeholder="Procurar paciente..."
                                 value={patientSearch}
                                 onChange={e => setPatientSearch(e.target.value)}
-                                className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-teal-500 font-bold text-xs"
+                                className="w-full pl-9 pr-4 py-2.5 bg-slate-50 dark:bg-[#0E1626] border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl outline-none focus:ring-2 focus:ring-teal-500 font-bold text-xs"
                             />
                         </div>
 
@@ -640,17 +640,17 @@ export const ClinicFinance = () => {
                                     <button 
                                         key={p.id}
                                         onClick={() => setSelectedPatientId(p.id)}
-                                        className={`w-full p-4 rounded-2xl border text-left transition-all flex items-center justify-between ${isSelected ? 'border-teal-500 bg-teal-50/40 shadow-sm' : 'border-slate-100 hover:bg-slate-50 bg-white'}`}
+                                        className={`w-full p-4 rounded-2xl border text-left transition-all flex items-center justify-between ${isSelected ? 'border-teal-500 bg-teal-50/40 dark:bg-teal-950/30 shadow-sm' : 'border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 bg-white dark:bg-[#0E1626]/60'}`}
                                     >
                                         <div>
-                                            <p className="font-black text-slate-800 text-sm">{p.name}</p>
-                                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight mt-0.5">CPF: {p.cpf || 'Não cadastrado'}</p>
+                                            <p className="font-black text-slate-800 dark:text-white text-sm">{p.name}</p>
+                                            <p className="text-[10px] text-slate-400 dark:text-slate-400 font-bold uppercase tracking-tight mt-0.5">CPF: {p.cpf || 'Não cadastrado'}</p>
                                         </div>
                                         <div className="text-right">
-                                            <p className={`text-xs font-black ${isOwed ? 'text-red-500' : 'text-teal-600'}`}>
+                                            <p className={`text-xs font-black ${isOwed ? 'text-red-500 dark:text-red-400' : 'text-teal-600 dark:text-teal-400'}`}>
                                                 R$ {calculations.balance.toFixed(2)}
                                             </p>
-                                            <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded mt-1 inline-block ${isOwed ? 'bg-red-50 text-red-600' : 'bg-teal-50 text-teal-600'}`}>
+                                            <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded mt-1 inline-block ${isOwed ? 'bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 border border-red-100 dark:border-red-900/40' : 'bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-400 border border-teal-100 dark:border-teal-900/40'}`}>
                                                 {isOwed ? 'Débito' : 'Em Dia'}
                                             </span>
                                         </div>
@@ -658,7 +658,7 @@ export const ClinicFinance = () => {
                                 );
                             })}
                             {filteredPatients.length === 0 && (
-                                <p className="text-center py-10 text-slate-400 italic text-xs">Nenhum paciente cadastrado até o momento.</p>
+                                <p className="text-center py-10 text-slate-400 dark:text-slate-500 italic text-xs">Nenhum paciente cadastrado até o momento.</p>
                             )}
                         </div>
                     </div>
@@ -666,10 +666,10 @@ export const ClinicFinance = () => {
                     {/* Detalhes à direita: Paciente Selecionado */}
                     <div className="lg:col-span-8 flex flex-col gap-4 sm:p-6">
                         {selectedPatient ? (
-                            <div className="bg-white p-4 sm:p-6 md:p-4 sm:p-8 rounded-[32px] border border-slate-150 space-y-6">
-                                <div className="border-b border-slate-100 pb-6">
-                                    <h2 className="text-xl font-black text-slate-800">{selectedPatient.name}</h2>
-                                    <div className="flex items-center gap-2 mt-1 text-xs font-bold text-slate-500">
+                            <div className="bg-white dark:bg-[#0B0F17] p-4 sm:p-6 md:p-4 sm:p-8 rounded-[32px] border border-slate-150 dark:border-slate-800 space-y-6">
+                                <div className="border-b border-slate-100 dark:border-slate-800 pb-6">
+                                    <h2 className="text-xl font-black text-slate-800 dark:text-white">{selectedPatient.name}</h2>
+                                    <div className="flex items-center gap-2 mt-1 text-xs font-bold text-slate-500 dark:text-slate-400">
                                         <span>CPF: {selectedPatient.cpf || '--'}</span>
                                         <span>•</span>
                                         <span>Telefone: {selectedPatient.phone || '--'}</span>
@@ -677,20 +677,20 @@ export const ClinicFinance = () => {
                                 </div>
 
                                 {/* Patient KPI balance */}
-                                <div className="grid grid-cols-1 md:grid-cols-12 gap-6 bg-slate-50 p-4 sm:p-6 rounded-3xl border border-slate-100">
+                                <div className="grid grid-cols-1 md:grid-cols-12 gap-6 bg-slate-50 dark:bg-[#0E1626] p-4 sm:p-6 rounded-3xl border border-slate-100 dark:border-slate-800">
                                     <div className="md:col-span-5 flex flex-col justify-between gap-4">
                                         <div>
                                             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-3">Histórico Consolidado</h3>
                                             <div className="space-y-4">
                                                 <div>
                                                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-tight">Consultas/Procedimentos Concluídos</p>
-                                                    <p className="text-base font-black text-slate-800">
+                                                    <p className="text-base font-black text-slate-800 dark:text-white">
                                                         R$ {(patientCalculations[selectedPatient.id]?.proceduresTotal || 0).toFixed(2)}
                                                     </p>
                                                 </div>
-                                                <div className="pt-3 border-t border-slate-200/60">
+                                                <div className="pt-3 border-t border-slate-200/60 dark:border-slate-700/60">
                                                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-tight">Total Efetivamente Pago (Liquidado)</p>
-                                                    <p className="text-base font-black text-teal-600">
+                                                    <p className="text-base font-black text-teal-600 dark:text-teal-400">
                                                         R$ {(patientCalculations[selectedPatient.id]?.paidTotal || 0).toFixed(2)}
                                                     </p>
                                                 </div>
@@ -698,23 +698,23 @@ export const ClinicFinance = () => {
                                         </div>
                                     </div>
                                     
-                                    <div className="md:col-span-7 bg-white p-5 rounded-2xl border-2 border-slate-200 flex flex-col justify-between gap-3">
+                                    <div className="md:col-span-7 bg-white dark:bg-[#0B0F17] p-5 rounded-2xl border-2 border-slate-200 dark:border-slate-700 flex flex-col justify-between gap-3">
                                         <div className="flex justify-between items-start">
                                             <div>
                                                 <span className={`text-[9px] font-bold tracking-widest uppercase px-2 py-0.5 rounded ${
                                                     (patientCalculations[selectedPatient.id]?.balance || 0) > 0 
-                                                        ? 'bg-red-50 text-red-600 border border-red-100' 
-                                                        : 'bg-teal-50 text-teal-600 border border-teal-100'
+                                                        ? 'bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 border border-red-100 dark:border-red-900/50' 
+                                                        : 'bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-400 border border-teal-100 dark:border-teal-900/50'
                                                 }`}>
                                                     {(patientCalculations[selectedPatient.id]?.balance || 0) > 0 ? 'Débito em Aberto' : 'Status em Dia'}
                                                 </span>
-                                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-tight mt-3">Saldo Devedor do Paciente</p>
-                                                <p className={`text-2xl font-black mt-0.5 ${(patientCalculations[selectedPatient.id]?.balance || 0) > 0 ? 'text-red-500' : 'text-teal-600'}`}>
+                                                <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-tight mt-3">Saldo Devedor do Paciente</p>
+                                                <p className={`text-2xl font-black mt-0.5 ${(patientCalculations[selectedPatient.id]?.balance || 0) > 0 ? 'text-red-500 dark:text-red-400' : 'text-teal-600 dark:text-teal-400'}`}>
                                                     R$ {(patientCalculations[selectedPatient.id]?.balance || 0).toFixed(2)}
                                                 </p>
                                             </div>
                                             <div className={`p-2.5 rounded-xl shrink-0 ${
-                                                (patientCalculations[selectedPatient.id]?.balance || 0) > 0 ? 'bg-red-50 text-red-500' : 'bg-teal-50 text-teal-500'
+                                                (patientCalculations[selectedPatient.id]?.balance || 0) > 0 ? 'bg-red-50 dark:bg-red-950/40 text-red-500 dark:text-red-400' : 'bg-teal-50 dark:bg-teal-950/40 text-teal-500 dark:text-teal-400'
                                             }`}>
                                                 <AlertCircle size={20} />
                                             </div>
@@ -759,14 +759,14 @@ export const ClinicFinance = () => {
                                 {/* Timeline */}
                                 <div className="space-y-4">
                                     <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Extrato de Prontuário Clínico</h3>
-                                    <div className="space-y-4 border-l-2 border-slate-100 pl-4 ml-2">
+                                    <div className="space-y-4 border-l-2 border-slate-100 dark:border-slate-800 pl-4 ml-2">
                                         {selectedPatientHistory.map((h, index) => (
                                             <div key={index} className="relative group/time">
-                                                <div className="absolute -left-[21px] top-1.5 w-2 h-2 rounded-full border border-teal-500 bg-white" />
+                                                <div className="absolute -left-[21px] top-1.5 w-2 h-2 rounded-full border border-teal-500 bg-white dark:bg-[#0B0F17]" />
                                                 <div className="flex justify-between items-start">
                                                     <div>
                                                         <p className="text-xs font-bold text-slate-400">{new Date(h.date).toLocaleDateString()}</p>
-                                                        <h4 className="font-bold text-sm text-slate-800 mt-0.5">{h.title}</h4>
+                                                        <h4 className="font-bold text-sm text-slate-800 dark:text-white mt-0.5">{h.title}</h4>
                                                     </div>
                                                     <div className="text-right">
                                                         <p className={`text-sm font-black ${h.color}`}>
@@ -776,14 +776,14 @@ export const ClinicFinance = () => {
                                                             <div className="flex gap-2 mt-1 justify-end">
                                                                 <button 
                                                                     onClick={() => setCheckoutInvoice(h.batch)}
-                                                                    className="text-[10px] font-bold text-indigo-600 hover:underline flex items-center gap-0.5"
+                                                                    className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-0.5"
                                                                 >
                                                                     <Eye size={10}/> Ver Gateway
                                                                 </button>
                                                                 {h.batch.status === 'PENDING' && (
                                                                     <button 
                                                                         onClick={() => handleConfirmReceiptFromBatch(h.batch)}
-                                                                        className="text-[10px] font-black text-teal-600 hover:underline flex items-center gap-0.5"
+                                                                        className="text-[10px] font-black text-teal-600 dark:text-teal-400 hover:underline flex items-center gap-0.5"
                                                                     >
                                                                         <Check size={10}/> Liquidar
                                                                     </button>
@@ -795,13 +795,13 @@ export const ClinicFinance = () => {
                                             </div>
                                         ))}
                                         {selectedPatientHistory.length === 0 && (
-                                            <p className="text-xs text-slate-400 italic">Nenhum evento financeiro associado a este paciente.</p>
+                                            <p className="text-xs text-slate-400 dark:text-slate-500 italic">Nenhum evento financeiro associado a este paciente.</p>
                                         )}
                                     </div>
                                 </div>
                             </div>
                         ) : (
-                            <div className="bg-white p-12 rounded-[32px] border border-slate-150 text-center italic text-slate-500 font-medium">
+                            <div className="bg-white dark:bg-[#0B0F17] p-12 rounded-[32px] border border-slate-150 dark:border-slate-800 text-center italic text-slate-500 dark:text-slate-400 font-medium">
                                 Selecione um paciente ao lado para gerenciar seu faturamento, manual ou online.
                             </div>
                         )}
@@ -811,16 +811,16 @@ export const ClinicFinance = () => {
 
             {/* ABA: CONFIGURAÇÃO DO ASAAS CLIENTE (WALLET) */}
             {activeTab === 'ASAAS_SETUP' && (
-                <div className="bg-white p-4 sm:p-6 md:p-4 sm:p-8 rounded-[32px] border border-slate-150 space-y-8 animate-in slide-in-from-right-4 duration-300">
-                    <div className="flex justify-between items-start flex-wrap gap-4 border-b border-slate-100 pb-6">
+                <div className="bg-white dark:bg-[#0B0F17] p-4 sm:p-6 md:p-4 sm:p-8 rounded-[32px] border border-slate-150 dark:border-slate-800 space-y-8 animate-in slide-in-from-right-4 duration-300">
+                    <div className="flex justify-between items-start flex-wrap gap-4 border-b border-slate-100 dark:border-slate-800 pb-6">
                         <div>
-                            <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
-                                <ShieldCheck className="text-teal-600" /> Recebimentos Online & Wallet ID (Asaas)
+                            <h2 className="text-xl font-black text-slate-800 dark:text-white flex items-center gap-2">
+                                <ShieldCheck className="text-teal-600 dark:text-teal-400" /> Recebimentos Online & Wallet ID (Asaas)
                             </h2>
-                            <p className="text-sm text-slate-500 font-medium">Gere cobranças recorrentes completas para seus pacientes via PIX, Boletos e Cartão de crédito de forma profissional.</p>
+                            <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">Gere cobranças recorrentes completas para seus pacientes via PIX, Boletos e Cartão de crédito de forma profissional.</p>
                         </div>
                         {asaasWalletId && (
-                            <span className="bg-green-50 text-green-700 border border-green-200 px-4 py-1.5 rounded-full text-xs font-black flex items-center gap-1.5">
+                            <span className="bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-800/60 px-4 py-1.5 rounded-full text-xs font-black flex items-center gap-1.5">
                                 <Check size={14}/> CONTA ATIVA NO ASAAS
                             </span>
                         )}
@@ -832,24 +832,24 @@ export const ClinicFinance = () => {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:p-6">
                                     <button 
                                         onClick={() => setSetupMode('CREATE')}
-                                        className="p-4 sm:p-8 border-2 border-slate-100 rounded-[24px] hover:border-teal-500 hover:bg-teal-50/30 transition-all text-left group"
+                                        className="p-4 sm:p-8 border-2 border-slate-100 dark:border-slate-800 rounded-[24px] hover:border-teal-500 hover:bg-teal-50/30 dark:hover:bg-teal-950/20 bg-white dark:bg-[#0E1626] transition-all text-left group"
                                     >
-                                        <div className="w-12 h-12 bg-teal-50 text-teal-600 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                                        <div className="w-12 h-12 bg-teal-50 dark:bg-teal-950/60 text-teal-600 dark:text-teal-400 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                                             <Plus size={24} />
                                         </div>
-                                        <h4 className="font-bold text-lg text-slate-800">Solicitar abertura de Wallet</h4>
-                                        <p className="text-xs text-slate-500 mt-2">Desejo criar minha conta virtual gratuitamente através da Labprox para faturar diretamente.</p>
+                                        <h4 className="font-bold text-lg text-slate-800 dark:text-white">Solicitar abertura de Wallet</h4>
+                                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">Desejo criar minha conta virtual gratuitamente através da Labprox para faturar diretamente.</p>
                                     </button>
 
                                     <button 
                                         onClick={() => setSetupMode('MANUAL')}
-                                        className="p-4 sm:p-8 border-2 border-slate-100 rounded-[24px] hover:border-indigo-500 hover:bg-indigo-50/30 transition-all text-left group"
+                                        className="p-4 sm:p-8 border-2 border-slate-100 dark:border-slate-800 rounded-[24px] hover:border-indigo-500 hover:bg-indigo-50/30 dark:hover:bg-indigo-950/20 bg-white dark:bg-[#0E1626] transition-all text-left group"
                                     >
-                                        <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                                        <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                                             <Key size={24} />
                                         </div>
-                                        <h4 className="font-bold text-lg text-slate-800">Já possuo meu Wallet ID</h4>
-                                        <p className="text-xs text-slate-500 mt-2">Insira sua chave Asaas existente para capturar os lançamentos dos pacientes.</p>
+                                        <h4 className="font-bold text-lg text-slate-800 dark:text-white">Já possuo meu Wallet ID</h4>
+                                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">Insira sua chave Asaas existente para capturar os lançamentos dos pacientes.</p>
                                     </button>
                                 </div>
                             )}
@@ -863,11 +863,11 @@ export const ClinicFinance = () => {
                                             value={manualWalletId}
                                             onChange={e => setManualWalletId(e.target.value)}
                                             placeholder="Ex: $a.as.xxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-                                            className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-teal-500 outline-none font-mono text-xs" 
+                                            className="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#0E1626] text-slate-800 dark:text-white focus:bg-white dark:focus:bg-[#0E1626] focus:ring-2 focus:ring-teal-500 outline-none font-mono text-xs" 
                                         />
                                     </div>
                                     <div className="flex gap-3 pt-2">
-                                        <button type="button" onClick={() => setSetupMode('CHOICE')} className="px-5 py-3 font-bold text-slate-500 hover:bg-slate-50 rounded-xl text-xs">Cancelar</button>
+                                        <button type="button" onClick={() => setSetupMode('CHOICE')} className="px-5 py-3 font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl text-xs">Cancelar</button>
                                         <button type="submit" disabled={isSaving} className="flex-1 py-4 bg-teal-600 text-white font-black rounded-xl hover:bg-teal-700 shadow-md text-xs">VINCULAR CARTEIRA</button>
                                     </div>
                                 </form>
@@ -875,10 +875,10 @@ export const ClinicFinance = () => {
 
                             {setupMode === 'CREATE' && (
                                 <form onSubmit={handleCreateWallet} className="space-y-5">
-                                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex gap-3 text-xs text-slate-650 leading-relaxed">
-                                        <Info className="text-teal-600 shrink-0" size={16} />
+                                    <div className="bg-slate-50 dark:bg-[#0E1626] p-4 rounded-2xl border border-slate-200 dark:border-slate-700 flex gap-3 text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                                        <Info className="text-teal-600 dark:text-teal-400 shrink-0" size={16} />
                                         <div>
-                                            <p className="font-black uppercase text-teal-800">Processamento de Abertura:</p>
+                                            <p className="font-black uppercase text-teal-800 dark:text-teal-300">Processamento de Abertura:</p>
                                             <p className="mt-1">Ao preencher esses dados, solicitaremos sua subconta diretamente integracional. A liberação de boletos e faturas é imediata.</p>
                                         </div>
                                     </div>
@@ -886,38 +886,38 @@ export const ClinicFinance = () => {
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                                         <div>
                                             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Nome Completo / Razão Social</label>
-                                            <input required name="name" value={kycData.name} onChange={handleKycChange} className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-teal-500 outline-none" />
+                                            <input required name="name" value={kycData.name} onChange={handleKycChange} className="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#0E1626] text-slate-800 dark:text-white focus:bg-white dark:focus:bg-[#0E1626] focus:ring-2 focus:ring-teal-500 outline-none" />
                                         </div>
                                         <div>
                                             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">CPF ou CNPJ</label>
-                                            <input required name="cpfCnpj" value={kycData.cpfCnpj} onChange={handleKycChange} className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-teal-500 outline-none" />
+                                            <input required name="cpfCnpj" value={kycData.cpfCnpj} onChange={handleKycChange} className="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#0E1626] text-slate-800 dark:text-white focus:bg-white dark:focus:bg-[#0E1626] focus:ring-2 focus:ring-teal-500 outline-none" />
                                         </div>
                                         <div>
                                             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">E-mail Clínico</label>
-                                            <input required type="email" name="email" value={kycData.email} onChange={handleKycChange} className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-teal-500 outline-none" />
+                                            <input required type="email" name="email" value={kycData.email} onChange={handleKycChange} className="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#0E1626] text-slate-800 dark:text-white focus:bg-white dark:focus:bg-[#0E1626] focus:ring-2 focus:ring-teal-500 outline-none" />
                                         </div>
                                         <div>
                                             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Celular Responsável</label>
-                                            <input required name="mobilePhone" value={kycData.mobilePhone} onChange={handleKycChange} className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-teal-500 outline-none" />
+                                            <input required name="mobilePhone" value={kycData.mobilePhone} onChange={handleKycChange} className="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#0E1626] text-slate-800 dark:text-white focus:bg-white dark:focus:bg-[#0E1626] focus:ring-2 focus:ring-teal-500 outline-none" />
                                         </div>
                                         <div>
                                             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Endereço Clínica</label>
-                                            <input required name="address" value={kycData.address} onChange={handleKycChange} className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-teal-500 outline-none" />
+                                            <input required name="address" value={kycData.address} onChange={handleKycChange} className="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#0E1626] text-slate-800 dark:text-white focus:bg-white dark:focus:bg-[#0E1626] focus:ring-2 focus:ring-teal-500 outline-none" />
                                         </div>
                                         <div className="grid grid-cols-2 gap-3">
                                             <div>
                                                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">CEP</label>
-                                                <input required name="postalCode" value={kycData.postalCode} onChange={handleKycChange} className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-teal-500 outline-none" />
+                                                <input required name="postalCode" value={kycData.postalCode} onChange={handleKycChange} className="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#0E1626] text-slate-800 dark:text-white focus:bg-white dark:focus:bg-[#0E1626] focus:ring-2 focus:ring-teal-500 outline-none" />
                                             </div>
                                             <div>
                                                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Número</label>
-                                                <input required name="addressNumber" value={kycData.addressNumber} onChange={handleKycChange} className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-teal-500 outline-none" />
+                                                <input required name="addressNumber" value={kycData.addressNumber} onChange={handleKycChange} className="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#0E1626] text-slate-800 dark:text-white focus:bg-white dark:focus:bg-[#0E1626] focus:ring-2 focus:ring-teal-500 outline-none" />
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div className="flex gap-3 pt-6 border-t border-slate-100">
-                                        <button type="button" onClick={() => setSetupMode('CHOICE')} className="px-6 py-3 font-bold text-slate-500 hover:bg-slate-50 rounded-xl text-xs">Cancelar</button>
+                                    <div className="flex gap-3 pt-6 border-t border-slate-100 dark:border-slate-800">
+                                        <button type="button" onClick={() => setSetupMode('CHOICE')} className="px-6 py-3 font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl text-xs">Cancelar</button>
                                         <button type="submit" disabled={isSaving} className="flex-1 py-4 bg-teal-600 text-white font-black rounded-xl hover:bg-teal-700 shadow-md text-xs flex justify-center items-center">
                                             {isSaving ? <Loader2 size={16} className="animate-spin" /> : 'SOLICITAR CONTA AUTOMÁTICA'}
                                         </button>
@@ -926,17 +926,17 @@ export const ClinicFinance = () => {
                             )}
                         </div>
                     ) : (
-                        <div className="bg-slate-50 border border-slate-200/60 p-6 rounded-3xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 sm:p-6">
+                        <div className="bg-slate-50 dark:bg-[#0E1626] border border-slate-200/60 dark:border-slate-800 p-6 rounded-3xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 sm:p-6">
                             <div>
                                 <p className="text-xs font-bold text-slate-400">Wallet ID de Transação Integrada:</p>
-                                <p className="font-mono text-sm font-bold text-slate-700 mt-1">{asaasWalletId}</p>
-                                <p className="text-xs text-green-600 font-bold mt-2 flex items-center gap-1">
+                                <p className="font-mono text-sm font-bold text-slate-700 dark:text-slate-200 mt-1">{asaasWalletId}</p>
+                                <p className="text-xs text-green-600 dark:text-green-400 font-bold mt-2 flex items-center gap-1">
                                     <CheckCircle2 size={14}/> Sincronização e Split de Paciente Ativados
                                 </p>
                             </div>
                             <button 
                                 onClick={handleRemoveAsaas}
-                                className="px-4 py-2 bg-red-100 text-red-600 hover:bg-red-200 text-xs font-black rounded-xl transition-colors"
+                                className="px-4 py-2 bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 text-xs font-black rounded-xl transition-colors"
                             >
                                 Desconectar Integração
                             </button>
@@ -948,31 +948,31 @@ export const ClinicFinance = () => {
             {/* MODAL: LANÇAMENTO MANUAL CAIXA GENERAL */}
             {showEntryModal && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-300">
-                    <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-md animate-in zoom-in duration-200">
-                        <div className="px-4 pb-4 sm:px-6 sm:pb-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-[32px]">
-                            <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">
+                    <div className="bg-white dark:bg-[#0B0F17] rounded-[32px] shadow-2xl w-full max-w-md animate-in zoom-in duration-200 border border-slate-150 dark:border-slate-800 overflow-hidden">
+                        <div className="px-4 pb-4 sm:px-6 sm:pb-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-[#0E1626] rounded-t-[32px]">
+                            <h3 className="text-lg font-black text-slate-800 dark:text-white uppercase tracking-tight">
                                 {entryType === 'INCOME' ? 'Lançar Receita extra' : 'Lançar Despesa extra'}
                             </h3>
-                            <button onClick={() => setShowEntryModal(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><X size={24}/></button>
+                            <button onClick={() => setShowEntryModal(false)} className="p-2 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors"><X size={24}/></button>
                         </div>
                         <form onSubmit={handleAddEntry} className="p-4 sm:p-8 space-y-5">
                             <div>
                                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Descrição</label>
-                                <input value={description} onChange={e => setDescription(e.target.value)} required className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-teal-500 font-bold" placeholder="Ex: Conta de Luz" />
+                                <input value={description} onChange={e => setDescription(e.target.value)} required className="w-full px-5 py-3.5 bg-slate-50 dark:bg-[#0E1626] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white rounded-2xl outline-none focus:ring-2 focus:ring-teal-500 font-bold" placeholder="Ex: Conta de Luz" />
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Valor (R$)</label>
-                                    <input type="number" step="0.01" value={amount || ''} onChange={e => setAmount(parseFloat(e.target.value))} required className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-teal-500 font-black text-lg" placeholder="0.00" />
+                                    <input type="number" step="0.01" value={amount || ''} onChange={e => setAmount(parseFloat(e.target.value))} required className="w-full px-5 py-3.5 bg-slate-50 dark:bg-[#0E1626] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white rounded-2xl outline-none focus:ring-2 focus:ring-teal-500 font-black text-lg" placeholder="0.00" />
                                 </div>
                                 <div>
                                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Data</label>
-                                    <input type="date" value={date} onChange={e => setDate(e.target.value)} required className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-teal-500 font-bold" />
+                                    <input type="date" value={date} onChange={e => setDate(e.target.value)} required className="w-full px-5 py-3.5 bg-slate-50 dark:bg-[#0E1626] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white rounded-2xl outline-none focus:ring-2 focus:ring-teal-500 font-bold" />
                                 </div>
                             </div>
                             <div>
                                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Categoria de Custo</label>
-                                <select value={category} onChange={e => setCategory(e.target.value as any)} className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-teal-500 font-bold bg-white">
+                                <select value={category} onChange={e => setCategory(e.target.value as any)} className="w-full px-5 py-3.5 bg-slate-50 dark:bg-[#0E1626] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white rounded-2xl outline-none focus:ring-2 focus:ring-teal-500 font-bold">
                                     <option value="OFFICE">Escritório / Administrativo</option>
                                     <option value="SUPPLIES">Materiais Clínicos</option>
                                     <option value="RENT">Aluguel / Condomínio</option>
@@ -994,12 +994,12 @@ export const ClinicFinance = () => {
             {/* MODAL: REGISTRAR RECEBIMENTO MANUAL PATIENTE */}
             {showPaymentModal && selectedPatient && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-300">
-                    <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-md animate-in zoom-in duration-200">
-                        <div className="px-4 pb-4 sm:px-6 sm:pb-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-[32px]">
-                            <h3 className="text-base font-black text-slate-800 uppercase tracking-tight">
+                    <div className="bg-white dark:bg-[#0B0F17] rounded-[32px] shadow-2xl w-full max-w-md animate-in zoom-in duration-200 border border-slate-150 dark:border-slate-800 overflow-hidden">
+                        <div className="px-4 pb-4 sm:px-6 sm:pb-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-[#0E1626] rounded-t-[32px]">
+                            <h3 className="text-base font-black text-slate-800 dark:text-white uppercase tracking-tight">
                                 Registrar Recebimento Manual - {selectedPatient.name}
                             </h3>
-                            <button onClick={() => setShowPaymentModal(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><X size={24}/></button>
+                            <button onClick={() => setShowPaymentModal(false)} className="p-2 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors"><X size={24}/></button>
                         </div>
                         <form onSubmit={handleAddPatientPaymentSubmit} className="p-4 sm:p-8 space-y-4">
                             <div>
@@ -1010,7 +1010,7 @@ export const ClinicFinance = () => {
                                     required 
                                     value={payForm.amount || ''}
                                     onChange={e => setPayForm({ ...payForm, amount: parseFloat(e.target.value) || 0 })}
-                                    className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-teal-500 font-black text-xl" 
+                                    className="w-full px-5 py-3.5 bg-slate-50 dark:bg-[#0E1626] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white rounded-2xl outline-none focus:ring-2 focus:ring-teal-500 font-black text-xl" 
                                     placeholder="0.00"
                                 />
                             </div>
@@ -1022,7 +1022,7 @@ export const ClinicFinance = () => {
                                         step="0.01" 
                                         value={payForm.discount || ''}
                                         onChange={e => setPayForm({ ...payForm, discount: parseFloat(e.target.value) || 0 })}
-                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold" 
+                                        className="w-full px-4 py-3 bg-slate-50 dark:bg-[#0E1626] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white rounded-xl font-bold" 
                                         placeholder="0.00"
                                     />
                                 </div>
@@ -1031,7 +1031,7 @@ export const ClinicFinance = () => {
                                     <select 
                                         value={payForm.type}
                                         onChange={e => setPayForm({ ...payForm, type: e.target.value as any })}
-                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold bg-white"
+                                        className="w-full px-4 py-3 bg-slate-50 dark:bg-[#0E1626] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white rounded-xl font-bold"
                                     >
                                         <option value="PAYMENT">Pagamento</option>
                                         <option value="DISCOUNT">Desconto Extra</option>
@@ -1043,7 +1043,7 @@ export const ClinicFinance = () => {
                                 <select 
                                     value={payForm.paymentMethod}
                                     onChange={e => setPayForm({ ...payForm, paymentMethod: e.target.value as any })}
-                                    className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold bg-white"
+                                    className="w-full px-5 py-3 bg-slate-50 dark:bg-[#0E1626] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white rounded-2xl font-bold"
                                 >
                                     <option value="CASH">Dinheiro Espécie</option>
                                     <option value="PIX">Transferência PIX</option>
@@ -1057,7 +1057,7 @@ export const ClinicFinance = () => {
                                 <input 
                                     value={payForm.notes}
                                     onChange={e => setPayForm({ ...payForm, notes: e.target.value })}
-                                    className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-teal-500 text-sm font-bold" 
+                                    className="w-full px-4 py-3.5 bg-slate-50 dark:bg-[#0E1626] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white rounded-xl outline-none focus:ring-2 focus:ring-teal-500 text-sm font-bold" 
                                     placeholder="Ex: Recibo emitido manualmente"
                                 />
                             </div>
@@ -1072,16 +1072,16 @@ export const ClinicFinance = () => {
             {/* MODAL: EMITIR FATURA (BOLETO/PIX/CARTÃO) PATIENTE */}
             {showBillingModal && selectedPatient && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-300">
-                    <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-md animate-in zoom-in duration-200">
-                        <div className="px-4 pb-4 sm:px-6 sm:pb-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-[32px]">
-                            <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight">
+                    <div className="bg-white dark:bg-[#0B0F17] rounded-[32px] shadow-2xl w-full max-w-md animate-in zoom-in duration-200 border border-slate-150 dark:border-slate-800 overflow-hidden">
+                        <div className="px-4 pb-4 sm:px-6 sm:pb-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-[#0E1626] rounded-t-[32px]">
+                            <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-tight">
                                 Emitir Fatura Online - {selectedPatient.name}
                             </h3>
-                            <button onClick={() => setShowBillingModal(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><X size={24}/></button>
+                            <button onClick={() => setShowBillingModal(false)} className="p-2 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors"><X size={24}/></button>
                         </div>
                         <form onSubmit={handleAddBillingBatchSubmit} className="p-4 sm:p-8 space-y-5">
-                            <div className="bg-amber-50 border border-amber-100 p-4 rounded-xl flex gap-2 text-xs text-amber-900 leading-relaxed font-medium">
-                                <Info size={16} className="shrink-0 text-amber-600" />
+                            <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-100 dark:border-amber-900/50 p-4 rounded-xl flex gap-2 text-xs text-amber-900 dark:text-amber-200 leading-relaxed font-medium">
+                                <Info size={16} className="shrink-0 text-amber-600 dark:text-amber-400" />
                                 <div>
                                     Como integrado do Asaas, as cobranças do paciente serão enviadas por SMS, e-mail e Link Direto com Boleto ou PIX dinâmicos.
                                 </div>
@@ -1095,7 +1095,7 @@ export const ClinicFinance = () => {
                                     required 
                                     value={billForm.amount || ''}
                                     onChange={e => setBillForm({ ...billForm, amount: parseFloat(e.target.value) || 0 })}
-                                    className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 font-black text-xl"
+                                    className="w-full px-5 py-3.5 bg-slate-50 dark:bg-[#0E1626] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 font-black text-xl"
                                 />
                             </div>
 
@@ -1104,7 +1104,7 @@ export const ClinicFinance = () => {
                                 <select 
                                     value={billForm.paymentMethod}
                                     onChange={e => setBillForm({ ...billForm, paymentMethod: e.target.value as any })}
-                                    className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold bg-white"
+                                    className="w-full px-5 py-3 bg-slate-50 dark:bg-[#0E1626] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white rounded-2xl font-bold"
                                 >
                                     <option value="PIX">PIX (Imediato com desconto)</option>
                                     <option value="BOLETO">Boleto Bancário Digital (D+1 pós recebimento)</option>
@@ -1123,18 +1123,18 @@ export const ClinicFinance = () => {
             {/* MODAL: INTEGRAÇÃO COM ASAAS REQUERIDA (WARNING OVERLAY) */}
             {showAsaasWarningModal && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-300">
-                    <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-md animate-in zoom-in duration-200 overflow-hidden border border-slate-100">
-                        <div className="px-4 pb-4 sm:px-6 sm:pb-6 border-b border-rose-50 flex gap-3 items-center bg-rose-50 rounded-t-[32px] text-rose-800">
-                            <AlertCircle className="text-rose-600 animate-pulse" size={24} />
+                    <div className="bg-white dark:bg-[#0B0F17] rounded-[32px] shadow-2xl w-full max-w-md animate-in zoom-in duration-200 overflow-hidden border border-slate-100 dark:border-slate-800">
+                        <div className="px-4 pb-4 sm:px-6 sm:pb-6 border-b border-rose-50 dark:border-rose-900/40 flex gap-3 items-center bg-rose-50 dark:bg-rose-950/40 rounded-t-[32px] text-rose-800 dark:text-rose-200">
+                            <AlertCircle className="text-rose-600 dark:text-rose-400 animate-pulse" size={24} />
                             <h3 className="text-sm font-black uppercase tracking-tight">
                                 Conta Asaas Requerida
                             </h3>
                         </div>
                         <div className="p-4 sm:p-8 space-y-6">
-                            <p className="text-slate-600 font-medium text-sm leading-relaxed">
+                            <p className="text-slate-600 dark:text-slate-300 font-medium text-sm leading-relaxed">
                                 Você tentou emitir uma cobrança pelo Asaas, mas a sua clínica ainda não possui uma Wallet ID vinculada ou conta Asaas criada.
                             </p>
-                            <p className="text-slate-600 font-medium text-sm leading-relaxed bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                            <p className="text-slate-600 dark:text-slate-300 font-medium text-sm leading-relaxed bg-slate-50 dark:bg-[#0E1626] p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
                                 Para gerar faturas automáticas e realizar recebimentos de pacientes dos dentistas, você precisa vincular sua chave ou solicitar uma conta virtual.
                             </p>
 
@@ -1142,7 +1142,7 @@ export const ClinicFinance = () => {
                                 <button
                                     type="button"
                                     onClick={() => setShowAsaasWarningModal(false)}
-                                    className="w-full sm:w-1/3 py-3 font-black text-slate-500 hover:bg-slate-100 rounded-xl text-xs uppercase tracking-tight transition-all"
+                                    className="w-full sm:w-1/3 py-3 font-black text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-xs uppercase tracking-tight transition-all"
                                 >
                                     Agora Não
                                 </button>
@@ -1153,7 +1153,7 @@ export const ClinicFinance = () => {
                                         setShowBillingModal(false);
                                         setActiveTab('ASAAS_SETUP');
                                     }}
-                                    className="flex-1 py-3 bg-teal-600 hover:bg-teal-700 text-white font-black rounded-xl text-xs uppercase tracking-tight flex items-center justify-center gap-2 shadow-lg shadow-teal-100 transition-all hover:scale-[1.02]"
+                                    className="flex-1 py-3 bg-teal-600 hover:bg-teal-700 text-white font-black rounded-xl text-xs uppercase tracking-tight flex items-center justify-center gap-2 shadow-lg shadow-teal-100 dark:shadow-none transition-all hover:scale-[1.02]"
                                 >
                                     <ShieldCheck size={16} /> Configurar Integração
                                 </button>
@@ -1166,10 +1166,10 @@ export const ClinicFinance = () => {
             {/* SIMULADOR DE GATEWAY DE CHECKOUT DE PACIENTE (HIGH-FIDELITY OVERLAY) */}
             {checkoutInvoice && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-350">
-                    <div className="bg-white rounded-[36px] shadow-2xl w-full max-w-xl overflow-hidden border border-slate-100 flex flex-col max-h-[90vh]">
+                    <div className="bg-white dark:bg-[#0B0F17] rounded-[36px] shadow-2xl w-full max-w-xl overflow-hidden border border-slate-150 dark:border-slate-800 flex flex-col max-h-[90vh]">
                         
                         {/* Header do Checkout */}
-                        <div className="bg-slate-900 text-white p-4 sm:p-6 relative">
+                        <div className="bg-slate-900 dark:bg-[#070B11] text-white p-4 sm:p-6 relative border-b border-slate-800">
                             <button 
                                 onClick={() => setCheckoutInvoice(null)}
                                 className="absolute top-4 sm:p-6 right-6 p-1.5 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors"
@@ -1191,26 +1191,28 @@ export const ClinicFinance = () => {
 
                         {/* Corpo do Checkout */}
                         <div className="p-4 sm:p-8 space-y-6 overflow-y-auto flex-1">
-                            <div className="flex gap-4 border-b border-slate-100 pb-4">
+                            <div className="flex gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
                                 <div className="w-full text-xs font-bold space-y-2">
-                                    <div className="flex justify-between"><span className="text-slate-400">Paciente:</span> <span className="text-slate-700">{selectedPatient?.name}</span></div>
-                                    <div className="flex justify-between"><span className="text-slate-400">Nº do Lote:</span> <span className="text-slate-700 font-mono">#{checkoutInvoice.id.substring(0,8).toUpperCase()}</span></div>
-                                    <div className="flex justify-between"><span className="text-slate-400">Vencimento:</span> <span className="text-slate-700">{new Date(checkoutInvoice.dueDate).toLocaleDateString()}</span></div>
-                                    <div className="flex justify-between"><span className="text-slate-400">Status Invoice:</span> <span className="text-amber-600 bg-amber-50 px-2 py-0.5 font-bold rounded uppercase text-[10px] tracking-wider">{checkoutInvoice.status}</span></div>
+                                    <div className="flex justify-between"><span className="text-slate-400">Paciente:</span> <span className="text-slate-700 dark:text-slate-300">{selectedPatient?.name}</span></div>
+                                    <div className="flex justify-between"><span className="text-slate-400">Nº do Lote:</span> <span className="text-slate-700 dark:text-slate-300 font-mono">#{checkoutInvoice.id.substring(0,8).toUpperCase()}</span></div>
+                                    <div className="flex justify-between"><span className="text-slate-400">Vencimento:</span> <span className="text-slate-700 dark:text-slate-300">{new Date(checkoutInvoice.dueDate).toLocaleDateString()}</span></div>
+                                    <div className="flex justify-between"><span className="text-slate-400">Status Invoice:</span> <span className="text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 font-bold rounded uppercase text-[10px] tracking-wider">{checkoutInvoice.status}</span></div>
                                 </div>
                             </div>
 
                             {/* Pix/Boleto interactive section */}
                             <div className="space-y-6">
-                                <div className="flex flex-col items-center justify-center p-4 sm:p-6 border-2 border-dashed border-slate-150 rounded-3xl bg-slate-50/50">
-                                    <QrCode size={140} className="text-slate-800" />
-                                    <p className="text-xs font-bold text-slate-500 mt-4 text-center">Escaneie o QR Code acima usando seu aplicativo de banco para pagar via PIX imediatamente.</p>
+                                <div className="flex flex-col items-center justify-center p-4 sm:p-6 border-2 border-dashed border-slate-150 dark:border-slate-800 rounded-3xl bg-slate-50/50 dark:bg-[#0E1626]/50">
+                                    <div className="p-4 bg-white rounded-2xl shadow-sm">
+                                        <QrCode size={140} className="text-slate-800" />
+                                    </div>
+                                    <p className="text-xs font-bold text-slate-500 dark:text-slate-400 mt-4 text-center">Escaneie o QR Code acima usando seu aplicativo de banco para pagar via PIX imediatamente.</p>
                                     
                                     <div className="mt-4 w-full flex gap-2">
                                         <input 
                                             readOnly 
                                             value={checkoutInvoice.pixCopyPaste || ''} 
-                                            className="font-mono text-[10px] text-slate-400 bg-white border border-slate-200 p-3 rounded-xl flex-1 outline-none select-all" 
+                                            className="font-mono text-[10px] text-slate-400 bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-700 p-3 rounded-xl flex-1 outline-none select-all" 
                                         />
                                         <button 
                                             onClick={() => handleCopyPix(checkoutInvoice.pixCopyPaste || '')}
@@ -1222,31 +1224,31 @@ export const ClinicFinance = () => {
                                 </div>
 
                                 {/* Boleto Button */}
-                                <div className="flex items-center justify-between p-4 border border-slate-150 rounded-2xl hover:bg-slate-50 transition-colors">
+                                <div className="flex items-center justify-between p-4 border border-slate-150 dark:border-slate-800 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800/50 bg-white dark:bg-[#0E1626] transition-colors">
                                     <div className="flex items-center gap-3">
-                                        <div className="p-3 bg-slate-100 text-slate-750 rounded-xl"><FileText size={22}/></div>
+                                        <div className="p-3 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl"><FileText size={22}/></div>
                                         <div>
-                                            <p className="text-xs font-black text-slate-800">Visualizar Boleto Bancário</p>
+                                            <p className="text-xs font-black text-slate-800 dark:text-white">Visualizar Boleto Bancário</p>
                                             <p className="text-[10px] text-slate-400 font-bold">Linha digitável em anexo PDF</p>
                                         </div>
                                     </div>
                                     <button 
                                         type="button"
                                         onClick={() => window.print()}
-                                        className="p-3 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 border border-slate-200 rounded-xl transition-colors"
+                                        className="p-3 text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 border border-slate-200 dark:border-slate-700 rounded-xl transition-colors"
                                     >
                                         <Printer size={18}/>
                                     </button>
                                 </div>
 
                                 {/* Card payment emulation */}
-                                <div className="p-4 border border-slate-150 rounded-2xl bg-white space-y-3">
-                                    <p className="text-xs font-black text-slate-800 flex items-center gap-2">
-                                        <CreditCard size={18} className="text-teal-600"/> Pagar com Cartão de Crédito Asaas
+                                <div className="p-4 border border-slate-150 dark:border-slate-800 rounded-2xl bg-white dark:bg-[#0E1626] space-y-3">
+                                    <p className="text-xs font-black text-slate-800 dark:text-white flex items-center gap-2">
+                                        <CreditCard size={18} className="text-teal-600 dark:text-teal-400"/> Pagar com Cartão de Crédito Asaas
                                     </p>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                        <input placeholder="Número do Cartão" className="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold" />
-                                        <input placeholder="Nome impresso no Cartão" className="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold" />
+                                        <input placeholder="Número do Cartão" className="w-full text-xs p-3 bg-slate-50 dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white rounded-xl font-bold" />
+                                        <input placeholder="Nome impresso no Cartão" className="w-full text-xs p-3 bg-slate-50 dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white rounded-xl font-bold" />
                                     </div>
                                     <button 
                                         type="button" 
@@ -1254,7 +1256,7 @@ export const ClinicFinance = () => {
                                             alert("Simulação de transação de crédito aprovada via sandbox Asaas!");
                                             setCheckoutInvoice(null);
                                         }}
-                                        className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white text-xs font-black rounded-xl"
+                                        className="w-full py-3 bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white text-xs font-black rounded-xl"
                                     >
                                         PAGAR R$ {checkoutInvoice.totalAmount.toFixed(2)} NO CRÉDITO
                                     </button>

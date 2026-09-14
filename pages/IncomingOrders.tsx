@@ -69,7 +69,7 @@ export const IncomingOrders = () => {
       alert(t('orders.incoming.syncSuccess', {
         paymentStatus: res.paymentsUpdated ? t('orders.status.PAID', 'Pago') : t('orders.incoming.paymentUnchanged', 'Inalterado/Já Pago'),
         vouchers: res.vouchersGenerated || 0,
-        defaultValue: `Sincronização concluída! Status de pagamento: ${res.paymentsUpdated ? 'Atualizado para Pago' : 'Inalterado/Já Pago'}. Vouchers de combos gerados: ${res.vouchersGenerated || 0}.`
+        defaultValue: `${t('orders.incoming.syncComplete', 'Sincronização concluída!')} ${t('orders.incoming.paymentStatus', 'Status de pagamento:')} ${res.paymentsUpdated ? t('orders.incoming.updatedToPaid', 'Atualizado para Pago') : t('orders.incoming.unchangedAlreadyPaid', 'Inalterado/Já Pago')}. ${t('orders.incoming.vouchersGenerated', 'Vouchers de combos gerados:')} ${res.vouchersGenerated || 0}.`
       }));
     } catch (err: any) {
       logger.error({ userId: currentUser?.id }, "Erro ao sincronizar pedido:", err);
@@ -226,7 +226,7 @@ export const IncomingOrders = () => {
                                 
                                 <div className="flex items-center gap-2 text-slate-500 text-sm font-bold">
                                     <User size={16} className="text-purple-500" />
-                                    <span className="uppercase">Dr(a). {job.dentistName}</span>
+                                    <span className="uppercase">{t('common.dr', 'Dr(a).')} {job.dentistName}</span>
                                 </div>
                             </div>
                             
@@ -350,7 +350,7 @@ export const IncomingOrders = () => {
               {t('orders.incoming.rejectModalNotice', {
                 patient: rejectingOrderJob.patientName,
                 dentist: rejectingOrderJob.dentistName,
-                defaultValue: `Informe a justificativa de recusa para o pedido de ${rejectingOrderJob.patientName} (Dentista: ${rejectingOrderJob.dentistName}). O valor pago será estornado automaticamente ao dentista e ele poderá visualizar o motivo da recusa.`
+                defaultValue: `${t('orders.incoming.rejectReasonPrompt', 'Informe a justificativa de recusa para o pedido de')} ${rejectingOrderJob.patientName} (${t('orders.incoming.dentist', 'Dentista')}: ${rejectingOrderJob.dentistName}). ${t('orders.incoming.rejectReasonDesc', 'O valor pago será estornado automaticamente ao dentista e ele poderá visualizar o motivo da recusa.')}`
               })}
             </p>
 
