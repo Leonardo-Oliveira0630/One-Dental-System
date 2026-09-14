@@ -946,7 +946,11 @@ export const IncomingRequisitions = () => {
               {t('requisitions.rejectModalNotice', {
                 patient: rejectingReq.patientName,
                 dentist: getDentistName(rejectingReq),
+<<<<<<< HEAD
                 defaultValue: `${t('incomingReqs.rejectReasonPrompt', 'Informe a justificativa de recusa para')} ${rejectingReq.patientName} (${t('incomingReqs.sentBy', 'enviada por')} ${getDentistName(rejectingReq)}). ${t('incomingReqs.rejectReasonDesc', 'O dentista parceiro poderá visualizar o motivo, corrigir as informações e reenviar o caso.')}`
+=======
+                defaultValue: `Informe a justificativa de recusa para ${rejectingReq.patientName} (enviada por ${getDentistName(rejectingReq)}). O dentista parceiro poderá visualizar o motivo, corrigir as informações e reenviar o caso.`
+>>>>>>> 6fe7df8fdfbc9ede302b1698c21a5821baca9292
               })}
             </p>
 
