@@ -691,16 +691,11 @@
     "reqNumber": "Req. #",
     "patient": "Patient",
     "dentist": "Requesting Dentist",
-<<<<<<< HEAD
     "clinic": "Clinic",
-=======
-    "clinic": "Clinic / Office",
->>>>>>> 6fe7df8fdfbc9ede302b1698c21a5821baca9292
     "requestedAt": "Requested At",
     "deliveryDate": "Desired Delivery Date",
     "itemsCount": "Services Qty",
     "services": "Requested Services",
-<<<<<<< HEAD
     "teeth": "Teeth",
     "shade": "Shade / Scale",
     "notes": "Dentist Instructions",
@@ -708,22 +703,12 @@
     "openDetails": "View Full Requisition",
     "acceptAndCreateJob": "Accept & Create Work Order",
     "reject": "Reject",
-=======
-    "teeth": "Teeth / Elements",
-    "shade": "Shade / Scale",
-    "notes": "Dentist Instructions",
-    "attachments": "Files / 3D Scans",
-    "openDetails": "View Full Requisition",
-    "acceptAndCreateJob": "Accept & Create Work Order",
-    "reject": "Reject Request",
->>>>>>> 6fe7df8fdfbc9ede302b1698c21a5821baca9292
     "rejectModalTitle": "Requisition Rejection Justification",
     "rejectReasonPlaceholder": "Describe the reason for rejection (dentist will be notified)...",
     "confirmReject": "Confirm Rejection",
     "empty": "No online requisitions found in this status.",
     "status": {
       "PENDING": "Pending",
-<<<<<<< HEAD
       "ACCEPTED": "Accepted",
       "REJECTED": "Rejected",
       "ALL": "All"
@@ -1085,10 +1070,5 @@
     "normal": "Normal",
     "high": "High",
     "urgent": "Urgent"
-=======
-      "ACCEPTED": "Accepted / In Production",
-      "REJECTED": "Rejected"
-    }
->>>>>>> 6fe7df8fdfbc9ede302b1698c21a5821baca9292
   }
 }

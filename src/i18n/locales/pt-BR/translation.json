@@ -665,7 +665,6 @@
       "PENDING": "Pendente",
       "ACCEPTED": "Aceita / Em Produção",
       "REJECTED": "Recusada"
-<<<<<<< HEAD
     },
     "fillRejectionReasonAlert": "Por favor, preencha o motivo da recusa.",
     "requisitionRejectedSuccess": "Requisição recusada com sucesso.",
@@ -998,8 +997,5 @@
     "normal": "Normal",
     "high": "Alta",
     "urgent": "Urgente"
-=======
-    }
->>>>>>> 6fe7df8fdfbc9ede302b1698c21a5821baca9292
   }
 }

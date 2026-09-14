@@ -691,16 +691,11 @@
     "reqNumber": "Req. Nº",
     "patient": "Paciente",
     "dentist": "Dentista Solicitante",
-<<<<<<< HEAD
     "clinic": "Clínica",
-=======
-    "clinic": "Clínica / Consultorio",
->>>>>>> 6fe7df8fdfbc9ede302b1698c21a5821baca9292
     "requestedAt": "Fecha de Solicitud",
     "deliveryDate": "Fecha Deseada de Entrega",
     "itemsCount": "Cant. de Servicios",
     "services": "Servicios Solicitados",
-<<<<<<< HEAD
     "teeth": "Dientes",
     "shade": "Color / Escala",
     "notes": "Instrucciones del Dentista",
@@ -708,22 +703,12 @@
     "openDetails": "Ver Requisición Completa",
     "acceptAndCreateJob": "Aceptar y Crear O.T.",
     "reject": "Rechazar",
-=======
-    "teeth": "Dientes / Elementos",
-    "shade": "Color / Escala",
-    "notes": "Instrucciones del Dentista",
-    "attachments": "Archivos / Escaneo 3D",
-    "openDetails": "Ver Requisición Completa",
-    "acceptAndCreateJob": "Aceptar y Crear O.T.",
-    "reject": "Rechazar Solicitud",
->>>>>>> 6fe7df8fdfbc9ede302b1698c21a5821baca9292
     "rejectModalTitle": "Justificación del Rechazo",
     "rejectReasonPlaceholder": "Describa el motivo del rechazo (el dentista será notificado)...",
     "confirmReject": "Confirmar Rechazo",
     "empty": "No se encontraron requisiciones online en este estado.",
     "status": {
       "PENDING": "Pendiente",
-<<<<<<< HEAD
       "ACCEPTED": "Aceptada",
       "REJECTED": "Rechazada",
       "ALL": "Todas"
@@ -1085,10 +1070,5 @@
     "normal": "Normal",
     "high": "Alta",
     "urgent": "Urgente"
-=======
-      "ACCEPTED": "Aceptada / En Producción",
-      "REJECTED": "Rechazada"
-    }
->>>>>>> 6fe7df8fdfbc9ede302b1698c21a5821baca9292
   }
 }
