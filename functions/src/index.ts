@@ -1670,6 +1670,160 @@ export const calculateFrenetShipping = onCall({ cors: true }, async (req: any) =
 });
 
 /**
+ * CONSULTA RASTREAMENTO FRENET / TRANSPORTADORA
+ */
+export const trackFrenetShipping = onCall({ cors: true }, async (req: any) => {
+  const { trackingCode, frenetToken, shippingServiceCode, orderId } = req.data || {};
+  if (!trackingCode) {
+    return { error: 'Tracking code is required' };
+  }
+
+  const db = admin.firestore();
+  let trackingEvents: any[] = [];
+  let currentStatus = 'SHIPPED';
+  let carrierName = '';
+
+  // Se houver token da Frenet, tenta consultar a API da Frenet
+  if (frenetToken) {
+    try {
+      const payload = {
+        ShippingServiceCode: shippingServiceCode || "",
+        TrackingNumber: trackingCode,
+        OrderNumber: orderId || ""
+      };
+
+      const res = await axios.post('https://api.frenet.com.br/tracking/trackinginfo', payload, {
+        headers: {
+          'token': frenetToken,
+          'Content-Type': 'application/json'
+        },
+        timeout: 8000
+      });
+
+      if (res.data?.TrackingEvents) {
+        trackingEvents = res.data.TrackingEvents.map((ev: any) => ({
+          date: ev.EventDateTime || new Date().toISOString(),
+          description: ev.EventDescription || ev.Description || 'Movimentação registrada',
+          location: ev.EventLocation || ev.City || '',
+          status: ev.EventStatus || 'IN_TRANSIT'
+        }));
+        if (res.data.ServiceDescription) {
+          carrierName = res.data.ServiceDescription;
+        }
+      }
+    } catch (err: any) {
+      logger.warn("Aviso ao consultar API Frenet Tracking:", err.message);
+    }
+  }
+
+  // Se não retornou eventos pela Frenet ou se não tem token, gera evento descritivo padrão
+  if (trackingEvents.length === 0) {
+    trackingEvents = [
+      {
+        date: new Date().toISOString(),
+        description: `Código registrado na transportadora (${trackingCode}). Acompanhe o trânsito no link oficial.`,
+        location: 'Centro de Distribuição',
+        status: 'SHIPPED'
+      }
+    ];
+  }
+
+  // Se orderId foi fornecido, persiste no Firestore para que cliente e fornecedor vejam o status atualizado
+  if (orderId) {
+    try {
+      const orderRef = db.collection('supplierOrders').doc(orderId);
+      const updateData: any = {
+        trackingEvents: trackingEvents,
+        lastTrackingSync: admin.firestore.FieldValue.serverTimestamp()
+      };
+      if (carrierName) updateData.carrierName = carrierName;
+      
+      const lastEventDesc = (trackingEvents[trackingEvents.length - 1]?.description || '').toLowerCase();
+      if (lastEventDesc.includes('entregue') || lastEventDesc.includes('delivered')) {
+        updateData.deliveryStatus = 'DELIVERED';
+        updateData.status = 'DELIVERED';
+        updateData.deliveredAt = admin.firestore.FieldValue.serverTimestamp();
+      }
+
+      await orderRef.update(updateData);
+    } catch (e: any) {
+      logger.warn(`Erro ao persistir rastreio do pedido ${orderId}:`, e.message);
+    }
+  }
+
+  return {
+    success: true,
+    trackingCode,
+    carrierName,
+    events: trackingEvents,
+    status: currentStatus
+  };
+});
+
+/**
+ * WEBHOOK FRENET PARA ATUALIZAÇÃO AUTOMÁTICA DE STATUS DE RASTREAMENTO
+ */
+export const frenetWebhook = onRequest({ cors: true }, async (req: any, res: any) => {
+  try {
+    const data = req.body || {};
+    const trackingNumber = data.TrackingNumber || data.trackingNumber || data.code;
+    const orderNumber = data.OrderNumber || data.orderId;
+    const status = data.Status || data.status;
+    const eventDescription = data.EventDescription || data.description;
+
+    const db = admin.firestore();
+    let orderDoc: any = null;
+
+    if (orderNumber) {
+      const docSnap = await db.collection('supplierOrders').doc(orderNumber).get();
+      if (docSnap.exists) orderDoc = docSnap;
+    }
+
+    if (!orderDoc && trackingNumber) {
+      const querySnap = await db.collection('supplierOrders').where('trackingCode', '==', trackingNumber).get();
+      if (!querySnap.empty) orderDoc = querySnap.docs[0];
+    }
+
+    if (orderDoc) {
+      const isDelivered = (status && status.toUpperCase().includes('DELIVERED')) ||
+        (eventDescription && eventDescription.toLowerCase().includes('entregue'));
+
+      const updatePayload: any = {
+        lastTrackingSync: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      };
+
+      if (isDelivered) {
+        updatePayload.status = 'DELIVERED';
+        updatePayload.deliveryStatus = 'DELIVERED';
+        updatePayload.deliveredAt = admin.firestore.FieldValue.serverTimestamp();
+      } else {
+        updatePayload.deliveryStatus = 'SHIPPED';
+        if (orderDoc.data().status !== 'DELIVERED') {
+          updatePayload.status = 'SHIPPED';
+        }
+      }
+
+      if (eventDescription) {
+        updatePayload.trackingEvents = admin.firestore.FieldValue.arrayUnion({
+          date: new Date().toISOString(),
+          description: eventDescription,
+          location: data.Location || '',
+          status: status || 'IN_TRANSIT'
+        });
+      }
+
+      await orderDoc.ref.update(updatePayload);
+    }
+
+    res.status(200).json({ success: true });
+  } catch (error: any) {
+    logger.error("Erro no frenetWebhook:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
  * GERENCIA DECISÃO DE PEDIDO WEB (APROVAR OU REJEITAR)
  */
 export const manageOrderDecision = onCall(async (request: any) => {

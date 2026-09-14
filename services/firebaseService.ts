@@ -1496,6 +1496,85 @@ export const apiCancelSupplierOrder = async (orderId: string) => {
     });
 };
 
+export const apiUpdateSupplierOrderStatus = async (
+    orderId: string, 
+    status: 'PENDING' | 'PAID' | 'CONFIRMED' | 'SEPARATION' | 'READY_TO_SHIP' | 'SHIPPED' | 'DELIVERED' | 'RETURNED' | 'CANCELLED',
+    extraUpdates?: Partial<SupplierOrder>
+) => {
+    const payload: any = {
+        status,
+        updatedAt: new Date(),
+        ...(extraUpdates || {})
+    };
+    if (status === 'SEPARATION') {
+        payload.separatedAt = payload.separatedAt || new Date();
+        payload.deliveryStatus = 'SEPARATION';
+    } else if (status === 'READY_TO_SHIP') {
+        payload.packedAt = payload.packedAt || new Date();
+        payload.deliveryStatus = 'READY_TO_SHIP';
+    } else if (status === 'SHIPPED') {
+        payload.shippedAt = payload.shippedAt || new Date();
+        payload.deliveryStatus = 'SHIPPED';
+    } else if (status === 'DELIVERED') {
+        payload.deliveredAt = payload.deliveredAt || new Date();
+        payload.deliveryStatus = 'DELIVERED';
+    }
+    return updateDoc(doc(db, 'supplierOrders', orderId), payload);
+};
+
+export const apiDispatchSupplierOrder = async (
+    orderId: string,
+    data: {
+        trackingCode?: string;
+        carrierName?: string;
+        shippingService?: string;
+        trackingUrl?: string;
+        trackingInfo?: string;
+        estimatedDeliveryDate?: string | Date;
+        invoiceNumber?: string;
+        notes?: string;
+    }
+) => {
+    const initialEvents = data.trackingCode ? [{
+        date: new Date().toISOString(),
+        description: `Objeto despachado via ${data.carrierName || 'Transportadora'}. Código de Rastreamento: ${data.trackingCode}`,
+        status: 'SHIPPED'
+    }] : [];
+
+    return updateDoc(doc(db, 'supplierOrders', orderId), {
+        status: 'SHIPPED',
+        deliveryStatus: 'SHIPPED',
+        shippedAt: new Date(),
+        trackingCode: data.trackingCode || '',
+        carrierName: data.carrierName || '',
+        shippingService: data.shippingService || '',
+        trackingUrl: data.trackingUrl || '',
+        trackingInfo: data.trackingInfo || '',
+        estimatedDeliveryDate: data.estimatedDeliveryDate || null,
+        invoiceNumber: data.invoiceNumber || '',
+        notes: data.notes || '',
+        trackingEvents: initialEvents,
+        lastTrackingSync: new Date(),
+        updatedAt: new Date()
+    });
+};
+
+export const apiTrackFrenetShipping = async (payload: {
+    trackingCode: string;
+    frenetToken?: string;
+    shippingServiceCode?: string;
+    orderId?: string;
+}) => {
+    try {
+        const fn = httpsCallable(functions, 'trackFrenetShipping');
+        const res: any = (await fn(payload)).data;
+        return res;
+    } catch (e: any) {
+        logger.warn('Frenet tracking error / fallback:', e.message);
+        return { success: false, error: e.message };
+    }
+};
+
 export const apiCancelSupplierOrderByBuyer = async (
     orderId: string, 
     reason: string, 

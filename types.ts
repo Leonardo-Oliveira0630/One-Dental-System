@@ -1226,8 +1226,19 @@ export interface SupplierOrder {
   };
   shippingMethod?: 'COMBINE' | 'PAC' | 'SEDEX' | 'FRENET' | 'PICKUP' | 'MOTOBOY';
   shippingCost?: number;
+  carrierName?: string;
+  shippingService?: string;
   trackingCode?: string;
+  trackingUrl?: string;
   trackingInfo?: string;
+  trackingEvents?: {
+    date: string | Date;
+    description: string;
+    location?: string;
+    status?: string;
+  }[];
+  lastTrackingSync?: Date;
+  estimatedDeliveryDate?: string | Date;
   chat?: {
     senderId: string;
     senderName: string;

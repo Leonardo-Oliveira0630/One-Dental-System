@@ -4,9 +4,13 @@ import {
   X, Package, MapPin, User, Mail, Phone, Calendar, Truck, 
   CheckCircle2, AlertTriangle, ShieldCheck, Printer, MessageSquare, 
   Copy, ExternalLink, Clock, FileText, ArrowRight, CheckSquare, 
-  Square, RefreshCw, Send, DollarSign, AlertCircle, ShoppingBag
+  Square, RefreshCw, Send, DollarSign, AlertCircle, ShoppingBag,
+  Sparkles, Check
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { SupplierDispatchOrderModal } from './SupplierDispatchOrderModal';
+import { getCarrierTrackingUrl, formatCarrierName } from '../../../utils/trackingUtils';
+import { apiTrackFrenetShipping, apiDispatchSupplierOrder } from '../../../services/firebaseService';
 
 interface SupplierOrderDetailsDrawerProps {
   order: SupplierOrder | null;
@@ -22,12 +26,13 @@ export const SupplierOrderDetailsDrawer: React.FC<SupplierOrderDetailsDrawerProp
   onOpenPackingSlip,
 }) => {
   const navigate = useNavigate();
-  const [trackingInput, setTrackingInput] = useState(order?.trackingCode || '');
-  const [trackingInfoInput, setTrackingInfoInput] = useState(order?.trackingInfo || '');
   const [internalNotesInput, setInternalNotesInput] = useState(order?.internalNotes || '');
   const [isSavingNotes, setIsSavingNotes] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [isDispatchModalOpen, setIsDispatchModalOpen] = useState(false);
+  const [isSyncingTracking, setIsSyncingTracking] = useState(false);
+  const [trackingSyncMessage, setTrackingSyncMessage] = useState<string | null>(null);
 
   // Reverse logistics state
   const [reversePostageCodeInput, setReversePostageCodeInput] = useState(order?.returnRequest?.reversePostageCode || '');
@@ -83,7 +88,6 @@ export const SupplierOrderDetailsDrawer: React.FC<SupplierOrderDetailsDrawerProp
 
   // Status transitions
   const handleAdvanceToReadyToShip = async () => {
-    if (!confirm('Confirmar que todos os itens foram separados e o pedido está embalado e pronto para despacho?')) return;
     setIsUpdatingStatus(true);
     try {
       await onUpdateStatus(order.id, 'READY_TO_SHIP', {
@@ -96,23 +100,41 @@ export const SupplierOrderDetailsDrawer: React.FC<SupplierOrderDetailsDrawerProp
     }
   };
 
-  const handleDispatchOrder = async () => {
-    if (!trackingInput.trim()) {
-      const proceed = confirm('Deseja despachar sem código de rastreamento? É altamente recomendável informar o rastreio.');
-      if (!proceed) return;
-    }
-
+  const handleConfirmDispatchFromModal = async (orderId: string, dispatchData: any) => {
     setIsUpdatingStatus(true);
     try {
-      await onUpdateStatus(order.id, 'SHIPPED', {
+      await apiDispatchSupplierOrder(orderId, dispatchData);
+      // Also trigger onUpdateStatus to notify parent
+      await onUpdateStatus(orderId, 'SHIPPED', {
+        ...dispatchData,
         deliveryStatus: 'SHIPPED',
-        trackingCode: trackingInput.trim() || undefined,
-        trackingInfo: trackingInfoInput.trim() || undefined,
         shippedAt: new Date()
       });
-      alert('Pedido marcado como Enviado / Em Trânsito!');
     } finally {
       setIsUpdatingStatus(false);
+    }
+  };
+
+  const handleSyncFrenetTracking = async () => {
+    if (!order.trackingCode) return;
+    setIsSyncingTracking(true);
+    setTrackingSyncMessage(null);
+    try {
+      const res = await apiTrackFrenetShipping({
+        trackingCode: order.trackingCode,
+        orderId: order.id,
+        shippingServiceCode: order.shippingService
+      });
+      if (res?.success) {
+        setTrackingSyncMessage('Status de rastreamento atualizado com sucesso!');
+      } else {
+        setTrackingSyncMessage(res?.error || 'Rastreamento consultado.');
+      }
+    } catch (e: any) {
+      setTrackingSyncMessage('Consulta de rastreio concluída.');
+    } finally {
+      setIsSyncingTracking(false);
+      setTimeout(() => setTrackingSyncMessage(null), 4000);
     }
   };
 
@@ -124,7 +146,6 @@ export const SupplierOrderDetailsDrawer: React.FC<SupplierOrderDetailsDrawerProp
         deliveryStatus: 'DELIVERED',
         deliveredAt: new Date()
       });
-      alert('Pedido marcado como Entregue!');
     } finally {
       setIsUpdatingStatus(false);
     }
@@ -314,7 +335,7 @@ export const SupplierOrderDetailsDrawer: React.FC<SupplierOrderDetailsDrawerProp
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-indigo-950 font-bold text-sm">
                 <Clock className="w-4 h-4 text-indigo-600" />
-                <span>Próxima Ação Recomendada:</span>
+                <span>Status & Expedição do Pedido:</span>
               </div>
               {order.paymentStatus === 'PAID' && (
                 <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full font-bold text-[10px] flex items-center gap-1">
@@ -324,69 +345,139 @@ export const SupplierOrderDetailsDrawer: React.FC<SupplierOrderDetailsDrawerProp
               )}
             </div>
 
+            {/* A SEPARAR (PAID / SEPARATION) */}
             {isSeparation && (
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-1">
-                <p className="text-slate-600 text-xs">
-                  Faça a conferência dos itens no checklist abaixo e avance para <strong>Pronto para Despacho</strong>.
-                </p>
-                <button
-                  onClick={handleAdvanceToReadyToShip}
-                  disabled={isUpdatingStatus}
-                  className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-sm shrink-0 cursor-pointer disabled:opacity-50"
-                >
-                  <CheckCircle2 size={15} />
-                  <span>Concluir Separação & Embalar</span>
-                </button>
-              </div>
-            )}
-
-            {isReadyToShip && (
               <div className="space-y-3 pt-1">
                 <p className="text-slate-600 text-xs">
-                  Pedido embalado! Insira o código de rastreamento para notificar o comprador e despachar o pacote.
+                  Faça a conferência dos itens no checklist e defina como <strong>A Despachar</strong> ou proceda diretamente para o <strong>Envio com Rastreio</strong>.
                 </p>
-                <div className="flex flex-col sm:flex-row items-center gap-2">
-                  <input
-                    type="text"
-                    placeholder="Ex: BR123456789BR ou Código Transportadora"
-                    value={trackingInput}
-                    onChange={(e) => setTrackingInput(e.target.value)}
-                    className="flex-1 bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-mono font-bold text-slate-900 outline-none focus:border-indigo-600"
-                  />
+                <div className="flex flex-wrap items-center gap-2">
                   <button
-                    onClick={handleDispatchOrder}
+                    onClick={handleAdvanceToReadyToShip}
                     disabled={isUpdatingStatus}
-                    className="w-full sm:w-auto px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-sm shrink-0 cursor-pointer disabled:opacity-50"
+                    className="px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-xs cursor-pointer disabled:opacity-50"
+                  >
+                    <Package size={15} />
+                    <span>Definir como "A Despachar"</span>
+                  </button>
+
+                  <button
+                    onClick={() => setIsDispatchModalOpen(true)}
+                    disabled={isUpdatingStatus}
+                    className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-xs cursor-pointer disabled:opacity-50"
                   >
                     <Truck size={15} />
-                    <span>Despachar / Marcar como Enviado</span>
+                    <span>Despachar & Enviar Pedido...</span>
                   </button>
                 </div>
               </div>
             )}
 
-            {isShipped && (
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-1">
-                <div>
-                  <p className="text-slate-700 font-bold">Pacote em trânsito com a transportadora</p>
-                  <p className="text-slate-500 text-[11px]">
-                    Rastreio: <strong className="font-mono text-slate-800">{order.trackingCode || 'Não informado'}</strong>
-                  </p>
+            {/* A DESPACHAR (READY_TO_SHIP) */}
+            {isReadyToShip && (
+              <div className="space-y-3 pt-1">
+                <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl text-purple-900 text-xs flex items-center gap-2">
+                  <Package size={16} className="text-purple-600 shrink-0" />
+                  <span><strong>Pedido separado e pronto para despacho!</strong> Clique no botão abaixo para registrar a transportadora e o código de rastreamento para o cliente.</span>
                 </div>
-                <button
-                  onClick={handleConfirmDelivered}
-                  disabled={isUpdatingStatus}
-                  className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-sm shrink-0 cursor-pointer disabled:opacity-50"
-                >
-                  <CheckCircle2 size={15} />
-                  <span>Confirmar Entrega</span>
-                </button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={() => setIsDispatchModalOpen(true)}
+                    disabled={isUpdatingStatus}
+                    className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-md cursor-pointer disabled:opacity-50"
+                  >
+                    <Send size={15} />
+                    <span>Despachar & Enviar Pedido (Inserir Rastreio)</span>
+                  </button>
+                </div>
               </div>
             )}
 
+            {/* ENVIADO / EM TRÂNSITO (SHIPPED) */}
+            {isShipped && (
+              <div className="space-y-3 pt-1">
+                <div className="p-3.5 bg-blue-50/80 border border-blue-200 rounded-xl space-y-2.5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <Truck size={16} className="text-blue-600 shrink-0" />
+                      <div>
+                        <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider block">
+                          Transportadora / Rastreio
+                        </span>
+                        <p className="font-bold text-slate-900 text-xs">
+                          {formatCarrierName(order.carrierName, order.shippingMethod)} • {order.trackingCode || 'Código não informado'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {order.trackingCode && (
+                        <>
+                          <button
+                            onClick={() => handleCopy(order.trackingCode!, 'trackingDrawer')}
+                            className="px-2.5 py-1 bg-white hover:bg-blue-50 border border-blue-200 text-blue-900 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer"
+                          >
+                            {copiedField === 'trackingDrawer' ? <Check size={12} /> : <Copy size={12} />}
+                            <span>{copiedField === 'trackingDrawer' ? 'Copiado!' : 'Copiar'}</span>
+                          </button>
+
+                          <a
+                            href={getCarrierTrackingUrl(order.trackingCode, order.carrierName, order.trackingUrl)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all shadow-2xs"
+                          >
+                            <span>Acessar Rastreio</span>
+                            <ExternalLink size={12} />
+                          </a>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Sync Frenet Button */}
+                  {order.trackingCode && (
+                    <div className="flex items-center justify-between pt-2 border-t border-blue-200/60 text-[11px]">
+                      <span className="text-slate-500">
+                        {trackingSyncMessage || (order.lastTrackingSync ? `Última sincronização: ${new Date(order.lastTrackingSync).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` : 'Sincronize para buscar novas movimentações')}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleSyncFrenetTracking}
+                        disabled={isSyncingTracking}
+                        className="text-blue-700 hover:text-blue-900 font-bold flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                      >
+                        <RefreshCw size={12} className={isSyncingTracking ? 'animate-spin' : ''} />
+                        <span>{isSyncingTracking ? 'Sincronizando...' : 'Consultar Frenet / Transportadora'}</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                  <button
+                    onClick={() => setIsDispatchModalOpen(true)}
+                    className="text-xs text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1 cursor-pointer"
+                  >
+                    <span>Editar Rastreio / Dados de Envio</span>
+                  </button>
+
+                  <button
+                    onClick={handleConfirmDelivered}
+                    disabled={isUpdatingStatus}
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-xs cursor-pointer disabled:opacity-50"
+                  >
+                    <CheckCircle2 size={15} />
+                    <span>Confirmar Entrega</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ENTREGUE (DELIVERED) */}
             {isDelivered && (
-              <div className="flex items-center gap-2 text-emerald-800 font-bold">
-                <CheckCircle2 size={16} className="text-emerald-600" />
+              <div className="flex items-center gap-2 text-emerald-800 font-bold p-2 bg-emerald-50 rounded-xl border border-emerald-200">
+                <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
                 <span>Pedido finalizado com sucesso e entregue ao cliente.</span>
               </div>
             )}
@@ -737,6 +828,17 @@ export const SupplierOrderDetailsDrawer: React.FC<SupplierOrderDetailsDrawerProp
           </button>
         </div>
       </div>
+
+      {/* Dispatch & Shipping Modal */}
+      <SupplierDispatchOrderModal
+        order={order}
+        isOpen={isDispatchModalOpen}
+        onClose={() => setIsDispatchModalOpen(false)}
+        onConfirmDispatch={handleConfirmDispatchFromModal}
+        onSetReadyToShipOnly={async (orderId) => {
+          await handleAdvanceToReadyToShip();
+        }}
+      />
     </div>
   );
 };

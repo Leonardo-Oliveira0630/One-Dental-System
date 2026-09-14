@@ -7,19 +7,21 @@ import {
   apiAddProductReview, 
   subscribeOrderReviews,
   apiCheckSupplierOrderPayment,
-  apiCancelSupplierOrder
+  apiCancelSupplierOrder,
+  apiTrackFrenetShipping
 } from '../../services/firebaseService';
 import { 
   Package, Truck, Clock, CheckCircle2, AlertCircle, 
   ExternalLink, Copy, Check, ChevronRight, X, Star, 
   Building2, MapPin, RefreshCw, ShoppingBag, ShieldCheck, 
   CreditCard, Search, ArrowRight, FileText, MessageSquare,
-  AlertTriangle, RotateCcw
+  AlertTriangle, RotateCcw, Calendar, Hash
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR, enUS, es } from 'date-fns/locale';
 import { OrderCancelReturnModal } from './components/OrderCancelReturnModal';
 import { SupplierStoreChatModal } from './components/SupplierStoreChatModal';
+import { getCarrierTrackingUrl, formatCarrierName } from '../../utils/trackingUtils';
 
 export function MyOrdersTab() {
   const { t, i18n } = useTranslation();
@@ -647,16 +649,10 @@ function OrderDetailModal({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
               <div className="space-y-1">
-                <span className="text-[11px] font-bold text-zinc-400 dark:text-slate-500 uppercase">{t('store.shippingMethodLabel', 'Modo de Envio')}</span>
+                <span className="text-[11px] font-bold text-zinc-400 dark:text-slate-500 uppercase">{t('store.shippingMethodLabel', 'Transportadora / Envio')}</span>
                 <p className="font-bold text-zinc-900 dark:text-slate-200 flex items-center gap-1.5">
                   <Package size={14} className="text-zinc-500 dark:text-slate-400" />
-                  {order.shippingMethod === 'FRENET'
-                    ? 'Frenet (Cotação Integrada)'
-                    : order.shippingMethod === 'SEDEX'
-                    ? 'Correios SEDEX'
-                    : order.shippingMethod === 'PAC'
-                    ? 'Correios PAC'
-                    : t('store.directDeliveryFallback', 'A Combinar / Entrega Direta')}
+                  {formatCarrierName(order.carrierName, order.shippingMethod)}
                 </p>
               </div>
 
@@ -666,39 +662,86 @@ function OrderDetailModal({
                   {order.shippingCost ? `R$ ${order.shippingCost.toFixed(2)}` : t('store.shippingIncludedOrArranged', 'Incluso ou a combinar')}
                 </p>
               </div>
-            </div>
 
-            {/* Tracking Code Box */}
-            {order.trackingCode ? (
-              <div className="p-3.5 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="space-y-0.5">
-                  <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
-                    {t('store.trackingCode', 'Código de Rastreamento')}
+              {order.invoiceNumber && (
+                <div className="space-y-1">
+                  <span className="text-[11px] font-bold text-zinc-400 dark:text-slate-500 uppercase flex items-center gap-1">
+                    <FileText size={12} /> Nota Fiscal (DANFE)
                   </span>
-                  <p className="font-mono font-black text-sm text-blue-950 dark:text-blue-200">
-                    {order.trackingCode}
+                  <p className="font-mono font-bold text-zinc-900 dark:text-slate-200">
+                    {order.invoiceNumber}
                   </p>
                 </div>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleCopy(order.trackingCode!)}
-                    className="px-3 py-1.5 bg-white dark:bg-slate-800 hover:bg-blue-100/60 dark:hover:bg-slate-700 border border-blue-200 dark:border-slate-700 text-blue-900 dark:text-blue-300 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
-                  >
-                    {copiedTracking ? <Check size={13} /> : <Copy size={13} />}
-                    <span>{copiedTracking ? t('store.copied', 'Copiado!') : t('store.copyCode', 'Copiar Código')}</span>
-                  </button>
+              )}
 
-                  <a
-                    href={`https://rastreamento.correios.com.br/app/index.php?codigo=${encodeURIComponent(order.trackingCode)}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs"
-                  >
-                    <span>{t('store.track', 'Rastrear')}</span>
-                    <ExternalLink size={13} />
-                  </a>
+              {order.estimatedDeliveryDate && (
+                <div className="space-y-1">
+                  <span className="text-[11px] font-bold text-zinc-400 dark:text-slate-500 uppercase flex items-center gap-1">
+                    <Calendar size={12} /> Previsão de Entrega
+                  </span>
+                  <p className="font-bold text-zinc-900 dark:text-slate-200">
+                    {new Date(order.estimatedDeliveryDate).toLocaleDateString('pt-BR')}
+                  </p>
                 </div>
+              )}
+            </div>
+
+            {/* Tracking Code & Carrier Link Box */}
+            {order.trackingCode ? (
+              <div className="p-4 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 rounded-xl space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="space-y-0.5">
+                    <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
+                      {t('store.trackingCode', 'Código de Rastreamento')} ({formatCarrierName(order.carrierName, order.shippingMethod)})
+                    </span>
+                    <p className="font-mono font-black text-base text-blue-950 dark:text-blue-200 tracking-wider">
+                      {order.trackingCode}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleCopy(order.trackingCode!)}
+                      className="px-3 py-1.5 bg-white dark:bg-slate-800 hover:bg-blue-100/60 dark:hover:bg-slate-700 border border-blue-200 dark:border-slate-700 text-blue-900 dark:text-blue-300 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                    >
+                      {copiedTracking ? <Check size={13} /> : <Copy size={13} />}
+                      <span>{copiedTracking ? t('store.copied', 'Copiado!') : t('store.copyCode', 'Copiar Código')}</span>
+                    </button>
+
+                    <a
+                      href={getCarrierTrackingUrl(order.trackingCode, order.carrierName, order.trackingUrl)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+                    >
+                      <span>Acompanhar na Transportadora</span>
+                      <ExternalLink size={13} />
+                    </a>
+                  </div>
+                </div>
+
+                {/* Tracking Events Timeline if available */}
+                {order.trackingEvents && order.trackingEvents.length > 0 && (
+                  <div className="pt-3 border-t border-blue-200 dark:border-blue-800/60 space-y-2">
+                    <span className="text-[10px] font-bold text-blue-800 dark:text-blue-300 uppercase tracking-wider block">
+                      Movimentações de Rastreio (Frenet / Transportadora):
+                    </span>
+                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                      {order.trackingEvents.map((evt, eIdx) => (
+                        <div key={eIdx} className="bg-white/80 dark:bg-slate-800/80 p-2.5 rounded-lg border border-blue-200/70 dark:border-slate-700 text-xs flex items-start gap-2.5">
+                          <div className="w-2 h-2 rounded-full bg-blue-600 mt-1.5 shrink-0" />
+                          <div className="flex-1 space-y-0.5">
+                            <p className="font-bold text-zinc-900 dark:text-white text-xs">{evt.description}</p>
+                            <div className="flex items-center justify-between text-[10px] text-zinc-500 dark:text-slate-400">
+                              <span>{evt.location || 'Em trânsito'}</span>
+                              <span>{evt.date ? new Date(evt.date).toLocaleString('pt-BR') : ''}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="p-3 bg-zinc-100 dark:bg-slate-800/60 rounded-xl text-xs text-zinc-500 dark:text-slate-400 flex items-center gap-2">

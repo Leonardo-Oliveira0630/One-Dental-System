@@ -5,14 +5,16 @@ import {
   MapPin, User, Mail, Phone, Calendar, Info, Search, RefreshCw,
   Scale, ShieldAlert, ShieldCheck, ChevronRight, MessageSquare, AlertTriangle,
   FileSpreadsheet, Printer, ArrowRight, CheckSquare, Layers,
-  Building2, ExternalLink, Filter
+  Building2, ExternalLink, Filter, Send
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { subscribeSupplierConversations, subscribeSupplierOrders } from '../../services/firebaseService';
+import { subscribeSupplierConversations, subscribeSupplierOrders, apiDispatchSupplierOrder, apiUpdateSupplierOrderStatus } from '../../services/firebaseService';
 import { SupplierOrder } from '../../types';
 import { SupplierOrderDetailsDrawer } from './components/SupplierOrderDetailsDrawer';
 import { SupplierOrderPackingSlipModal } from './components/SupplierOrderPackingSlipModal';
 import { SupplierFinancialTab } from './components/SupplierFinancialTab';
+import { SupplierDispatchOrderModal } from './components/SupplierDispatchOrderModal';
+import { getCarrierTrackingUrl, formatCarrierName } from '../../utils/trackingUtils';
 
 export type SupplierOrderTab = 'SEPARATION' | 'READY_TO_SHIP' | 'SHIPPED' | 'DELIVERED' | 'RETURNED' | 'ALL';
 
@@ -31,6 +33,7 @@ export const SupplierDashboard = () => {
 
   const [selectedOrder, setSelectedOrder] = useState<SupplierOrder | null>(null);
   const [orderToPrint, setOrderToPrint] = useState<SupplierOrder | null>(null);
+  const [dispatchModalOrder, setDispatchModalOrder] = useState<SupplierOrder | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [unreadChatCount, setUnreadChatCount] = useState(0);
   const [directSupplierOrders, setDirectSupplierOrders] = useState<SupplierOrder[] | null>(null);
@@ -576,10 +579,71 @@ export const SupplierDashboard = () => {
                           {/* Actions */}
                           <td className="p-3.5 text-center whitespace-nowrap">
                             <div className="flex items-center justify-center gap-1.5">
+                              {/* Quick Dispatch / Ship Action Buttons */}
+                              {(o.status === 'SEPARATION' || o.status === 'PAID' || o.status === 'PENDING') && (
+                                <>
+                                  <button
+                                    onClick={async (e) => {
+                                      e.stopPropagation();
+                                      await handleUpdateOrderStatus(o.id, 'READY_TO_SHIP', {
+                                        deliveryStatus: 'READY_TO_SHIP',
+                                        separatedAt: new Date(),
+                                        packedAt: new Date()
+                                      });
+                                    }}
+                                    className="px-2.5 py-1 bg-purple-100 hover:bg-purple-200 dark:bg-purple-950 dark:hover:bg-purple-900 text-purple-900 dark:text-purple-200 border border-purple-300 dark:border-purple-800 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
+                                    title="Marcar como A Despachar"
+                                  >
+                                    <Package size={13} />
+                                    <span>Despachar</span>
+                                  </button>
+
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setDispatchModalOrder(o);
+                                    }}
+                                    className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-2xs cursor-pointer"
+                                    title="Despachar & Inserir Rastreio"
+                                  >
+                                    <Send size={13} />
+                                    <span>Enviar...</span>
+                                  </button>
+                                </>
+                              )}
+
+                              {o.status === 'READY_TO_SHIP' && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setDispatchModalOrder(o);
+                                  }}
+                                  className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-2xs cursor-pointer"
+                                  title="Registrar envio com código de rastreio"
+                                >
+                                  <Send size={13} />
+                                  <span>Enviar Pedido</span>
+                                </button>
+                              )}
+
+                              {o.status === 'SHIPPED' && o.trackingCode && (
+                                <a
+                                  href={getCarrierTrackingUrl(o.trackingCode, o.carrierName, o.trackingUrl)}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 rounded-lg text-xs font-bold flex items-center gap-1 transition-all"
+                                  title="Acessar rastreio da transportadora"
+                                >
+                                  <ExternalLink size={13} />
+                                  <span>Rastreio</span>
+                                </a>
+                              )}
+
                               {/* Open Details */}
                               <button
                                 onClick={() => setSelectedOrder(o)}
-                                className="px-2.5 py-1 bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-500 text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer"
+                                className="px-2.5 py-1 bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-white rounded-lg text-xs font-bold transition-all shadow-2xs cursor-pointer"
                               >
                                 Detalhes
                               </button>
@@ -632,6 +696,30 @@ export const SupplierDashboard = () => {
           supplierName={currentOrg?.name}
           supplierAddress={currentOrg?.address}
           supplierPhone={currentOrg?.phone}
+        />
+      )}
+
+      {/* Quick Dispatch & Shipping Modal */}
+      {dispatchModalOrder && (
+        <SupplierDispatchOrderModal
+          order={dispatchModalOrder}
+          isOpen={!!dispatchModalOrder}
+          onClose={() => setDispatchModalOrder(null)}
+          onConfirmDispatch={async (orderId, dispatchData) => {
+            await apiDispatchSupplierOrder(orderId, dispatchData);
+            await handleUpdateOrderStatus(orderId, 'SHIPPED', {
+              ...dispatchData,
+              deliveryStatus: 'SHIPPED',
+              shippedAt: new Date()
+            });
+          }}
+          onSetReadyToShipOnly={async (orderId) => {
+            await handleUpdateOrderStatus(orderId, 'READY_TO_SHIP', {
+              deliveryStatus: 'READY_TO_SHIP',
+              separatedAt: new Date(),
+              packedAt: new Date()
+            });
+          }}
         />
       )}
     </main>
