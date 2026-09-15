@@ -110,23 +110,22 @@ export const SupplierSettings = () => {
     setBanners(prev => prev.filter((_, i) => i !== index));
   };
 
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+
   const handleBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setIsUploadingImage(true);
     try {
-      const compressed = await smartCompress(file);
-      const reader = new FileReader();
-      reader.onload = (evt) => {
-        const base64 = evt.target?.result as string;
-        if (base64) {
-          setBanners(prev => [...prev, { imageUrl: base64 }]);
-        }
-      };
-      reader.readAsDataURL(compressed);
-    } catch (err) {
+      const url = await api.uploadBannerImage(file);
+      if (url) {
+        setBanners(prev => [...prev, { imageUrl: url }]);
+      }
+    } catch (err: any) {
       console.error(err);
-      alert('Erro ao processar imagem banner.');
+      alert('Erro ao processar imagem banner: ' + (err.message || err));
     } finally {
+      setIsUploadingImage(false);
       e.target.value = '';
     }
   };
@@ -134,20 +133,17 @@ export const SupplierSettings = () => {
   const handleProfilePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setIsUploadingImage(true);
     try {
-      const compressed = await smartCompress(file);
-      const reader = new FileReader();
-      reader.onload = (evt) => {
-        const base64 = evt.target?.result as string;
-        if (base64) {
-          setProfilePhoto(base64);
-        }
-      };
-      reader.readAsDataURL(compressed);
-    } catch (err) {
+      const url = await api.uploadStoreLogo(file);
+      if (url) {
+        setProfilePhoto(url);
+      }
+    } catch (err: any) {
       console.error(err);
-      alert('Erro ao processar foto de perfil.');
+      alert('Erro ao processar foto de perfil: ' + (err.message || err));
     } finally {
+      setIsUploadingImage(false);
       e.target.value = '';
     }
   };
@@ -208,16 +204,18 @@ export const SupplierSettings = () => {
   const handleNewCatImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setIsUploadingImage(true);
     try {
-      const compressed = await smartCompress(file);
-      const reader = new FileReader();
-      reader.onload = (evt) => {
-        setNewCatImageUrl(evt.target?.result as string);
-      };
-      reader.readAsDataURL(compressed);
-    } catch (err) {
+      const url = await api.uploadStoreLogo(file);
+      if (url) {
+        setNewCatImageUrl(url);
+      }
+    } catch (err: any) {
       console.error(err);
-      alert('Erro ao processar imagem da nova categoria.');
+      alert('Erro ao processar imagem da nova categoria: ' + (err.message || err));
+    } finally {
+      setIsUploadingImage(false);
+      e.target.value = '';
     }
   };
 
@@ -246,7 +244,7 @@ export const SupplierSettings = () => {
         ...(currentOrg.storeSettings?.catchphrase ? { catchphrase: currentOrg.storeSettings.catchphrase } : {}),
         ...(currentOrg.storeSettings?.layoutType ? { layoutType: currentOrg.storeSettings.layoutType } : {}),
         ...(Array.isArray(currentOrg.storeSettings?.menuOptions) ? { menuOptions: currentOrg.storeSettings.menuOptions.filter(m => typeof m === 'string') } : {}),
-        ...(currentOrg.storeSettings?.policies ? { policies: currentOrg.storeSettings.policies } : {})
+        ...(currentOrg.storeSettings?.policies ? { policies: JSON.parse(JSON.stringify(currentOrg.storeSettings.policies)) } : {})
       };
       
       await updateOrganization(currentOrg.id, {
@@ -790,17 +788,16 @@ export const SupplierSettings = () => {
                                    const file = e.target.files?.[0];
                                    if (!file) return;
                                    try {
-                                     const compressed = await smartCompress(file);
-                                     const reader = new FileReader();
-                                     reader.onload = async (evt) => {
-                                       const base64 = evt.target?.result as string;
-                                       await updateInventoryCategory(cat.id, { imageUrl: base64 });
+                                     const url = await api.uploadStoreLogo(file);
+                                     if (url) {
+                                       await updateInventoryCategory(cat.id, { imageUrl: url });
                                        alert('Imagem da categoria atualizada com sucesso!');
-                                     };
-                                     reader.readAsDataURL(compressed);
-                                   } catch (err) {
+                                     }
+                                   } catch (err: any) {
                                      console.error(err);
-                                     alert('Erro ao atualizar imagem da categoria.');
+                                     alert('Erro ao atualizar imagem da categoria: ' + (err.message || err));
+                                   } finally {
+                                     e.target.value = '';
                                    }
                                 }}
                               />

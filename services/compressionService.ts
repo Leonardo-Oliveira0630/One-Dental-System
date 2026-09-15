@@ -3,9 +3,9 @@ import JSZip from 'jszip';
 
 /**
  * Comprime imagens usando Canvas.
- * Qualidade de 0.85 é o "sweet spot" para fotos odontológicas (mantém detalhes de textura e cor).
+ * Para fotos odontológicas ou web.
  */
-export const compressImage = async (file: File, maxWidth = 4096, quality = 0.98): Promise<File> => {
+export const compressImage = async (file: File, maxWidth = 1920, quality = 0.85): Promise<File> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
@@ -18,7 +18,7 @@ export const compressImage = async (file: File, maxWidth = 4096, quality = 0.98)
         let height = img.height;
 
         if (width > maxWidth) {
-          height = (maxWidth / width) * height;
+          height = Math.round((maxWidth / width) * height);
           width = maxWidth;
         }
 
@@ -49,6 +49,47 @@ export const compressImage = async (file: File, maxWidth = 4096, quality = 0.98)
           quality
         );
       };
+      img.onerror = () => reject(new Error("Erro ao carregar imagem"));
+    };
+    reader.onerror = (err) => reject(err);
+  });
+};
+
+/**
+ * Converte e comprime imagem diretamente para string Base64 leve (ideal para Firestore < 100KB)
+ */
+export const compressImageToBase64 = async (file: File, maxWidth = 1200, quality = 0.8): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth) {
+          height = Math.round((maxWidth / width) * height);
+          width = maxWidth;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return reject(new Error("Canvas context failed"));
+        
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const base64 = canvas.toDataURL('image/jpeg', quality);
+        console.log(`[LABPROX] Imagem Base64 gerada: ${(base64.length / 1024).toFixed(1)}KB`);
+        resolve(base64);
+      };
+      img.onerror = () => reject(new Error("Erro ao carregar imagem"));
     };
     reader.onerror = (err) => reject(err);
   });

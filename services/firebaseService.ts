@@ -993,30 +993,37 @@ export const uploadJobFile = async (file: File): Promise<string> => {
 };
 
 export const uploadBannerImage = async (file: File): Promise<string> => {
-    const ext = file.name.split('.').pop()?.toLowerCase();
-    const isImage = ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif'].includes(ext || '');
-
-    if (isImage) {
-        try {
-            const base64 = await fileToBase64(file);
-            const fn = httpsCallable(functions, 'optimizeAndUploadImage');
-            const result = await fn({
-                base64,
-                fileName: file.name,
-                mimeType: file.type || `image/${ext}`
-            });
-            const data = result.data as any;
-            if (data && data.webpUrl) {
-                return data.webpUrl;
-            }
-        } catch (err) {
-            logger.error({ err: err }, "[uploadBannerImage] Erro ao otimizar imagem no servidor, usando fallback normal:");
+    try {
+        if (storage) {
+            const cleanName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+            const fileRef = ref(storage, `store/banners/${Date.now()}_${cleanName}`);
+            await uploadBytes(fileRef, file);
+            const downloadUrl = await getDownloadURL(fileRef);
+            if (downloadUrl) return downloadUrl;
         }
+    } catch (storageErr) {
+        logger.warn({ err: storageErr }, "[uploadBannerImage] Storage upload fallback to client compression:");
     }
 
-    const fileRef = ref(storage, `jobs/banners_${Date.now()}_${file.name}`);
-    await uploadBytes(fileRef, file);
-    return getDownloadURL(fileRef);
+    const { compressImageToBase64 } = await import('./compressionService');
+    return await compressImageToBase64(file, 1200, 0.75);
+};
+
+export const uploadStoreLogo = async (file: File): Promise<string> => {
+    try {
+        if (storage) {
+            const cleanName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+            const fileRef = ref(storage, `store/logos/${Date.now()}_${cleanName}`);
+            await uploadBytes(fileRef, file);
+            const downloadUrl = await getDownloadURL(fileRef);
+            if (downloadUrl) return downloadUrl;
+        }
+    } catch (storageErr) {
+        logger.warn({ err: storageErr }, "[uploadStoreLogo] Storage upload fallback to client compression:");
+    }
+
+    const { compressImageToBase64 } = await import('./compressionService');
+    return await compressImageToBase64(file, 400, 0.8);
 };
 
 export const apiCreateOrderPayment = async (jobData: any, paymentData: any) => {
