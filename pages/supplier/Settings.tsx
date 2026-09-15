@@ -68,7 +68,7 @@ export const SupplierSettings = () => {
       const settings = currentOrg.storeSettings || {};
       setTheme(settings.theme || 'shopee');
       setBanners(settings.banners || []);
-      setProfilePhoto(settings.profilePhotoUrl || '');
+      setProfilePhoto(settings.profilePhotoUrl || currentOrg.logoUrl || '');
 
       const fin = currentOrg.financialSettings || {};
       setAsaasWalletId(fin.asaasWalletId || '');
@@ -102,12 +102,12 @@ export const SupplierSettings = () => {
 
   const handleAddBanner = () => {
     if (!newBanner.trim()) return;
-    setBanners([...banners, { imageUrl: newBanner.trim() }]);
+    setBanners(prev => [...prev, { imageUrl: newBanner.trim() }]);
     setNewBanner('');
   };
 
   const handleRemoveBanner = (index: number) => {
-    setBanners(banners.filter((_, i) => i !== index));
+    setBanners(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -118,12 +118,16 @@ export const SupplierSettings = () => {
       const reader = new FileReader();
       reader.onload = (evt) => {
         const base64 = evt.target?.result as string;
-        setBanners([...banners, { imageUrl: base64 }]);
+        if (base64) {
+          setBanners(prev => [...prev, { imageUrl: base64 }]);
+        }
       };
       reader.readAsDataURL(compressed);
     } catch (err) {
       console.error(err);
       alert('Erro ao processar imagem banner.');
+    } finally {
+      e.target.value = '';
     }
   };
 
@@ -135,12 +139,16 @@ export const SupplierSettings = () => {
       const reader = new FileReader();
       reader.onload = (evt) => {
         const base64 = evt.target?.result as string;
-        setProfilePhoto(base64);
+        if (base64) {
+          setProfilePhoto(base64);
+        }
       };
       reader.readAsDataURL(compressed);
     } catch (err) {
       console.error(err);
       alert('Erro ao processar foto de perfil.');
+    } finally {
+      e.target.value = '';
     }
   };
 
@@ -218,20 +226,35 @@ export const SupplierSettings = () => {
     if (!currentOrg) return;
     setLoading(true);
     try {
+      const cleanBanners: BannerConfig[] = (banners || [])
+        .filter(b => b && typeof b.imageUrl === 'string' && b.imageUrl.trim() !== '')
+        .map(b => ({
+          imageUrl: b.imageUrl.trim(),
+          ...(b.title?.trim() ? { title: b.title.trim() } : {}),
+          ...(b.subtitle?.trim() ? { subtitle: b.subtitle.trim() } : {}),
+          ...(b.buttonText?.trim() ? { buttonText: b.buttonText.trim() } : {}),
+          ...(b.buttonLink?.trim() ? { buttonLink: b.buttonLink.trim() } : {}),
+          ...(b.buttonColor?.trim() ? { buttonColor: b.buttonColor.trim() } : {}),
+          ...(b.buttonSize ? { buttonSize: b.buttonSize } : {}),
+          ...(b.buttonBorderRadius ? { buttonBorderRadius: b.buttonBorderRadius } : {})
+        }));
+
+      const existingStoreSettings = currentOrg.storeSettings || {};
       const updatedStoreSettings: StoreSettings = {
-        ...(currentOrg.storeSettings || {}),
+        ...existingStoreSettings,
         theme,
-        banners,
-        profilePhotoUrl: profilePhoto
+        banners: cleanBanners,
+        profilePhotoUrl: profilePhoto?.trim() || ''
       };
       
       await updateOrganization(currentOrg.id, {
+        logoUrl: profilePhoto?.trim() || currentOrg.logoUrl || '',
         storeSettings: updatedStoreSettings
       });
-      alert('Configurações da sua Loja salvas com sucesso!');
-    } catch (err) {
-      console.error(err);
-      alert('Erro ao salvar as configurações.');
+      alert('Configurações da sua Loja e Vitrine salvas com sucesso!');
+    } catch (err: any) {
+      console.error('Erro ao salvar vitrine:', err);
+      alert('Erro ao salvar as configurações: ' + (err?.message || err));
     } finally {
       setLoading(false);
     }

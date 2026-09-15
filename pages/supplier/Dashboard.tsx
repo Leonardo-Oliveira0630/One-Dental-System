@@ -476,8 +476,15 @@ export const SupplierDashboard = () => {
                     filteredOrders.map((o) => {
                       const orderShortId = o.id.replace('order_sup_', '').substring(0, 10).toUpperCase();
                       const dateStr = new Date(o.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
-                      const isPaid = o.paymentStatus === 'PAID' || o.status === 'DELIVERED' || o.status === 'SHIPPED' || o.status === 'SEPARATION' || o.status === 'READY_TO_SHIP';
+                      const isPaid = o.paymentStatus === 'PAID' || o.status === 'PAID' || o.status === 'CONFIRMED' || o.status === 'DELIVERED' || o.status === 'SHIPPED' || o.status === 'SEPARATION' || o.status === 'READY_TO_SHIP';
                       const isRefunded = o.paymentStatus === 'REFUNDED' || o.status === 'RETURNED';
+
+                      // Determine granular row shipping stage
+                      const isRowReturned = o.status === 'RETURNED' || !!o.returnRequest || o.deliveryStatus === 'RETURNED' || o.paymentStatus === 'REFUNDED';
+                      const isRowDelivered = !isRowReturned && (o.status === 'DELIVERED' || o.deliveryStatus === 'DELIVERED');
+                      const isRowShipped = !isRowReturned && !isRowDelivered && (o.status === 'SHIPPED' || o.deliveryStatus === 'SHIPPED');
+                      const isRowReadyToShip = !isRowReturned && !isRowDelivered && !isRowShipped && (o.status === 'READY_TO_SHIP' || o.deliveryStatus === 'READY_TO_SHIP');
+                      const isRowSeparation = !isRowReturned && !isRowDelivered && !isRowShipped && !isRowReadyToShip && o.status !== 'CANCELLED';
 
                       return (
                         <tr key={o.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
@@ -557,16 +564,18 @@ export const SupplierDashboard = () => {
                           {/* Shipping Status */}
                           <td className="p-3.5 text-center whitespace-nowrap">
                             <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold inline-flex items-center gap-1 ${
-                              o.status === 'DELIVERED' ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800' :
-                              o.status === 'SHIPPED' ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800' :
-                              o.status === 'READY_TO_SHIP' ? 'bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800' :
-                              o.status === 'RETURNED' || !!o.returnRequest ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800' :
+                              isRowDelivered ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800' :
+                              isRowShipped ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800' :
+                              isRowReadyToShip ? 'bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800' :
+                              isRowReturned ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800' :
+                              o.status === 'CANCELLED' ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800' :
                               'bg-yellow-50 dark:bg-yellow-950/40 text-yellow-700 dark:text-yellow-300 border border-yellow-200 dark:border-yellow-800'
                             }`}>
-                              {o.status === 'DELIVERED' ? 'Entregue' :
-                               o.status === 'SHIPPED' ? 'Em Trânsito' :
-                               o.status === 'READY_TO_SHIP' ? 'A Despachar' :
-                               o.status === 'RETURNED' || !!o.returnRequest ? 'Devolução' :
+                              {isRowDelivered ? 'Entregue' :
+                               isRowShipped ? 'Em Trânsito' :
+                               isRowReadyToShip ? 'A Despachar' :
+                               isRowReturned ? 'Devolução' :
+                               o.status === 'CANCELLED' ? 'Cancelado' :
                                'A Separar'}
                             </span>
                             {o.trackingCode && (
@@ -580,7 +589,7 @@ export const SupplierDashboard = () => {
                           <td className="p-3.5 text-center whitespace-nowrap">
                             <div className="flex items-center justify-center gap-1.5">
                               {/* Quick Dispatch / Ship Action Buttons */}
-                              {(o.status === 'SEPARATION' || o.status === 'PAID' || o.status === 'PENDING') && (
+                              {isRowSeparation && (
                                 <>
                                   <button
                                     onClick={async (e) => {
@@ -612,7 +621,7 @@ export const SupplierDashboard = () => {
                                 </>
                               )}
 
-                              {o.status === 'READY_TO_SHIP' && (
+                              {isRowReadyToShip && (
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
@@ -626,7 +635,7 @@ export const SupplierDashboard = () => {
                                 </button>
                               )}
 
-                              {o.status === 'SHIPPED' && o.trackingCode && (
+                              {isRowShipped && o.trackingCode && (
                                 <a
                                   href={getCarrierTrackingUrl(o.trackingCode, o.carrierName, o.trackingUrl)}
                                   target="_blank"

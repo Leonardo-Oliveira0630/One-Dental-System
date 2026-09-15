@@ -211,13 +211,13 @@ export const SupplierOrderDetailsDrawer: React.FC<SupplierOrderDetailsDrawerProp
     }
   };
 
-  // Determine current lifecycle step
-  const isSeparation = order.status === 'PENDING' || order.status === 'PAID' || order.status === 'SEPARATION';
-  const isReadyToShip = order.status === 'READY_TO_SHIP' || order.deliveryStatus === 'READY_TO_SHIP';
-  const isShipped = order.status === 'SHIPPED' || order.deliveryStatus === 'SHIPPED';
-  const isDelivered = order.status === 'DELIVERED' || order.deliveryStatus === 'DELIVERED';
-  const isReturned = order.status === 'RETURNED' || !!order.returnRequest;
+  // Determine current lifecycle step reliably
+  const isReturned = order.status === 'RETURNED' || !!order.returnRequest || order.deliveryStatus === 'RETURNED' || order.paymentStatus === 'REFUNDED';
   const isCancelled = order.status === 'CANCELLED';
+  const isDelivered = !isReturned && !isCancelled && (order.status === 'DELIVERED' || order.deliveryStatus === 'DELIVERED');
+  const isShipped = !isReturned && !isCancelled && !isDelivered && (order.status === 'SHIPPED' || order.deliveryStatus === 'SHIPPED');
+  const isReadyToShip = !isReturned && !isCancelled && !isDelivered && !isShipped && (order.status === 'READY_TO_SHIP' || order.deliveryStatus === 'READY_TO_SHIP');
+  const isSeparation = !isReturned && !isCancelled && !isDelivered && !isShipped && !isReadyToShip;
 
   const allItemsPicked = order.items?.every((_, idx) => order.pickingChecklist?.[`item_${idx}`] === true);
 

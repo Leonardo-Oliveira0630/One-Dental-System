@@ -38,6 +38,44 @@ const toDate = (val: any) => {
     return new Date(val);
 };
 
+// Helper to recursively strip undefined values and non-serializable fields for Firestore
+export const sanitizeForFirestore = (obj: any): any => {
+    if (obj === undefined) return null;
+    if (obj === null) return null;
+    if (obj instanceof Date) return obj;
+    if (obj instanceof Timestamp || (obj && typeof obj.toDate === 'function')) return obj;
+    if (Array.isArray(obj)) {
+        return obj
+            .filter((item) => item !== undefined)
+            .map((item) => {
+                if (item === null || typeof item !== 'object' || item instanceof Date) return item;
+                const cleanItem: Record<string, any> = {};
+                for (const [key, val] of Object.entries(item)) {
+                    if (val !== undefined && typeof val !== 'function') {
+                        const cleanedVal = sanitizeForFirestore(val);
+                        if (cleanedVal !== undefined) {
+                            cleanItem[key] = cleanedVal;
+                        }
+                    }
+                }
+                return cleanItem;
+            });
+    }
+    if (typeof obj === 'object') {
+        const cleaned: Record<string, any> = {};
+        for (const [key, val] of Object.entries(obj)) {
+            if (val !== undefined && typeof val !== 'function') {
+                const cleanedVal = sanitizeForFirestore(val);
+                if (cleanedVal !== undefined) {
+                    cleaned[key] = cleanedVal;
+                }
+            }
+        }
+        return cleaned;
+    }
+    return obj;
+};
+
 // --- PRONTUÁRIO / HISTÓRICO DO PACIENTE ---
 export const subscribePatientHistory = (orgId: string, patientId: string, cb: (history: PatientHistoryRecord[]) => void) => {
     if (!orgId || !patientId) return () => {};
@@ -765,7 +803,10 @@ export const subscribeCoupons = (cb: (c: Coupon[]) => void) => {
         } as Coupon)));
     }, (error: any) => logger.warn(`[Firestore] Erro em subscribeCoupons: ${error.code}`));
 };
-export const apiUpdateOrganization = (id: string, u: Partial<Organization>) => updateDoc(doc(db, 'organizations', id), u);
+export const apiUpdateOrganization = (id: string, u: Partial<Organization>) => {
+    const cleanPayload = sanitizeForFirestore(u);
+    return setDoc(doc(db, 'organizations', id), cleanPayload, { merge: true });
+};
 export const apiValidateCoupon = async (code: string, planId: string): Promise<Coupon | null> => {
     const q = query(collection(db, 'coupons'), where('code', '==', code.toUpperCase()), where('active', '==', true));
     const snap = await getDocs(q);
