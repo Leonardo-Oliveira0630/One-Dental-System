@@ -12,6 +12,7 @@ import {
 import * as api from '../../services/firebaseService';
 import { SupplierStoreSetupWizard } from './components/SupplierStoreSetupWizard';
 import { SupplierTermsModal } from '../../components/SupplierTermsModal';
+import { FrenetConfigCard } from '../../components/FrenetConfigCard';
 
 export const SupplierSettings = () => {
   const { 
@@ -19,7 +20,7 @@ export const SupplierSettings = () => {
     inventoryCategories, addInventoryCategory, updateInventoryCategory, deleteInventoryCategory 
   } = useApp();
 
-  const [activeTab, setActiveTab] = useState<'store' | 'policies' | 'plans' | 'asaas'>('store');
+  const [activeTab, setActiveTab] = useState<'store' | 'policies' | 'logistics' | 'plans' | 'asaas'>('store');
   const [showWizard, setShowWizard] = useState(false);
   const [isTermsModalOpen, setIsTermsModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -354,6 +355,22 @@ export const SupplierSettings = () => {
           <Scale size={18} />
           <span>Políticas & Termos</span>
           {currentOrg?.storeSettings?.policies?.termsAcceptance?.accepted ? (
+            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+          ) : (
+            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+          )}
+        </button>
+        <button
+          onClick={() => setActiveTab('logistics')}
+          className={`px-5 py-3 border-b-2 font-bold text-sm flex items-center gap-2 transition-all whitespace-nowrap cursor-pointer rounded-t-xl ${
+            activeTab === 'logistics' 
+              ? 'border-amber-600 text-amber-700 dark:text-amber-400 bg-amber-50/70 dark:bg-amber-950/40' 
+              : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#0E1626]'
+          }`}
+        >
+          <Truck size={18} />
+          <span>Frete & Frenet</span>
+          {currentOrg?.frenetToken ? (
             <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
           ) : (
             <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
@@ -1335,6 +1352,22 @@ export const SupplierSettings = () => {
 
               </div>
             )}
+          </div>
+        )}
+
+        {/* TAB: FRENET LOGISTICS & FRETE */}
+        {activeTab === 'logistics' && (
+          <div className="space-y-6 animate-in fade-in duration-300 max-w-4xl">
+            <FrenetConfigCard
+              organization={currentOrg || {}}
+              isSupplier={true}
+              title="Integração Frenet • Loja de Fornecedores & Dental"
+              description="Configure seu Token e regras de envio para cálculo automático e instantâneo de frete via Correios (PAC/SEDEX), Jadlog, Loggi e demais transportadoras no checkout dos seus clientes."
+              onSave={async (updates) => {
+                if (!currentOrg?.id) return;
+                await updateOrganization(currentOrg.id, updates);
+              }}
+            />
           </div>
         )}
 

@@ -622,17 +622,34 @@ export const SupplierDashboard = () => {
                               )}
 
                               {isRowReadyToShip && (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setDispatchModalOrder(o);
-                                  }}
-                                  className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-2xs cursor-pointer"
-                                  title="Registrar envio com código de rastreio"
-                                >
-                                  <Send size={13} />
-                                  <span>Enviar Pedido</span>
-                                </button>
+                                o.shippingMethod === 'PICKUP' ? (
+                                  <button
+                                    onClick={async (e) => {
+                                      e.stopPropagation();
+                                      await handleUpdateOrderStatus(o.id, 'DELIVERED', {
+                                        deliveryStatus: 'DELIVERED',
+                                        deliveredAt: new Date()
+                                      });
+                                    }}
+                                    className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-2xs cursor-pointer"
+                                    title="Confirmar que o cliente retirou o pedido"
+                                  >
+                                    <CheckCircle2 size={13} />
+                                    <span>Confirmar Retirada</span>
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setDispatchModalOrder(o);
+                                    }}
+                                    className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-2xs cursor-pointer"
+                                    title="Registrar envio com código de rastreio"
+                                  >
+                                    <Send size={13} />
+                                    <span>Enviar Pedido</span>
+                                  </button>
+                                )
                               )}
 
                               {isRowShipped && o.trackingCode && (

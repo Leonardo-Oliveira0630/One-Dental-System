@@ -501,30 +501,41 @@ export const SupplierStore = () => {
       shippingMethod !== 'PICKUP' && 
       shippingMethod !== 'MOTOBOY'
     ) {
-      handleQuoteShipping(address.zipCode, supplier.frenetToken, supplier.cep || '01001000');
+      handleQuoteShipping(
+        address.zipCode, 
+        supplier.frenetToken, 
+        supplier.frenetOriginCep || supplier.cep || '01001000',
+        supplier
+      );
     }
   }, [address.zipCode, cart, allSuppliers, shippingMethod]);
 
-  const handleQuoteShipping = async (cep: string, token: string, originCep: string) => {
+  const handleQuoteShipping = async (cep: string, token: string, originCep: string, supplierData?: any) => {
     setIsQuotingShipping(true);
     setShippingQuotes([]);
     setShippingError(null);
     setSelectedShippingService(null);
     try {
+      const defaultPkg = supplierData?.frenetDefaultPackage || { weightKg: 0.5, heightCm: 10, widthCm: 15, lengthCm: 20 };
       const items = cart.map(item => ({
         id: item.product.id,
         price: isPromo(item.product) && item.product.promotionalPrice ? item.product.promotionalPrice : item.product.sellPrice,
         quantity: item.quantity,
-        weight: 0.5,
-        height: 10,
-        width: 15,
-        length: 20
+        weight: (item.product as any).weightKg || defaultPkg.weightKg || 0.5,
+        height: (item.product as any).heightCm || defaultPkg.heightCm || 10,
+        width: (item.product as any).widthCm || defaultPkg.widthCm || 15,
+        length: (item.product as any).lengthCm || defaultPkg.lengthCm || 20
       }));
       const res = await api.apiCalculateFrenetShipping({
         originCep,
         destinationCep: cep,
         items,
-        frenetToken: token
+        frenetToken: token,
+        handlingDays: supplierData?.frenetHandlingDays || supplierData?.storeSettings?.policies?.deliveryPolicy?.defaultDispatchDays || 0,
+        extraPercentage: supplierData?.frenetExtraPercentage || 0,
+        extraFixed: supplierData?.frenetExtraFixed || 0,
+        freeShippingEnabled: supplierData?.frenetFreeShippingEnabled || supplierData?.storeSettings?.policies?.deliveryPolicy?.freeShippingEnabled || false,
+        freeShippingThreshold: supplierData?.frenetFreeShippingThreshold || supplierData?.storeSettings?.policies?.deliveryPolicy?.freeShippingThreshold || 0
       });
       if (res && res.services) {
         const validServices = res.services.filter((s: any) => !s.Error);

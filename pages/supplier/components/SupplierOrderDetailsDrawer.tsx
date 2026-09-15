@@ -5,7 +5,7 @@ import {
   CheckCircle2, AlertTriangle, ShieldCheck, Printer, MessageSquare, 
   Copy, ExternalLink, Clock, FileText, ArrowRight, CheckSquare, 
   Square, RefreshCw, Send, DollarSign, AlertCircle, ShoppingBag,
-  Sparkles, Check
+  Sparkles, Check, Store
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { SupplierDispatchOrderModal } from './SupplierDispatchOrderModal';
@@ -376,19 +376,37 @@ export const SupplierOrderDetailsDrawer: React.FC<SupplierOrderDetailsDrawerProp
             {/* A DESPACHAR (READY_TO_SHIP) */}
             {isReadyToShip && (
               <div className="space-y-3 pt-1">
-                <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl text-purple-900 text-xs flex items-center gap-2">
-                  <Package size={16} className="text-purple-600 shrink-0" />
-                  <span><strong>Pedido separado e pronto para despacho!</strong> Clique no botão abaixo para registrar a transportadora e o código de rastreamento para o cliente.</span>
-                </div>
+                {order.shippingMethod === 'PICKUP' ? (
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-950 text-xs flex items-center gap-2">
+                    <Store size={16} className="text-emerald-600 shrink-0" />
+                    <span><strong>Pedido pronto para retirada no balcão!</strong> O cliente foi avisado que pode retirar na loja. Assim que ele retirar, confirme abaixo.</span>
+                  </div>
+                ) : (
+                  <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl text-purple-900 text-xs flex items-center gap-2">
+                    <Package size={16} className="text-purple-600 shrink-0" />
+                    <span><strong>Pedido separado e pronto para despacho!</strong> Clique no botão abaixo para registrar a transportadora e o código de rastreamento para o cliente.</span>
+                  </div>
+                )}
                 <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    onClick={() => setIsDispatchModalOpen(true)}
-                    disabled={isUpdatingStatus}
-                    className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-md cursor-pointer disabled:opacity-50"
-                  >
-                    <Send size={15} />
-                    <span>Despachar & Enviar Pedido (Inserir Rastreio)</span>
-                  </button>
+                  {order.shippingMethod === 'PICKUP' ? (
+                    <button
+                      onClick={handleConfirmDelivered}
+                      disabled={isUpdatingStatus}
+                      className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-md cursor-pointer disabled:opacity-50"
+                    >
+                      <CheckCircle2 size={15} />
+                      <span>Confirmar Retirada pelo Cliente (Finalizar Pedido)</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setIsDispatchModalOpen(true)}
+                      disabled={isUpdatingStatus}
+                      className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-md cursor-pointer disabled:opacity-50"
+                    >
+                      <Send size={15} />
+                      <span>Despachar & Enviar Pedido (Inserir Rastreio)</span>
+                    </button>
+                  )}
                 </div>
               </div>
             )}

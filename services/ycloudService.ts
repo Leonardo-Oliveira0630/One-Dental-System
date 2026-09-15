@@ -274,9 +274,20 @@ export async function notifyJobLogistics(job: Job, action: 'SHIPPED' | 'DELIVERE
 /**
  * Envia notificação de Etapas de Entrega para o Comprador (Fornecedores)
  */
-export async function notifySupplierOrder(order: SupplierOrder, action: 'CONFIRMED' | 'SHIPPED' | 'DELIVERED', phone: string) {
-  const orderIdShort = order.id.substring(order.id.length - 6).toUpperCase();
-  const statusLabel = action === 'CONFIRMED' ? 'Confirmado' : action === 'SHIPPED' ? 'Enviado' : 'Entregue';
+export async function notifySupplierOrder(
+  order: SupplierOrder, 
+  action: 'CONFIRMED' | 'SEPARATION' | 'READY_TO_SHIP' | 'SHIPPED' | 'DELIVERED', 
+  phone: string
+) {
+  const orderIdShort = order.id.replace(/^order_sup_|^order_/, '').slice(-6).toUpperCase();
+  const isPickup = order.shippingMethod === 'PICKUP';
+
+  let statusLabel = 'Confirmado';
+  if (action === 'CONFIRMED') statusLabel = 'Confirmado';
+  else if (action === 'SEPARATION') statusLabel = 'Em Separação';
+  else if (action === 'READY_TO_SHIP') statusLabel = isPickup ? 'Pronto para Retirada' : 'Pronto para Envio';
+  else if (action === 'SHIPPED') statusLabel = isPickup ? 'Pronto para Retirada' : 'Enviado';
+  else if (action === 'DELIVERED') statusLabel = isPickup ? 'Retirado' : 'Entregue';
 
   const customConfig = await getMetaTemplateConfig('SUPPLIER_UPDATE');
   const templateName = customConfig?.name || 'fornecedor_status_pedido';
@@ -298,12 +309,20 @@ export async function notifySupplierOrder(order: SupplierOrder, action: 'CONFIRM
 
   let body = '';
   if (action === 'CONFIRMED') {
-    body = `Olá, *${order.buyerName}*!\n\nSeu pedido *#${orderIdShort}* na loja *${order.supplierName}* foi confirmado e já está sendo preparado para envio!`;
+    body = `Olá, *${order.buyerName}*!\n\nSeu pedido *#${orderIdShort}* na loja *${order.supplierName}* foi confirmado e já está sendo preparado!`;
+  } else if (action === 'SEPARATION') {
+    body = `Olá, *${order.buyerName}*!\n\nSeu pedido *#${orderIdShort}* na loja *${order.supplierName}* está em processo de separação e embalagem.`;
+  } else if (action === 'READY_TO_SHIP') {
+    if (isPickup) {
+      body = `Olá, *${order.buyerName}*! 🏬\n\nBoas notícias! Seu pedido *#${orderIdShort}* está *pronto para retirada* no balcão do fornecedor *${order.supplierName}*!`;
+    } else {
+      body = `Olá, *${order.buyerName}*! 📦\n\nSeu pedido *#${orderIdShort}* na loja *${order.supplierName}* já foi separado e está *pronto para envio/despacho*!`;
+    }
   } else if (action === 'SHIPPED') {
     const tracking = order.trackingCode ? `\n📦 Código de rastreio: *${order.trackingCode}*` : '';
     body = `Olá, *${order.buyerName}*! 🚀\n\nBoas notícias! Seu pedido *#${orderIdShort}* na loja *${order.supplierName}* foi despachado e está em trânsito.${tracking}`;
   } else {
-    body = `Olá, *${order.buyerName}*! ✅\n\nSeu pedido *#${orderIdShort}* na loja *${order.supplierName}* foi *entregue com sucesso*! Agradecemos a preferência.`;
+    body = `Olá, *${order.buyerName}*! ✅\n\nSeu pedido *#${orderIdShort}* na loja *${order.supplierName}* foi *${isPickup ? 'retirado' : 'entregue com sucesso'}*! Agradecemos a preferência.`;
   }
 
   return sendWhatsappNotification({

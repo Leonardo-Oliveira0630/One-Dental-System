@@ -1,8 +1,9 @@
 
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Save, Image as ImageIcon, UploadCloud, Loader2, Building2, Trash2, Plus, LayoutGrid, List, X, ExternalLink, MessageSquare, Star, Info, Copy, Check, Shield, MapPin, Phone, Mail, Share2, CheckCircle } from 'lucide-react';
+import { Save, Image as ImageIcon, UploadCloud, Loader2, Building2, Trash2, Plus, LayoutGrid, List, X, ExternalLink, MessageSquare, Star, Info, Copy, Check, Shield, MapPin, Phone, Mail, Share2, CheckCircle, Truck } from 'lucide-react';
 import { StoreSettings, BannerConfig } from '../../types';
+import { FrenetConfigCard } from '../../components/FrenetConfigCard';
 
 export const OrganizationTab = () => {
   const { currentOrg, updateOrganization, checkSlugAvailability, uploadFile } = useApp();
@@ -805,6 +806,18 @@ export const OrganizationTab = () => {
            })}
         </div>
       </div>
+
+      {/* INTEGRAÇÃO FRENET LOGÍSTICA PARA LABORATÓRIOS & PRÓTESES */}
+      <FrenetConfigCard
+        organization={currentOrg || {}}
+        isSupplier={false}
+        title="Integração Frenet • Envio de Próteses & Serviços Protéticos"
+        description="Configure sua conta da Frenet para permitir que consultórios e dentistas cotem e contratem automaticamente frete (SEDEX, PAC, Jadlog, etc.) ao solicitarem trabalhos protéticos e serviços da sua loja online."
+        onSave={async (updates) => {
+          if (!currentOrg?.id) return;
+          await updateOrganization(currentOrg.id, updates);
+        }}
+      />
 
       <div className="fixed bottom-6 right-6 z-[100]">
         <button 

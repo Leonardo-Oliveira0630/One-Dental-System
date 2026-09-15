@@ -169,6 +169,21 @@ export interface Organization {
   cpfCnpj?: string;
   asaasApiKey?: string;
   frenetToken?: string;
+  frenetKey?: string;
+  frenetPassword?: string;
+  frenetOriginCep?: string;
+  frenetHandlingDays?: number;
+  frenetExtraPercentage?: number;
+  frenetExtraFixed?: number;
+  frenetEnabled?: boolean;
+  frenetFreeShippingEnabled?: boolean;
+  frenetFreeShippingThreshold?: number;
+  frenetDefaultPackage?: {
+    weightKg: number;
+    heightCm: number;
+    widthCm: number;
+    lengthCm: number;
+  };
   ratingAverage?: number;
   ratingCount?: number;
   storeSettings?: StoreSettings;
@@ -595,6 +610,32 @@ export interface Job {
   approvalStatus?: 'PENDING' | 'APPROVED' | 'REJECTED';
   origin?: 'MANUAL' | 'ONLINE_ORDER' | 'ONLINE_REQUISITION' | 'OUTSOURCING';
   dentistUserId?: string;
+  shippingMethod?: 'COMBINE' | 'PAC' | 'SEDEX' | 'FRENET' | 'PICKUP' | 'MOTOBOY' | 'CARRIER' | string;
+  shippingCost?: number;
+  shippingServiceCode?: string;
+  shippingServiceName?: string;
+  shippingCarrierName?: string;
+  shippingCarrier?: string;
+  shippingDeliveryDays?: number;
+  trackingCode?: string;
+  trackingEvents?: {
+    date: string | Date;
+    description: string;
+    location?: string;
+    status?: string;
+  }[];
+  lastTrackingSync?: Date | string;
+  shippingAddress?: {
+    street?: string;
+    number?: string;
+    complement?: string;
+    neighborhood?: string;
+    city?: string;
+    state?: string;
+    zipCode?: string;
+    recipientName?: string;
+    phone?: string;
+  };
   sentAt?: Date;
   acceptedAt?: Date;
   rejectedAt?: Date;
@@ -813,9 +854,68 @@ export interface OnlineRequisition {
   quantity?: number; // Keep for backward compatibility
   selectedTeeth?: string[]; // Keep for backward compatibility
   items?: OnlineRequisitionItem[]; // Support for multiple items
+  shippingMethod?: 'COMBINE' | 'PAC' | 'SEDEX' | 'FRENET' | 'PICKUP' | 'MOTOBOY' | 'CARRIER' | string;
+  shippingCost?: number;
+  shippingServiceCode?: string;
+  shippingServiceName?: string;
+  shippingCarrierName?: string;
+  shippingDeliveryDays?: number;
+  shippingAddress?: {
+    street?: string;
+    number?: string;
+    complement?: string;
+    neighborhood?: string;
+    city?: string;
+    state?: string;
+    zipCode?: string;
+    recipientName?: string;
+    phone?: string;
+  };
   sentAt?: Date;
   acceptedAt?: Date;
   rejectedAt?: Date;
+}
+
+export interface FrenetShippingItem {
+  id?: string;
+  sku?: string;
+  description?: string;
+  quantity: number;
+  price: number;
+  weight: number; // in kg (e.g. 0.5)
+  height: number; // in cm
+  width: number;  // in cm
+  length: number; // in cm
+}
+
+export interface FrenetShippingService {
+  Carrier: string;
+  CarrierCode?: string;
+  ServiceCode: string;
+  ServiceDescription: string;
+  ShippingPrice: string | number;
+  DeliveryTime: string | number;
+  OriginalShippingPrice?: string | number;
+  OriginalDeliveryTime?: string | number;
+  Error?: boolean;
+  MsgErro?: string;
+  EstimatedDeliveryDate?: string;
+  isFreeShipping?: boolean;
+}
+
+export interface FrenetTrackingEvent {
+  EventDateTime: string;
+  EventDescription: string;
+  EventLocation?: string;
+  EventStatus?: 'POSTED' | 'IN_TRANSIT' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'EXCEPTION' | string;
+}
+
+export interface FrenetQuoteResponse {
+  services: FrenetShippingService[];
+  error?: string;
+  originCep: string;
+  destinationCep: string;
+  totalWeightKg?: number;
 }
 
 // NOVO: Prontuário do Paciente

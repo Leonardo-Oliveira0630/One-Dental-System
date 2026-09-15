@@ -1,9 +1,10 @@
 import React from 'react';
 import { 
   X, MapPin, Truck, ClipboardCheck, ArrowRight, ShieldCheck, 
-  CreditCard, QrCode, AlertCircle, Loader2, Store, Bike, Check
+  CreditCard, QrCode, AlertCircle, Loader2, Store, Bike, Check, Package
 } from 'lucide-react';
 import { SupplierCartItem } from './StoreCartDrawer';
+import { getCarrierBadgeConfig } from '../../../services/frenetService';
 
 interface StoreCheckoutModalProps {
   isOpen: boolean;
@@ -121,28 +122,28 @@ export const StoreCheckoutModal: React.FC<StoreCheckoutModalProps> = ({
                 onClick={() => {
                   setShippingMethod('PICKUP');
                   setSelectedShippingService({
-                    ServiceDescription: 'Retirada em Mãos (No Local do Fornecedor)',
+                    ServiceDescription: 'Retirada em Mãos (No Balcão do Fornecedor)',
                     ShippingPrice: 0,
                     DeliveryTime: 0
                   });
                 }}
                 className={`p-3.5 rounded-2xl border text-left transition-all relative flex flex-col justify-between gap-2 ${
                   shippingMethod === 'PICKUP'
-                    ? 'border-indigo-600 dark:border-indigo-500 bg-indigo-50/70 dark:bg-indigo-950/40 text-indigo-950 dark:text-indigo-200 shadow-xs ring-1 ring-indigo-500'
+                    ? 'border-emerald-600 dark:border-emerald-500 bg-emerald-50/80 dark:bg-emerald-950/40 text-emerald-950 dark:text-emerald-200 shadow-xs ring-2 ring-emerald-500/50'
                     : 'border-zinc-200 dark:border-slate-800 bg-white dark:bg-slate-900/40 hover:border-zinc-300 dark:hover:border-slate-700 text-zinc-800 dark:text-slate-200'
                 }`}
               >
                 <div className="flex items-center justify-between w-full">
-                  <div className={`p-2 rounded-xl ${shippingMethod === 'PICKUP' ? 'bg-indigo-600 text-white' : 'bg-zinc-100 dark:bg-slate-800 text-zinc-600 dark:text-slate-300'}`}>
+                  <div className={`p-2 rounded-xl ${shippingMethod === 'PICKUP' ? 'bg-emerald-600 text-white' : 'bg-zinc-100 dark:bg-slate-800 text-zinc-600 dark:text-slate-300'}`}>
                     <Store size={16} />
                   </div>
                   <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                    Grátis
+                    Grátis (R$ 0,00)
                   </span>
                 </div>
                 <div>
                   <h4 className="font-extrabold text-xs">Retirada em Mãos</h4>
-                  <p className="text-[10px] opacity-75 mt-0.5">Retire no balcão do fornecedor</p>
+                  <p className="text-[10px] opacity-75 mt-0.5">Sem frete • Retire no balcão</p>
                 </div>
               </button>
 
@@ -205,8 +206,28 @@ export const StoreCheckoutModal: React.FC<StoreCheckoutModalProps> = ({
               </button>
             </div>
 
-            {/* Frenet Carrier Options (If Available) */}
-            {hasFrenetToken && (
+            {/* Informational Banner for Retirada em Mãos */}
+            {shippingMethod === 'PICKUP' && (
+              <div className="p-3.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 rounded-2xl flex items-start gap-3 animate-in fade-in">
+                <div className="p-2 rounded-xl bg-emerald-600 text-white shrink-0 mt-0.5">
+                  <Store size={16} />
+                </div>
+                <div className="space-y-0.5 text-xs text-emerald-950 dark:text-emerald-200">
+                  <p className="font-bold flex items-center gap-1.5">
+                    <span>Retirada em Mãos Selecionada</span>
+                    <span className="px-1.5 py-0.5 rounded bg-emerald-200 dark:bg-emerald-900 text-emerald-900 dark:text-emerald-200 text-[10px] font-black uppercase">
+                      Sem Frete
+                    </span>
+                  </p>
+                  <p className="text-[11px] text-emerald-800 dark:text-emerald-300 leading-relaxed">
+                    Nenhum frete será cobrado ou calculado. Você poderá retirar seu pedido diretamente no balcão do fornecedor após a separação.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Frenet Carrier Options (If Available and NOT in Pickup Mode) */}
+            {hasFrenetToken && shippingMethod !== 'PICKUP' && (
               <div className="space-y-2 pt-2">
                 <div className="text-[11px] font-bold text-zinc-600 dark:text-slate-400 uppercase">
                   Ou cotação automática de Correios / Transportadoras:
@@ -225,6 +246,9 @@ export const StoreCheckoutModal: React.FC<StoreCheckoutModalProps> = ({
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     {shippingQuotes.map((quote: any, idx) => {
                       const isSelected = shippingMethod === 'FRENET' && selectedShippingService?.ServiceCode === quote.ServiceCode;
+                      const badge = getCarrierBadgeConfig(quote.Carrier || quote.ServiceDescription);
+                      const isFree = Number(quote.ShippingPrice) === 0;
+
                       return (
                         <button
                           key={idx}
@@ -233,21 +257,36 @@ export const StoreCheckoutModal: React.FC<StoreCheckoutModalProps> = ({
                             setShippingMethod('FRENET');
                             setSelectedShippingService(quote);
                           }}
-                          className={`p-3.5 rounded-2xl border text-left transition-all ${
+                          className={`p-3.5 rounded-2xl border text-left transition-all relative overflow-hidden ${
                             isSelected
-                              ? 'border-zinc-950 dark:border-blue-500 bg-zinc-950 dark:bg-blue-600 text-white shadow-xs'
+                              ? 'border-indigo-600 dark:border-indigo-500 bg-indigo-600 text-white shadow-md'
                               : 'border-zinc-200 dark:border-slate-800 bg-white dark:bg-slate-900/40 hover:border-zinc-300 dark:hover:border-slate-700 text-zinc-800 dark:text-slate-200'
                           }`}
                         >
-                          <div className="flex justify-between items-center">
-                            <span className="font-bold text-xs">{quote.ServiceDescription}</span>
-                            <span className="font-mono font-black text-xs">
-                              R$ {Number(quote.ShippingPrice).toFixed(2)}
-                            </span>
+                          <div className="flex justify-between items-start gap-2">
+                            <div className="space-y-0.5">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-bold text-xs">{quote.ServiceDescription}</span>
+                                <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full ${isSelected ? 'bg-white/20 text-white' : badge.bgClass + ' ' + badge.tagColor}`}>
+                                  {badge.name}
+                                </span>
+                              </div>
+                              <p className={`text-[11px] ${isSelected ? 'text-indigo-100' : 'text-zinc-500 dark:text-slate-400'}`}>
+                                Prazo estimado: <strong>{quote.DeliveryTime} dias úteis</strong>
+                              </p>
+                            </div>
+                            <div className="text-right shrink-0">
+                              {isFree ? (
+                                <span className={`text-xs font-black uppercase px-2 py-0.5 rounded-lg ${isSelected ? 'bg-emerald-400 text-slate-950' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400'}`}>
+                                  Grátis
+                                </span>
+                              ) : (
+                                <span className="font-mono font-black text-xs">
+                                  R$ {Number(quote.ShippingPrice).toFixed(2)}
+                                </span>
+                              )}
+                            </div>
                           </div>
-                          <p className={`text-[11px] mt-1 ${isSelected ? 'text-zinc-300 dark:text-blue-100' : 'text-zinc-500 dark:text-slate-400'}`}>
-                            Prazo: {quote.DeliveryTime} dias úteis
-                          </p>
                         </button>
                       );
                     })}

@@ -25,6 +25,7 @@ import * as api from '../services/firebaseService';
 import * as firestorePkg from 'firebase/firestore';
 import { Odontogram } from '../components/Odontogram';
 import { db } from '../services/firebaseConfig';
+import { getCarrierBadgeConfig } from '../services/frenetService';
 
 const { doc, onSnapshot } = firestorePkg as any;
 
@@ -131,6 +132,53 @@ export const JobDetails = () => {
     color: string;
   }>({ quantity: 1, price: 0, appliedDiscount: 0, appliedDiscountFixed: 0, discountType: 'PERCENTAGE', appliedPriceTable: 'Padrão', commissionDisabled: false, isInternalStep: false, selectedVariationIds: [], variationValues: {}, sectorCommissionDisabled: {}, selectedTeeth: [], color: '' });
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [isSyncingTracking, setIsSyncingTracking] = useState(false);
+  const [trackingSyncMsg, setTrackingSyncMsg] = useState<string | null>(null);
+  const [isEditingShipping, setIsEditingShipping] = useState(false);
+  const [newTrackingCode, setNewTrackingCode] = useState('');
+  const [newShippingCarrier, setNewShippingCarrier] = useState('');
+
+  const handleSyncJobFrenetTracking = async () => {
+    if (!job?.trackingCode) return;
+    setIsSyncingTracking(true);
+    setTrackingSyncMsg(null);
+    try {
+      const res = await api.apiTrackFrenetShipping({
+        trackingCode: job.trackingCode,
+        frenetToken: currentOrg?.frenetToken,
+        jobId: job.id
+      });
+      if (res.success) {
+        setTrackingSyncMsg('Rastreamento atualizado com sucesso!');
+      } else {
+        setTrackingSyncMsg(res.error || 'Nenhuma atualização recente no momento.');
+      }
+    } catch (e: any) {
+      setTrackingSyncMsg('Erro ao consultar Frenet: ' + (e.message || 'Falha de conexão'));
+    } finally {
+      setIsSyncingTracking(false);
+      setTimeout(() => setTrackingSyncMsg(null), 5000);
+    }
+  };
+
+  const handleSaveJobShipping = async () => {
+    if (!job) return;
+    setIsUpdatingStatus(true);
+    try {
+      await updateJob(job.id, {
+        trackingCode: newTrackingCode.trim(),
+        shippingCarrier: newShippingCarrier.trim(),
+        shippingMethod: newShippingCarrier ? 'FRENET' : job.shippingMethod
+      });
+      setIsEditingShipping(false);
+      alert('Dados de rastreamento salvos com sucesso!');
+    } catch (e) {
+      console.error(e);
+      alert('Erro ao salvar dados de envio.');
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
 
   // Stage Config Modal State
   const [stageConfigItem, setStageConfigItem] = useState<JobItem | null>(null);
@@ -3399,6 +3447,135 @@ export const JobDetails = () => {
                                 </div>
                             )}
                         </div>
+                    </div>
+
+                    {/* CARD LOGÍSTICA & RASTREAMENTO FRENET */}
+                    <div id="job-logistics-card" className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-5 md:p-4 sm:p-6 space-y-4">
+                        <div className="flex justify-between items-center">
+                            <h3 className="text-sm md:text-base font-black text-slate-800 flex items-center gap-2 uppercase tracking-tighter truncate">
+                                <Truck size={20} className="text-indigo-600 shrink-0" />
+                                Envio & Rastreamento
+                            </h3>
+                            {canManageCommissions && !isEditingShipping && (
+                                <button
+                                    onClick={() => {
+                                        setNewTrackingCode(job.trackingCode || '');
+                                        setNewShippingCarrier(job.shippingCarrier || '');
+                                        setIsEditingShipping(true);
+                                    }}
+                                    className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 uppercase"
+                                >
+                                    <Edit3 size={12} />
+                                    {job.trackingCode ? 'Alterar' : 'Adicionar'}
+                                </button>
+                            )}
+                        </div>
+
+                        {isEditingShipping ? (
+                            <div className="space-y-3 p-3.5 bg-slate-50 rounded-2xl border border-slate-200 animate-in fade-in">
+                                <div>
+                                    <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Código de Rastreamento (Frenet / Transportadora)</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Ex: QB123456789BR ou 12345678"
+                                        value={newTrackingCode}
+                                        onChange={e => setNewTrackingCode(e.target.value.toUpperCase())}
+                                        className="w-full text-xs font-mono font-bold p-2 bg-white border border-slate-300 rounded-xl outline-none focus:border-indigo-500"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Transportadora / Serviço</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Ex: SEDEX, PAC, Correios, Jadlog, Loggi..."
+                                        value={newShippingCarrier}
+                                        onChange={e => setNewShippingCarrier(e.target.value)}
+                                        className="w-full text-xs font-bold p-2 bg-white border border-slate-300 rounded-xl outline-none focus:border-indigo-500"
+                                    />
+                                </div>
+                                <div className="flex justify-end gap-2 pt-1">
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsEditingShipping(false)}
+                                        className="px-3 py-1.5 text-xs text-slate-500 font-bold rounded-lg hover:bg-slate-200"
+                                    >
+                                        Cancelar
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleSaveJobShipping}
+                                        disabled={isUpdatingStatus}
+                                        className="px-4 py-1.5 bg-indigo-600 text-white font-bold text-xs rounded-xl shadow-xs hover:bg-indigo-700"
+                                    >
+                                        {isUpdatingStatus ? 'Salvando...' : 'Salvar Envio'}
+                                    </button>
+                                </div>
+                            </div>
+                        ) : job.trackingCode ? (
+                            <div className="space-y-3">
+                                <div className="p-3 bg-gradient-to-br from-indigo-50/70 to-slate-50 rounded-2xl border border-indigo-100 flex items-center justify-between">
+                                    <div className="space-y-0.5">
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="text-[10px] font-bold text-slate-500 uppercase">Código:</span>
+                                            <span className="font-mono font-black text-xs text-indigo-950">{job.trackingCode}</span>
+                                        </div>
+                                        {job.shippingCarrier && (
+                                            <span className="inline-block text-[9px] font-black uppercase px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-700">
+                                                {job.shippingCarrier}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={handleSyncJobFrenetTracking}
+                                        disabled={isSyncingTracking}
+                                        className="px-3 py-2 bg-white border border-indigo-200 hover:border-indigo-400 text-indigo-700 font-bold rounded-xl text-[10px] flex items-center gap-1.5 transition-all shadow-xs active:scale-95 disabled:opacity-50"
+                                    >
+                                        <RefreshCw size={12} className={isSyncingTracking ? 'animate-spin' : ''} />
+                                        <span>{isSyncingTracking ? 'Sincronizando...' : 'Rastrear Frenet'}</span>
+                                    </button>
+                                </div>
+
+                                {trackingSyncMsg && (
+                                    <p className="text-[11px] font-bold text-indigo-600 bg-indigo-50 p-2 rounded-xl text-center animate-in fade-in">
+                                        {trackingSyncMsg}
+                                    </p>
+                                )}
+
+                                {/* Linha do Tempo das Movimentações */}
+                                {job.trackingEvents && job.trackingEvents.length > 0 ? (
+                                    <div className="space-y-2 pt-1 border-t border-slate-100 max-h-48 overflow-y-auto pr-1">
+                                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                            Movimentações do Pacote
+                                        </div>
+                                        <div className="space-y-2">
+                                            {job.trackingEvents.map((ev: any, idx: number) => (
+                                                <div key={idx} className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 text-[11px] space-y-0.5">
+                                                    <div className="flex justify-between items-center">
+                                                        <span className="font-bold text-slate-800">{ev.description}</span>
+                                                        <span className="text-[9px] font-mono text-slate-400">
+                                                            {new Date(ev.date).toLocaleDateString('pt-BR')} {new Date(ev.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                                        </span>
+                                                    </div>
+                                                    {ev.location && (
+                                                        <p className="text-[10px] text-slate-500 font-medium">Local: {ev.location}</p>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <p className="text-[11px] text-slate-400 italic text-center py-1">
+                                        Clique em "Rastrear Frenet" para sincronizar o status em tempo real da transportadora.
+                                    </p>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="p-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200 text-center space-y-1">
+                                <p className="text-xs font-bold text-slate-600">Nenhum código de rastreamento vinculado</p>
+                                <p className="text-[10px] text-slate-400">Adicione o código de envio Frenet/Correios para rastrear a entrega das próteses.</p>
+                            </div>
+                        )}
                     </div>
 
                     <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-5 md:p-4 sm:p-6 overflow-hidden">

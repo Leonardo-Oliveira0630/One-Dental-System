@@ -1620,13 +1620,73 @@ export const apiTrackFrenetShipping = async (payload: {
     frenetToken?: string;
     shippingServiceCode?: string;
     orderId?: string;
+    jobId?: string;
+    orgId?: string;
 }) => {
     try {
-        const fn = httpsCallable(functions, 'trackFrenetShipping');
-        const res: any = (await fn(payload)).data;
+        // 1. Prioriza consulta segura via Cloud Function no Backend (usando as chaves do backend)
+        try {
+            const fn = httpsCallable(functions, 'trackFrenetShipping');
+            const result = (await fn(payload)).data as any;
+            if (result?.events && Array.isArray(result.events)) {
+                return {
+                    success: true,
+                    events: result.events.map((ev: any) => ({
+                        EventDateTime: ev.date || new Date().toISOString(),
+                        EventDescription: ev.description || 'Movimentação registrada',
+                        EventLocation: ev.location || '',
+                        EventStatus: ev.status || 'IN_TRANSIT'
+                    })),
+                    carrierName: result.carrierName || ''
+                };
+            }
+        } catch (fnErr) {
+            // Continua para fallback se a function não responder
+        }
+
+        const { trackFrenetPackage } = await import('./frenetService');
+        const res = await trackFrenetPackage(payload.trackingCode, payload.frenetToken, payload.shippingServiceCode);
+        
+        if (res.success && res.events && res.events.length > 0) {
+            // Se for pedido de fornecedor, atualiza no Firestore
+            if (payload.orderId) {
+                try {
+                    const orderRef = doc(db, 'supplierOrders', payload.orderId);
+                    await updateDoc(orderRef, {
+                        trackingEvents: res.events.map(ev => ({
+                            date: ev.EventDateTime,
+                            description: ev.EventDescription,
+                            location: ev.EventLocation || '',
+                            status: ev.EventStatus || 'IN_TRANSIT'
+                        })),
+                        lastTrackingSync: new Date()
+                    });
+                } catch (dbErr) {
+                    logger.warn({ err: dbErr }, '[apiTrackFrenetShipping] Erro ao sincronizar trackingEvents do pedido');
+                }
+            }
+            // Se for trabalho de laboratório (Job), atualiza no Firestore
+            if (payload.jobId) {
+                try {
+                    const jobRef = doc(db, 'jobs', payload.jobId);
+                    await updateDoc(jobRef, {
+                        trackingEvents: res.events.map(ev => ({
+                            date: ev.EventDateTime,
+                            description: ev.EventDescription,
+                            location: ev.EventLocation || '',
+                            status: ev.EventStatus || 'IN_TRANSIT'
+                        })),
+                        lastTrackingSync: new Date()
+                    });
+                } catch (dbErr) {
+                    logger.warn({ err: dbErr }, '[apiTrackFrenetShipping] Erro ao sincronizar trackingEvents do job');
+                }
+            }
+        }
+        
         return res;
     } catch (e: any) {
-        logger.warn('Frenet tracking error / fallback:', e.message);
+        logger.warn({ err: e }, 'Frenet tracking error / fallback:');
         return { success: false, error: e.message };
     }
 };
@@ -1909,15 +1969,47 @@ export const subscribeOrderReviews = (orderId: string, cb: (reviews: import('../
 };
 
 export const apiCalculateFrenetShipping = async (payload: {
-  originCep: string;
+  originCep?: string;
   destinationCep: string;
   items: any[];
-  frenetToken: string;
+  frenetToken?: string;
+  orgId?: string;
+  handlingDays?: number;
+  extraPercentage?: number;
+  extraFixed?: number;
+  freeShippingEnabled?: boolean;
+  freeShippingThreshold?: number;
 }) => {
-  const fn = httpsCallable(functions, 'calculateFrenetShipping');
-  const result = (await fn(payload)).data as any;
-  if (result?.error) throw new Error(result.error);
-  return result;
+  // 1. Prioriza cálculo seguro via Cloud Function no Backend (usando as chaves do backend)
+  try {
+    const fn = httpsCallable(functions, 'calculateFrenetShipping');
+    const result = (await fn(payload)).data as any;
+    if (result?.services && Array.isArray(result.services)) {
+      return result;
+    }
+    if (result?.error) throw new Error(result.error);
+  } catch (backendErr: any) {
+    // Continua para fallback se a function não estiver disponível
+  }
+
+  // 2. Fallback / simulação cliente
+  try {
+    const { calculateFrenetShippingQuote } = await import('./frenetService');
+    const res = await calculateFrenetShippingQuote({
+      originCep: payload.originCep || '',
+      destinationCep: payload.destinationCep,
+      items: payload.items,
+      frenetToken: payload.frenetToken || '',
+      handlingDays: payload.handlingDays,
+      extraPercentage: payload.extraPercentage,
+      extraFixed: payload.extraFixed,
+      freeShippingEnabled: payload.freeShippingEnabled,
+      freeShippingThreshold: payload.freeShippingThreshold
+    });
+    return res;
+  } catch (err: any) {
+    throw err;
+  }
 };
 
 export const apiGetVoucherByCode = async (orgId: string, code: string) => {

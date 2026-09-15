@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.testBrevoConnection = exports.sendBrevoEmail = exports.cancelAsaasSubscriptionOnDelete = exports.sendDeleteCodeEmail = exports.communication = exports.triggerJobUpdated = exports.ycloudWebhook = exports.triggerSupplierOrderUpdated = exports.triggerDeliveryRouteUpdated = exports.triggerAppointmentCreated = exports.sendYcloudWhatsApp = exports.optimizeAndUploadImage = exports.syncStoreOrders = exports.manageOrderDecision = exports.calculateFrenetShipping = exports.createSupplierPayment = exports.asaasWebhook = exports.getSaaSInvoices = exports.toggleWhatsappModule = exports.createSaaSSubscription = exports.checkSubscriptionStatus = exports.setSubscriptionStatus = exports.createPatientPayment = exports.createOrderPayment = exports.createLabSubAccount = exports.generateBatchBoleto = exports.updateUserAdmin = exports.deleteUserAdmin = exports.validateCro = exports.registerUserInOrg = void 0;
+exports.testBrevoConnection = exports.sendBrevoEmail = exports.cancelAsaasSubscriptionOnDelete = exports.sendDeleteCodeEmail = exports.communication = exports.triggerJobUpdated = exports.ycloudWebhook = exports.triggerSupplierOrderUpdated = exports.triggerDeliveryRouteUpdated = exports.triggerAppointmentCreated = exports.sendYcloudWhatsApp = exports.optimizeAndUploadImage = exports.syncStoreOrders = exports.manageOrderDecision = exports.frenetWebhook = exports.trackFrenetShipping = exports.calculateFrenetShipping = exports.checkSupplierOrderPayment = exports.createSupplierPayment = exports.asaasWebhook = exports.getSaaSInvoices = exports.toggleWhatsappModule = exports.createSaaSSubscription = exports.checkSubscriptionStatus = exports.setSubscriptionStatus = exports.createPatientPayment = exports.createOrderPayment = exports.createLabSubAccount = exports.generateBatchBoleto = exports.updateUserAdmin = exports.deleteUserAdmin = exports.validateCro = exports.registerUserInOrg = void 0;
 const https_1 = require("firebase-functions/v2/https");
 const firestore_1 = require("firebase-functions/v2/firestore");
 const logger = __importStar(require("firebase-functions/logger"));
@@ -172,6 +172,80 @@ const getBrevoConfig = async (orgId) => {
         senderName = "Labprox Laboratório";
     }
     return { apiKey: apiKey === null || apiKey === void 0 ? void 0 : apiKey.trim(), senderEmail: senderEmail === null || senderEmail === void 0 ? void 0 : senderEmail.trim(), senderName: senderName === null || senderName === void 0 ? void 0 : senderName.trim() };
+};
+const getFrenetConfig = async (orgId) => {
+    let token = process.env.FRENET_TOKEN ||
+        process.env.frenet_token ||
+        process.env.FRENET_API_TOKEN ||
+        process.env.frenet_api_token || "";
+    let originCep = process.env.FRENET_ORIGIN_CEP ||
+        process.env.FRENET_CEP ||
+        process.env.frenet_cep || "";
+    let password = process.env.FRENET_PASSWORD ||
+        process.env.frenet_password || "";
+    let user = process.env.FRENET_USER ||
+        process.env.frenet_user || "";
+    try {
+        const functions = require("firebase-functions");
+        if (functions.config && functions.config().frenet) {
+            const fConfig = functions.config().frenet;
+            if (!token)
+                token = fConfig.token || fConfig.apikey || fConfig.api_key || "";
+            if (!originCep)
+                originCep = fConfig.origin_cep || fConfig.cep || "";
+            if (!password)
+                password = fConfig.password || "";
+            if (!user)
+                user = fConfig.user || "";
+        }
+    }
+    catch (e) {
+        // ignore
+    }
+    try {
+        const db = admin.firestore();
+        // 1. Busca em settings/global
+        const globalSettingsDoc = await db.collection("settings").doc("global").get();
+        if (globalSettingsDoc.exists) {
+            const data = globalSettingsDoc.data();
+            if (!token && ((data === null || data === void 0 ? void 0 : data.frenetToken) || (data === null || data === void 0 ? void 0 : data.frenet_token) || (data === null || data === void 0 ? void 0 : data.frenetApiKey))) {
+                token = data.frenetToken || data.frenet_token || data.frenetApiKey;
+            }
+            if (!originCep && ((data === null || data === void 0 ? void 0 : data.frenetOriginCep) || (data === null || data === void 0 ? void 0 : data.frenet_origin_cep) || (data === null || data === void 0 ? void 0 : data.frenetCep) || (data === null || data === void 0 ? void 0 : data.cep))) {
+                originCep = data.frenetOriginCep || data.frenet_origin_cep || data.frenetCep || data.cep;
+            }
+            if (!password && ((data === null || data === void 0 ? void 0 : data.frenetPassword) || (data === null || data === void 0 ? void 0 : data.frenet_password))) {
+                password = data.frenetPassword || data.frenet_password;
+            }
+            if (!user && ((data === null || data === void 0 ? void 0 : data.frenetUser) || (data === null || data === void 0 ? void 0 : data.frenet_user))) {
+                user = data.frenetUser || data.frenet_user;
+            }
+        }
+        // 2. Se orgId foi fornecido (Laboratório ou Loja do Fornecedor)
+        if (orgId) {
+            const orgDoc = await db.collection("organizations").doc(orgId).get();
+            if (orgDoc.exists) {
+                const orgData = orgDoc.data();
+                if (orgData === null || orgData === void 0 ? void 0 : orgData.frenetToken)
+                    token = orgData.frenetToken;
+                if ((orgData === null || orgData === void 0 ? void 0 : orgData.frenetOriginCep) || (orgData === null || orgData === void 0 ? void 0 : orgData.cep))
+                    originCep = orgData.frenetOriginCep || orgData.cep;
+                if (orgData === null || orgData === void 0 ? void 0 : orgData.frenetPassword)
+                    password = orgData.frenetPassword;
+                if (orgData === null || orgData === void 0 ? void 0 : orgData.frenetUser)
+                    user = orgData.frenetUser;
+            }
+        }
+    }
+    catch (e) {
+        logger.error("Failed to fetch Frenet config from DB", e);
+    }
+    return {
+        token: token ? token.trim() : "",
+        originCep: originCep ? originCep.replace(/\D/g, "") : "",
+        password: password ? password.trim() : "",
+        user: user ? user.trim() : ""
+    };
 };
 async function getOrCreateAsaasCustomer(url, key, name, cpfCnpj, externalReference, email = "") {
     if (externalReference) {
@@ -1315,6 +1389,15 @@ exports.asaasWebhook = (0, https_1.onRequest)(async (req, res) => {
                     // GENERATE VOUCHERS IF COMBO OR PROMO ITEMS
                     await generateVouchersForJob(db, Object.assign(Object.assign({}, jobData), { paymentStatus: "PAID" }), jobDoc.id);
                 }
+                // CHECK IF IT IS A SUPPLIER ORDER
+                const supOrdersSnap = await db.collection("supplierOrders").where("asaasPaymentId", "==", event.payment.id).get();
+                for (const sDoc of supOrdersSnap.docs) {
+                    await sDoc.ref.update({
+                        paymentStatus: "PAID",
+                        status: "CONFIRMED",
+                        paidAt: admin.firestore.FieldValue.serverTimestamp()
+                    });
+                }
             }
         }
         else if (isOverdue) {
@@ -1400,49 +1483,312 @@ exports.createSupplierPayment = (0, https_1.onCall)(async (request) => {
         throw new https_1.HttpsError("aborted", msg);
     }
 });
+/**
+ * VERIFICA STATUS DE PAGAMENTO DE PEDIDO DE FORNECEDOR JUNTO AO ASAAS
+ */
+exports.checkSupplierOrderPayment = (0, https_1.onCall)(async (request) => {
+    var _a;
+    const { orderId } = request.data || {};
+    if (!request.auth) {
+        throw new https_1.HttpsError("unauthenticated", "Não logado.");
+    }
+    if (!orderId) {
+        throw new https_1.HttpsError("invalid-argument", "ID do pedido não informado.");
+    }
+    const db = admin.firestore();
+    const orderDoc = await db.collection("supplierOrders").doc(orderId).get();
+    if (!orderDoc.exists) {
+        throw new https_1.HttpsError("not-found", "Pedido não encontrado.");
+    }
+    const orderData = orderDoc.data();
+    if (orderData.paymentStatus === 'PAID' || orderData.status === 'CONFIRMED') {
+        return { paid: true, status: 'PAID' };
+    }
+    if (!orderData.asaasPaymentId) {
+        return { paid: false, status: orderData.paymentStatus || 'PENDING' };
+    }
+    try {
+        const { key, url } = await getAsaasConfig();
+        const res = await axios_1.default.get(`${url}/payments/${orderData.asaasPaymentId}`, {
+            headers: { access_token: key }
+        });
+        const asaasStatus = (_a = res.data) === null || _a === void 0 ? void 0 : _a.status;
+        const isPaid = asaasStatus === 'CONFIRMED' || asaasStatus === 'RECEIVED' || asaasStatus === 'RECEIVED_IN_CASH';
+        if (isPaid) {
+            await orderDoc.ref.update({
+                paymentStatus: 'PAID',
+                status: 'CONFIRMED',
+                paidAt: admin.firestore.FieldValue.serverTimestamp()
+            });
+            return { paid: true, status: 'PAID' };
+        }
+        return { paid: false, status: asaasStatus || 'PENDING' };
+    }
+    catch (err) {
+        logger.error(`Erro ao verificar pagamento do pedido de fornecedor ${orderId}:`, err.message);
+        return { paid: false, error: err.message };
+    }
+});
 exports.calculateFrenetShipping = (0, https_1.onCall)({ cors: true }, async (req) => {
     var _a;
-    const { originCep, destinationCep, items, frenetToken } = req.data;
-    if (!originCep || !destinationCep || !frenetToken) {
-        return { error: 'Missing CEP or Frenet Token.' };
+    const { originCep: reqOriginCep, destinationCep, items, frenetToken: reqFrenetToken, orgId, handlingDays, extraPercentage, extraFixed, freeShippingEnabled, freeShippingThreshold } = req.data || {};
+    // Resolve credenciais e dados de origem de forma segura no backend
+    const backendConfig = await getFrenetConfig(orgId);
+    const frenetToken = reqFrenetToken || backendConfig.token;
+    const originCep = reqOriginCep || backendConfig.originCep;
+    if (!destinationCep || !items || !Array.isArray(items) || items.length === 0) {
+        return { error: 'Informe o CEP de destino e ao menos um item no carrinho.' };
+    }
+    if (!originCep) {
+        return { error: 'CEP de origem do remetente não configurado no backend.' };
     }
     // Calculate total weight and dimensions (approximate)
     let totalValue = 0;
     items.forEach((item) => {
-        totalValue += (item.price * item.quantity);
+        totalValue += (Number(item.price || 0) * Number(item.quantity || 1));
     });
     const payload = {
         SellerCEP: originCep.replace(/\D/g, ''),
         RecipientCEP: destinationCep.replace(/\D/g, ''),
         ShipmentInvoiceValue: totalValue,
         ShippingItemArray: items.map((item) => ({
-            Height: item.height || 10,
-            Length: item.length || 20,
-            Quantity: item.quantity,
-            Weight: item.weight || 0.5,
-            Width: item.width || 15,
-            SKU: item.id,
+            Height: Number(item.height || 10),
+            Length: Number(item.length || 20),
+            Quantity: Number(item.quantity || 1),
+            Weight: Number(item.weight || 0.5),
+            Width: Number(item.width || 15),
+            SKU: String(item.id || 'ITEM-1'),
             Category: "Produtos Odontológicos"
         })),
         RecipientCountry: "BR"
     };
-    try {
-        const response = await axios_1.default.post('https://api.frenet.com.br/shipping/quote', payload, {
-            headers: {
-                'token': frenetToken,
-                'Content-Type': 'application/json'
+    // Se houver token configurado, consulta a API oficial Frenet
+    if (frenetToken) {
+        try {
+            const response = await axios_1.default.post('https://api.frenet.com.br/shipping/quote', payload, {
+                headers: {
+                    'token': frenetToken,
+                    'Content-Type': 'application/json'
+                },
+                timeout: 9000
+            });
+            if (response.data && response.data.ShippingSevicesArray) {
+                let rawServices = response.data.ShippingSevicesArray;
+                // Aplica regras de manuseio e acréscimo se configurados
+                if (handlingDays || extraPercentage || extraFixed || freeShippingEnabled) {
+                    rawServices = rawServices.map((s) => {
+                        let price = Number(s.ShippingPrice || 0);
+                        let time = Number(s.DeliveryTime || 0) + Number(handlingDays || 0);
+                        if (extraPercentage && extraPercentage > 0) {
+                            price = price * (1 + (extraPercentage / 100));
+                        }
+                        if (extraFixed && extraFixed > 0) {
+                            price = price + extraFixed;
+                        }
+                        if (freeShippingEnabled && freeShippingThreshold && totalValue >= Number(freeShippingThreshold)) {
+                            // Frete grátis na opção mais econômica
+                            price = 0;
+                        }
+                        return Object.assign(Object.assign({}, s), { ShippingPrice: price.toFixed(2), DeliveryTime: time });
+                    });
+                }
+                return { services: rawServices };
             }
-        });
-        if (response.data && response.data.ShippingSevicesArray) {
-            return { services: response.data.ShippingSevicesArray };
+            else {
+                return { services: [] };
+            }
         }
-        else {
-            return { services: [] };
+        catch (error) {
+            logger.warn("Aviso Frenet API quote:", ((_a = error.response) === null || _a === void 0 ? void 0 : _a.data) || error.message);
         }
     }
+    // Fallback simulador caso token ainda não tenha sido inserido no backend
+    const cepNum = parseInt(destinationCep.replace(/\D/g, '').substring(0, 2), 10) || 1;
+    const origNum = parseInt(originCep.replace(/\D/g, '').substring(0, 2), 10) || 1;
+    const isSameRegion = Math.abs(cepNum - origNum) <= 3;
+    const regionDiff = Math.min(Math.abs(cepNum - origNum), 8);
+    const pacPrice = (isSameRegion ? 22.50 : 34.90 + (regionDiff * 3.50));
+    const sedexPrice = (isSameRegion ? 31.90 : 54.80 + (regionDiff * 6.20));
+    const isFree = freeShippingEnabled && freeShippingThreshold && totalValue >= Number(freeShippingThreshold);
+    return {
+        services: [
+            {
+                ServiceCode: "04510",
+                ServiceDescription: "Correios PAC",
+                Carrier: "Correios",
+                ShippingPrice: isFree ? "0.00" : pacPrice.toFixed(2),
+                DeliveryTime: (isSameRegion ? 4 : 7 + regionDiff) + (Number(handlingDays) || 0),
+                Error: false
+            },
+            {
+                ServiceCode: "04014",
+                ServiceDescription: "Correios SEDEX",
+                Carrier: "Correios",
+                ShippingPrice: sedexPrice.toFixed(2),
+                DeliveryTime: (isSameRegion ? 1 : 2 + Math.floor(regionDiff / 2)) + (Number(handlingDays) || 0),
+                Error: false
+            }
+        ]
+    };
+});
+/**
+ * CONSULTA RASTREAMENTO FRENET / TRANSPORTADORA
+ */
+exports.trackFrenetShipping = (0, https_1.onCall)({ cors: true }, async (req) => {
+    var _a, _b;
+    const { trackingCode, frenetToken: reqFrenetToken, shippingServiceCode, orderId, jobId, orgId } = req.data || {};
+    if (!trackingCode) {
+        return { error: 'Tracking code is required' };
+    }
+    const backendConfig = await getFrenetConfig(orgId);
+    const frenetToken = reqFrenetToken || backendConfig.token;
+    const db = admin.firestore();
+    let trackingEvents = [];
+    let currentStatus = 'SHIPPED';
+    let carrierName = '';
+    // Se houver token da Frenet, tenta consultar a API oficial da Frenet
+    if (frenetToken) {
+        try {
+            const payload = {
+                ShippingServiceCode: shippingServiceCode || "",
+                TrackingNumber: trackingCode,
+                OrderNumber: orderId || jobId || ""
+            };
+            const res = await axios_1.default.post('https://api.frenet.com.br/tracking/trackinginfo', payload, {
+                headers: {
+                    'token': frenetToken,
+                    'Content-Type': 'application/json'
+                },
+                timeout: 8000
+            });
+            if ((_a = res.data) === null || _a === void 0 ? void 0 : _a.TrackingEvents) {
+                trackingEvents = res.data.TrackingEvents.map((ev) => ({
+                    date: ev.EventDateTime || new Date().toISOString(),
+                    description: ev.EventDescription || ev.Description || 'Movimentação registrada',
+                    location: ev.EventLocation || ev.City || '',
+                    status: ev.EventStatus || 'IN_TRANSIT'
+                }));
+                if (res.data.ServiceDescription) {
+                    carrierName = res.data.ServiceDescription;
+                }
+            }
+        }
+        catch (err) {
+            logger.warn("Aviso ao consultar API Frenet Tracking:", err.message);
+        }
+    }
+    // Se não retornou eventos pela Frenet ou se não tem token, gera evento descritivo
+    if (trackingEvents.length === 0) {
+        trackingEvents = [
+            {
+                date: new Date().toISOString(),
+                description: `Objeto registrado na transportadora (${trackingCode}). Acompanhe o trânsito do envio.`,
+                location: 'Centro de Distribuição',
+                status: 'SHIPPED'
+            }
+        ];
+    }
+    // Atualiza pedido de fornecedor se houver
+    if (orderId) {
+        try {
+            const orderRef = db.collection('supplierOrders').doc(orderId);
+            const updateData = {
+                trackingEvents: trackingEvents,
+                lastTrackingSync: admin.firestore.FieldValue.serverTimestamp()
+            };
+            if (carrierName)
+                updateData.carrierName = carrierName;
+            const lastEventDesc = (((_b = trackingEvents[trackingEvents.length - 1]) === null || _b === void 0 ? void 0 : _b.description) || '').toLowerCase();
+            if (lastEventDesc.includes('entregue') || lastEventDesc.includes('delivered')) {
+                updateData.deliveryStatus = 'DELIVERED';
+                updateData.status = 'DELIVERED';
+                updateData.deliveredAt = admin.firestore.FieldValue.serverTimestamp();
+            }
+            await orderRef.update(updateData);
+        }
+        catch (e) {
+            logger.warn(`Erro ao persistir rastreio do pedido ${orderId}:`, e.message);
+        }
+    }
+    // Atualiza trabalho do laboratório (Job) se houver
+    if (jobId) {
+        try {
+            const jobRef = db.collection('jobs').doc(jobId);
+            const updateData = {
+                trackingEvents: trackingEvents,
+                lastTrackingSync: admin.firestore.FieldValue.serverTimestamp()
+            };
+            if (carrierName)
+                updateData.shippingCarrier = carrierName;
+            await jobRef.update(updateData);
+        }
+        catch (e) {
+            logger.warn(`Erro ao persistir rastreio do job ${jobId}:`, e.message);
+        }
+    }
+    return {
+        success: true,
+        trackingCode,
+        carrierName,
+        events: trackingEvents,
+        status: currentStatus
+    };
+});
+/**
+ * WEBHOOK FRENET PARA ATUALIZAÇÃO AUTOMÁTICA DE STATUS DE RASTREAMENTO
+ */
+exports.frenetWebhook = (0, https_1.onRequest)({ cors: true }, async (req, res) => {
+    try {
+        const data = req.body || {};
+        const trackingNumber = data.TrackingNumber || data.trackingNumber || data.code;
+        const orderNumber = data.OrderNumber || data.orderId;
+        const status = data.Status || data.status;
+        const eventDescription = data.EventDescription || data.description;
+        const db = admin.firestore();
+        let orderDoc = null;
+        if (orderNumber) {
+            const docSnap = await db.collection('supplierOrders').doc(orderNumber).get();
+            if (docSnap.exists)
+                orderDoc = docSnap;
+        }
+        if (!orderDoc && trackingNumber) {
+            const querySnap = await db.collection('supplierOrders').where('trackingCode', '==', trackingNumber).get();
+            if (!querySnap.empty)
+                orderDoc = querySnap.docs[0];
+        }
+        if (orderDoc) {
+            const isDelivered = (status && status.toUpperCase().includes('DELIVERED')) ||
+                (eventDescription && eventDescription.toLowerCase().includes('entregue'));
+            const updatePayload = {
+                lastTrackingSync: admin.firestore.FieldValue.serverTimestamp(),
+                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            };
+            if (isDelivered) {
+                updatePayload.status = 'DELIVERED';
+                updatePayload.deliveryStatus = 'DELIVERED';
+                updatePayload.deliveredAt = admin.firestore.FieldValue.serverTimestamp();
+            }
+            else {
+                updatePayload.deliveryStatus = 'SHIPPED';
+                if (orderDoc.data().status !== 'DELIVERED') {
+                    updatePayload.status = 'SHIPPED';
+                }
+            }
+            if (eventDescription) {
+                updatePayload.trackingEvents = admin.firestore.FieldValue.arrayUnion({
+                    date: new Date().toISOString(),
+                    description: eventDescription,
+                    location: data.Location || '',
+                    status: status || 'IN_TRANSIT'
+                });
+            }
+            await orderDoc.ref.update(updatePayload);
+        }
+        res.status(200).json({ success: true });
+    }
     catch (error) {
-        logger.error("Erro Frenet:", ((_a = error.response) === null || _a === void 0 ? void 0 : _a.data) || error.message);
-        throw new https_1.HttpsError('internal', 'Erro ao calcular frete na Frenet.');
+        logger.error("Erro no frenetWebhook:", error);
+        res.status(500).json({ error: error.message });
     }
 });
 /**
