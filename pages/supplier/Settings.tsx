@@ -230,26 +230,28 @@ export const SupplierSettings = () => {
         .filter(b => b && typeof b.imageUrl === 'string' && b.imageUrl.trim() !== '')
         .map(b => ({
           imageUrl: b.imageUrl.trim(),
-          ...(b.title?.trim() ? { title: b.title.trim() } : {}),
-          ...(b.subtitle?.trim() ? { subtitle: b.subtitle.trim() } : {}),
-          ...(b.buttonText?.trim() ? { buttonText: b.buttonText.trim() } : {}),
-          ...(b.buttonLink?.trim() ? { buttonLink: b.buttonLink.trim() } : {}),
-          ...(b.buttonColor?.trim() ? { buttonColor: b.buttonColor.trim() } : {}),
-          ...(b.buttonSize ? { buttonSize: b.buttonSize } : {}),
-          ...(b.buttonBorderRadius ? { buttonBorderRadius: b.buttonBorderRadius } : {})
+          title: b.title?.trim() || '',
+          subtitle: b.subtitle?.trim() || '',
+          buttonText: b.buttonText?.trim() || '',
+          buttonLink: b.buttonLink?.trim() || '',
+          buttonColor: b.buttonColor?.trim() || '#4f46e5',
+          buttonSize: b.buttonSize || 'medium',
+          buttonBorderRadius: b.buttonBorderRadius || '12px'
         }));
 
-      const existingStoreSettings = currentOrg.storeSettings || {};
-      const updatedStoreSettings: StoreSettings = {
-        ...existingStoreSettings,
-        theme,
+      const safeStoreSettings: StoreSettings = {
+        theme: theme || 'shopee',
         banners: cleanBanners,
-        profilePhotoUrl: profilePhoto?.trim() || ''
+        profilePhotoUrl: profilePhoto?.trim() || '',
+        ...(currentOrg.storeSettings?.catchphrase ? { catchphrase: currentOrg.storeSettings.catchphrase } : {}),
+        ...(currentOrg.storeSettings?.layoutType ? { layoutType: currentOrg.storeSettings.layoutType } : {}),
+        ...(Array.isArray(currentOrg.storeSettings?.menuOptions) ? { menuOptions: currentOrg.storeSettings.menuOptions.filter(m => typeof m === 'string') } : {}),
+        ...(currentOrg.storeSettings?.policies ? { policies: currentOrg.storeSettings.policies } : {})
       };
       
       await updateOrganization(currentOrg.id, {
         logoUrl: profilePhoto?.trim() || currentOrg.logoUrl || '',
-        storeSettings: updatedStoreSettings
+        storeSettings: safeStoreSettings
       });
       alert('Configurações da sua Loja e Vitrine salvas com sucesso!');
     } catch (err: any) {

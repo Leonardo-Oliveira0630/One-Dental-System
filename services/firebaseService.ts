@@ -38,32 +38,35 @@ const toDate = (val: any) => {
     return new Date(val);
 };
 
-// Helper to recursively strip undefined values and non-serializable fields for Firestore
+// Helper to recursively strip undefined values, nested arrays, and non-serializable fields for Firestore
 export const sanitizeForFirestore = (obj: any): any => {
     if (obj === undefined) return null;
     if (obj === null) return null;
     if (obj instanceof Date) return obj;
     if (obj instanceof Timestamp || (obj && typeof obj.toDate === 'function')) return obj;
+    
+    // Primitives
+    if (typeof obj === 'string' || typeof obj === 'number' || typeof obj === 'boolean') {
+        return obj;
+    }
+
+    // Arrays: Firestore forbids nested arrays (array of arrays). Flatten or serialize.
     if (Array.isArray(obj)) {
         return obj
             .filter((item) => item !== undefined)
             .map((item) => {
-                if (item === null || typeof item !== 'object' || item instanceof Date) return item;
-                const cleanItem: Record<string, any> = {};
-                for (const [key, val] of Object.entries(item)) {
-                    if (val !== undefined && typeof val !== 'function') {
-                        const cleanedVal = sanitizeForFirestore(val);
-                        if (cleanedVal !== undefined) {
-                            cleanItem[key] = cleanedVal;
-                        }
-                    }
+                if (Array.isArray(item)) {
+                    return item.map(sub => (typeof sub === 'object' ? JSON.stringify(sub) : sub));
                 }
-                return cleanItem;
+                return sanitizeForFirestore(item);
             });
     }
+
+    // Objects / Maps
     if (typeof obj === 'object') {
         const cleaned: Record<string, any> = {};
         for (const [key, val] of Object.entries(obj)) {
+            if (!key || key.trim() === '') continue;
             if (val !== undefined && typeof val !== 'function') {
                 const cleanedVal = sanitizeForFirestore(val);
                 if (cleanedVal !== undefined) {
@@ -73,7 +76,8 @@ export const sanitizeForFirestore = (obj: any): any => {
         }
         return cleaned;
     }
-    return obj;
+
+    return String(obj);
 };
 
 // --- PRONTUÁRIO / HISTÓRICO DO PACIENTE ---
@@ -803,9 +807,13 @@ export const subscribeCoupons = (cb: (c: Coupon[]) => void) => {
         } as Coupon)));
     }, (error: any) => logger.warn(`[Firestore] Erro em subscribeCoupons: ${error.code}`));
 };
-export const apiUpdateOrganization = (id: string, u: Partial<Organization>) => {
+export const apiUpdateOrganization = async (id: string, u: Partial<Organization>) => {
     const cleanPayload = sanitizeForFirestore(u);
-    return setDoc(doc(db, 'organizations', id), cleanPayload, { merge: true });
+    try {
+        return await updateDoc(doc(db, 'organizations', id), cleanPayload);
+    } catch (e: any) {
+        return await setDoc(doc(db, 'organizations', id), cleanPayload, { merge: true });
+    }
 };
 export const apiValidateCoupon = async (code: string, planId: string): Promise<Coupon | null> => {
     const q = query(collection(db, 'coupons'), where('code', '==', code.toUpperCase()), where('active', '==', true));
