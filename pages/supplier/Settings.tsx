@@ -1361,8 +1361,8 @@ export const SupplierSettings = () => {
             <FrenetConfigCard
               organization={currentOrg || {}}
               isSupplier={true}
-              title="Integração Frenet • Loja de Fornecedores & Dental"
-              description="Configure seu Token e regras de envio para cálculo automático e instantâneo de frete via Correios (PAC/SEDEX), Jadlog, Loggi e demais transportadoras no checkout dos seus clientes."
+              title="Frenet • Logística Oficial Integrada"
+              description="Calcule fretes em tempo real, emita etiquetas e acompanhe envios diretamente pelo LabProx como plataforma parceira oficial da Frenet."
               onSave={async (updates) => {
                 if (!currentOrg?.id) return;
                 await updateOrganization(currentOrg.id, updates);

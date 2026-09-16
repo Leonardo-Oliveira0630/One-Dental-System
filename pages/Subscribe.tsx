@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { CheckCircle, CreditCard, Loader2, AlertTriangle, ArrowLeft, Mail, FileText, ExternalLink, Stethoscope, Store, RefreshCw, Ticket, Check, X } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -18,6 +18,7 @@ export const Subscribe = () => {
     const [verifying, setVerifying] = useState(false);
     const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
     const [selectedPlanId, setSelectedPlanId] = useState(initialPlanId);
+    const [billingCycle, setBillingCycle] = useState<'MONTHLY' | 'ANNUAL'>('MONTHLY');
     const [cpfCnpj, setCpfCnpj] = useState('');
     const [billingEmail, setBillingEmail] = useState(currentUser?.email || '');
     const [error, setError] = useState('');
@@ -32,13 +33,23 @@ export const Subscribe = () => {
     // Determine target audience based on Org Type or User Role fallback
     const targetAudience = currentOrg?.orgType || (currentUser?.role === UserRole.CLIENT ? 'CLINIC' : 'LAB');
 
-    const displayPlans = allPlans.filter(p => isPlanAccessible({
-        plan: p,
-        userEmail: currentUser?.email || billingEmail,
-        orgEmail: currentOrg?.email,
-        currentOrgPlanId: currentOrg?.planId,
-        targetAudience
-    }));
+    const displayPlans = useMemo(() => {
+        return allPlans
+            .filter(p => isPlanAccessible({
+                plan: p,
+                userEmail: currentUser?.email || billingEmail,
+                orgEmail: currentOrg?.email,
+                currentOrgPlanId: currentOrg?.planId,
+                targetAudience
+            }))
+            .sort((a, b) => {
+                const aIsFree = (a.price || 0) === 0 || a.name?.toLowerCase().includes('grátis') || a.name?.toLowerCase().includes('gratuito');
+                const bIsFree = (b.price || 0) === 0 || b.name?.toLowerCase().includes('grátis') || b.name?.toLowerCase().includes('gratuito');
+                if (aIsFree && !bIsFree) return -1;
+                if (!aIsFree && bIsFree) return 1;
+                return (a.price || 0) - (b.price || 0);
+            });
+    }, [allPlans, currentUser?.email, billingEmail, currentOrg?.email, currentOrg?.planId, targetAudience]);
 
     useEffect(() => {
         if (currentUser?.email && !billingEmail) {
@@ -101,7 +112,8 @@ export const Subscribe = () => {
                 billingEmail.trim(), 
                 currentOrg.name, 
                 cleanCpfCnpj,
-                appliedCoupon?.code // Passamos o cupom se houver
+                appliedCoupon?.code,
+                billingCycle
             );
 
             if (result && result.success) {
@@ -153,34 +165,92 @@ export const Subscribe = () => {
                     <ArrowLeft size={20}/> Voltar
                 </button>
 
-                <div className="text-center mb-8">
-                    <h1 className="text-3xl font-black text-slate-900 mb-2 uppercase tracking-tighter">Finalizar Assinatura</h1>
-                    <p className="text-slate-500 flex items-center justify-center gap-2 font-medium">
-                        {targetAudience === 'CLINIC' ? <Stethoscope size={16} className="text-teal-500"/> : <Store size={16} className="text-blue-500"/>}
-                        Planos para {targetAudience === 'CLINIC' ? 'Clínicas Odontológicas' : 'Laboratórios de Prótese'}
-                    </p>
-                </div>
-
-                {/* SELEÇÃO DE PLANOS */}
-                {!generatedLink && (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:p-6 mb-8">
-                        {displayPlans.length === 0 ? (
-                            <div className="col-span-3 text-center py-12 text-slate-400 border-2 border-dashed rounded-[32px] bg-white">
-                                Nenhum plano disponível para este perfil no momento.
-                            </div>
-                        ) : (
-                            displayPlans.map(plan => (
-                                <div 
-                                    key={plan.id}
-                                    className={`bg-white p-6 rounded-[32px] border-2 cursor-pointer transition-all ${selectedPlanId === plan.id ? 'border-blue-600 shadow-xl ring-4 ring-blue-100 scale-105 z-10' : 'border-slate-100 shadow-sm opacity-80 hover:opacity-100'}`} 
-                                    onClick={() => setSelectedPlanId(plan.id)}
+                    <div className="text-center mb-8">
+                        <h1 className="text-3xl font-black text-slate-900 mb-2 uppercase tracking-tighter">Finalizar Assinatura</h1>
+                        <p className="text-slate-500 flex items-center justify-center gap-2 font-medium">
+                            {targetAudience === 'CLINIC' ? <Stethoscope size={16} className="text-teal-500"/> : <Store size={16} className="text-blue-500"/>}
+                            Planos para {targetAudience === 'CLINIC' ? 'Clínicas Odontológicas' : 'Laboratórios de Prótese'}
+                        </p>
+                        
+                        {!generatedLink && (
+                        <div className="flex justify-center mt-6">
+                            <div className="bg-slate-200/50 p-1 rounded-2xl flex border border-slate-200">
+                                <button 
+                                    onClick={() => setBillingCycle('MONTHLY')}
+                                    className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${billingCycle === 'MONTHLY' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                                 >
-                                    <h3 className="font-black text-lg text-slate-800 uppercase tracking-wide">{plan.name}</h3>
-                                    <p className="text-3xl font-black text-slate-900 mt-2">
-                                        {plan.price === 0 ? 'Grátis' : `R$ ${plan.price.toFixed(2)}`}
-                                        <span className="text-sm text-slate-400 font-normal">/mês</span>
-                                    </p>
-                                    <ul className="mt-6 space-y-2.5 text-xs font-semibold text-slate-600 border-t border-slate-100 pt-4">
+                                    Mensal
+                                </button>
+                                <button 
+                                    onClick={() => setBillingCycle('ANNUAL')}
+                                    className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 ${billingCycle === 'ANNUAL' ? 'bg-amber-100 text-amber-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                >
+                                    Anual <span className="text-[9px] bg-amber-500 text-white px-1.5 py-0.5 rounded-md leading-none">C/ Desconto</span>
+                                </button>
+                            </div>
+                        </div>
+                        )}
+                    </div>
+
+                    {/* SELEÇÃO DE PLANOS */}
+                    {!generatedLink && (
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-8 sm:p-6 sm:pt-8 mb-8 overflow-visible">
+                            {displayPlans.length === 0 ? (
+                                <div className="col-span-3 text-center py-12 text-slate-400 border-2 border-dashed rounded-[32px] bg-white">
+                                    Nenhum plano disponível para este perfil no momento.
+                                </div>
+                            ) : (
+                                displayPlans.map(plan => {
+                                    const basePrice = plan.price;
+                                    const annualDiscount = plan.annualDiscountPercent || 0;
+                                    let displayPrice = basePrice;
+                                    let oldPrice = null;
+                                    
+                                    if (billingCycle === 'ANNUAL') {
+                                        if (annualDiscount > 0) {
+                                            displayPrice = basePrice * (1 - (annualDiscount / 100));
+                                            oldPrice = basePrice;
+                                        }
+                                    }
+                                    
+                                    return (
+                                        <div 
+                                            key={plan.id}
+                                            className={`bg-white p-6 rounded-[32px] border-2 cursor-pointer transition-all relative ${selectedPlanId === plan.id ? 'border-blue-600 shadow-xl ring-4 ring-blue-100 scale-105 z-10' : 'border-slate-100 shadow-sm opacity-80 hover:opacity-100'}`} 
+                                            onClick={() => setSelectedPlanId(plan.id)}
+                                        >
+                                            {billingCycle === 'ANNUAL' && annualDiscount > 0 && (
+                                                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-500 text-white text-[10px] font-black uppercase px-3 py-1 rounded-full whitespace-nowrap shadow-sm z-20">
+                                                    Economize {annualDiscount}%
+                                                </div>
+                                            )}
+                                            
+                                            {Boolean(plan.trialDays && plan.trialDays > 0) && (
+                                                <div className="absolute top-0 right-0 bg-green-500 text-white text-[9px] font-black px-2.5 py-1 rounded-bl-xl rounded-tr-[30px] shadow-sm z-10">
+                                                    {plan.trialDays} DIAS GRÁTIS
+                                                </div>
+                                            )}
+
+                                            <h3 className="font-black text-lg text-slate-800 uppercase tracking-wide">{plan.name}</h3>
+                                            
+                                            <div className="mt-2 flex flex-col items-start">
+                                                {oldPrice && (
+                                                    <span className="text-[10px] font-bold text-slate-400 line-through">
+                                                        De R$ {oldPrice.toFixed(2)}/mês
+                                                    </span>
+                                                )}
+                                                <p className="text-3xl font-black text-slate-900 leading-none">
+                                                    {displayPrice === 0 ? 'Grátis' : `R$ ${displayPrice.toFixed(2)}`}
+                                                    <span className="text-sm text-slate-400 font-normal">/mês</span>
+                                                </p>
+                                                {billingCycle === 'ANNUAL' && displayPrice > 0 && (
+                                                    <span className="text-[10px] font-bold text-emerald-600 mt-1">
+                                                        Cobrado R$ {(displayPrice * 12).toFixed(2)} ao ano
+                                                    </span>
+                                                )}
+                                            </div>
+                                            
+                                            <ul className="mt-6 space-y-2.5 text-xs font-semibold text-slate-600 border-t border-slate-100 pt-4">
                                         {getDetailedPlanFeatures(plan, targetAudience).map((feat, fIdx) => (
                                             <li 
                                                 key={fIdx} 
@@ -202,7 +272,8 @@ export const Subscribe = () => {
                                         ))}
                                     </ul>
                                 </div>
-                            ))
+                                );
+                            })
                         )}
                     </div>
                 )}
@@ -259,10 +330,73 @@ export const Subscribe = () => {
                                 <CreditCard className="text-blue-600" /> Dados de Faturamento
                             </h3>
                             
-                            <div className="bg-slate-50 p-5 rounded-3xl text-sm text-slate-600 border border-slate-100">
-                                <p className="flex justify-between items-center mb-2"><span className="text-[10px] font-black uppercase text-slate-400">Plano Escolhido:</span> <span className="font-black text-slate-800">{displayPlans.find(p => p.id === selectedPlanId)?.name}</span></p>
-                                <p className="flex justify-between items-center"><span className="text-[10px] font-black uppercase text-slate-400">Mensalidade:</span> <span className="font-black text-blue-600 text-lg">R$ {displayPlans.find(p => p.id === selectedPlanId)?.price.toFixed(2) || '0.00'}</span></p>
-                            </div>
+                            {(() => {
+                                const selectedPlan = displayPlans.find(p => p.id === selectedPlanId);
+                                const basePrice = selectedPlan?.price || 0;
+                                const annualDiscount = selectedPlan?.annualDiscountPercent || 0;
+
+                                let monthlyEffectivePrice = basePrice;
+                                if (billingCycle === 'ANNUAL' && annualDiscount > 0) {
+                                    monthlyEffectivePrice = basePrice * (1 - (annualDiscount / 100));
+                                }
+
+                                const totalCyclePrice = billingCycle === 'ANNUAL' ? monthlyEffectivePrice * 12 : monthlyEffectivePrice;
+
+                                let discountAmount = 0;
+                                if (appliedCoupon && totalCyclePrice > 0) {
+                                    if (appliedCoupon.discountType === 'PERCENTAGE') {
+                                        discountAmount = (totalCyclePrice * appliedCoupon.discountValue) / 100;
+                                    } else if (appliedCoupon.discountType === 'FIXED') {
+                                        discountAmount = appliedCoupon.discountValue;
+                                    } else if (appliedCoupon.discountType === 'FREE_FOREVER') {
+                                        discountAmount = totalCyclePrice;
+                                    }
+                                }
+                                const finalCyclePrice = Math.max(0, totalCyclePrice - discountAmount);
+
+                                return (
+                                    <div className="bg-slate-50 p-5 rounded-3xl text-sm text-slate-600 border border-slate-100 space-y-2.5">
+                                        <p className="flex justify-between items-center">
+                                            <span className="text-[10px] font-black uppercase text-slate-400">Plano Escolhido:</span> 
+                                            <span className="font-black text-slate-800">{selectedPlan?.name || 'Nenhum'}</span>
+                                        </p>
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-[10px] font-black uppercase text-slate-400">
+                                                {billingCycle === 'ANNUAL' ? 'Anuidade:' : 'Mensalidade:'}
+                                            </span>
+                                            <div className="text-right">
+                                                {discountAmount > 0 && (
+                                                    <span className="text-xs font-bold text-slate-400 line-through mr-2">
+                                                        R$ {totalCyclePrice.toFixed(2)}
+                                                    </span>
+                                                )}
+                                                <span className="font-black text-blue-600 text-lg">
+                                                    {finalCyclePrice === 0 ? 'Grátis' : `R$ ${finalCyclePrice.toFixed(2)}`}
+                                                </span>
+                                                {billingCycle === 'ANNUAL' && finalCyclePrice > 0 && (
+                                                    <div className="text-[10px] font-bold text-emerald-600">
+                                                        (R$ {(finalCyclePrice / 12).toFixed(2)}/mês)
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {billingCycle === 'ANNUAL' && annualDiscount > 0 && (
+                                            <div className="flex justify-between items-center text-xs text-amber-600 font-bold pt-1.5 border-t border-slate-200/60">
+                                                <span>Desconto Anual ({annualDiscount}%):</span>
+                                                <span>Economia de R$ {((basePrice * 12) - (monthlyEffectivePrice * 12)).toFixed(2)}/ano</span>
+                                            </div>
+                                        )}
+
+                                        {appliedCoupon && discountAmount > 0 && (
+                                            <div className="flex justify-between items-center text-xs text-emerald-600 font-bold pt-1.5 border-t border-slate-200/60">
+                                                <span>Cupom ({appliedCoupon.code}):</span>
+                                                <span>- R$ {discountAmount.toFixed(2)}</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })()}
 
                             <div className="space-y-4">
                                 <div>

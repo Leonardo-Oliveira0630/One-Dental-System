@@ -30,8 +30,41 @@ export const SupplierOrderPackingSlipModal: React.FC<SupplierOrderPackingSlipMod
   const orderShortId = order.id ? order.id.replace('order_sup_', '').substring(0, 10).toUpperCase() : '---';
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-200">
-      <div className="bg-white text-slate-900 w-full max-w-3xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden my-auto flex flex-col max-h-[92vh]">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-200 print:static print:block print:p-0 print:m-0 print:bg-white print:overflow-visible print:w-full print:max-w-none print:z-auto print:h-auto">
+      <style>
+        {`
+          @media print {
+            @page {
+              size: A4 portrait;
+              margin: 8mm 8mm 8mm 8mm;
+            }
+            html, body {
+              background: #ffffff !important;
+              color: #000000 !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+              overflow: visible !important;
+              height: auto !important;
+              min-height: auto !important;
+            }
+            header, aside, nav, .print\\:hidden {
+              display: none !important;
+            }
+            #printable-packing-slip {
+              padding: 0 !important;
+              margin: 0 !important;
+              display: block !important;
+              visibility: visible !important;
+            }
+            .packing-slip-item {
+              page-break-inside: avoid;
+              break-inside: avoid;
+            }
+          }
+        `}
+      </style>
+
+      <div className="bg-white text-slate-900 w-full max-w-3xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden my-auto flex flex-col max-h-[92vh] print:max-w-none print:w-full print:max-h-none print:shadow-none print:border-none print:rounded-none print:m-0 print:p-0 print:overflow-visible print:block">
         {/* Modal Action Bar (Hidden on print) */}
         <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between print:hidden">
           <div className="flex items-center gap-2">
@@ -57,7 +90,7 @@ export const SupplierOrderPackingSlipModal: React.FC<SupplierOrderPackingSlipMod
         </div>
 
         {/* Printable Packing Slip Area */}
-        <div id="printable-packing-slip" className="p-8 overflow-y-auto space-y-6 print:p-0 print:m-0 text-slate-900 text-xs">
+        <div id="printable-packing-slip" className="p-8 overflow-y-auto space-y-6 print:p-0 print:m-0 print:overflow-visible text-slate-900 text-xs">
           {/* Header */}
           <div className="border-b-2 border-slate-900 pb-4 flex items-start justify-between">
             <div>

@@ -133,9 +133,26 @@
         "applicableProductIds": { "type": "array" }
       },
       "required": ["organizationId", "code", "discountType", "discountValue", "usedCount", "active"]
+    },
+    "VerificationCode": {
+      "title": "VerificationCode",
+      "description": "Verification code for account/system deletion",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "email": { "type": "string" },
+        "code": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "expiresAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "email", "code"]
     }
   },
   "firestore": {
+    "/verificationCodes/{userId}": {
+      "schema": "VerificationCode",
+      "description": "Temporary 6-digit verification codes for account deletion"
+    },
     "/supplierCoupons/{couponId}": {
       "schema": "SupplierCoupon",
       "description": "Supplier discount coupons"

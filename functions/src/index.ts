@@ -149,6 +149,38 @@ const getBrevoConfig = async (orgId?: string) => {
   return { apiKey: apiKey?.trim(), senderEmail: senderEmail?.trim(), senderName: senderName?.trim() };
 };
 
+const getFrenetPartnerToken = async (): Promise<string> => {
+  let partnerToken = process.env.FRENET_PARTNER_TOKEN || 
+                     process.env.frenet_partner_token || 
+                     process.env.FRENET_PARTNER_KEY || 
+                     process.env.frenet_partner_key || "";
+
+  try {
+    const functions = require("firebase-functions");
+    if (functions.config && functions.config().frenet) {
+      const fConfig = functions.config().frenet;
+      if (!partnerToken) partnerToken = fConfig.partner_token || fConfig.partnertoken || fConfig.partner_key || "";
+    }
+  } catch (e) {
+    // ignore
+  }
+
+  try {
+    const db = admin.firestore();
+    const globalSettingsDoc = await db.collection("settings").doc("global").get();
+    if (globalSettingsDoc.exists) {
+      const data = globalSettingsDoc.data() as any;
+      if (!partnerToken && (data?.frenetPartnerToken || data?.frenet_partner_token || data?.frenetPartnerKey)) {
+        partnerToken = data.frenetPartnerToken || data.frenet_partner_token || data.frenetPartnerKey;
+      }
+    }
+  } catch (e) {
+    logger.error("Failed to fetch Frenet Partner Token from DB", e);
+  }
+
+  return partnerToken ? partnerToken.trim() : "";
+};
+
 const getFrenetConfig = async (orgId?: string) => {
   let token = process.env.FRENET_TOKEN || 
               process.env.frenet_token || 
@@ -203,10 +235,23 @@ const getFrenetConfig = async (orgId?: string) => {
       const orgDoc = await db.collection("organizations").doc(orgId).get();
       if (orgDoc.exists) {
         const orgData = orgDoc.data() as any;
-        if (orgData?.frenetToken) token = orgData.frenetToken;
-        if (orgData?.frenetOriginCep || orgData?.cep) originCep = orgData.frenetOriginCep || orgData.cep;
+        // Multi-tenant: prioriza o token individual do lojista (logistics.frenetCustomerToken ou frenetToken)
+        if (orgData?.logistics?.frenetCustomerToken) {
+          token = orgData.logistics.frenetCustomerToken;
+        } else if (orgData?.frenetToken) {
+          token = orgData.frenetToken;
+        }
+
+        if (orgData?.logistics?.originCep) {
+          originCep = orgData.logistics.originCep;
+        } else if (orgData?.frenetOriginCep || orgData?.cep) {
+          originCep = orgData.frenetOriginCep || orgData.cep;
+        }
+
         if (orgData?.frenetPassword) password = orgData.frenetPassword;
-        if (orgData?.frenetUser) user = orgData.frenetUser;
+        if (orgData?.frenetUser || orgData?.logistics?.frenetUser) {
+          user = orgData.frenetUser || orgData.logistics?.frenetUser;
+        }
       }
     }
   } catch (e) {
@@ -1248,7 +1293,7 @@ export const checkSubscriptionStatus = onCall(
  */
 export const createSaaSSubscription = onCall(async (req: any) => {
   try {
-    const {orgId, planId, email, name, cpfCnpj} = req.data;
+    const {orgId, planId, email, name, cpfCnpj, billingCycle = 'MONTHLY'} = req.data;
     const {key, url} = await getAsaasConfig();
     const cleanCpfCnpj = String(cpfCnpj).replace(/\D/g, "");
 
@@ -1290,10 +1335,25 @@ export const createSaaSSubscription = onCall(async (req: any) => {
       .get();
     if (planSnap.exists && planSnap.data()?.price !== undefined) {
       const planData = planSnap.data() || {};
-      value = planData.price;
+      let basePrice = planData.price;
+      
+      if (billingCycle === 'ANNUAL') {
+        const discount = planData.annualDiscountPercent || 0;
+        basePrice = basePrice * 12;
+        if (discount > 0) {
+          basePrice = basePrice * (1 - (discount / 100));
+        }
+      }
+      
+      value = basePrice;
       if (orgData.hasWhatsappModule) {
          let wppPrice = planData.whatsappModulePrice !== undefined ? planData.whatsappModulePrice : 90.00;
-         value += wppPrice;
+         if (billingCycle === 'ANNUAL') {
+             // Aplicar desconto no modulo whatsapp também se for anual? Sim, vamos aplicar os meses
+             value += wppPrice * 12;
+         } else {
+             value += wppPrice;
+         }
       }
     }
 
@@ -1320,6 +1380,7 @@ export const createSaaSSubscription = onCall(async (req: any) => {
     }
 
     // Criar Assinatura no Asaas
+    const cycleType = billingCycle === 'ANNUAL' ? 'YEARLY' : 'MONTHLY';
     const subRes = await axios.post(
       `${url}/subscriptions`,
       {
@@ -1327,7 +1388,7 @@ export const createSaaSSubscription = onCall(async (req: any) => {
         billingType: "UNDEFINED",
         value: value,
         nextDueDate: nextDue,
-        cycle: "MONTHLY",
+        cycle: cycleType,
         description: `Assinatura Plano ${planId}`,
       },
       {headers: {access_token: key}}
@@ -1355,6 +1416,7 @@ export const createSaaSSubscription = onCall(async (req: any) => {
       subscriptionId: subRes.data.id,
       subscriptionStatus: "PENDING",
       planId: planId,
+      billingCycle: billingCycle,
     });
 
     return {success: true, paymentLink: paymentLink || subRes.data.id};
@@ -1820,6 +1882,276 @@ export const calculateFrenetShipping = onCall({ cors: true }, async (req: any) =
         Error: false
       }
     ]
+  };
+});
+
+/**
+ * ONBOARDING AUTOMÁTICO DE LOJISTA / PARCEIRO FRENET
+ * Utiliza o Partner Token do LabProx no backend para registrar/associar uma conta Frenet individual.
+ * O Customer Token individual é armazenado exclusivamente no Firestore e nunca retornado ao frontend.
+ */
+export const onboardFrenetMerchant = onCall({ cors: true }, async (request: any) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Usuário não autenticado.");
+  }
+
+  const { orgId, merchantData } = request.data || {};
+  if (!orgId) {
+    throw new HttpsError("invalid-argument", "ID da organização/loja é obrigatório.");
+  }
+
+  const db = admin.firestore();
+  
+  // 1. Validação de autorização
+  const callerDoc = await db.collection("users").doc(request.auth.uid).get();
+  const callerData = callerDoc.data() as any;
+  const isSuperAdmin = callerData?.role === "SUPER_ADMIN";
+  const belongsToOrg = callerData?.organizationId === orgId;
+
+  if (!isSuperAdmin && !belongsToOrg) {
+    throw new HttpsError("permission-denied", "Sem permissão para configurar a logística desta organização.");
+  }
+
+  // 2. Busca dados da organização
+  const orgDoc = await db.collection("organizations").doc(orgId).get();
+  if (!orgDoc.exists) {
+    throw new HttpsError("not-found", "Organização não encontrada.");
+  }
+  const orgData = orgDoc.data() as any;
+
+  // 3. Verificação de idempotência: Se a conta já existe e está ativa, não duplica
+  if (orgData.logistics?.status === "active" && (orgData.logistics?.frenetCustomerToken || orgData.frenetToken)) {
+    return {
+      success: true,
+      alreadyActive: true,
+      status: "active",
+      provider: "frenet",
+      originCep: orgData.logistics?.originCep || orgData.frenetOriginCep || orgData.cep || "",
+      message: "A conta Frenet já está ativa e vinculada a esta loja."
+    };
+  }
+
+  // 4. Obtém o Partner Token do LabProx configurado no backend
+  const partnerToken = await getFrenetPartnerToken();
+  if (!partnerToken) {
+    logger.error("[Frenet Onboarding] FRENET_PARTNER_TOKEN não configurado no backend.");
+    throw new HttpsError(
+      "failed-precondition",
+      "FRENET_PARTNER_TOKEN não configurado no servidor LabProx. Solicite ao Super Admin a configuração da chave de parceiro."
+    );
+  }
+
+  // 5. Mapeia e valida os dados do lojista (utilizando dados do cadastro sempre que existirem)
+  const name = (merchantData?.name || orgData.name || "").trim();
+  const email = (merchantData?.email || orgData.email || callerData?.email || "").trim().toLowerCase();
+  const rawCpfCnpj = (merchantData?.cpfCnpj || orgData.cpfCnpj || "").replace(/\D/g, "");
+  const rawPhone = (merchantData?.phone || merchantData?.whatsapp || orgData.phone || orgData.whatsapp || callerData?.phone || "").replace(/\D/g, "");
+  const rawCep = (merchantData?.cep || merchantData?.frenetOriginCep || orgData.frenetOriginCep || orgData.cep || "").replace(/\D/g, "");
+  const address = (merchantData?.address || orgData.address || "").trim();
+  const number = (merchantData?.number || orgData.number || "").trim();
+  const complement = (merchantData?.complement || orgData.complement || "").trim();
+  const neighborhood = (merchantData?.neighborhood || orgData.neighborhood || "").trim();
+  const city = (merchantData?.city || orgData.city || "").trim();
+  const state = (merchantData?.state || orgData.state || "").trim().toUpperCase();
+
+  // Validações rigorosas antes do envio
+  if (!name) throw new HttpsError("invalid-argument", "Razão Social / Nome da loja é obrigatório.");
+  if (!email || !email.includes("@")) throw new HttpsError("invalid-argument", "E-mail válido do lojista é obrigatório.");
+  if (!rawCpfCnpj || (rawCpfCnpj.length !== 11 && rawCpfCnpj.length !== 14)) {
+    throw new HttpsError("invalid-argument", "CPF ou CNPJ válido com 11 ou 14 dígitos é obrigatório.");
+  }
+  if (!rawPhone || rawPhone.length < 10) {
+    throw new HttpsError("invalid-argument", "Telefone com DDD válido é obrigatório.");
+  }
+  if (!rawCep || rawCep.length !== 8) {
+    throw new HttpsError("invalid-argument", "CEP de expedição com 8 dígitos é obrigatório.");
+  }
+  if (!address) throw new HttpsError("invalid-argument", "Endereço/Logradouro é obrigatório.");
+  if (!number) throw new HttpsError("invalid-argument", "Número do endereço é obrigatório.");
+  if (!neighborhood) throw new HttpsError("invalid-argument", "Bairro é obrigatório.");
+  if (!city) throw new HttpsError("invalid-argument", "Cidade é obrigatória.");
+  if (!state || state.length !== 2) throw new HttpsError("invalid-argument", "Estado (UF) com 2 letras é obrigatório.");
+
+  const isLegalEntity = rawCpfCnpj.length === 14;
+  const cleanPhone = rawPhone.length > 11 ? rawPhone.slice(-11) : rawPhone;
+
+  // 6. Monta o payload conforme a especificação da API de Parceiros Frenet
+  const frenetRegisterPayload = {
+    Name: name,
+    Email: email,
+    FederalDocument: rawCpfCnpj,
+    Person: isLegalEntity ? "J" : "F",
+    Type: 1,
+    CompanyName: name,
+    StateDocument: orgData.stateRegistration || orgData.croNumero || "ISENTO",
+    UrlSite: `https://labprox.com.br/loja/${orgData.storeSlug || orgId}`,
+    ZipCode: rawCep,
+    City: city,
+    State: state,
+    Address: address,
+    Number: number,
+    Complement: complement || "",
+    District: neighborhood,
+    Phone: cleanPhone,
+    SendEmail: true
+  };
+
+  let customerToken = "";
+  let customerId = "";
+  let frenetUser = "";
+  let lastErrorMsg = "";
+
+  const partnerEndpoints = [
+    "https://register.apifrenet.com.br/v1/partner/register",
+    "https://api.frenet.com.br/v1/partner/register",
+    "https://api.frenet.com.br/partner/customer"
+  ];
+
+  for (const endpoint of partnerEndpoints) {
+    try {
+      logger.info(`[Frenet Partner Onboarding] Chamando ${endpoint} para a loja ${orgId}...`);
+      const res = await axios.post(endpoint, frenetRegisterPayload, {
+        headers: {
+          "token": partnerToken,
+          "partner_token": partnerToken,
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        timeout: 15000
+      });
+
+      const resData = res.data || {};
+      logger.info("[Frenet Partner Onboarding] Resposta Frenet:", {
+        status: res.status,
+        hasToken: Boolean(resData.Token || resData.token || resData.UserToken || resData.access_token)
+      });
+
+      customerToken = resData.Token || resData.token || resData.UserToken || resData.access_token || resData.data?.token || "";
+      customerId = resData.Id || resData.id || resData.CustomerId || resData.UserId || resData.data?.id || "";
+      frenetUser = resData.User || resData.user || resData.Email || email;
+
+      if (customerToken) {
+        break;
+      }
+    } catch (apiErr: any) {
+      const status = apiErr.response?.status;
+      const errData = apiErr.response?.data;
+      const msg = errData?.Message || errData?.message || errData?.error || apiErr.message;
+      logger.warn(`[Frenet Partner Onboarding] Erro em ${endpoint} (${status}):`, errData || msg);
+      lastErrorMsg = typeof msg === "string" ? msg : JSON.stringify(msg);
+
+      if (errData?.Token || errData?.token) {
+        customerToken = errData.Token || errData.token;
+        customerId = errData.Id || errData.id || "";
+        break;
+      }
+    }
+  }
+
+  // 7. Se a API de parceiro da Frenet não retornou token (ex: dados já cadastrados ou erro)
+  if (!customerToken) {
+    logger.error("[Frenet Onboarding] Falha ao obter token da Frenet:", lastErrorMsg);
+    
+    await db.collection("organizations").doc(orgId).set({
+      logistics: {
+        provider: "frenet",
+        enabled: false,
+        status: "error",
+        errorMessage: lastErrorMsg || "Não foi possível concluir o registro automático na Frenet.",
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      }
+    }, { merge: true });
+
+    throw new HttpsError(
+      "aborted",
+      `Erro no cadastro de parceiro Frenet: ${lastErrorMsg || "Não foi possível obter o Token individual de cliente da Frenet."}`
+    );
+  }
+
+  // 8. Salva o Customer Token e as configurações de logística exclusivamente no Firestore
+  const logisticsData = {
+    provider: "frenet",
+    enabled: true,
+    status: "active",
+    frenetCustomerToken: customerToken,
+    frenetCustomerId: customerId ? String(customerId) : null,
+    frenetUser: frenetUser || email,
+    originCep: rawCep,
+    isPartnerManaged: true,
+    registeredAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp()
+  };
+
+  await db.collection("organizations").doc(orgId).set({
+    frenetToken: customerToken,
+    frenetOriginCep: rawCep,
+    frenetEnabled: true,
+    logistics: logisticsData,
+    address,
+    number,
+    complement,
+    neighborhood,
+    city,
+    state,
+    cep: rawCep,
+    cpfCnpj: rawCpfCnpj,
+    phone: cleanPhone
+  }, { merge: true });
+
+  await db.collection("auditLogs").add({
+    action: "FRENET_PARTNER_ONBOARDING",
+    orgId: orgId,
+    userId: request.auth.uid,
+    userEmail: callerData?.email || "",
+    status: "SUCCESS",
+    provider: "frenet",
+    timestamp: admin.firestore.FieldValue.serverTimestamp()
+  });
+
+  // Retorna para o frontend SEM o token secreto
+  return {
+    success: true,
+    status: "active",
+    provider: "frenet",
+    originCep: rawCep,
+    message: "Conta Frenet individual criada e vinculada com sucesso ao LabProx!"
+  };
+});
+
+/**
+ * CONSULTA STATUS DA LOGÍSTICA DO LOJISTA
+ * Retorna se está ativo sem expor os tokens
+ */
+export const getFrenetLogisticsStatus = onCall({ cors: true }, async (request: any) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Usuário não autenticado.");
+  }
+  const { orgId } = request.data || {};
+  if (!orgId) {
+    throw new HttpsError("invalid-argument", "ID da organização é obrigatório.");
+  }
+
+  const db = admin.firestore();
+  const orgDoc = await db.collection("organizations").doc(orgId).get();
+  if (!orgDoc.exists) {
+    throw new HttpsError("not-found", "Organização não encontrada.");
+  }
+  const orgData = orgDoc.data() as any;
+
+  const hasToken = Boolean(orgData.logistics?.frenetCustomerToken || orgData.frenetToken);
+  const status = orgData.logistics?.status || (hasToken ? "active" : "unconfigured");
+  const enabled = Boolean(orgData.logistics?.enabled ?? orgData.frenetEnabled ?? hasToken);
+
+  return {
+    provider: "frenet",
+    enabled: enabled,
+    status: status,
+    originCep: orgData.logistics?.originCep || orgData.frenetOriginCep || orgData.cep || "",
+    isPartnerManaged: Boolean(orgData.logistics?.isPartnerManaged ?? true),
+    hasToken: hasToken,
+    errorMessage: orgData.logistics?.errorMessage || null,
+    updatedAt: orgData.logistics?.updatedAt || null
   };
 });
 

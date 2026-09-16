@@ -3,13 +3,14 @@ import { FrenetShippingItem, FrenetShippingService, FrenetTrackingEvent, FrenetQ
 
 export const cleanCep = (cep: string | undefined | null): string => {
   if (!cep) return '';
-  return cep.replace(/\D/g, '').padStart(8, '0').slice(0, 8);
+  return cep.replace(/\D/g, '').slice(0, 8);
 };
 
 export const formatCep = (cep: string | undefined | null): string => {
-  const clean = cleanCep(cep);
-  if (clean.length !== 8) return cep || '';
-  return `${clean.slice(0, 5)}-${clean.slice(5)}`;
+  if (!cep) return '';
+  const digits = cep.replace(/\D/g, '').slice(0, 8);
+  if (digits.length <= 5) return digits;
+  return `${digits.slice(0, 5)}-${digits.slice(5)}`;
 };
 
 export interface CalculateShippingParams {

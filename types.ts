@@ -156,18 +156,35 @@ export interface StoreSettings {
   policies?: SupplierStorePolicies;
 }
 
+export interface LogisticsConfig {
+  provider: 'frenet' | string;
+  enabled: boolean;
+  status: 'pending' | 'active' | 'error' | 'unconfigured';
+  frenetCustomerToken?: string;
+  frenetCustomerId?: string;
+  frenetUser?: string;
+  originCep?: string;
+  isPartnerManaged?: boolean;
+  registeredAt?: any;
+  createdAt?: any;
+  updatedAt?: any;
+  errorMessage?: string;
+}
+
 export interface Organization {
   whatsapp?: string;
   id: string;
   name: string;
   logoUrl?: string; 
   planId: string;
+  billingCycle?: 'MONTHLY' | 'ANNUAL';
   subscriptionStatus?: 'TRIAL' | 'ACTIVE' | 'OVERDUE' | 'CANCELLED' | 'PENDING' | 'FREE' | 'TEST';
   trialEndsAt?: Date;
   createdAt: Date;
   orgType?: 'LAB' | 'CLINIC' | 'LAB_OUTSOURCED' | 'SUPPLIER';
   cpfCnpj?: string;
   asaasApiKey?: string;
+  logistics?: LogisticsConfig;
   frenetToken?: string;
   frenetKey?: string;
   frenetPassword?: string;
@@ -961,6 +978,7 @@ export interface SubscriptionPlan {
   id: string;
   name: string;
   price: number;
+  annualDiscountPercent?: number;
   whatsappModulePrice?: number;
   isPublic: boolean;
   active: boolean;

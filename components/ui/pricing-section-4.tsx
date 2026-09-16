@@ -6,7 +6,7 @@ import { VerticalCutReveal } from "./vertical-cut-reveal";
 import { cn } from "../../lib/utils";
 import NumberFlow from "@number-flow/react";
 import { motion } from "framer-motion";
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useMemo } from "react";
 import { SubscriptionPlan } from "../../types";
 import { getDetailedPlanFeatures, PlanFeatureItem, isPlanPrivate } from "../../utils/planFeatures";
 import { Check, X, Lock, Sparkles } from "lucide-react";
@@ -24,11 +24,21 @@ export default function PricingSection({ plans, selectedPlanId, onSelectPlan, ti
   const [isYearly, setIsYearly] = useState(false);
   const pricingRef = useRef<HTMLDivElement>(null);
 
+  const sortedPlans = useMemo(() => {
+    return [...plans].sort((a, b) => {
+      const aIsFree = (a.price || 0) === 0 || a.name?.toLowerCase().includes('grátis') || a.name?.toLowerCase().includes('gratuito');
+      const bIsFree = (b.price || 0) === 0 || b.name?.toLowerCase().includes('grátis') || b.name?.toLowerCase().includes('gratuito');
+      if (aIsFree && !bIsFree) return -1;
+      if (!aIsFree && bIsFree) return 1;
+      return (a.price || 0) - (b.price || 0);
+    });
+  }, [plans]);
+
   useEffect(() => {
-    if (plans.length > 0 && !selectedPlanId) {
-        onSelectPlan(plans[0].id);
+    if (sortedPlans.length > 0 && !selectedPlanId) {
+        onSelectPlan(sortedPlans[0].id);
     }
-  }, [plans, selectedPlanId, onSelectPlan]);
+  }, [sortedPlans, selectedPlanId, onSelectPlan]);
 
   const revealVariants = {
     visible: (i: number) => ({
@@ -96,6 +106,23 @@ export default function PricingSection({ plans, selectedPlanId, onSelectPlan, ti
         >
           {subtitle}
         </TimelineContent>
+
+        <div className="flex justify-center mt-6">
+          <div className="bg-slate-900/80 p-1 rounded-xl flex border border-slate-800">
+              <button 
+                  onClick={() => setIsYearly(false)}
+                  className={`px-6 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${!isYearly ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'}`}
+              >
+                  Mensal
+              </button>
+              <button 
+                  onClick={() => setIsYearly(true)}
+                  className={`px-6 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 ${isYearly ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'}`}
+              >
+                  Anual <span className="text-[9px] bg-amber-500 text-white px-1.5 py-0.5 rounded-md leading-none">Desconto</span>
+              </button>
+          </div>
+        </div>
       </article>
 
       <div
@@ -108,10 +135,19 @@ export default function PricingSection({ plans, selectedPlanId, onSelectPlan, ti
       />
 
       <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 max-w-7xl gap-4 py-6 px-4 mx-auto relative z-10`}>
-        {plans.map((plan, index) => {
+        {sortedPlans.map((plan, index) => {
           const isSelected = selectedPlanId === plan.id;
           const features = getDetailedPlanFeatures(plan, regType);
           const isExclusive = isPlanPrivate(plan);
+          
+          let displayPrice = plan.price;
+          const annualDiscount = plan.annualDiscountPercent || 0;
+          let oldPrice = null;
+          
+          if (isYearly && annualDiscount > 0) {
+            oldPrice = displayPrice;
+            displayPrice = displayPrice * (1 - (annualDiscount / 100));
+          }
 
           return (
             <TimelineContent
@@ -132,39 +168,54 @@ export default function PricingSection({ plans, selectedPlanId, onSelectPlan, ti
                 }`}
                 onClick={() => onSelectPlan(plan.id)}
               >
+                {isYearly && annualDiscount > 0 && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-500 text-white text-[10px] font-black uppercase px-3 py-1 rounded-full whitespace-nowrap shadow-sm z-30">
+                      Economize {annualDiscount}%
+                  </div>
+                )}
                 {isExclusive && (
                   <div className="absolute top-0 left-0 bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 text-[10px] font-black px-3 py-1 rounded-br-xl shadow-md z-30 flex items-center gap-1">
                     <Lock size={10} className="stroke-[3]" /> EXCLUSIVO PARA VOCÊ
                   </div>
                 )}
-                {plan.trialDays && plan.trialDays > 0 && (
+                {Boolean(plan.trialDays && plan.trialDays > 0) && (
                   <div className="absolute top-0 right-0 bg-green-500 text-white text-[10px] font-black px-3 py-1 rounded-bl-xl shadow-sm z-30">
                     {plan.trialDays} DIAS GRÁTIS
                   </div>
                 )}
-                <CardHeader className="text-left pb-4 pt-6">
+                <CardHeader className="text-left pb-4 pt-6 mt-2">
                   <div className="flex justify-between">
                     <h3 className="text-xl font-bold uppercase tracking-wider text-slate-300 mb-2">{plan.name}</h3>
                   </div>
+                  {oldPrice && (
+                    <span className="text-[10px] font-bold text-slate-400 line-through">
+                        De R$ {oldPrice.toFixed(2)}/mês
+                    </span>
+                  )}
                   <div className="flex items-baseline">
                     <span className="text-3xl font-semibold">
-                      {plan.price === 0 ? "Grátis" : "R$ "}
-                      {plan.price > 0 && (
+                      {displayPrice === 0 ? "Grátis" : "R$ "}
+                      {displayPrice > 0 && (
                         <NumberFlow
                           format={{
                             currency: "BRL",
                           }}
-                          value={plan.price}
+                          value={displayPrice}
                           className="text-3xl font-semibold inline-block"
                         />
                       )}
                     </span>
-                    {plan.price > 0 && (
+                    {displayPrice > 0 && (
                       <span className="text-slate-400 ml-1 text-sm">
                         /mês
                       </span>
                     )}
                   </div>
+                  {isYearly && displayPrice > 0 && (
+                    <div className="text-[10px] font-bold text-indigo-400 mt-1">
+                        Cobrado R$ {(displayPrice * 12).toFixed(2)} ao ano
+                    </div>
+                  )}
                 </CardHeader>
 
                 <CardContent className="pt-0 flex-1 flex flex-col">

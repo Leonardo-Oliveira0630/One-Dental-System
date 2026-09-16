@@ -17,6 +17,7 @@ export const Plans = () => {
   // Form State
   const [name, setName] = useState('');
   const [price, setPrice] = useState(0);
+  const [annualDiscountPercent, setAnnualDiscountPercent] = useState(0);
   const [whatsappModulePrice, setWhatsappModulePrice] = useState(90);
   const [isPublic, setIsPublic] = useState(true);
   const [allowedEmails, setAllowedEmails] = useState<string[]>([]);
@@ -37,6 +38,7 @@ export const Plans = () => {
   const resetForm = () => {
     setName('');
     setPrice(0);
+    setAnnualDiscountPercent(0);
     setWhatsappModulePrice(90);
     setIsPublic(true);
     setAllowedEmails([]);
@@ -60,6 +62,7 @@ export const Plans = () => {
     setEditingId(plan.id);
     setName(plan.name);
     setPrice(plan.price);
+    setAnnualDiscountPercent(plan.annualDiscountPercent || 0);
     setWhatsappModulePrice(plan.whatsappModulePrice ?? 90);
     setIsPublic(plan.isPublic !== false && (!plan.allowedEmails || plan.allowedEmails.length === 0));
     setAllowedEmails(plan.allowedEmails || []);
@@ -134,6 +137,7 @@ export const Plans = () => {
     const planData: Omit<SubscriptionPlan, 'id'> = {
         name,
         price,
+        annualDiscountPercent,
         whatsappModulePrice,
         isPublic: isPublic,
         isPrivate: !isPublic,
@@ -339,13 +343,17 @@ export const Plans = () => {
                                 <input value={name} onChange={e => setName(e.target.value)} className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-[20px] focus:ring-2 focus:ring-blue-500 outline-none font-black text-lg" required placeholder="Ex: Laboratório VIP - Específico" />
                             </div>
 
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                                 <div>
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Preço (R$)</label>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Preço Mensal (R$)</label>
                                     <input type="number" step="0.01" value={price} onChange={e => setPrice(parseFloat(e.target.value))} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-[20px] font-black text-lg text-blue-600 outline-none" required />
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Módulo WhatsApp (R$)</label>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1" title="Desconto no pagamento anual (Ex: 20 para 20%)">Desconto Anual (%)</label>
+                                    <input type="number" min="0" max="100" step="1" value={annualDiscountPercent} onChange={e => setAnnualDiscountPercent(parseInt(e.target.value))} className="w-full px-4 py-3 bg-slate-50 border border-amber-200 rounded-[20px] font-black text-lg text-amber-600 outline-none" required />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Módulo Wpp (R$)</label>
                                     <input type="number" step="0.01" value={whatsappModulePrice} onChange={e => setWhatsappModulePrice(parseFloat(e.target.value))} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-[20px] font-black text-lg text-green-600 outline-none" required />
                                 </div>
                                 <div>

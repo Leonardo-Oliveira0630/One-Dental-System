@@ -28,7 +28,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
   const { 
     currentUser, logout, cart, jobs, currentOrg, currentPlan,
     userConnections, activeOrganization, switchActiveOrganization,
-    theme, toggleTheme
+    theme, toggleTheme, printData
   } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
@@ -160,7 +160,13 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
     jobs.filter(j => 
       j.status === 'WAITING_APPROVAL' as any && 
       !j.isComboPurchase && 
-      !(j.items && j.items.some((item: any) => item.isVoucherCombo === true))
+      !(j.items && j.items.some((item: any) => item.isVoucherCombo === true)) &&
+      (
+        j.paymentStatus === 'PAID' ||
+        j.paymentStatus === 'AUTHORIZED' ||
+        j.paymentStatus === 'VOUCHER' ||
+        ((j.totalValue === 0 || !j.totalValue) && j.paymentStatus !== 'REFUNDED')
+      )
     ).length
   , [jobs]);
 
@@ -619,7 +625,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
           <MobileNavItem to="/profile" icon={<UserCircle size={22}/>} label={t('navigation.profile', 'Perfil')} active={location.pathname === '/profile'} />
       </nav>
 
-      <main style={isStoreRoute ? { marginTop: '0px' } : { marginTop: '-38px' }} className={`flex-1 bg-white dark:bg-[#0B0F17] text-slate-800 dark:text-slate-100 transition-all duration-300 print:hidden flex flex-col min-h-screen overflow-x-hidden relative ${isSidebarHovered ? 'md:ml-64' : 'md:ml-20'}`}>
+      <main style={isStoreRoute ? { marginTop: '0px' } : { marginTop: '-38px' }} className={`flex-1 bg-white dark:bg-[#0B0F17] text-slate-800 dark:text-slate-100 transition-all duration-300 ${printData ? 'print:hidden' : 'print:block print:w-full print:m-0 print:p-0 print:overflow-visible'} flex flex-col min-h-screen overflow-x-hidden relative ${isSidebarHovered ? 'md:ml-64' : 'md:ml-20'}`}>
         <header 
           id="app-top-header"
           style={{ paddingTop: '0px', paddingBottom: '0px', marginBottom: '0px', marginTop: '37px' }}

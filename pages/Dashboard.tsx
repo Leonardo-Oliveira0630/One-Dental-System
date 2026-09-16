@@ -52,16 +52,29 @@ export const Dashboard = () => {
     const isUrgent = jobs.filter(j => j.urgency === UrgencyLevel.VIP || j.urgency === UrgencyLevel.HIGH).length;
     const isDelayed = jobs.filter(j => new Date(j.dueDate) < new Date() && j.status !== JobStatus.COMPLETED).length;
 
+    const waitingApprovalCount = jobs.filter(j => {
+      if (j.status !== JobStatus.WAITING_APPROVAL) return false;
+      if (isClient) return true;
+      if (j.isComboPurchase) return false;
+      if (j.items && j.items.some((item: any) => item.isVoucherCombo === true)) return false;
+      return (
+        j.paymentStatus === 'PAID' ||
+        j.paymentStatus === 'AUTHORIZED' ||
+        j.paymentStatus === 'VOUCHER' ||
+        ((j.totalValue === 0 || !j.totalValue) && j.paymentStatus !== 'REFUNDED')
+      );
+    }).length;
+
     const sData = [
       { name: t('orders.status.PENDING', 'Pendente'), value: jobs.filter(j => j.status === JobStatus.PENDING).length },
       { name: t('orders.status.SECTOR_TRANSITION', 'Transição'), value: jobs.filter(j => j.status === JobStatus.SECTOR_TRANSITION).length },
       { name: t('orders.status.IN_PROGRESS', 'Produção'), value: jobs.filter(j => j.status === JobStatus.IN_PROGRESS).length },
-      { name: t('orders.status.WAITING_APPROVAL', 'Aprovação'), value: jobs.filter(j => j.status === JobStatus.WAITING_APPROVAL).length },
+      { name: t('orders.status.WAITING_APPROVAL', 'Aprovação'), value: waitingApprovalCount },
       { name: t('orders.status.COMPLETED', 'Pronto'), value: jobs.filter(j => j.status === JobStatus.COMPLETED).length },
     ];
 
-    return { totalActive: active, completedToday: completed, urgent: isUrgent, delayed: isDelayed, statusData: sData };
-  }, [jobs, t]);
+    return { totalActive: active, completedToday: completed, urgent: isUrgent, delayed: isDelayed, statusData: sData, waitingApproval: waitingApprovalCount };
+  }, [jobs, t, isClient]);
   
   // Custom colors matching the requested SaaS visual theme (Primary and Secondary accents)
   const COLORS = ['#94A3B8', '#F59E0B', '#3B82F6', '#00B8D9', '#10B981'];

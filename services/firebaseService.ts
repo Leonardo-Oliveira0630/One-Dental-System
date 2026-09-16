@@ -830,9 +830,9 @@ export const apiAddCoupon = (c: Coupon) => setDoc(doc(db, 'coupons', c.id), c);
 export const apiUpdateCoupon = (id: string, u: Partial<Coupon>) => updateDoc(doc(db, 'coupons', id), u);
 export const apiDeleteCoupon = (id: string) => deleteDoc(doc(db, 'coupons', id));
 
-export const apiCreateSaaSSubscription = async (orgId: string, planId: string, email: string, name: string, cpfCnpj: string, couponCode?: string) => {
+export const apiCreateSaaSSubscription = async (orgId: string, planId: string, email: string, name: string, cpfCnpj: string, couponCode?: string, billingCycle?: string) => {
     const fn = httpsCallable(functions, 'createSaaSSubscription');
-    return (await fn({ orgId, planId, email, name, cpfCnpj, couponCode })).data;
+    return (await fn({ orgId, planId, email, name, cpfCnpj, couponCode, billingCycle })).data;
 };
 
 export const apiToggleWhatsappModule = async (orgId: string, activate: boolean) => {
@@ -1966,6 +1966,18 @@ export const subscribeOrderReviews = (orderId: string, cb: (reviews: import('../
         } as import('../types').ProductReview));
         cb(list);
     }, (error: any) => logger.warn(`[Firestore] Erro em subscribeOrderReviews: ${error.code}`));
+};
+
+export const apiOnboardFrenetPartner = async (orgId: string, merchantData?: Partial<Organization>) => {
+  const fn = httpsCallable(functions, 'onboardFrenetMerchant');
+  const res = (await fn({ orgId, merchantData })).data as any;
+  return res;
+};
+
+export const apiGetFrenetLogisticsStatus = async (orgId: string) => {
+  const fn = httpsCallable(functions, 'getFrenetLogisticsStatus');
+  const res = (await fn({ orgId })).data as any;
+  return res;
 };
 
 export const apiCalculateFrenetShipping = async (payload: {

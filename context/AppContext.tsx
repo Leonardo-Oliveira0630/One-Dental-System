@@ -199,7 +199,7 @@ interface AppContextType {
   checkSlugAvailability: (slug: string, currentOrgId: string) => Promise<boolean>;
   updateGlobalSettings: (updates: Partial<GlobalSettings>) => Promise<void>;
   validateCoupon: (code: string, planId: string) => Promise<Coupon | null>;
-  createSubscription: (orgId: string, planId: string, email: string, name: string, cpfCnpj: string, couponCode?: string) => Promise<any>;
+  createSubscription: (orgId: string, planId: string, email: string, name: string, cpfCnpj: string, couponCode?: string, billingCycle?: string) => Promise<any>;
   createLabWallet: (payload: any) => Promise<any>;
   getSaaSInvoices: (orgId: string) => Promise<any>;
   checkSubscriptionStatus: (orgId: string) => Promise<any>;
@@ -1111,7 +1111,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const checkSlugAvailability = async (slug: string, currentOrgId: string) => await api.checkSlugAvailability(slug, currentOrgId);
   const updateGlobalSettings = async (u: Partial<GlobalSettings>) => await api.apiUpdateGlobalSettings({ ...u, updatedAt: new Date(), updatedBy: currentUser?.name || 'unknown' });
   const validateCoupon = async (code: string, planId: string) => await api.apiValidateCoupon(code, planId);
-  const createSubscription = async (orgId: string, planId: string, email: string, name: string, cpfCnpj: string, couponCode?: string) => await api.apiCreateSaaSSubscription(orgId, planId, email, name, cpfCnpj, couponCode);
+  const createSubscription = async (orgId: string, planId: string, email: string, name: string, cpfCnpj: string, couponCode?: string, billingCycle?: string) => await api.apiCreateSaaSSubscription(orgId, planId, email, name, cpfCnpj, couponCode, billingCycle);
   const createLabWallet = async (p: any) => await api.apiCreateLabSubAccount(p);
   const getSaaSInvoices = async (orgId: string) => await api.apiGetSaaSInvoices(orgId);
   const checkSubscriptionStatus = async (orgId: string) => await api.apiCheckSubscriptionStatus(orgId);

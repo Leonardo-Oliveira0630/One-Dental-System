@@ -37,10 +37,25 @@ export const IncomingOrders = () => {
       return <div className="p-4 sm:p-8 text-center text-slate-500 font-bold uppercase tracking-widest">{t('common.accessDenied', 'Acesso Negado')}</div>;
   }
 
+  const isPaymentConfirmed = (j: Job) => {
+    if (j.isComboPurchase) return false;
+    if (j.items && j.items.some((item: any) => item.isVoucherCombo === true)) return false;
+
+    // Check payment confirmation:
+    if (j.paymentStatus === 'PAID' || j.paymentStatus === 'AUTHORIZED' || j.paymentStatus === 'VOUCHER') {
+      return true;
+    }
+    // 100% discount / free order where totalValue is 0 (and not refunded)
+    if ((j.totalValue === 0 || !j.totalValue) && j.paymentStatus !== 'REFUNDED') {
+      return true;
+    }
+
+    return false;
+  };
+
   const incoming = jobs.filter(j => 
     j.status === JobStatus.WAITING_APPROVAL && 
-    !j.isComboPurchase && 
-    !(j.items && j.items.some((item: any) => item.isVoucherCombo === true))
+    isPaymentConfirmed(j)
   );
 
   // Approval Modal State

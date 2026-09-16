@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { Building, User, Mail, Lock, CheckCircle, ShieldCheck, Stethoscope, Store, Activity, Database, Users, Ticket, Loader2, Globe, MapPin, ArrowLeft, Phone, FileText, ChevronLeft, ChevronRight, Percent, Languages, X, Check } from 'lucide-react';
@@ -32,6 +32,7 @@ export const RegisterOrganization = () => {
   const [error, setError] = useState('');
   
   const [regType, setRegType] = useState<'LAB' | 'DENTIST' | 'LAB_OUTSOURCED' | 'SUPPLIER'>(initialType as any);
+  const [billingCycle, setBillingCycle] = useState<'MONTHLY' | 'ANNUAL'>('MONTHLY');
 
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(false);
@@ -191,10 +192,26 @@ export const RegisterOrganization = () => {
     }
   };
 
+  const sortedPublicPlans = useMemo(() => {
+    return [...publicPlans].sort((a, b) => {
+      const aIsFree = (a.price || 0) === 0 || a.name?.toLowerCase().includes('grátis') || a.name?.toLowerCase().includes('gratuito');
+      const bIsFree = (b.price || 0) === 0 || b.name?.toLowerCase().includes('grátis') || b.name?.toLowerCase().includes('gratuito');
+      if (aIsFree && !bIsFree) return -1;
+      if (!aIsFree && bIsFree) return 1;
+      return (a.price || 0) - (b.price || 0);
+    });
+  }, [publicPlans]);
+
   // Use displayPlans for rendering
-  const displayPlans = regType === 'LAB' 
-    ? [freeLabPlan, ...publicPlans.filter(p => p.id !== 'free_lab')] 
-    : publicPlans; 
+  const displayPlans: SubscriptionPlan[] = regType === 'LAB' 
+    ? [freeLabPlan, ...sortedPublicPlans.filter((p: SubscriptionPlan) => p.id !== 'free_lab')] 
+    : sortedPublicPlans; 
+
+  useEffect(() => {
+    if (displayPlans.length > 0 && (!planId || !displayPlans.some((p: SubscriptionPlan) => p.id === planId))) {
+      setPlanId(displayPlans[0].id);
+    }
+  }, [displayPlans, planId]); 
 
   const handleApplyCoupon = async () => {
     if (!couponCode) return;
@@ -239,7 +256,7 @@ export const RegisterOrganization = () => {
           throw new Error("Nenhum plano de assinatura disponível.");
       }
 
-      const plan = displayPlans.find(p => p.id === selectedPlanId);
+      const plan = displayPlans.find((p: SubscriptionPlan) => p.id === selectedPlanId);
       
       let trialEnd = undefined;
       if (plan && plan.trialDays && plan.trialDays > 0) {
@@ -269,7 +286,8 @@ export const RegisterOrganization = () => {
                       email,
                       labName,
                       cleanCpfCnpj,
-                      appliedCoupon?.code
+                      appliedCoupon?.code,
+                      billingCycle
                   );
               } catch (subErr) {
                   console.error("Erro ao gerar fatura/assinatura Asaas automática:", subErr);
@@ -291,7 +309,8 @@ export const RegisterOrganization = () => {
                       email,
                       labName,
                       cleanCpfCnpj,
-                      appliedCoupon?.code
+                      appliedCoupon?.code,
+                      billingCycle
                   );
               } catch (subErr) {
                   console.error("Erro ao gerar fatura/assinatura Asaas automática:", subErr);
@@ -312,7 +331,8 @@ export const RegisterOrganization = () => {
                       email,
                       labName,
                       cleanCpfCnpj,
-                      appliedCoupon?.code
+                      appliedCoupon?.code,
+                      billingCycle
                   );
               } catch (subErr) {
                   console.error("Erro ao gerar fatura/assinatura Asaas automática:", subErr);
@@ -650,11 +670,17 @@ export const RegisterOrganization = () => {
                     </div>
                 </div>
 
-                {/* PLAN SELECTION SECTION (Placa de planos) */}
+                    {/* PLAN SELECTION SECTION (Placa de planos) */}
                 <div className="pt-6 border-t border-slate-700/50 space-y-4">
-                    <div className="flex items-center gap-2 text-white">
-                        <Activity className={themeText} size={18} />
-                        <label className="block text-xs font-bold text-slate-400 uppercase">Escolha seu Plano de Assinatura</label>
+                    <div className="flex flex-col items-center justify-center space-y-3 mb-2">
+                        <div className="flex items-center gap-2 text-white">
+                            <Activity className={themeText} size={18} />
+                            <label className="block text-xs font-bold text-slate-400 uppercase">Escolha seu Plano de Assinatura</label>
+                        </div>
+                        <div className="flex bg-slate-900 p-0.5 rounded-lg border border-slate-700">
+                            <button type="button" onClick={() => setBillingCycle('MONTHLY')} className={`px-4 py-1.5 text-[10px] font-black uppercase rounded-md transition-all ${billingCycle === 'MONTHLY' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 hover:text-slate-300'}`}>Mensal</button>
+                            <button type="button" onClick={() => setBillingCycle('ANNUAL')} className={`px-4 py-1.5 text-[10px] font-black uppercase rounded-md transition-all flex items-center gap-1.5 ${billingCycle === 'ANNUAL' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 hover:text-slate-300'}`}>Anual <span className="text-[9px] bg-amber-500 text-white px-1.5 py-0.5 rounded-md leading-none">Desconto</span></button>
+                        </div>
                     </div>
 
                     {displayPlans.length === 0 ? (
@@ -699,7 +725,7 @@ export const RegisterOrganization = () => {
                             <div 
                                 ref={carouselRef}
                                 onScroll={checkOverflow}
-                                className={`flex gap-4 overflow-x-auto scroll-smooth snap-x snap-mandatory py-3 px-1 no-scrollbar-container ${
+                                className={`flex gap-4 overflow-x-auto overflow-y-visible scroll-smooth snap-x snap-mandatory pt-8 pb-4 px-2 no-scrollbar-container ${
                                     isOverflowing ? 'justify-start' : 'justify-center mx-auto'
                                 }`}
                                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
@@ -709,13 +735,26 @@ export const RegisterOrganization = () => {
                                         display: none;
                                     }
                                 `}</style>
-                                {displayPlans.map(plan => {
+                                {displayPlans.map((plan: SubscriptionPlan) => {
                                     const isSelected = planId === plan.id || (!planId && plan.id === displayPlans[0].id);
+                                    
+                                    const basePrice = plan.price;
+                                    const annualDiscount = plan.annualDiscountPercent || 0;
+                                    let displayPrice = basePrice;
+                                    let oldPrice = null;
+                                    
+                                    if (billingCycle === 'ANNUAL') {
+                                        if (annualDiscount > 0) {
+                                            displayPrice = basePrice * (1 - (annualDiscount / 100));
+                                            oldPrice = basePrice;
+                                        }
+                                    }
+                                    
                                     return (
                                         <div 
                                             key={plan.id} 
                                             onClick={() => setPlanId(plan.id)}
-                                            className={`cursor-pointer border-2 rounded-2xl p-4 sm:p-5 transition-all relative overflow-hidden flex flex-col justify-between w-[250px] xs:w-[270px] sm:w-[290px] md:w-[245px] lg:w-[260px] flex-shrink-0 snap-center ${
+                                            className={`cursor-pointer border-2 rounded-2xl p-4 sm:p-5 transition-all relative flex flex-col justify-between w-[250px] xs:w-[270px] sm:w-[290px] md:w-[245px] lg:w-[260px] flex-shrink-0 snap-center ${
                                                 isSelected 
                                                     ? `${themeBorder} bg-white shadow-xl shadow-black/5`
                                                     : isPlanPrivate(plan)
@@ -723,13 +762,19 @@ export const RegisterOrganization = () => {
                                                     : 'border-slate-200 bg-slate-50 hover:bg-white hover:border-slate-300'
                                             }`}
                                         >
+                                            {billingCycle === 'ANNUAL' && annualDiscount > 0 && (
+                                                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-amber-500 text-white text-[10px] font-black uppercase px-3 py-1 rounded-full whitespace-nowrap shadow-md z-30 ring-2 ring-slate-900/10">
+                                                    Economize {annualDiscount}%
+                                                </div>
+                                            )}
+                                            
                                             {isPlanPrivate(plan) && (
-                                                <div className="absolute top-0 left-0 bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 text-[9px] font-black px-2.5 py-0.5 rounded-br-xl shadow-sm flex items-center gap-1 z-10">
+                                                <div className="absolute top-0 left-0 bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 text-[9px] font-black px-2.5 py-0.5 rounded-br-xl rounded-tl-2xl shadow-sm flex items-center gap-1 z-10">
                                                     <Lock size={9} className="stroke-[3]" /> EXCLUSIVO
                                                 </div>
                                             )}
-                                            {plan.trialDays && plan.trialDays > 0 && (
-                                                <div className="absolute top-0 right-0 bg-green-500 text-white text-[9px] font-black px-2.5 py-1 rounded-bl-xl shadow-sm">
+                                            {Boolean(plan.trialDays && plan.trialDays > 0) && (
+                                                <div className="absolute top-0 right-0 bg-green-500 text-white text-[9px] font-black px-2.5 py-1 rounded-bl-xl rounded-tr-2xl shadow-sm z-10">
                                                     {plan.trialDays} DIAS GRÁTIS
                                                 </div>
                                             )}
@@ -738,9 +783,19 @@ export const RegisterOrganization = () => {
                                                 <div className="flex justify-between items-start">
                                                     <div>
                                                         <h4 className="text-slate-700 font-bold uppercase tracking-wider text-xs">{plan.name}</h4>
-                                                        <p className={`text-2xl font-bold mt-1 ${themeText}`}>
-                                                            {plan.price === 0 ? 'Grátis' : `R$ ${plan.price.toFixed(2)}`}<span className="text-xs text-slate-500 font-normal">{plan.price === 0 ? '' : '/mês'}</span>
+                                                        {oldPrice && (
+                                                            <span className="text-[10px] font-bold text-slate-400 line-through">
+                                                                De R$ {oldPrice.toFixed(2)}/mês
+                                                            </span>
+                                                        )}
+                                                        <p className={`text-2xl font-bold ${oldPrice ? 'mt-0' : 'mt-1'} ${themeText} leading-none`}>
+                                                            {displayPrice === 0 ? 'Grátis' : `R$ ${displayPrice.toFixed(2)}`}<span className="text-xs text-slate-500 font-normal">{displayPrice === 0 ? '' : '/mês'}</span>
                                                         </p>
+                                                        {billingCycle === 'ANNUAL' && displayPrice > 0 && (
+                                                            <div className="text-[9px] font-bold text-emerald-600 mt-1">
+                                                                Cobrado R$ {(displayPrice * 12).toFixed(2)} ao ano
+                                                            </div>
+                                                        )}
                                                     </div>
                                                     <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
                                                         isSelected 
