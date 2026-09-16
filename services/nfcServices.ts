@@ -365,18 +365,63 @@ export const NfcReaderService = {
   },
   setupUsbHidListener: (onScan: (uid: string) => void) => {
     let buffer = '';
-    let lastKeyTime = Date.now();
+    let lastKeyTime = 0;
+    const SCAN_TIMEOUT = 180; // Tolerância estendida para leitores USB HID antigos e novos
+    
+    // Desativa o scanner global de OS enquanto o leitor de NFC estiver ativo nesta tela
+    try {
+      (window as any).__DISABLE_GLOBAL_SCANNER__ = true;
+    } catch(e) {}
+
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Se o foco estiver em um input de texto que não é o do leitor NFC, permite se não for rajada
+      const target = e.target as HTMLElement;
+      const isInput = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement;
+      
       const currentTime = Date.now();
-      if (currentTime - lastKeyTime > 50) buffer = '';
-      lastKeyTime = currentTime;
-      if (e.key === 'Enter' && buffer.length >= 4) {
-        onScan(buffer.trim());
+      if (currentTime - lastKeyTime > SCAN_TIMEOUT && buffer.length > 0) {
         buffer = '';
-      } else if (e.key.length === 1) buffer += e.key;
+      }
+      lastKeyTime = currentTime;
+
+      if (e.key === 'Enter') {
+        const code = buffer.trim();
+        if (code.length >= 3) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (typeof (e as any).stopImmediatePropagation === 'function') {
+            (e as any).stopImmediatePropagation();
+          }
+          console.log("[NfcReaderService] Código capturado via USB HID:", code);
+          onScan(code);
+        }
+        buffer = '';
+      } else if (e.key.length === 1) {
+        buffer += e.key;
+        // Se já acumulou caracteres rapidamente (típico de leitor), impede propagação
+        if (buffer.length > 3 && !isInput) {
+          e.stopPropagation();
+        }
+      }
     };
+
+    const handleKeyPress = (e: KeyboardEvent) => {
+      // Bloqueia eventos de keypress para não disparar listeners globais legados
+      if (buffer.length >= 1) {
+        e.stopPropagation();
+      }
+    };
+
     window.addEventListener('keydown', handleKeyDown, { capture: true });
-    return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
+    window.addEventListener('keypress', handleKeyPress, { capture: true });
+
+    return () => {
+      try {
+        (window as any).__DISABLE_GLOBAL_SCANNER__ = false;
+      } catch(e) {}
+      window.removeEventListener('keydown', handleKeyDown, { capture: true });
+      window.removeEventListener('keypress', handleKeyPress, { capture: true });
+    };
   }
 };
 

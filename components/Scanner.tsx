@@ -336,7 +336,34 @@ export const GlobalScanner: React.FC = () => {
   };
 
 
+  const isGlobalScannerDisabled = useCallback(() => {
+    if (typeof window === 'undefined') return false;
+    if ((window as any).__DISABLE_GLOBAL_SCANNER__) return true;
+    const hash = window.location.hash || '';
+    if (
+      hash.includes('/superadmin/nfc-kits') || 
+      hash.includes('/superadmin/nfc') || 
+      hash.includes('/admin/box-colors') ||
+      hash.includes('/admin/caixas')
+    ) {
+      return true;
+    }
+    if (
+      document.querySelector('#scanning-dashboard') || 
+      document.querySelector('#nfc-kits-admin-page') ||
+      document.querySelector('[data-nfc-active="true"]') ||
+      document.querySelector('#nfc-kits-view')
+    ) {
+      return true;
+    }
+    return false;
+  }, []);
+
   const processScan = useCallback(async (code: string) => {
+    if (isGlobalScannerDisabled()) {
+      console.log("[Scanner] GlobalScanner desativado para a tela/operação atual.");
+      return;
+    }
     try {
         const rawCode = code.trim().toUpperCase();
         const cleanedCode = rawCode.replace(/^0+/, ''); // Remove leading zeros and trim
@@ -679,6 +706,11 @@ export const GlobalScanner: React.FC = () => {
     };
 
     const handleKeyPress = (e: KeyboardEvent) => {
+      if (isGlobalScannerDisabled()) {
+        bufferRef.current = '';
+        return;
+      }
+
       if (
         e.target instanceof HTMLInputElement || 
         e.target instanceof HTMLTextAreaElement || 

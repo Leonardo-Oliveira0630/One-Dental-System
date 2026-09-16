@@ -41,6 +41,21 @@ export const NfcKitsAdmin: React.FC = () => {
   // Status message in scanning screen
   const [scanMessage, setScanMessage] = useState<{ text: string; type: 'success' | 'error' | 'info' | null }>({ text: '', type: null });
 
+  // Direct USB / Manual tag input state
+  const [directTagInput, setDirectTagInput] = useState<string>('');
+  const instantInputRef = useRef<HTMLInputElement>(null);
+
+  // History of recent scans during the fabrication session
+  const [recentScans, setRecentScans] = useState<Array<{
+    id: string;
+    boxNumber: string;
+    inputRaw: string;
+    canonicalHex: string;
+    decFormat: string;
+    formatLabel: string;
+    timestamp: string;
+  }>>([]);
+
   // Box search filter in kit details view
   const [boxSearchQuery, setBoxSearchQuery] = useState<string>('');
 
@@ -58,6 +73,16 @@ export const NfcKitsAdmin: React.FC = () => {
     activeScanKitRef.current = activeScanKit;
     selectedKitBoxesRef.current = selectedKitBoxes;
   }, [scanMethod, currentScanBox, manualBoxInput, activeScanKit, selectedKitBoxes]);
+
+  // Auto-focus the instant tag reader input when scan mode is active
+  useEffect(() => {
+    if (scanModeActive) {
+      const timer = setTimeout(() => {
+        instantInputRef.current?.focus();
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [scanModeActive, currentScanBox, scanMethod]);
 
   // Load all kits
   const loadKits = async () => {
@@ -252,9 +277,30 @@ export const NfcKitsAdmin: React.FC = () => {
       );
       setSelectedKitBoxes(newBoxesList);
 
-      const msgText = (formats.uidHex && formats.uidDecimal && formats.uidHex !== formats.uidDecimal)
-        ? `Caixa ${targetBoxNumber} associada! (HEX Canônico: ${formats.uidHex} | DEC Antigo: ${formats.uidDecimal})`
-        : `Caixa ${targetBoxNumber} associada com sucesso ao UID ${canonicalUid}!`;
+      const isOldDec = formats.isOldReaderFormat || (/^\d+$/.test(cleanUid) && cleanUid.length >= 6);
+      const formatLabel = isOldDec
+        ? `Leitor Antigo (DEC ${cleanUid} ➔ HEX ${canonicalUid})`
+        : `Leitor Novo (HEX ${canonicalUid})`;
+
+      // Registrar no histórico da sessão
+      setRecentScans(prev => [
+        {
+          id: `${Date.now()}-${Math.random()}`,
+          boxNumber: targetBoxNumber,
+          inputRaw: cleanUid,
+          canonicalHex: canonicalUid,
+          decFormat: formats.uidDecimal || cleanUid,
+          formatLabel,
+          timestamp: new Date().toLocaleTimeString('pt-BR')
+        },
+        ...prev.slice(0, 5)
+      ]);
+
+      setDirectTagInput('');
+
+      const msgText = isOldDec
+        ? `✅ Caixa #${targetBoxNumber} associada! [Leitor Antigo: ${cleanUid} ➔ Hex: ${canonicalUid}]`
+        : `✅ Caixa #${targetBoxNumber} associada com sucesso! [Hex Canônico: ${canonicalUid}]`;
 
       setScanMessage({ 
         text: msgText, 
@@ -268,12 +314,17 @@ export const NfcKitsAdmin: React.FC = () => {
         if (nextBox <= kit.caixaFinal) {
           setCurrentScanBox(nextBox);
         } else {
-          setScanMessage({ text: 'Parabéns! Todas as caixas deste kit foram associadas com sucesso!', type: 'success' });
+          setScanMessage({ text: '🎉 Parabéns! Todas as caixas deste kit foram associadas com sucesso!', type: 'success' });
         }
       } else {
         // Se for leitura manual, limpa o campo
         setManualBoxInput('');
       }
+
+      // Re-foca o input do leitor
+      setTimeout(() => {
+        instantInputRef.current?.focus();
+      }, 100);
 
     } catch (err: any) {
       console.error(err);
@@ -502,14 +553,46 @@ export const NfcKitsAdmin: React.FC = () => {
                       </h3>
                     </div>
 
-                    <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 sm:p-6 relative overflow-hidden flex flex-col items-center justify-center animate-pulse">
+                    <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 sm:p-6 relative overflow-hidden flex flex-col items-center justify-center">
                       <div className="w-12 h-12 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center mb-3">
                         <Cpu size={24} className="animate-spin" />
                       </div>
                       <h4 className="text-base font-bold text-indigo-900">Aproxime uma Tag NFC</h4>
                       <p className="text-xs text-indigo-600 mt-1 max-w-xs">
-                        Ao aproximar, o UID será lido, associado automaticamente à caixa #{String(currentScanBox).padStart(3, '0')} e avançará para o próximo número.
+                        Compatível com <strong>Leitor Antigo (Decimal)</strong>, <strong>Leitor Novo (Hexadecimal)</strong> ou digitação manual.
                       </p>
+
+                      {/* Instant input field for USB HID reader or manual typing */}
+                      <div className="mt-4 w-full max-w-sm flex items-center gap-2">
+                        <div className="relative flex-1">
+                          <input 
+                            id="input-tag-reader"
+                            ref={instantInputRef}
+                            type="text"
+                            value={directTagInput}
+                            onChange={e => setDirectTagInput(e.target.value)}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter' && directTagInput.trim()) {
+                                e.preventDefault();
+                                processTagScanned(directTagInput);
+                              }
+                            }}
+                            placeholder="Aproxime no leitor USB ou digite..."
+                            className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-xl text-xs font-mono font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
+                          />
+                        </div>
+                        <button 
+                          id="btn-confirm-tag-manual"
+                          type="button"
+                          disabled={!directTagInput.trim()}
+                          onClick={() => {
+                            if (directTagInput.trim()) processTagScanned(directTagInput);
+                          }}
+                          className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl disabled:opacity-40 transition-all shrink-0 flex items-center gap-1"
+                        >
+                          <Check size={14} /> Gravar
+                        </button>
+                      </div>
                     </div>
 
                     {/* Sequential control buttons */}
@@ -565,8 +648,37 @@ export const NfcKitsAdmin: React.FC = () => {
                       </div>
                       <h4 className="text-sm font-bold text-indigo-900">NFC Ativo</h4>
                       <p className="text-[11px] text-indigo-600 mt-0.5">
-                        Defina o número acima e posicione a tag para relacionar instantaneamente.
+                        Defina o número acima e aproxime a tag no leitor ou digite abaixo.
                       </p>
+
+                      {/* Manual mode instant input */}
+                      <div className="mt-4 w-full max-w-sm flex items-center gap-2">
+                        <input 
+                          id="input-tag-reader-manual"
+                          type="text"
+                          value={directTagInput}
+                          onChange={e => setDirectTagInput(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter' && directTagInput.trim()) {
+                              e.preventDefault();
+                              processTagScanned(directTagInput);
+                            }
+                          }}
+                          placeholder="Código do leitor ou UID..."
+                          className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-xl text-xs font-mono font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
+                        />
+                        <button 
+                          id="btn-confirm-tag-manual-mode"
+                          type="button"
+                          disabled={!directTagInput.trim() || !manualBoxInput.trim()}
+                          onClick={() => {
+                            if (directTagInput.trim()) processTagScanned(directTagInput);
+                          }}
+                          className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl disabled:opacity-40 transition-all shrink-0 flex items-center gap-1"
+                        >
+                          <Check size={14} /> Gravar
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -585,6 +697,29 @@ export const NfcKitsAdmin: React.FC = () => {
                     {scanMessage.type === 'info' && <Layers size={18} className="text-indigo-600" />}
                   </div>
                   <div className="text-xs font-medium">{scanMessage.text}</div>
+                </div>
+              )}
+
+              {/* Session Recent Scans History */}
+              {recentScans.length > 0 && (
+                <div className="p-4 bg-slate-50 border-t border-slate-200 space-y-2" id="recent-scans-panel">
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                    <CheckCircle size={12} className="text-emerald-600" />
+                    Histórico Recente de Gravações na Sessão
+                  </p>
+                  <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                    {recentScans.map(scan => (
+                      <div key={scan.id} className="flex items-center justify-between p-2 bg-white rounded-xl border border-slate-200 text-xs font-mono shadow-2xs">
+                        <div className="flex items-center gap-2">
+                          <span className="font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md text-[11px]">
+                            BOX #{scan.boxNumber}
+                          </span>
+                          <span className="text-slate-700 text-[11px]">{scan.formatLabel}</span>
+                        </div>
+                        <span className="text-[10px] text-slate-400 font-sans">{scan.timestamp}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
