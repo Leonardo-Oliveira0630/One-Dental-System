@@ -279,6 +279,11 @@ export const Cart = ({ onBackToStore }: CartProps = {}) => {
     setSelectedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
+  const isOwnStore = Boolean(
+    (currentOrg?.id && activeOrganization?.id === currentOrg.id) || 
+    (currentUser?.organizationId && activeOrganization?.id === currentUser.organizationId)
+  );
+
   const isPromo = (jt: any) => {
     if (jt.isPromotion === true) return true;
     if (jt.isPromotion === false) return false;
@@ -308,6 +313,11 @@ export const Cart = ({ onBackToStore }: CartProps = {}) => {
 
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (isOwnStore) {
+        alert(t('store.ownStoreCheckoutError', 'Você está visualizando sua própria loja e não pode realizar pedidos para si mesmo.'));
+        return;
+    }
 
     if (hasMixedItems) {
         alert(t('store.mixedCartAlert', 'Não é possível prosseguir com o pagamento de um carrinho misto. Remova os Combos Promocionais ou os Serviços Comuns para continuar.'));
@@ -935,6 +945,18 @@ export const Cart = ({ onBackToStore }: CartProps = {}) => {
                     <span className="text-2xl font-black text-slate-900 dark:text-white">R$ {finalTotal.toFixed(2)}</span>
                 </div>
                 
+                {isOwnStore && (
+                    <div className="mb-4 p-3.5 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 rounded-xl flex items-start gap-3 text-blue-800 dark:text-blue-200">
+                        <AlertTriangle size={18} className="shrink-0 mt-0.5 text-blue-600 dark:text-blue-400" />
+                        <div className="text-xs">
+                            <p className="font-bold">{t('store.ownStoreCartTitle', 'Modo de Visualização da Sua Própria Loja')}</p>
+                            <p className="mt-1">
+                                {t('store.ownStoreCartDesc', 'Você não pode realizar compras ou emitir pedidos para o seu próprio laboratório.')}
+                            </p>
+                        </div>
+                    </div>
+                )}
+                
                 {hasMixedItems && (
                     <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-xl flex items-start gap-3 text-amber-800 dark:text-amber-200">
                         <AlertTriangle size={18} className="shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
@@ -956,16 +978,18 @@ export const Cart = ({ onBackToStore }: CartProps = {}) => {
 
                 <button 
                     type="submit" 
-                    disabled={isProcessing || hasMixedItems} 
+                    disabled={isProcessing || hasMixedItems || isOwnStore} 
                     className={`w-full py-4 text-white font-black rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 ${
-                        hasMixedItems
+                        isOwnStore
+                        ? 'bg-slate-300 dark:bg-slate-800 text-slate-500 dark:text-slate-400 cursor-not-allowed shadow-none border border-slate-200 dark:border-slate-700'
+                        : hasMixedItems
                         ? 'bg-slate-300 dark:bg-slate-800 text-slate-500 dark:text-slate-400 cursor-not-allowed shadow-none border border-slate-200 dark:border-slate-700'
                         : finalTotal === 0 
                             ? 'bg-green-600 hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700 shadow-green-250' 
                             : 'bg-indigo-600 hover:bg-indigo-700 dark:bg-blue-600 dark:hover:bg-blue-700 shadow-indigo-200'
                     } ${isProcessing ? 'opacity-70 cursor-wait' : ''}`}
                 >
-                    {isProcessing ? <Loader2 className="animate-spin" /> : hasMixedItems ? t('store.mixedCartBlocked', 'Carrinho Misto Bloqueado') : finalTotal === 0 ? t('store.sendToLab', 'Enviar para o Laboratório') : t('store.confirmAndPay', 'Confirmar e Pagar')}
+                    {isProcessing ? <Loader2 className="animate-spin" /> : isOwnStore ? t('store.ownStoreBlocked', 'Visualização (Compras Próprias Desativadas)') : hasMixedItems ? t('store.mixedCartBlocked', 'Carrinho Misto Bloqueado') : finalTotal === 0 ? t('store.sendToLab', 'Enviar para o Laboratório') : t('store.confirmAndPay', 'Confirmar e Pagar')}
                 </button>
             </div>
         </form>

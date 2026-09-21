@@ -326,60 +326,17 @@ const PortfolioSection = ({ portfolio }: { portfolio: any[] }) => {
     );
 };
 
+import { ShopeeStyleReviewsView } from '../../components/ShopeeStyleReviewsView';
+
 const ReviewsSection = ({ labId }: { labId: string }) => {
-    const { t } = useTranslation();
-    const [reviews, setReviews] = useState<LabRating[]>([]);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        const unsub = api.subscribeLabRatings(labId, (r) => {
-            setReviews(r);
-            setLoading(false);
-        });
-        return unsub;
-    }, [labId]);
-
-    if (loading) return <div className="py-20 text-center"><Loader2 className="animate-spin mx-auto text-indigo-600" /></div>;
-
-    if (reviews.length === 0) {
-        return (
-            <div className="py-20 text-center bg-slate-50 dark:bg-[#131B2A] rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-800">
-                <Star size={48} className="mx-auto text-slate-300 dark:text-slate-600 mb-4" />
-                <h3 className="text-xl font-bold text-slate-700 dark:text-slate-200">{t('store.noReviewsRecent', 'Sem avaliações recentes')}</h3>
-                <p className="text-slate-400 dark:text-slate-500">{t('store.beFirstToReview', 'Seja o primeiro a avaliar este laboratório após seu pedido!')}</p>
-            </div>
-        );
-    }
-
-    return (
-        <div className="space-y-6">
-            {reviews.map((row) => (
-                <div key={row.id} className="bg-white dark:bg-[#131B2A] p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm flex gap-4 sm:p-6">
-                    <div className="w-12 h-12 bg-blue-100 dark:bg-blue-950/60 rounded-full flex items-center justify-center shrink-0 text-blue-600 dark:text-blue-400 font-bold">
-                        {row.dentistName.charAt(0)}
-                    </div>
-                    <div className="flex-1">
-                        <div className="flex justify-between items-start mb-2">
-                            <div>
-                                <h4 className="font-bold text-slate-800 dark:text-white">{row.dentistName}</h4>
-                                <div className="flex text-amber-400 mt-0.5">
-                                    {[...Array(5)].map((_, i) => <Star key={i} size={14} fill={i < row.score ? 'currentColor' : 'none'} />)}
-                                </div>
-                            </div>
-                            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t('store.recent', 'Recente')}</span>
-                        </div>
-                        <p className="text-slate-600 dark:text-slate-300 text-sm italic">"{row.comment}"</p>
-                    </div>
-                </div>
-            ))}
-        </div>
-    );
+    return <ShopeeStyleReviewsView labId={labId} />;
 };
 
-// Variation Configuration Modal (Component with Partner Checking)
-const VariationConfigModal = ({ product, selectedLab, localPriceTables, onClose }: { product: JobType; selectedLab: import('../../types').Organization; localPriceTables: any[]; onClose: () => void; }) => {
+// Variation Configuration Modal (Component with Partner Checking & Service Reviews Tab)
+const VariationConfigModal = ({ product, selectedLab, localPriceTables, onClose, initialTab = 'CONFIG' }: { product: JobType; selectedLab: import('../../types').Organization; localPriceTables: any[]; onClose: () => void; initialTab?: 'CONFIG' | 'REVIEWS'; }) => {
     const { t } = useTranslation();
     const { addToCart, currentUser, currentOrg, userConnections, addConnectionByCode } = useApp();
+    const [modalTab, setModalTab] = useState<'CONFIG' | 'REVIEWS'>(initialTab);
     const [quantity, setQuantity] = useState(1);
     const isOwnStore = selectedLab?.id === currentOrg?.id;
     const [selectedVariations, setSelectedVariations] = useState<Record<string, string | string[]>>({});
@@ -662,75 +619,113 @@ const VariationConfigModal = ({ product, selectedLab, localPriceTables, onClose 
                     </div>
                     <button onClick={onClose} className="p-2 bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-full transition-colors shrink-0"><X size={20} /></button>
                 </div>
-                <div className="px-3 py-4 sm:px-6 sm:py-6 overflow-y-auto space-y-5 bg-slate-50/50 dark:bg-[#0B0F17] flex-1">
-                    {product.variationGroups.map(group => (
-                        <div key={group.id} className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl border bg-white dark:bg-[#131B2A] border-slate-100 dark:border-slate-800 shadow-xs">
-                            <div className="flex justify-between items-center mb-3">
-                                <h4 className="font-bold text-sm sm:text-base text-slate-800 dark:text-white flex items-center gap-2">
-                                    <Tag className="text-blue-500 dark:text-blue-400" size={15} /> {group.name}
-                                </h4>
-                                <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2.5 py-0.5 rounded-full">
-                                    {group.selectionType === 'SINGLE' ? t('store.singleType', 'Tipo Único') : group.selectionType === 'MULTIPLE' ? t('store.comboType', 'Combo') : t('store.textType', 'Mensagem')}
-                                </span>
-                            </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
-                                {group.options.map(option => {
-                                    const isDisabled = disabledOptions.has(option.id);
-                                    if (group.selectionType === 'TEXT') {
-                                        return (
-                                            <div key={option.id} className={`col-span-1 sm:col-span-2 p-3 rounded-xl sm:rounded-2xl bg-slate-50 dark:bg-[#0E1626] border border-slate-200 dark:border-slate-700 ${isDisabled ? 'opacity-50 pointer-events-none' : ''}`}>
-                                                <div className="flex justify-between mb-1.5">
-                                                    <label className="text-xs font-bold text-slate-600 dark:text-slate-300">{option.name}</label>
-                                                    <span className="text-[10px] font-black text-blue-600 dark:text-blue-400">{option.priceModifier > 0 ? `+ R$ ${option.priceModifier.toFixed(2)}` : ''}</span>
-                                                </div>
-                                                <input type="text" disabled={isDisabled} value={variationTextValues[option.id] || ''} onChange={e => handleTextVariationChange(group, option.id, e.target.value)}
-                                                    className="w-full px-3 py-2 text-xs sm:text-sm border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-white dark:bg-[#131B2A] text-slate-900 dark:text-white font-medium" placeholder="Ex: Cor A2..." />
-                                            </div>
-                                        )
-                                    }
 
-                                    const isSelected = group.selectionType === 'SINGLE'
-                                        ? selectedVariations[group.id] === option.id
-                                        : (selectedVariations[group.id] as string[])?.includes(option.id);
-                                    return (
-                                        <button key={option.id} onClick={() => !isDisabled && handleVariationChange(group, option.id)}
-                                            className={`p-3 sm:p-4 rounded-xl sm:rounded-2xl flex flex-col items-start gap-1 text-xs sm:text-sm transition-all border-2 ${isDisabled ? 'cursor-not-allowed opacity-40 grayscale' : 'cursor-pointer'} ${isSelected ? 'bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-100 dark:shadow-none' : 'bg-white dark:bg-[#0E1626] border-slate-100 dark:border-slate-800 hover:border-blue-300 dark:hover:border-blue-600 text-slate-600 dark:text-slate-300'}`}>
-                                            <div className="flex justify-between items-center w-full">
-                                                <span className={`font-black uppercase text-[9px] sm:text-[10px] tracking-widest ${isSelected ? 'text-blue-100' : 'text-slate-400'}`}>{t('store.option', 'Opção')}</span>
-                                                {option.priceModifier > 0 && <span className={`font-bold text-[10px] ${isSelected ? 'text-white' : 'text-blue-600 dark:text-blue-400'}`}>+ R$ {option.priceModifier.toFixed(2)}</span>}
-                                            </div>
-                                            <span className="font-bold text-left leading-tight">{option.name}</span>
-                                            {option.isDiscountExempt && <span className={`text-[8px] sm:text-[9px] font-black uppercase px-1.5 py-0.5 rounded mt-0.5 ${isSelected ? 'bg-white/20 text-white' : 'bg-orange-50 dark:bg-orange-950/60 text-orange-500 dark:text-orange-400 border border-orange-200/50 dark:border-orange-800/50'}`}>{t('store.fixed', 'Fixo')}</span>}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    ))}
-                    
-                    <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl border bg-white dark:bg-[#131B2A] border-slate-100 dark:border-slate-800 shadow-xs space-y-3">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-400 block">{t('store.relatedTeethOptional', 'Dentes Relacionados (Opcional)')}</label>
-                        <div className="bg-slate-50 dark:bg-[#0E1626] border border-slate-100 dark:border-slate-800 rounded-2xl p-2 sm:p-4 flex justify-center items-center overflow-x-auto">
-                            <Odontogram 
-                                selectedTeeth={selectedTeeth}
-                                onChange={(teeth) => {
-                                    setSelectedTeeth(teeth);
-                                    if (teeth.length > 0) {
-                                        setQuantity(teeth.length);
-                                    } else {
-                                        setQuantity(1);
-                                    }
-                                }}
-                                className="w-full max-w-[260px] sm:max-w-[320px] md:max-w-[400px] h-auto"
-                            />
-                        </div>
-                        {selectedTeeth.length > 0 && (
-                            <p className="text-xs text-blue-600 dark:text-blue-400 font-bold">
-                                {t('store.selectedTeethLabel', 'Dentes selecionados:')} {selectedTeeth.sort().join(', ')}
-                            </p>
-                        )}
-                    </div>
+                {/* Sub-tabs for Service: Configuração vs Avaliações (Shopee/Shein style) */}
+                <div className="flex border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-[#0B0F17] px-4 sm:px-6 shrink-0 gap-2">
+                    <button
+                        type="button"
+                        onClick={() => setModalTab('CONFIG')}
+                        className={`py-2.5 px-3.5 text-xs font-black uppercase tracking-wider border-b-2 transition-all cursor-pointer ${
+                            modalTab === 'CONFIG'
+                                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                                : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+                        }`}
+                    >
+                        {t('store.customizeAndOrder', 'Personalizar & Pedir')}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setModalTab('REVIEWS')}
+                        className={`py-2.5 px-3.5 text-xs font-black uppercase tracking-wider border-b-2 transition-all flex items-center gap-1.5 cursor-pointer ${
+                            modalTab === 'REVIEWS'
+                                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                                : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+                        }`}
+                    >
+                        <Star size={13} className="text-amber-400 fill-amber-400" />
+                        {t('store.serviceReviewsTab', 'Avaliações do Serviço')}
+                    </button>
                 </div>
+
+                {modalTab === 'REVIEWS' ? (
+                    <div className="px-4 py-5 sm:px-6 sm:py-6 overflow-y-auto space-y-5 bg-white dark:bg-[#131B2A] flex-1">
+                        <ShopeeStyleReviewsView 
+                            labId={selectedLab.id} 
+                            serviceId={product.id} 
+                            serviceName={product.name} 
+                        />
+                    </div>
+                ) : (
+                    <div className="px-3 py-4 sm:px-6 sm:py-6 overflow-y-auto space-y-5 bg-slate-50/50 dark:bg-[#0B0F17] flex-1">
+                        {product.variationGroups.map(group => (
+                            <div key={group.id} className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl border bg-white dark:bg-[#131B2A] border-slate-100 dark:border-slate-800 shadow-xs">
+                                <div className="flex justify-between items-center mb-3">
+                                    <h4 className="font-bold text-sm sm:text-base text-slate-800 dark:text-white flex items-center gap-2">
+                                        <Tag className="text-blue-500 dark:text-blue-400" size={15} /> {group.name}
+                                    </h4>
+                                    <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2.5 py-0.5 rounded-full">
+                                        {group.selectionType === 'SINGLE' ? t('store.singleType', 'Tipo Único') : group.selectionType === 'MULTIPLE' ? t('store.comboType', 'Combo') : t('store.textType', 'Mensagem')}
+                                    </span>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+                                    {group.options.map(option => {
+                                        const isDisabled = disabledOptions.has(option.id);
+                                        if (group.selectionType === 'TEXT') {
+                                            return (
+                                                <div key={option.id} className={`col-span-1 sm:col-span-2 p-3 rounded-xl sm:rounded-2xl bg-slate-50 dark:bg-[#0E1626] border border-slate-200 dark:border-slate-700 ${isDisabled ? 'opacity-50 pointer-events-none' : ''}`}>
+                                                    <div className="flex justify-between mb-1.5">
+                                                        <label className="text-xs font-bold text-slate-600 dark:text-slate-300">{option.name}</label>
+                                                        <span className="text-[10px] font-black text-blue-600 dark:text-blue-400">{option.priceModifier > 0 ? `+ R$ ${option.priceModifier.toFixed(2)}` : ''}</span>
+                                                    </div>
+                                                    <input type="text" disabled={isDisabled} value={variationTextValues[option.id] || ''} onChange={e => handleTextVariationChange(group, option.id, e.target.value)}
+                                                        className="w-full px-3 py-2 text-xs sm:text-sm border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-white dark:bg-[#131B2A] text-slate-900 dark:text-white font-medium" placeholder="Ex: Cor A2..." />
+                                                </div>
+                                            )
+                                        }
+
+                                        const isSelected = group.selectionType === 'SINGLE'
+                                            ? selectedVariations[group.id] === option.id
+                                            : (selectedVariations[group.id] as string[])?.includes(option.id);
+                                        return (
+                                            <button key={option.id} onClick={() => !isDisabled && handleVariationChange(group, option.id)}
+                                                className={`p-3 sm:p-4 rounded-xl sm:rounded-2xl flex flex-col items-start gap-1 text-xs sm:text-sm transition-all border-2 ${isDisabled ? 'cursor-not-allowed opacity-40 grayscale' : 'cursor-pointer'} ${isSelected ? 'bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-100 dark:shadow-none' : 'bg-white dark:bg-[#0E1626] border-slate-100 dark:border-slate-800 hover:border-blue-300 dark:hover:border-blue-600 text-slate-600 dark:text-slate-300'}`}>
+                                                <div className="flex justify-between items-center w-full">
+                                                    <span className={`font-black uppercase text-[9px] sm:text-[10px] tracking-widest ${isSelected ? 'text-blue-100' : 'text-slate-400'}`}>{t('store.option', 'Opção')}</span>
+                                                    {option.priceModifier > 0 && <span className={`font-bold text-[10px] ${isSelected ? 'text-white' : 'text-blue-600 dark:text-blue-400'}`}>+ R$ {option.priceModifier.toFixed(2)}</span>}
+                                                </div>
+                                                <span className="font-bold text-left leading-tight">{option.name}</span>
+                                                {option.isDiscountExempt && <span className={`text-[8px] sm:text-[9px] font-black uppercase px-1.5 py-0.5 rounded mt-0.5 ${isSelected ? 'bg-white/20 text-white' : 'bg-orange-50 dark:bg-orange-950/60 text-orange-500 dark:text-orange-400 border border-orange-200/50 dark:border-orange-800/50'}`}>{t('store.fixed', 'Fixo')}</span>}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        ))}
+                        
+                        <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl border bg-white dark:bg-[#131B2A] border-slate-100 dark:border-slate-800 shadow-xs space-y-3">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-400 block">{t('store.relatedTeethOptional', 'Dentes Relacionados (Opcional)')}</label>
+                            <div className="bg-slate-50 dark:bg-[#0E1626] border border-slate-100 dark:border-slate-800 rounded-2xl p-2 sm:p-4 flex justify-center items-center overflow-x-auto">
+                                <Odontogram 
+                                    selectedTeeth={selectedTeeth}
+                                    onChange={(teeth) => {
+                                        setSelectedTeeth(teeth);
+                                        if (teeth.length > 0) {
+                                            setQuantity(teeth.length);
+                                        } else {
+                                            setQuantity(1);
+                                        }
+                                    }}
+                                    className="w-full max-w-[260px] sm:max-w-[320px] md:max-w-[400px] h-auto"
+                                />
+                            </div>
+                            {selectedTeeth.length > 0 && (
+                                <p className="text-xs text-blue-600 dark:text-blue-400 font-bold">
+                                    {t('store.selectedTeethLabel', 'Dentes selecionados:')} {selectedTeeth.sort().join(', ')}
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                )}
                 <div className="p-3 sm:p-5 bg-white dark:bg-[#131B2A] border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 shrink-0 shadow-lg">
                     <div className="flex items-center justify-between sm:justify-start gap-3 sm:gap-4 w-full sm:w-auto">
                         <div className="flex items-center gap-2">
@@ -973,7 +968,11 @@ export const Catalog = () => {
         menuOptions: ['PRODUCTS', 'PORTFOLIO', 'REVIEWS']
     };
 
-    const isOutsourcingStore = currentOrg?.orgType === 'LAB' || currentOrg?.orgType === 'LAB_OUTSOURCED';
+    const isOwnStore = Boolean(
+        (currentOrg?.id && selectedLab?.id === currentOrg.id) || 
+        (currentUser?.organizationId && selectedLab?.id === currentUser.organizationId)
+    );
+    const isOutsourcingStore = !isOwnStore && (currentOrg?.orgType === 'LAB' || currentOrg?.orgType === 'LAB_OUTSOURCED') && selectedLab?.id !== currentOrg?.id;
     const visibleProducts = localJobTypes.filter(t => {
         if (isOutsourcingStore) {
             return t.isVisibleInOutsourcing !== false;
@@ -1044,7 +1043,6 @@ export const Catalog = () => {
         }
     };
 
-    const isOwnStore = selectedLab?.id === currentOrg?.id;
     const isLinked = selectedLab ? userConnections.some(c => c.organizationId === selectedLab.id) : false;
 
     return (
@@ -1245,6 +1243,28 @@ export const Catalog = () => {
                     </div>
                 )}
             </div>
+
+            {/* Own Store Preview Notice Banner */}
+            {isOwnStore && (
+                <div className="bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-blue-500/10 border border-blue-200 dark:border-blue-900/60 rounded-2xl sm:rounded-3xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-slate-800 dark:text-slate-200 text-xs sm:text-sm">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-blue-500/20">
+                            <Store size={20} />
+                        </div>
+                        <div>
+                            <p className="font-bold text-slate-900 dark:text-white text-sm sm:text-base">{t('store.ownStoreBannerTitle', 'Modo de Visualização da Sua Loja')}</p>
+                            <p className="text-slate-500 dark:text-slate-400 text-xs leading-relaxed">{t('store.ownStoreBannerDesc', 'Esta é a vitrine que seus dentistas e parceiros visualizam. Opções de compra de si mesmo estão desativadas.')}</p>
+                        </div>
+                    </div>
+                    <button 
+                        type="button" 
+                        onClick={() => setMainTab('PARTNERSHIPS')} 
+                        className="px-4 py-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-blue-600 dark:text-blue-400 font-bold rounded-xl border border-blue-200 dark:border-slate-700 text-xs shadow-xs transition-all shrink-0 cursor-pointer"
+                    >
+                        {t('store.exploreOtherLabs', 'Explorar Outros Laboratórios')}
+                    </button>
+                </div>
+            )}
 
             {/* 1. Header Banner */}
             <BannerCarousel images={storeSettings.banners || []} />

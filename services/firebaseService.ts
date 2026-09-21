@@ -22,7 +22,7 @@ const { getToken, onMessage } = messagingPkg as any;
 
 import { db, auth, storage, functions, messaging } from './firebaseConfig';
 import { 
-  User, UserRole, Job, JobType, Sector, JobAlert, ClinicPatient, 
+  User, UserRole, Job, JobStatus, JobType, Sector, JobAlert, ClinicPatient, 
   Appointment, Organization, SubscriptionPlan, OrganizationConnection, 
   Coupon, LabCoupon, CommissionRecord, ManualDentist, Expense, BillingBatch, GlobalSettings, LabRating, DeliveryRoute, RouteItem, BoxColor, ChatMessage, ClinicService, ClinicRoom, ClinicDentist, PatientHistoryRecord, PaymentRecord, PriceTable, DentistPayment, CardMachine, BankAccount,
   Tutorial, Courier, ClinicBudget, ClinicPrescription, ClinicClinicalCard, ClinicAnamnesis, ClinicPatientFinance, OnlineRequisition, SupplierOrder, CaseApprovalItem, CaseApprovalReply, CaseApprovalFile, Budget,
@@ -756,17 +756,141 @@ export const subscribeAllOrganizations = (cb: (o: Organization[]) => void) => {
         cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any, createdAt: toDate(d.data().createdAt) } as Organization)));
     }, (error: any) => logger.warn(`[Firestore] Erro em subscribeAllOrganizations: ${error.code}`));
 };
+export const isLabOrganization = (org: any): boolean => {
+    if (!org || typeof org !== 'object') return false;
+    const orgType = String(org.orgType || '').toUpperCase().trim();
+    const id = String(org.id || '').toLowerCase().trim();
+    const planId = String(org.planId || '').toLowerCase().trim();
+    const type = String(org.type || '').toUpperCase().trim();
+    const accountType = String(org.accountType || '').toUpperCase().trim();
+    const role = String(org.role || '').toUpperCase().trim();
+    const targetAudience = String(org.targetAudience || '').toUpperCase().trim();
+    const nameLower = String(org.name || '').toLowerCase().trim();
+
+    // 1. Definite non-labs (clinics, dentists, suppliers, clients, patients)
+    const nonLabTypes = ['CLINIC', 'CLINICA', 'DENTIST', 'DENTISTA', 'CLIENT', 'CONSULTORIO', 'SUPPLIER', 'PATIENT', 'DENTIST_CLIENT'];
+    if (nonLabTypes.includes(orgType)) return false;
+    if (nonLabTypes.includes(type)) return false;
+    if (nonLabTypes.includes(accountType)) return false;
+    if (nonLabTypes.includes(role)) return false;
+    if (nonLabTypes.includes(targetAudience)) return false;
+
+    // 2. ID prefix checks for non-labs
+    if (
+        id.startsWith('clinic_') || 
+        id.startsWith('supplier_') || 
+        id.startsWith('dentist_') || 
+        id.startsWith('client_') || 
+        id.startsWith('pat_') || 
+        id.startsWith('patient_') || 
+        id.startsWith('manual_')
+    ) {
+        return false;
+    }
+
+    // 3. Flags and dental clinical attributes
+    if (org.isClinic === true || org.isDentist === true || org.isSupplier === true || org.isLab === false || org.isPatient === true) {
+        return false;
+    }
+    if (org.cro || org.croNumero || org.croUf || org.croCategoria || org.croValid !== undefined) {
+        return false;
+    }
+    if (org.clinicName || org.dentistName || org.patientName || org.dentistId) {
+        return false;
+    }
+
+    // 4. Plan ID indicators for clinics / dentists / suppliers
+    if (
+        planId.includes('clinic') || 
+        planId.includes('dentist') || 
+        planId.includes('consultorio') || 
+        planId.includes('client') || 
+        planId.includes('clinica') ||
+        planId.includes('supplier')
+    ) {
+        return false;
+    }
+
+    // 5. Name indicators: Planning centers, clinical practices, doctors, test clinics
+    const isExplicitLabName = (
+        nameLower.includes('lab') || 
+        nameLower.includes('laboratório') || 
+        nameLower.includes('laboratorio') || 
+        nameLower.includes('prótese') || 
+        nameLower.includes('protese') || 
+        nameLower.includes('protético') || 
+        nameLower.includes('protetico') ||
+        nameLower.includes('dental lab') ||
+        nameLower.includes('protrack')
+    );
+
+    // Specific clinic / planning center / test exclusions
+    if (
+        nameLower.includes('planejamento') ||
+        nameLower === 'teste2' ||
+        nameLower === 'teste 2' ||
+        nameLower === 'test2' ||
+        nameLower.startsWith('teste2') ||
+        nameLower.startsWith('teste 2') ||
+        nameLower.startsWith('dr.') || 
+        nameLower.startsWith('dra.') || 
+        nameLower.startsWith('dr ') || 
+        nameLower.startsWith('dra ') || 
+        nameLower.startsWith('drª') || 
+        nameLower.startsWith('drº') ||
+        nameLower.startsWith('consultório') || 
+        nameLower.startsWith('consultorio') ||
+        nameLower.startsWith('clínica') || 
+        nameLower.startsWith('clinica')
+    ) {
+        if (!isExplicitLabName) return false;
+    }
+
+    if (
+        (nameLower.includes('consultório') || 
+         nameLower.includes('consultorio') || 
+         nameLower.includes('clínica') || 
+         nameLower.includes('clinica') || 
+         nameLower.includes('odontologia') || 
+         nameLower.includes('odonto ') || 
+         nameLower.includes('ortodontia') || 
+         nameLower.includes('implantodontia') || 
+         nameLower.includes('periodontia') || 
+         nameLower.includes('endodontia') || 
+         nameLower.includes('harmonização') || 
+         nameLower.includes('harmonizacao')) &&
+        !isExplicitLabName
+    ) {
+        return false;
+    }
+
+    // 6. Definite labs by explicit type or flags
+    if (orgType === 'LAB' || orgType === 'LAB_OUTSOURCED' || type === 'LAB' || type === 'LAB_OUTSOURCED' || accountType === 'LAB' || org.isLab === true) {
+        return true;
+    }
+
+    // 7. Definite labs by dedicated ID prefix
+    if (id.startsWith('outorg_') || id.startsWith('lab_')) {
+        return true;
+    }
+
+    // 8. Fallback for labs with explicit lab naming or store configuration
+    if (isExplicitLabName) {
+        return true;
+    }
+
+    if (org.isLabFreeStoreOnly === true || (org.storeSlug && !nameLower.includes('clinica') && !nameLower.includes('consultorio'))) {
+        return true;
+    }
+
+    return false;
+};
+
 export const subscribeAllLaboratories = (cb: (o: Organization[]) => void) => {
     return onSnapshot(collection(db, 'organizations'), (snap: any) => {
         const orgs = snap.docs
             .map((d: any) => ({ id: d.id, ...d.data() as any, createdAt: toDate(d.data().createdAt) } as Organization))
-            .filter((org: any) => {
-                if (org.orgType === 'CLINIC' || org.orgType === 'SUPPLIER' || org.id.startsWith('clinic_') || org.id.startsWith('supplier_')) {
-                    return false;
-                }
-                const type = (org.orgType || 'LAB').toUpperCase();
-                return type === 'LAB' || type === 'LAB_OUTSOURCED';
-            });
+            .filter((org: any) => isLabOrganization(org));
         cb(orgs);
     }, (error: any) => logger.warn(`[Firestore] Erro em subscribeAllLaboratories: ${error.code}`));
 };
@@ -777,16 +901,18 @@ export const getOrganizationBySlug = async (slug: string): Promise<Organization 
     if (!snap.empty) {
         const d = snap.docs[0];
         const data = d.data() as any;
-        if (data.orgType === 'CLINIC' || d.id.startsWith('clinic_')) return null;
-        return { id: d.id, ...data, createdAt: toDate(data.createdAt) } as Organization;
+        const orgObj = { id: d.id, ...data, createdAt: toDate(data.createdAt) } as Organization;
+        if (!isLabOrganization(orgObj) && orgObj.orgType !== 'SUPPLIER' && !orgObj.id.startsWith('supplier_')) return null;
+        return orgObj;
     }
     // 2. Fallback to direct document mapping by id
     try {
         const docSnap = await getDoc(doc(db, 'organizations', slug));
         if (docSnap.exists()) {
             const data = docSnap.data() as any;
-            if (data.orgType === 'CLINIC' || docSnap.id.startsWith('clinic_')) return null;
-            return { id: docSnap.id, ...data, createdAt: toDate(data.createdAt) } as Organization;
+            const orgObj = { id: docSnap.id, ...data, createdAt: toDate(data.createdAt) } as Organization;
+            if (!isLabOrganization(orgObj) && orgObj.orgType !== 'SUPPLIER' && !orgObj.id.startsWith('supplier_')) return null;
+            return orgObj;
         }
     } catch (e) {
         logger.warn({ err: e }, "getOrganizationBySlug document lookup fallback failed:");
@@ -1112,26 +1238,99 @@ export const subscribeExpenses = (orgId: string, cb: (e: Expense[]) => void) => 
 };
 export const apiAddExpense = (orgId: string, expense: Expense) => setDoc(doc(db, `organizations/${orgId}/expenses`, expense.id), expense);
 export const apiDeleteExpense = (orgId: string, id: string) => deleteDoc(doc(db, `organizations/${orgId}/expenses`, id));
+export const uploadReviewMedia = async (file: File): Promise<{ url: string; type: 'IMAGE' | 'VIDEO' }> => {
+    const isVideo = file.type.startsWith('video/') || ['mp4', 'mov', 'avi', 'webm', 'm4v', '3gp'].includes(file.name.split('.').pop()?.toLowerCase() || '');
+    const isImage = file.type.startsWith('image/') || ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif'].includes(file.name.split('.').pop()?.toLowerCase() || '');
+    
+    try {
+        if (storage) {
+            const cleanName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+            const folder = isVideo ? 'reviews/videos' : 'reviews/photos';
+            const fileRef = ref(storage, `${folder}/${Date.now()}_${cleanName}`);
+            await uploadBytes(fileRef, file);
+            const url = await getDownloadURL(fileRef);
+            if (url) return { url, type: isVideo ? 'VIDEO' : 'IMAGE' };
+        }
+    } catch (storageErr) {
+        logger.warn({ err: storageErr }, "[uploadReviewMedia] Storage upload fallback to client processing:");
+    }
+
+    if (isVideo) {
+        // Read small video clip as data URL or blob URL fallback
+        const base64Video = await fileToBase64(file);
+        return { url: base64Video, type: 'VIDEO' };
+    }
+
+    const { compressImageToBase64 } = await import('./compressionService');
+    const compressedUrl = await compressImageToBase64(file, 1200, 0.75);
+    return { url: compressedUrl, type: 'IMAGE' };
+};
+
 export const apiAddLabRating = async (rating: LabRating) => {
     const labRef = doc(db, 'organizations', rating.labId);
     const ratingRef = doc(db, `organizations/${rating.labId}/ratings`, rating.id);
     const jobRef = doc(db, `organizations/${rating.labId}/jobs`, rating.jobId);
-    await setDoc(ratingRef, rating);
-    await updateDoc(jobRef, { ratingId: rating.id });
-    const labSnap = await getDoc(labRef);
-    const labData = labSnap.data() as Organization;
-    const currentCount = labData.ratingCount || 0;
-    const currentAvg = labData.ratingAverage || 0;
-    const newCount = currentCount + 1;
-    const newAvg = ((currentAvg * currentCount) + rating.score) / newCount;
-    await updateDoc(labRef, { ratingAverage: newAvg, ratingCount: newCount });
+    
+    const cleanRating: any = {
+        ...rating,
+        createdAt: rating.createdAt instanceof Date ? rating.createdAt : new Date(),
+        imageUrls: rating.imageUrls || [],
+        videoUrls: rating.videoUrls || [],
+        tags: rating.tags || [],
+        verifiedPurchase: rating.verifiedPurchase !== false,
+        score: Number(rating.score) || 5
+    };
+
+    await setDoc(ratingRef, cleanRating);
+    
+    try {
+        await updateDoc(jobRef, { 
+            ratingId: rating.id,
+            status: JobStatus.DELIVERED,
+            isDelivered: true,
+            deliveryConfirmed: true,
+            deliveredAt: new Date()
+        });
+    } catch(e) {
+        logger.warn({ err: e }, "[apiAddLabRating] Could not update job doc directly");
+    }
+
+    try {
+        const labSnap = await getDoc(labRef);
+        if (labSnap.exists()) {
+            const labData = labSnap.data() as Organization;
+            const currentCount = labData.ratingCount || 0;
+            const currentAvg = labData.ratingAverage || 0;
+            const newCount = currentCount + 1;
+            const newAvg = ((currentAvg * currentCount) + rating.score) / newCount;
+            await updateDoc(labRef, { ratingAverage: newAvg, ratingCount: newCount });
+        }
+    } catch(e) {
+        logger.warn({ err: e }, "[apiAddLabRating] Could not update lab avg rating");
+    }
 };
+
 export const subscribeLabRatings = (labId: string, cb: (r: LabRating[]) => void) => {
     if (!labId) return () => {};
-    const q = query(collection(db, `organizations/${labId}/ratings`), limit(50));
+    const q = query(collection(db, `organizations/${labId}/ratings`), limit(100));
     return onSnapshot(q, (snap: any) => {
-        cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any, createdAt: toDate(d.data().createdAt) } as LabRating)));
+        cb(snap.docs.map((d: any) => ({ 
+            id: d.id, 
+            ...d.data() as any, 
+            createdAt: toDate(d.data().createdAt) || new Date() 
+        } as LabRating)));
     }, (error: any) => logger.warn(`[Firestore] Erro em subscribeLabRatings: ${error.code}`));
+};
+
+export const subscribeServiceRatings = (labId: string, serviceId: string, cb: (r: LabRating[]) => void) => {
+    if (!labId) return () => {};
+    return subscribeLabRatings(labId, (allRatings) => {
+        if (!serviceId) {
+            cb(allRatings);
+        } else {
+            cb(allRatings.filter(r => !r.serviceId || r.serviceId === serviceId));
+        }
+    });
 };
 export const subscribeRoutes = (orgId: string, cb: (routes: DeliveryRoute[]) => void) => {
   if (!orgId) return () => {};

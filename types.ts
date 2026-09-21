@@ -494,8 +494,16 @@ export interface LabRating {
   dentistId: string;
   dentistName: string;
   jobId: string;
+  serviceId?: string;
+  serviceName?: string;
   score: number; 
   comment?: string;
+  imageUrls?: string[];
+  videoUrls?: string[];
+  tags?: string[];
+  verifiedPurchase?: boolean;
+  isAnonymous?: boolean;
+  patientName?: string;
   createdAt: Date;
 }
 
@@ -656,6 +664,12 @@ export interface Job {
   sentAt?: Date;
   acceptedAt?: Date;
   rejectedAt?: Date;
+  deliveryConfirmed?: boolean;
+  isDelivered?: boolean;
+  deliveredAt?: Date;
+  labId?: string;
+  dentistOrgId?: string;
+  targetOrganizationName?: string;
 }
 
 export interface Sector {

@@ -26,6 +26,7 @@ import * as firestorePkg from 'firebase/firestore';
 import { Odontogram } from '../components/Odontogram';
 import { db } from '../services/firebaseConfig';
 import { getCarrierBadgeConfig } from '../services/frenetService';
+import { LabServiceReviewModal } from '../components/LabServiceReviewModal';
 
 const { doc, onSnapshot } = firestorePkg as any;
 
@@ -540,6 +541,41 @@ export const JobDetails = () => {
   const canToggleChat = isAdmin || isManager || (isTech && currentUser?.permissions?.includes('jobs:chat_toggle'));
   const canManageApproval = isAdmin || isManager || (isTech && currentUser?.permissions?.includes('jobs:approval'));
   const canChangeStatus = isAdmin || isManager || (isTech && currentUser?.permissions?.includes('jobs:change_status'));
+
+  // Buyer / Client Delivery Confirmation & Shopee-style Service Review
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [userRating, setUserRating] = useState<LabRating | null>(null);
+
+  const isDelivered = job?.status === JobStatus.DELIVERED || Boolean((job as any)?.deliveryConfirmed) || Boolean((job as any)?.isDelivered);
+  const isBuyer = isClient || (currentUser && job && (currentUser.id === job.dentistId || currentOrg?.id === job.dentistOrgId));
+
+  useEffect(() => {
+    if (!job?.labId || !job?.id) return;
+    const unsub = api.subscribeLabRatings(job.labId, (ratings) => {
+      const found = ratings.find(r => r.jobId === job.id || (r.dentistId === currentUser?.id && r.patientName === job.patientName));
+      if (found) setUserRating(found);
+    });
+    return unsub;
+  }, [job?.labId, job?.id, currentUser?.id, job?.patientName]);
+
+  const handleConfirmDeliveryByClient = async () => {
+    if (!job) return;
+    if (!confirm('Deseja confirmar o recebimento deste caso? Isso atualizará o status para Entregue e abrirá a avaliação do serviço.')) return;
+    setIsUpdatingStatus(true);
+    try {
+      await updateJob(job.id, {
+        status: JobStatus.DELIVERED,
+        deliveryConfirmed: true,
+        deliveredAt: new Date()
+      });
+      setShowReviewModal(true);
+    } catch (e: any) {
+      console.error(e);
+      alert('Erro ao confirmar recebimento: ' + (e?.message || 'Falha de conexão'));
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
 
   const [editPatientName, setEditPatientName] = useState('');
   const [editOsNumber, setEditOsNumber] = useState('');
@@ -2794,6 +2830,31 @@ export const JobDetails = () => {
                 </div>
                 
                 <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 flex-1 lg:justify-end w-full">
+                    {/* Buyer: Delivery confirmation and Shopee-style review */}
+                    {isBuyer && !job.isBudget && (
+                        <>
+                            {!isDelivered ? (
+                                <button
+                                    onClick={handleConfirmDeliveryByClient}
+                                    disabled={isUpdatingStatus}
+                                    className="w-full sm:w-auto px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] rounded-xl shadow-xl shadow-emerald-100 flex items-center justify-center gap-2 uppercase tracking-widest transition-all transform active:scale-95 cursor-pointer"
+                                    title="Confirmar que o trabalho foi entregue e recebido no consultório"
+                                >
+                                    {isUpdatingStatus ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
+                                    Confirmar Entrega
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={() => setShowReviewModal(true)}
+                                    className="w-full sm:w-auto px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-black text-[10px] rounded-xl shadow-xl shadow-amber-100 flex items-center justify-center gap-2 uppercase tracking-widest transition-all transform active:scale-95 cursor-pointer"
+                                >
+                                    <Star size={16} className="fill-white" />
+                                    {userRating ? 'Ver Minha Avaliação' : 'Avaliar Serviço'}
+                                </button>
+                            )}
+                        </>
+                    )}
+
                     {isLabStaff && !isFinished && !job.isBudget && (
                         <button 
                             onClick={() => { 
@@ -2995,6 +3056,73 @@ export const JobDetails = () => {
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                    )}
+
+                    {/* Card de Entrega e Avaliação do Serviço (Modelo Shopee/Shein) */}
+                    {(isDelivered || isBuyer) && !job.isBudget && (
+                        <div className="bg-gradient-to-r from-amber-500/10 via-orange-500/5 to-transparent rounded-[32px] border border-amber-200/80 p-5 md:p-6 shadow-sm overflow-hidden animate-in slide-in-from-top-3">
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                                <div className="flex items-center gap-3.5">
+                                    <div className="w-12 h-12 rounded-2xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-lg shadow-amber-500/20">
+                                        <Star size={24} className="fill-white" />
+                                    </div>
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-amber-600 bg-amber-100 px-2.5 py-0.5 rounded-full">
+                                                {isDelivered ? 'Trabalho Entregue' : 'Aguardando Entrega'}
+                                            </span>
+                                            {userRating && (
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700 bg-emerald-100 px-2.5 py-0.5 rounded-full">
+                                                    ✓ Avaliado ({userRating.score} ★)
+                                                </span>
+                                            )}
+                                        </div>
+                                        <h4 className="font-black text-slate-800 text-base md:text-lg mt-0.5">
+                                            {userRating ? 'Sua Avaliação do Laboratório' : isDelivered ? 'Avalie a qualidade deste serviço!' : 'Confirme a entrega do caso'}
+                                        </h4>
+                                        <p className="text-xs text-slate-500 font-medium">
+                                            {userRating
+                                                ? `"${userRating.comment}"`
+                                                : isDelivered
+                                                ? 'Deixe suas estrelas, fotos, vídeos e comentários sobre a prótese recebida.'
+                                                : 'Quando o motoboy ou transportadora entregar o caso no consultório, confirme o recebimento para avaliar.'
+                                            }
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2 w-full sm:w-auto">
+                                    {!isDelivered && isBuyer && (
+                                        <button
+                                            onClick={handleConfirmDeliveryByClient}
+                                            disabled={isUpdatingStatus}
+                                            className="w-full sm:w-auto px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                                        >
+                                            {isUpdatingStatus ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                                            Confirmar Entrega
+                                        </button>
+                                    )}
+                                    <button
+                                        onClick={() => setShowReviewModal(true)}
+                                        className="w-full sm:w-auto px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-black text-xs rounded-xl shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                                    >
+                                        <Star size={14} className="fill-white" />
+                                        {userRating ? 'Editar / Ver Avaliação' : 'Avaliar Serviço'}
+                                    </button>
+                                </div>
+                            </div>
+
+                            {userRating && (Boolean(userRating.imageUrls?.length) || Boolean(userRating.videoUrls?.length)) && (
+                                <div className="mt-4 pt-3 border-t border-amber-200/50 flex items-center gap-2 overflow-x-auto">
+                                    <span className="text-[10px] font-black uppercase text-amber-700 tracking-wider">Mídias enviadas:</span>
+                                    {userRating.imageUrls?.map((url, i) => (
+                                        <img key={i} src={url} className="w-10 h-10 rounded-lg object-cover border border-amber-200" />
+                                    ))}
+                                    {userRating.videoUrls?.map((_, i) => (
+                                        <span key={i} className="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded-lg font-bold">🎬 Vídeo {i+1}</span>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -4055,6 +4183,16 @@ export const JobDetails = () => {
           }}
         />
       )}
+
+       {showReviewModal && job && (
+         <LabServiceReviewModal 
+           job={job}
+           onClose={() => setShowReviewModal(false)}
+           onSuccess={() => {
+             setShowReviewModal(false);
+           }}
+         />
+       )}
 
        {selectedAttachment && (
            <AttachmentPreviewModal 

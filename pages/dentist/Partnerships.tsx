@@ -4,7 +4,7 @@ import { useApp } from '../../context/AppContext';
 import { 
     Handshake, Plus, Trash2, Loader2, Building, CheckCircle, Search, 
     MapPin, Globe, Filter, Link as LinkIcon, Star, X, MessageSquare, 
-    Calendar, ChevronRight, ShoppingBag 
+    Calendar, ChevronRight, ShoppingBag, Sparkles 
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import * as api from '../../services/firebaseService';
@@ -12,7 +12,7 @@ import { LabRating, Organization } from '../../types';
 
 export const Partnerships = ({ onSelectLab }: { onSelectLab?: (labId: string) => void }) => {
     const { t } = useTranslation();
-    const { userConnections, addConnectionByCode, allLaboratories, activeOrganization, switchActiveOrganization } = useApp();
+    const { userConnections, addConnectionByCode, allLaboratories, activeOrganization, switchActiveOrganization, currentOrg, currentUser } = useApp();
     const [activeTab, setActiveTab] = useState<'MY_PARTNERS' | 'EXPLORE'>('MY_PARTNERS');
     const [orgCode, setOrgCode] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
@@ -56,19 +56,24 @@ export const Partnerships = ({ onSelectLab }: { onSelectLab?: (labId: string) =>
         }
     };
 
-    // Shows *all* laboratories registered in the app (including already connected ones!)
+    // Filter connected partners to only include laboratories
+    const partnerConnections = useMemo(() => {
+        return (userConnections || []).filter(conn => {
+            const labInfo = allLaboratories.find(l => l.id === conn.organizationId);
+            if (labInfo) return api.isLabOrganization(labInfo);
+            const targetId = String(conn.organizationId || '').toLowerCase();
+            return !targetId.startsWith('clinic_') && !targetId.startsWith('supplier_') && !targetId.startsWith('dentist_');
+        });
+    }, [userConnections, allLaboratories]);
+
+    // Shows only laboratories registered in the app (filtering non-labs, keeping own store visible)
     const exploreLabs = useMemo(() => {
         return allLaboratories
             .filter(lab => 
-                lab.id !== activeOrganization?.id &&
-                lab.orgType !== 'CLINIC' &&
-                lab.orgType !== 'SUPPLIER' &&
-                !lab.id.startsWith('clinic_') &&
-                !lab.id.startsWith('supplier_') &&
-                (lab.orgType === 'LAB' || lab.orgType === 'LAB_OUTSOURCED' || !lab.orgType) &&
+                api.isLabOrganization(lab) &&
                 lab.name.toLowerCase().includes(searchTerm.toLowerCase())
             );
-    }, [allLaboratories, searchTerm, activeOrganization]);
+    }, [allLaboratories, searchTerm]);
     
     return (
         <div className="flex flex-col min-h-full bg-slate-50 dark:bg-[#0B0F17] py-4 sm:py-6">
@@ -129,9 +134,9 @@ export const Partnerships = ({ onSelectLab }: { onSelectLab?: (labId: string) =>
                     <div className="md:col-span-2">
                         <div className="bg-white dark:bg-[#131B2A] p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 min-h-[400px]">
                             <h3 className="font-bold text-lg mb-6 flex items-center gap-2 text-slate-800 dark:text-slate-100">
-                                <Handshake className="text-teal-600 dark:text-teal-400" size={20}/> {t('partnerships.activePartners', 'Parceiros Ativos')} ({userConnections.length})
+                                <Handshake className="text-teal-600 dark:text-teal-400" size={20}/> {t('partnerships.activePartners', 'Parceiros Ativos')} ({partnerConnections.length})
                             </h3>
-                            {userConnections.length === 0 ? (
+                            {partnerConnections.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center py-20 text-slate-400 dark:text-slate-500 border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-3xl">
                                     <Globe size={48} className="mb-4 opacity-20" />
                                     <p className="font-medium">{t('partnerships.noPartnersYet', 'Você ainda não possui parcerias firmadas.')}</p>
@@ -139,7 +144,7 @@ export const Partnerships = ({ onSelectLab }: { onSelectLab?: (labId: string) =>
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    {userConnections.map(conn => {
+                                    {partnerConnections.map(conn => {
                                         const labInfo = allLaboratories.find(l => l.id === conn.organizationId);
                                         return (
                                             <div 
@@ -212,6 +217,7 @@ export const Partnerships = ({ onSelectLab }: { onSelectLab?: (labId: string) =>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:p-6">
                         {exploreLabs.map(lab => {
+                            const isSelf = (currentOrg?.id && lab.id === currentOrg.id) || (currentUser?.organizationId && lab.id === currentUser.organizationId);
                             const isLinked = userConnections.some(c => c.organizationId === lab.id);
                             return (
                                 <div 
@@ -224,7 +230,7 @@ export const Partnerships = ({ onSelectLab }: { onSelectLab?: (labId: string) =>
                                             navigate('/store');
                                         }
                                     }}
-                                    className="bg-white dark:bg-[#131B2A] rounded-[32px] p-4 sm:p-6 shadow-sm border border-slate-100 dark:border-slate-800 hover:shadow-xl hover:-translate-y-1 transition-all group flex flex-col cursor-pointer"
+                                    className={`bg-white dark:bg-[#131B2A] rounded-[32px] p-4 sm:p-6 shadow-sm border ${isSelf ? 'border-blue-300 dark:border-blue-700/80 ring-2 ring-blue-500/20' : 'border-slate-100 dark:border-slate-800'} hover:shadow-xl hover:-translate-y-1 transition-all group flex flex-col cursor-pointer`}
                                     id={`explore-card-${lab.id}`}
                                 >
                                     <div className="flex items-start justify-between mb-4">
@@ -257,7 +263,11 @@ export const Partnerships = ({ onSelectLab }: { onSelectLab?: (labId: string) =>
                                         <h3 className="text-xl font-black text-slate-800 dark:text-white leading-tight mb-2 group-hover:text-blue-700 dark:group-hover:text-blue-400 transition-colors">{lab.name}</h3>
                                         
                                         <div className="flex flex-col gap-2 mb-4">
-                                            {isLinked ? (
+                                            {isSelf ? (
+                                                <span className="text-[10px] bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 font-black px-2.5 py-1 rounded-full uppercase tracking-widest flex items-center gap-1 w-fit">
+                                                    <Sparkles size={11} /> {t('store.yourStore', 'Sua Loja (Seu Lab)')}
+                                                </span>
+                                            ) : isLinked ? (
                                                 <span className="text-[10px] bg-green-50 dark:bg-green-950/40 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-800 font-black px-2.5 py-1 rounded-full uppercase tracking-widest flex items-center gap-1 w-fit">
                                                     <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span> {t('partnerships.linkedPartner', 'Parceiro Vinculado')}
                                                 </span>
@@ -291,9 +301,13 @@ export const Partnerships = ({ onSelectLab }: { onSelectLab?: (labId: string) =>
                                                     navigate('/store');
                                                 }
                                             }}
-                                            className="w-full py-4 bg-slate-900 dark:bg-blue-600 text-white font-black rounded-2xl hover:bg-slate-800 dark:hover:bg-blue-700 shadow-lg shadow-slate-100 dark:shadow-none transition-all flex items-center justify-center gap-2 active:scale-95 text-xs uppercase tracking-wider cursor-pointer"
+                                            className={`w-full py-4 text-white font-black rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 active:scale-95 text-xs uppercase tracking-wider cursor-pointer ${
+                                                isSelf 
+                                                    ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-100 dark:shadow-none' 
+                                                    : 'bg-slate-900 dark:bg-blue-600 hover:bg-slate-800 dark:hover:bg-blue-700 shadow-slate-100 dark:shadow-none'
+                                            }`}
                                         >
-                                            <ShoppingBag size={16}/> {t('partnerships.visitStoreCatalog', 'VISITAR LOJA / VER CATÁLOGO')}
+                                            <ShoppingBag size={16}/> {isSelf ? t('partnerships.viewMyStore', 'VISUALIZAR MINHA LOJA') : t('partnerships.visitStoreCatalog', 'VISITAR LOJA / VER CATÁLOGO')}
                                         </button>
                                     </div>
                                 </div>

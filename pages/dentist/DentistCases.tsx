@@ -71,11 +71,13 @@ export const DentistCases = () => {
     const list: Array<{ id: string; name: string; logoUrl?: string }> = [];
     const addedIds = new Set<string>();
 
-    // 1. From userConnections
+    // 1. From userConnections (only valid labs)
     (userConnections || []).forEach(conn => {
-      if (!addedIds.has(conn.organizationId)) {
+      const labObj = allLaboratories.find(l => l.id === conn.organizationId);
+      const isLab = labObj ? api.isLabOrganization(labObj) : (!conn.organizationId.startsWith('clinic_') && !conn.organizationId.startsWith('supplier_') && !conn.organizationId.startsWith('dentist_'));
+      
+      if (isLab && !addedIds.has(conn.organizationId)) {
         addedIds.add(conn.organizationId);
-        const labObj = allLaboratories.find(l => l.id === conn.organizationId);
         list.push({
           id: conn.organizationId,
           name: labObj?.name || conn.organizationName || 'Laboratório',
@@ -85,7 +87,7 @@ export const DentistCases = () => {
     });
 
     // 2. Active organization if it's a lab
-    if (activeOrganization && (activeOrganization.orgType === 'LAB' || activeOrganization.orgType === 'LAB_OUTSOURCED')) {
+    if (activeOrganization && api.isLabOrganization(activeOrganization)) {
       if (!addedIds.has(activeOrganization.id)) {
         addedIds.add(activeOrganization.id);
         list.push({
@@ -99,7 +101,7 @@ export const DentistCases = () => {
     // 3. All laboratories if no connections exist
     if (list.length === 0) {
       allLaboratories.forEach(lab => {
-        if (!addedIds.has(lab.id)) {
+        if (api.isLabOrganization(lab) && !addedIds.has(lab.id)) {
           addedIds.add(lab.id);
           list.push({
             id: lab.id,

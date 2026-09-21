@@ -523,12 +523,14 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
                                         const createdAtVal = data.createdAt;
                                         const createdAtDate = createdAtVal?.toDate ? createdAtVal.toDate() : (createdAtVal ? new Date(createdAtVal) : new Date());
                                         const labObj = { id: snap.id, ...data, createdAt: createdAtDate } as Organization;
-                                        setActiveOrganization(labObj);
+                                        if (api.isLabOrganization(labObj)) {
+                                            setActiveOrganization(labObj);
+                                        }
                                     }
                                 });
                             }
 
-                            // Fetch and insert/update details for each connection in the allLaboratories list
+                            // Fetch and insert/update details for each connection in the allLaboratories list (only if it is a real lab)
                             conns.forEach(conn => {
                                 getDoc(doc(db, 'organizations', conn.organizationId)).then((snap: any) => {
                                     if (snap.exists()) {
@@ -537,7 +539,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
                                         const createdAtDate = createdAtVal?.toDate ? createdAtVal.toDate() : (createdAtVal ? new Date(createdAtVal) : new Date());
                                         const labObj = { id: snap.id, ...data, createdAt: createdAtDate } as Organization;
                                         
-                                        if (labObj.orgType === 'LAB' || labObj.orgType === 'LAB_OUTSOURCED' || (!labObj.orgType)) {
+                                        if (api.isLabOrganization(labObj)) {
                                             setAllLaboratories(prev => {
                                                 if (prev.some(l => l.id === labObj.id)) {
                                                     return prev.map(l => l.id === labObj.id ? labObj : l);
