@@ -61,6 +61,10 @@ export const Partnerships = ({ onSelectLab }: { onSelectLab?: (labId: string) =>
         return allLaboratories
             .filter(lab => 
                 lab.id !== activeOrganization?.id &&
+                lab.orgType !== 'CLINIC' &&
+                lab.orgType !== 'SUPPLIER' &&
+                !lab.id.startsWith('clinic_') &&
+                !lab.id.startsWith('supplier_') &&
                 (lab.orgType === 'LAB' || lab.orgType === 'LAB_OUTSOURCED' || !lab.orgType) &&
                 lab.name.toLowerCase().includes(searchTerm.toLowerCase())
             );

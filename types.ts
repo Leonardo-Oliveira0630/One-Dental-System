@@ -686,6 +686,7 @@ export interface JobType {
   category: string;
   basePrice: number;
   baseCommission?: number;
+  productionTimeDays?: number;
   variationGroups: VariationGroup[];
   variations?: any[]; // Legacy variations
   isVisibleInStore?: boolean;

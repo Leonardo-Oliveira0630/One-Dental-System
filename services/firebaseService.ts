@@ -761,8 +761,11 @@ export const subscribeAllLaboratories = (cb: (o: Organization[]) => void) => {
         const orgs = snap.docs
             .map((d: any) => ({ id: d.id, ...d.data() as any, createdAt: toDate(d.data().createdAt) } as Organization))
             .filter((org: any) => {
+                if (org.orgType === 'CLINIC' || org.orgType === 'SUPPLIER' || org.id.startsWith('clinic_') || org.id.startsWith('supplier_')) {
+                    return false;
+                }
                 const type = (org.orgType || 'LAB').toUpperCase();
-                return type === 'LAB';
+                return type === 'LAB' || type === 'LAB_OUTSOURCED';
             });
         cb(orgs);
     }, (error: any) => logger.warn(`[Firestore] Erro em subscribeAllLaboratories: ${error.code}`));
@@ -773,13 +776,17 @@ export const getOrganizationBySlug = async (slug: string): Promise<Organization 
     const snap = await getDocs(q);
     if (!snap.empty) {
         const d = snap.docs[0];
-        return { id: d.id, ...d.data() as any, createdAt: toDate(d.data().createdAt) } as Organization;
+        const data = d.data() as any;
+        if (data.orgType === 'CLINIC' || d.id.startsWith('clinic_')) return null;
+        return { id: d.id, ...data, createdAt: toDate(data.createdAt) } as Organization;
     }
     // 2. Fallback to direct document mapping by id
     try {
         const docSnap = await getDoc(doc(db, 'organizations', slug));
-        if (docSnap.exists() && docSnap.data().orgType !== 'CLINIC') {
-            return { id: docSnap.id, ...docSnap.data() as any, createdAt: toDate(docSnap.data().createdAt) } as Organization;
+        if (docSnap.exists()) {
+            const data = docSnap.data() as any;
+            if (data.orgType === 'CLINIC' || docSnap.id.startsWith('clinic_')) return null;
+            return { id: docSnap.id, ...data, createdAt: toDate(data.createdAt) } as Organization;
         }
     } catch (e) {
         logger.warn({ err: e }, "getOrganizationBySlug document lookup fallback failed:");

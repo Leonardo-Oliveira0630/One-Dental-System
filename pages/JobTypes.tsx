@@ -3,7 +3,7 @@ import React, { useState, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { useApp } from '../context/AppContext';
 import { JobType, VariationGroup, VariationOption } from '../types';
-import { Plus, Edit2, Trash2, X, Save, Layers, Package, Tag, AlertCircle, Folder, ToggleLeft, ToggleRight, List, Type, Image as ImageIcon, UploadCloud, Store, Eye, EyeOff, PercentCircle, Briefcase, Share2, Check, Search, Settings, ChevronDown, ChevronRight, Download, FileCode } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Save, Layers, Package, Tag, AlertCircle, Folder, ToggleLeft, ToggleRight, List, Type, Image as ImageIcon, UploadCloud, Store, Eye, EyeOff, PercentCircle, Briefcase, Share2, Check, Search, Settings, ChevronDown, ChevronRight, Download, FileCode, Clock } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
 
@@ -151,6 +151,7 @@ export const JobTypes = () => {
   const [category, setCategory] = useState('');
   const [basePrice, setBasePrice] = useState(0);
   const [baseCommission, setBaseCommission] = useState<number | ''>('');
+  const [productionTimeDays, setProductionTimeDays] = useState<number | ''>('');
   const [variationGroups, setVariationGroups] = useState<VariationGroup[]>([]);
   const [isVisibleInStore, setIsVisibleInStore] = useState(true);
   const [isVisibleInOutsourcing, setIsVisibleInOutsourcing] = useState(true);
@@ -329,6 +330,7 @@ export const JobTypes = () => {
     setCategory('');
     setBasePrice(0);
     setBaseCommission('');
+    setProductionTimeDays('');
     setVariationGroups([]);
     setIsVisibleInStore(true);
     setIsVisibleInOutsourcing(true);
@@ -356,6 +358,7 @@ export const JobTypes = () => {
     setCategory(type.category);
     setBasePrice(type.basePrice);
     setBaseCommission(type.baseCommission ?? '');
+    setProductionTimeDays(type.productionTimeDays ?? '');
     setVariationGroups(type.variationGroups || []);
     setIsVisibleInStore(type.isVisibleInStore !== false); // Default true if undefined
     setIsVisibleInOutsourcing(type.isVisibleInOutsourcing !== false); // Default true if undefined
@@ -439,6 +442,7 @@ export const JobTypes = () => {
           category, 
           basePrice, 
           baseCommission: baseCommission === '' ? undefined : Number(baseCommission), 
+          productionTimeDays: productionTimeDays === '' ? undefined : Math.max(0, Number(productionTimeDays)),
           variationGroups, 
           isVisibleInStore, 
           isVisibleInOutsourcing, 
@@ -699,9 +703,16 @@ export const JobTypes = () => {
                             </div>
                         </div>
                         <div className="mt-2 flex items-center justify-between gap-1 flex-wrap">
-                            <div className="text-xs text-slate-400 flex items-center gap-1">
-                                <Layers size={12} />
-                                {type.variationGroups.length} grupos
+                            <div className="flex items-center gap-2">
+                                <div className="text-xs text-slate-400 flex items-center gap-1">
+                                    <Layers size={12} />
+                                    {type.variationGroups.length} grupos
+                                </div>
+                                {type.productionTimeDays !== undefined && type.productionTimeDays !== null && Number(type.productionTimeDays) > 0 && (
+                                    <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-100 font-semibold px-1.5 py-0.5 rounded flex items-center gap-1">
+                                        <Clock size={10} /> {type.productionTimeDays} {type.productionTimeDays === 1 ? 'dia útil' : 'dias úteis'}
+                                    </span>
+                                )}
                             </div>
                             <div className="flex gap-1 flex-wrap">
                                 {type.isVisibleInStore === false && (
@@ -920,11 +931,29 @@ export const JobTypes = () => {
                                         )}
                                     </div>
                                     {mainTab === 'SERVICES' && (
-                                    <div>
-                                        <label className="block text-sm font-bold text-slate-700 mb-1">Valor Base de Comissão (R$)</label>
-                                        <input type="number" step="0.01" value={baseCommission} onChange={e => setBaseCommission(e.target.value === '' ? '' : parseFloat(e.target.value))} placeholder="Ex: 5.00" className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"/>
-                                        <p className="text-xs text-slate-500 mt-1">Usado caso o colaborador não tenha valor fixo na aba Ganhos.</p>
-                                    </div>
+                                    <>
+                                        <div>
+                                            <label className="block text-sm font-bold text-slate-700 mb-1">Valor Base de Comissão (R$)</label>
+                                            <input type="number" step="0.01" value={baseCommission} onChange={e => setBaseCommission(e.target.value === '' ? '' : parseFloat(e.target.value))} placeholder="Ex: 5.00" className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"/>
+                                            <p className="text-xs text-slate-500 mt-1">Usado caso o colaborador não tenha valor fixo na aba Ganhos.</p>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                                                <Clock size={15} className="text-blue-600" />
+                                                Prazo de Produção / Entrega (dias úteis)
+                                            </label>
+                                            <input 
+                                                type="number" 
+                                                min="0" 
+                                                step="1" 
+                                                value={productionTimeDays} 
+                                                onChange={e => setProductionTimeDays(e.target.value === '' ? '' : parseInt(e.target.value, 10))} 
+                                                placeholder="Ex: 5" 
+                                                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                                            />
+                                            <p className="text-xs text-slate-500 mt-1">Exibido na loja online para o cliente avaliar o prazo antes de comprar.</p>
+                                        </div>
+                                    </>
                                     )}
                                 </div>
 

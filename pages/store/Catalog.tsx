@@ -6,7 +6,7 @@ import {
     Plus, Search, ShoppingBag, BadgePercent, Package, X, Building, Tag, Store, 
     ChevronLeft, ChevronRight, Star, ImageIcon, MessageSquare, 
     LayoutGrid, List, Heart, ExternalLink, Info, Loader2, ChevronDown, Handshake, Shield, Lock, CheckCircle, MapPin, ShoppingCart, Share2, Copy,
-    ClipboardList, Ticket
+    ClipboardList, Ticket, Clock
 } from 'lucide-react';
 import { JobType, VariationGroup, CartItem, LabRating, BannerConfig } from '../../types';
 import { useNavigate, useParams, useLocation, Link } from 'react-router-dom';
@@ -650,7 +650,15 @@ const VariationConfigModal = ({ product, selectedLab, localPriceTables, onClose 
                 <div className="flex justify-between items-center px-4 py-3.5 sm:px-6 sm:py-4 border-b border-slate-100 dark:border-slate-800 shrink-0">
                     <div className="min-w-0 pr-3">
                         <h3 className="font-black text-lg sm:text-2xl text-slate-900 dark:text-white tracking-tight truncate">{product.name}</h3>
-                        <p className="text-[10px] sm:text-xs text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest mt-0.5">{t('store.customConfig', 'Configuração Personalizada')}</p>
+                        <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                            <span className="text-[10px] sm:text-xs text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest">{t('store.customConfig', 'Configuração Personalizada')}</span>
+                            {product.productionTimeDays !== undefined && product.productionTimeDays !== null && Number(product.productionTimeDays) > 0 && (
+                                <span className="inline-flex items-center gap-1 text-[10px] sm:text-xs font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 border border-blue-200/80 dark:border-blue-800/80 px-2 py-0.5 rounded-full">
+                                    <Clock size={12} className="text-blue-600 dark:text-blue-400" />
+                                    {t('store.productionLeadTime', 'Prazo:')} {product.productionTimeDays} {product.productionTimeDays === 1 ? t('store.businessDay', 'dia útil') : t('store.businessDays', 'dias úteis')}
+                                </span>
+                            )}
+                        </div>
                     </div>
                     <button onClick={onClose} className="p-2 bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-full transition-colors shrink-0"><X size={20} /></button>
                 </div>
@@ -1336,7 +1344,15 @@ export const Catalog = () => {
                                                         {product.imageUrl ? <img src={product.imageUrl} className="w-full h-full object-cover" /> : <Package size={32} className="text-slate-300 dark:text-slate-600 pointer-events-none" />}
                                                     </div>
                                                     <div>
-                                                        <span className="text-[10px] font-black uppercase text-blue-600 dark:text-blue-400 tracking-widest">{product.category}</span>
+                                                        <div className="flex items-center gap-2 flex-wrap">
+                                                            <span className="text-[10px] font-black uppercase text-blue-600 dark:text-blue-400 tracking-widest">{product.category}</span>
+                                                            {product.productionTimeDays !== undefined && product.productionTimeDays !== null && Number(product.productionTimeDays) > 0 && (
+                                                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 border border-blue-200/60 dark:border-blue-800/60 px-2 py-0.5 rounded-full">
+                                                                    <Clock size={10} />
+                                                                    {product.productionTimeDays} {product.productionTimeDays === 1 ? t('store.businessDay', 'dia útil') : t('store.businessDays', 'dias úteis')}
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                         <h3 className="font-bold text-slate-800 dark:text-white text-lg leading-tight">{product.name}</h3>
                                                         <div className="flex items-center gap-4 mt-1">
                                                              <span className="text-xs font-bold text-slate-400 dark:text-slate-400">{t('store.startingFrom', 'A partir de')}</span>
@@ -1387,6 +1403,12 @@ export const Catalog = () => {
                                             <div className="p-4 sm:p-8 flex flex-col flex-1">
                                                 <div className="mb-6 flex-1 text-center md:text-left">
                                                     <h3 className="font-black text-slate-900 dark:text-white text-xl tracking-tight leading-tight group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{product.name}</h3>
+                                                    {product.productionTimeDays !== undefined && product.productionTimeDays !== null && Number(product.productionTimeDays) > 0 && (
+                                                        <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 mt-2 bg-slate-50 dark:bg-slate-800/60 px-2.5 py-1 rounded-xl border border-slate-200/60 dark:border-slate-700/60 w-fit mx-auto md:mx-0">
+                                                            <Clock size={12} className="text-blue-600 dark:text-blue-400 shrink-0" />
+                                                            <span>Prazo: <strong className="text-slate-900 dark:text-white font-bold">{product.productionTimeDays} {product.productionTimeDays === 1 ? t('store.businessDay', 'dia útil') : t('store.businessDays', 'dias úteis')}</strong></span>
+                                                        </div>
+                                                    )}
                                                 </div>
                                                 <div className="pt-6 border-t border-slate-100 dark:border-slate-800/80">
                                                     <div className="flex justify-between items-end mb-6">

@@ -95,8 +95,11 @@ export class BarcodeScannerEngine {
       this.canvasB = document.createElement('canvas');
       this.ctxB = this.canvasB.getContext('2d', { willReadFrequently: true });
 
-      if (this.ctxA) this.ctxA.imageSmoothingEnabled = false;
-      if (this.ctxB) this.ctxB.imageSmoothingEnabled = false;
+      // Keep image smoothing ENABLED (default) when downscaling high-res camera streams.
+      // Disabling it forces nearest-neighbor interpolation, which randomly drops pixels 
+      // and destroys thin lines in 1D barcodes like Code 128.
+      if (this.ctxA) this.ctxA.imageSmoothingEnabled = true;
+      if (this.ctxB) this.ctxB.imageSmoothingEnabled = true;
     }
 
     this.initialized = true;
@@ -159,8 +162,9 @@ export class BarcodeScannerEngine {
       sx = Math.floor((vWidth - sw) / 2);
       sy = Math.floor((vHeight - sh) / 2);
 
-      // Limit canvas size for performance while retaining enough resolution for thermal bars
-      const maxDim = 800;
+      // Increase maxDim significantly for iPads and high-res thermal labels
+      // ZXing needs higher pixel density when barcodes are small in the frame
+      const maxDim = 1200;
       if (sw > maxDim || sh > maxDim) {
         const ratio = Math.min(maxDim / sw, maxDim / sh);
         targetW = Math.floor(sw * ratio);
@@ -170,8 +174,8 @@ export class BarcodeScannerEngine {
         targetH = sh;
       }
     } else {
-      // Full frame capped at 960px
-      const maxDim = 960;
+      // Full frame capped at 1280px to retain resolution
+      const maxDim = 1280;
       if (vWidth > maxDim || vHeight > maxDim) {
         const ratio = Math.min(maxDim / vWidth, maxDim / vHeight);
         targetW = Math.floor(vWidth * ratio);
@@ -182,7 +186,8 @@ export class BarcodeScannerEngine {
     // PASS 1: Orientation 0° (Normal horizontal scan lines)
     this.canvasA.width = targetW;
     this.canvasA.height = targetH;
-    this.ctxA.imageSmoothingEnabled = false;
+    this.ctxA.imageSmoothingEnabled = true;
+    this.ctxA.imageSmoothingQuality = 'high';
     this.ctxA.drawImage(video, sx, sy, sw, sh, 0, 0, targetW, targetH);
 
     const imgDataA = this.ctxA.getImageData(0, 0, targetW, targetH);
@@ -192,7 +197,8 @@ export class BarcodeScannerEngine {
     // PASS 2: Orientation 90° (Rotated scan lines - Crucial for portrait phones reading horizontal barcodes!)
     this.canvasB.width = targetH;
     this.canvasB.height = targetW;
-    this.ctxB.imageSmoothingEnabled = false;
+    this.ctxB.imageSmoothingEnabled = true;
+    this.ctxB.imageSmoothingQuality = 'high';
     this.ctxB.save();
     this.ctxB.translate(targetH / 2, targetW / 2);
     this.ctxB.rotate(Math.PI / 2);
