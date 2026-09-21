@@ -63,33 +63,46 @@ export const compressImageToBase64 = async (file: File, maxWidth = 1200, quality
     const reader = new FileReader();
     reader.readAsDataURL(file);
     reader.onload = (event) => {
+      const rawDataUrl = (event.target?.result as string) || '';
       const img = new Image();
-      img.src = event.target?.result as string;
+      img.src = rawDataUrl;
       img.onload = () => {
-        const canvas = document.createElement('canvas');
-        let width = img.width;
-        let height = img.height;
+        try {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
 
-        if (width > maxWidth) {
-          height = Math.round((maxWidth / width) * height);
-          width = maxWidth;
+          if (width > maxWidth) {
+            height = Math.round((maxWidth / width) * height);
+            width = maxWidth;
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          if (!ctx) return resolve(rawDataUrl);
+          
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(img, 0, 0, width, height);
+
+          const base64 = canvas.toDataURL('image/jpeg', quality);
+          console.log(`[LABPROX] Imagem Base64 gerada: ${(base64.length / 1024).toFixed(1)}KB`);
+          resolve(base64);
+        } catch (canvasErr) {
+          console.warn("[LABPROX] Falha no canvas, usando dataURL original:", canvasErr);
+          resolve(rawDataUrl);
         }
-
-        canvas.width = width;
-        canvas.height = height;
-
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return reject(new Error("Canvas context failed"));
-        
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = 'high';
-        ctx.drawImage(img, 0, 0, width, height);
-
-        const base64 = canvas.toDataURL('image/jpeg', quality);
-        console.log(`[LABPROX] Imagem Base64 gerada: ${(base64.length / 1024).toFixed(1)}KB`);
-        resolve(base64);
       };
-      img.onerror = () => reject(new Error("Erro ao carregar imagem"));
+      img.onerror = () => {
+        // Fallback for mobile / browser un-decodable formats (e.g. HEIC on older engines)
+        if (rawDataUrl) {
+          resolve(rawDataUrl);
+        } else {
+          reject(new Error("Erro ao carregar imagem"));
+        }
+      };
     };
     reader.onerror = (err) => reject(err);
   });

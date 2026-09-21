@@ -1,13 +1,17 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useTranslation } from 'react-i18next';
 import { 
     Star, X, Camera, Video, Upload, Trash2, CheckCircle2, 
-    Loader2, Sparkles, ShieldCheck, ThumbsUp, AlertCircle, Eye, Play
+    Loader2, Sparkles, ShieldCheck, ThumbsUp, AlertCircle, Eye, Play,
+    Smartphone, Image as ImageIcon, Plus
 } from 'lucide-react';
-import { Job, LabRating, UserRole } from '../types';
+import { Capacitor } from '@capacitor/core';
+import { Camera as CapCamera, CameraResultType, CameraSource } from '@capacitor/camera';
+import { Job, LabRating } from '../types';
 import { useApp } from '../context/AppContext';
 import { apiAddLabRating, uploadReviewMedia } from '../services/firebaseService';
+import { WebcamModal } from './WebcamModal';
 
 interface LabServiceReviewModalProps {
     isOpen?: boolean;
@@ -66,8 +70,12 @@ export const LabServiceReviewModal: React.FC<LabServiceReviewModalProps> = ({
     const [uploadError, setUploadError] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [previewMediaUrl, setPreviewMediaUrl] = useState<{ url: string; type: 'IMAGE' | 'VIDEO' } | null>(null);
+    const [isWebcamOpen, setIsWebcamOpen] = useState(false);
 
-    const fileInputRef = useRef<HTMLInputElement>(null);
+    // References for file / camera inputs
+    const galleryInputRef = useRef<HTMLInputElement>(null);
+    const cameraInputRef = useRef<HTMLInputElement>(null);
+    const videoInputRef = useRef<HTMLInputElement>(null);
 
     if (isOpen === false) return null;
 
@@ -83,9 +91,8 @@ export const LabServiceReviewModal: React.FC<LabServiceReviewModalProps> = ({
         );
     };
 
-    const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = Array.from(e.target.files || []);
-        if (files.length === 0) return;
+    const processFiles = async (files: File[]) => {
+        if (!files || files.length === 0) return;
 
         setIsUploading(true);
         setUploadError('');
@@ -105,10 +112,73 @@ export const LabServiceReviewModal: React.FC<LabServiceReviewModalProps> = ({
             }
         } catch (err: any) {
             console.error('Erro ao enviar mídia de avaliação:', err);
-            setUploadError('Erro ao fazer upload da mídia. Tente novamente.');
+            setUploadError('Erro ao processar mídia. Verifique o arquivo e tente novamente.');
         } finally {
             setIsUploading(false);
-            if (fileInputRef.current) fileInputRef.current.value = '';
+            if (galleryInputRef.current) galleryInputRef.current.value = '';
+            if (cameraInputRef.current) cameraInputRef.current.value = '';
+            if (videoInputRef.current) videoInputRef.current.value = '';
+        }
+    };
+
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(e.target.files || []);
+        if (files.length > 0) {
+            processFiles(files);
+        }
+    };
+
+    // Support pasting image from clipboard
+    const handlePaste = (e: React.ClipboardEvent) => {
+        const items = e.clipboardData?.items;
+        if (!items) return;
+
+        const files: File[] = [];
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].type.indexOf('image') !== -1) {
+                const file = items[i].getAsFile();
+                if (file) files.push(file);
+            }
+        }
+        if (files.length > 0) {
+            processFiles(files);
+        }
+    };
+
+    const handleTriggerCamera = async () => {
+        if (Capacitor.isNativePlatform()) {
+            try {
+                const photo = await CapCamera.getPhoto({
+                    quality: 90,
+                    allowEditing: false,
+                    resultType: CameraResultType.Uri,
+                    source: CameraSource.Camera
+                });
+                if (photo.webPath) {
+                    const response = await fetch(photo.webPath);
+                    const blob = await response.blob();
+                    const ext = photo.format || 'jpg';
+                    const file = new File(
+                        [blob], 
+                        `foto-caso-${Date.now()}.${ext}`, 
+                        { type: `image/${ext === 'png' ? 'png' : 'jpeg'}` }
+                    );
+                    await processFiles([file]);
+                }
+            } catch (err: any) {
+                if (!err.message?.includes('User cancelled') && !err.message?.includes('cancelled')) {
+                    console.warn("Capacitor camera failed, falling back to input:", err);
+                    cameraInputRef.current?.click();
+                }
+            }
+        } else {
+            // Check if device is mobile touch or desktop
+            const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            if (isMobileDevice) {
+                cameraInputRef.current?.click();
+            } else {
+                setIsWebcamOpen(true);
+            }
         }
     };
 
@@ -170,7 +240,41 @@ export const LabServiceReviewModal: React.FC<LabServiceReviewModalProps> = ({
     const currentScore = hoverScore || score;
 
     return (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/70 backdrop-blur-md p-3 sm:p-4 animate-in fade-in duration-300">
+        <div 
+            className="fixed inset-0 z-[150] flex items-center justify-center bg-black/70 backdrop-blur-md p-3 sm:p-4 animate-in fade-in duration-300"
+            onPaste={handlePaste}
+        >
+            {/* Hidden File Inputs for Mobile & Web Compatibility */}
+            {/* 1. Camera Direct Capture (iOS & Android native camera picker) */}
+            <input 
+                ref={cameraInputRef}
+                type="file" 
+                accept="image/*" 
+                capture="environment"
+                className="hidden" 
+                onChange={handleFileSelect} 
+            />
+
+            {/* 2. Gallery / All Media Multi-Select */}
+            <input 
+                ref={galleryInputRef}
+                type="file" 
+                accept="image/*,video/*" 
+                multiple 
+                className="hidden" 
+                onChange={handleFileSelect} 
+            />
+
+            {/* 3. Video Direct Capture */}
+            <input 
+                ref={videoInputRef}
+                type="file" 
+                accept="video/*" 
+                capture="environment"
+                className="hidden" 
+                onChange={handleFileSelect} 
+            />
+
             <motion.div 
                 initial={{ scale: 0.95, opacity: 0, y: 15 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -284,7 +388,7 @@ export const LabServiceReviewModal: React.FC<LabServiceReviewModalProps> = ({
                     </div>
 
                     {/* Media Upload Section: Photos & Videos (Shopee/Shein style) */}
-                    <div className="space-y-2.5">
+                    <div className="space-y-3">
                         <div className="flex justify-between items-center">
                             <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                                 <Camera size={14} className="text-indigo-500" />
@@ -295,21 +399,48 @@ export const LabServiceReviewModal: React.FC<LabServiceReviewModalProps> = ({
                             </span>
                         </div>
 
-                        <input 
-                            ref={fileInputRef}
-                            type="file" 
-                            accept="image/*,video/*" 
-                            multiple 
-                            className="hidden" 
-                            onChange={handleFileSelect} 
-                        />
-
-                        {/* Previews & Add buttons grid */}
-                        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
-                            {/* Upload Button */}
+                        {/* Mobile Friendly Media Action Bar */}
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                            {/* Option 1: Live Camera / Mobile Camera */}
                             <button
                                 type="button"
-                                onClick={() => fileInputRef.current?.click()}
+                                onClick={handleTriggerCamera}
+                                disabled={isUploading}
+                                className="py-2.5 px-3 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 border border-indigo-200 dark:border-indigo-800/60 text-indigo-700 dark:text-indigo-300 flex items-center justify-center gap-2 text-xs font-bold active:scale-95 transition-all cursor-pointer shadow-xs disabled:opacity-50"
+                            >
+                                <Camera size={16} className="shrink-0 text-indigo-600 dark:text-indigo-400" />
+                                <span>Tirar Foto</span>
+                            </button>
+
+                            {/* Option 2: Gallery / Files */}
+                            <button
+                                type="button"
+                                onClick={() => galleryInputRef.current?.click()}
+                                disabled={isUploading}
+                                className="py-2.5 px-3 rounded-2xl bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/50 border border-blue-200 dark:border-blue-800/60 text-blue-700 dark:text-blue-300 flex items-center justify-center gap-2 text-xs font-bold active:scale-95 transition-all cursor-pointer shadow-xs disabled:opacity-50"
+                            >
+                                <ImageIcon size={16} className="shrink-0 text-blue-600 dark:text-blue-400" />
+                                <span>Galeria / Arquivos</span>
+                            </button>
+
+                            {/* Option 3: Video Recording / File */}
+                            <button
+                                type="button"
+                                onClick={() => videoInputRef.current?.click()}
+                                disabled={isUploading}
+                                className="py-2.5 px-3 rounded-2xl bg-purple-50 dark:bg-purple-950/40 hover:bg-purple-100 dark:hover:bg-purple-900/50 border border-purple-200 dark:border-purple-800/60 text-purple-700 dark:text-purple-300 col-span-2 sm:col-span-1 flex items-center justify-center gap-2 text-xs font-bold active:scale-95 transition-all cursor-pointer shadow-xs disabled:opacity-50"
+                            >
+                                <Video size={16} className="shrink-0 text-purple-600 dark:text-purple-400" />
+                                <span>Gravar Vídeo</span>
+                            </button>
+                        </div>
+
+                        {/* Previews & Add buttons grid */}
+                        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5 pt-1">
+                            {/* Upload Quick Trigger Button */}
+                            <button
+                                type="button"
+                                onClick={() => galleryInputRef.current?.click()}
                                 disabled={isUploading}
                                 className="h-24 sm:h-28 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 hover:border-blue-500 dark:hover:border-blue-500 bg-slate-50/60 dark:bg-[#0B0F17] flex flex-col items-center justify-center text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-all cursor-pointer group disabled:opacity-50"
                             >
@@ -318,10 +449,10 @@ export const LabServiceReviewModal: React.FC<LabServiceReviewModalProps> = ({
                                 ) : (
                                     <>
                                         <div className="w-8 h-8 rounded-full bg-white dark:bg-slate-800 shadow-xs flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
-                                            <Upload size={16} />
+                                            <Plus size={16} />
                                         </div>
                                         <span className="text-[10px] font-black uppercase tracking-wider text-center px-1">
-                                            Adicionar Foto/Vídeo
+                                            Adicionar Mais
                                         </span>
                                     </>
                                 )}
@@ -452,6 +583,18 @@ export const LabServiceReviewModal: React.FC<LabServiceReviewModalProps> = ({
                     </button>
                 </div>
             </motion.div>
+
+            {/* Webcam / Live Camera Modal */}
+            {isWebcamOpen && (
+                <WebcamModal 
+                    title="Foto da Avaliação"
+                    onClose={() => setIsWebcamOpen(false)}
+                    onCapture={(file) => {
+                        processFiles([file]);
+                        setIsWebcamOpen(false);
+                    }}
+                />
+            )}
 
             {/* Media Lightbox / Video Player Modal */}
             <AnimatePresence>

@@ -1239,9 +1239,29 @@ export const subscribeExpenses = (orgId: string, cb: (e: Expense[]) => void) => 
 export const apiAddExpense = (orgId: string, expense: Expense) => setDoc(doc(db, `organizations/${orgId}/expenses`, expense.id), expense);
 export const apiDeleteExpense = (orgId: string, id: string) => deleteDoc(doc(db, `organizations/${orgId}/expenses`, id));
 export const uploadReviewMedia = async (file: File): Promise<{ url: string; type: 'IMAGE' | 'VIDEO' }> => {
-    const isVideo = file.type.startsWith('video/') || ['mp4', 'mov', 'avi', 'webm', 'm4v', '3gp'].includes(file.name.split('.').pop()?.toLowerCase() || '');
-    const isImage = file.type.startsWith('image/') || ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif'].includes(file.name.split('.').pop()?.toLowerCase() || '');
+    const isVideo = file.type.startsWith('video/') || ['mp4', 'mov', 'avi', 'webm', 'm4v', '3gp', 'mkv'].includes(file.name.split('.').pop()?.toLowerCase() || '');
+    const isImage = !isVideo;
     
+    // 1. If it's an image, try Cloud Function optimizeAndUploadImage for server-side optimization
+    if (isImage) {
+        try {
+            const rawBase64 = await fileToBase64(file);
+            const fn = httpsCallable(functions, 'optimizeAndUploadImage');
+            const result = await fn({
+                base64: rawBase64,
+                fileName: file.name,
+                mimeType: file.type || 'image/jpeg'
+            });
+            const data = result.data as any;
+            if (data && data.webpUrl) {
+                return { url: data.webpUrl, type: 'IMAGE' };
+            }
+        } catch (optErr) {
+            logger.warn({ err: optErr }, "[uploadReviewMedia] optimizeAndUploadImage fallback");
+        }
+    }
+
+    // 2. Try Firebase Storage directly if accessible
     try {
         if (storage) {
             const cleanName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
@@ -1255,15 +1275,32 @@ export const uploadReviewMedia = async (file: File): Promise<{ url: string; type
         logger.warn({ err: storageErr }, "[uploadReviewMedia] Storage upload fallback to client processing:");
     }
 
+    // 3. Robust Client-side Processing fallback
     if (isVideo) {
-        // Read small video clip as data URL or blob URL fallback
-        const base64Video = await fileToBase64(file);
-        return { url: base64Video, type: 'VIDEO' };
+        // Read video as full data URL (with data:video/mp4;base64, prefix)
+        const videoDataUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = (e) => reject(e);
+            reader.readAsDataURL(file);
+        });
+        return { url: videoDataUrl, type: 'VIDEO' };
     }
 
-    const { compressImageToBase64 } = await import('./compressionService');
-    const compressedUrl = await compressImageToBase64(file, 1200, 0.75);
-    return { url: compressedUrl, type: 'IMAGE' };
+    // Client-side image compression to lightweight Base64
+    try {
+        const { compressImageToBase64 } = await import('./compressionService');
+        const compressedUrl = await compressImageToBase64(file, 1200, 0.75);
+        return { url: compressedUrl, type: 'IMAGE' };
+    } catch (compErr) {
+        const rawDataUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = (e) => reject(e);
+            reader.readAsDataURL(file);
+        });
+        return { url: rawDataUrl, type: 'IMAGE' };
+    }
 };
 
 export const apiAddLabRating = async (rating: LabRating) => {

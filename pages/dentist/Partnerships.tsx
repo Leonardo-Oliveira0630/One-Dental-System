@@ -371,8 +371,32 @@ export const Partnerships = ({ onSelectLab }: { onSelectLab?: (labId: string) =>
                                                 <Calendar size={10}/> {new Date(review.createdAt).toLocaleDateString()}
                                             </div>
                                         </div>
+                                        {review.tags && review.tags.length > 0 && (
+                                            <div className="flex flex-wrap gap-1 mb-2">
+                                                {review.tags.map((t, tidx) => (
+                                                    <span key={tidx} className="text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 px-2 py-0.5 rounded-full">
+                                                        ✓ {t}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        )}
                                         {review.comment && (
-                                            <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed italic">"{review.comment}"</p>
+                                            <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed italic mb-2">"{review.comment}"</p>
+                                        )}
+                                        {((review.imageUrls?.length || 0) > 0 || (review.videoUrls?.length || 0) > 0) && (
+                                            <div className="flex flex-wrap gap-1.5 pt-1">
+                                                {review.imageUrls?.map((imgUrl, i) => (
+                                                    <a key={i} href={imgUrl} target="_blank" rel="noreferrer" className="w-14 h-14 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 block hover:opacity-90">
+                                                        <img src={imgUrl} alt={`Foto ${i+1}`} className="w-full h-full object-cover" />
+                                                    </a>
+                                                ))}
+                                                {review.videoUrls?.map((vidUrl, i) => (
+                                                    <a key={i} href={vidUrl} target="_blank" rel="noreferrer" className="w-14 h-14 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-black flex items-center justify-center text-white relative hover:opacity-90">
+                                                        <video src={vidUrl} className="w-full h-full object-cover opacity-60" />
+                                                        <span className="absolute text-[9px] font-bold bg-blue-600 px-1 py-0.5 rounded">Vídeo</span>
+                                                    </a>
+                                                ))}
+                                            </div>
                                         )}
                                     </div>
                                 ))
