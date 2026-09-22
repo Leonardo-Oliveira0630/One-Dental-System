@@ -5,15 +5,31 @@ import {
   User, Job, JobType, CartItem, UserRole, Sector, JobAlert, Attachment,
   ClinicPatient, Appointment, Organization, SubscriptionPlan, OrganizationConnection, Coupon, LabCoupon, CommissionRecord, CommissionStatus, ManualDentist, GlobalSettings, DeliveryRoute, RouteItem, BoxColor, ClinicService, ClinicRoom, ClinicDentist, PermissionKey, PaymentRecord, PriceTable, BillingBatch, DentistPayment, Courier,
   CardMachine, BankAccount,
-  JobStatus, UrgencyLevel, OnlineRequisition, Budget
+  JobStatus, UrgencyLevel, OnlineRequisition, Budget,
+  AppNotification, NotificationPreferences
 } from '../types';
 import { db, auth } from '../services/firebaseConfig';
 import * as api from '../services/firebaseService';
 import { notifyAppointmentCreated, notifyJobLogistics, notifySupplierOrder } from '../services/ycloudService';
 import { SupportedLanguage, setAppLanguage, getInitialLanguage } from '../src/i18n';
+import { 
+  DEFAULT_NOTIFICATION_PREFERENCES, 
+  canUserReceiveNotification, 
+  playNotificationChime, 
+  checkPushSupport, 
+  requestPushNotificationPermission, 
+  showSystemNotification,
+  subscribeUserNotifications,
+  subscribeDirectUserNotifications,
+  apiCreateNotification,
+  apiMarkNotificationAsRead,
+  apiMarkAllNotificationsAsRead,
+  apiDeleteNotification
+} from '../services/notificationService';
 
 import * as authPkg from 'firebase/auth';
 import * as firestorePkg from 'firebase/firestore';
+
 
 const { onAuthStateChanged } = authPkg as any;
 const { doc, getDoc, onSnapshot, getDocFromServer } = firestorePkg as any;
@@ -277,6 +293,17 @@ interface AppContextType {
   toggleTheme: () => void;
   language: SupportedLanguage;
   setLanguage: (lang: SupportedLanguage) => Promise<void>;
+
+  notifications: AppNotification[];
+  unreadNotificationCount: number;
+  notificationPreferences: NotificationPreferences;
+  updateNotificationPreferences: (prefs: NotificationPreferences) => Promise<void>;
+  markNotificationAsRead: (id: string) => Promise<void>;
+  markAllNotificationsAsRead: () => Promise<void>;
+  deleteNotification: (id: string) => Promise<void>;
+  sendNotification: (notif: Omit<AppNotification, 'id' | 'createdAt' | 'read'>) => Promise<void>;
+  requestPushPermission: () => Promise<'granted' | 'denied' | 'default'>;
+  pushStatus: any;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -332,6 +359,19 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [couriers, setCouriers] = useState<Courier[]>([]);
   const [onlineRequisitions, setOnlineRequisitions] = useState<OnlineRequisition[]>([]);
   const [activeManualDentistId, setActiveManualDentistId] = useState<string | null>(null);
+
+  // Notification States & Preferences
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreferences>(() => {
+    try {
+      const saved = localStorage.getItem('labprox_notif_prefs');
+      return saved ? { ...DEFAULT_NOTIFICATION_PREFERENCES, ...JSON.parse(saved) } : DEFAULT_NOTIFICATION_PREFERENCES;
+    } catch {
+      return DEFAULT_NOTIFICATION_PREFERENCES;
+    }
+  });
+  const [pushStatus, setPushStatus] = useState<any>(() => checkPushSupport());
+
   const [nfcBoxes, setNfcBoxes] = useState<any[]>([]);
 
   const [activeOrganization, setActiveOrganization] = useState<Organization | null>(null);
@@ -459,6 +499,15 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
                     if (snap.exists()) {
                         const oData = { id: snap.id, ...snap.data() as any } as Organization;
                         setCurrentOrg(oData);
+                        if (api.isLabOrganization(oData)) {
+                            setActiveOrganization(prev => prev || oData);
+                            setAllLaboratories(prev => {
+                                if (prev.some(l => l.id === oData.id)) {
+                                    return prev.map(l => l.id === oData.id ? oData : l);
+                                }
+                                return [oData, ...prev];
+                            });
+                        }
                         
                         if (oData.planId) {
                             const planRef = doc(db, 'subscriptionPlans', oData.planId);
@@ -665,6 +714,43 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
         unsubs.push(api.subscribePatientPayments(myOrgId, setPatientPayments));
         unsubs.push(api.subscribePatientBillingBatches(myOrgId, setPatientBillingBatches));
+
+        // Subscrição em Tempo Real das Notificações do Laboratório / Organização
+        unsubs.push(subscribeUserNotifications(myOrgId, currentUser.id, (notifs) => {
+            const permitted = notifs.filter(n => canUserReceiveNotification(currentUser, n));
+            setNotifications(prev => {
+                const prevMap = new Map(prev.map(p => [p.id, p]));
+                const newlyArrived = permitted.filter(n => !n.read && !prevMap.has(n.id));
+
+                if (newlyArrived.length > 0 && prev.length > 0) {
+                    const highestUrgency = newlyArrived.some(n => n.urgency === 'URGENT' || n.urgency === 'HIGH') ? 'URGENT' : 'NORMAL';
+                    if (notificationPreferences.sound) {
+                        playNotificationChime(highestUrgency);
+                    }
+                    newlyArrived.forEach(n => {
+                        showSystemNotification(n.title, {
+                            body: n.body,
+                            data: n.data
+                        });
+                    });
+                }
+                return permitted;
+            });
+        }));
+    }
+
+    if (currentUser?.id) {
+        unsubs.push(subscribeDirectUserNotifications(currentUser.id, (directNotifs) => {
+            setNotifications(prev => {
+                const merged = [...prev];
+                directNotifs.forEach(dn => {
+                    const idx = merged.findIndex(c => c.id === dn.id);
+                    if (idx >= 0) merged[idx] = dn;
+                    else merged.unshift(dn);
+                });
+                return merged.sort((a, b) => (b.createdAt?.getTime?.() || 0) - (a.createdAt?.getTime?.() || 0));
+            });
+        }));
     }
     
     return () => unsubs.forEach(u => u());
@@ -868,6 +954,27 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
           organizationId: orgId,
           sectorEntryTime: now
       } as Job);
+
+      // Notificação inteligente para Pedidos Web / Loja Online
+      if (j.origin === 'ONLINE_ORDER' || currentUser?.role === UserRole.CLIENT) {
+          apiCreateNotification({
+              organizationId: orgId,
+              requiredPermission: 'catalog:view',
+              type: 'WEB_ORDER',
+              title: '🛒 Novo Pedido Web Recebido',
+              body: `Novo pedido no valor de R$ ${(j.totalValue || 0).toFixed(2)} para o paciente ${j.patientName || 'N/I'}.`,
+              urgency: 'HIGH',
+              senderName: j.dentistName || currentUser?.name || 'Dentista',
+              senderId: currentUser?.id,
+              data: {
+                  jobId: jobId,
+                  osNumber: j.osNumber,
+                  patientName: j.patientName,
+                  url: '/incoming-orders'
+              }
+          }).catch((err) => logger.warn({ err }, "Erro ao criar notificação de pedido web"));
+      }
+
       return jobId;
   };
 
@@ -1123,6 +1230,29 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       const orgId = activeDataId;
       if(!orgId) return;
       await api.apiAddAlert(orgId, a);
+
+      const aAny = a as any;
+      // Disparar Notificação do Gestor (com respeito estrito a Setor / Destinatário / Permissão)
+      apiCreateNotification({
+          organizationId: orgId,
+          userId: a.targetUserId || null,
+          targetSector: a.targetSector || null,
+          targetRole: aAny.targetRole ? [aAny.targetRole] : null,
+          type: 'MANAGER_ALERT',
+          title: aAny.title || `🚨 Alerta: O.S. #${a.osNumber || 'Trabalho'}`,
+          body: a.message,
+          urgency: aAny.urgency === 'HIGH' || aAny.urgency === 'URGENT' ? 'URGENT' : 'HIGH',
+          senderName: aAny.createdByName || currentUser?.name || 'Gestor',
+          senderId: currentUser?.id,
+          data: {
+              alertId: a.id,
+              jobId: a.jobId,
+              osNumber: a.osNumber,
+              patientName: aAny.patientName,
+              targetSector: a.targetSector,
+              targetUserId: a.targetUserId
+          }
+      }).catch((err) => console.warn("Erro ao criar notificação de alerta do gestor:", err));
   }
   const dismissAlert = async (id: string) => {
       const orgId = activeDataId;
@@ -1268,6 +1398,24 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
           createdAt: now,
           sentAt: now
       } as OnlineRequisition);
+
+      // Notificação para o Laboratório (apenas colaboradores com permissão 'clients:view' ou 'jobs:view' ou ADMIN/MANAGER recebem)
+      apiCreateNotification({
+          organizationId: labId,
+          requiredPermission: 'clients:view',
+          type: 'ONLINE_REQUISITION',
+          title: '📋 Nova Requisição Online Recebida',
+          body: `Nova requisição de trabalho para o paciente "${r.patientName || 'Paciente'}" enviada pelo Dr(a). ${r.dentistName || 'Dentista'}.`,
+          urgency: 'NORMAL',
+          senderName: r.dentistName || currentUser?.name || 'Dentista',
+          senderId: currentUser?.id,
+          data: {
+              requisitionId: id,
+              patientName: r.patientName,
+              dentistName: r.dentistName,
+              url: '/incoming-requisitions'
+          }
+      }).catch((err) => logger.warn({ err }, "Erro ao criar notificação de requisição online"));
   };
 
   const updateOnlineRequisition = async (labId: string, id: string, updates: Partial<OnlineRequisition>) => {
@@ -1279,6 +1427,31 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
           finalUpdates.rejectedAt = now;
       }
       await api.apiUpdateOnlineRequisition(labId, id, finalUpdates);
+
+      // Se o status mudou (ex: ACEITO ou REJEITADO), notificar o dentista solicitante
+      if (updates.status) {
+          const req = onlineRequisitions.find(item => item.id === id);
+          if (req && req.dentistId) {
+              const isAccepted = updates.status === 'ACCEPTED';
+              apiCreateNotification({
+                  organizationId: labId,
+                  userId: req.dentistId,
+                  type: 'ONLINE_REQUISITION',
+                  title: isAccepted ? '✅ Requisição Aceita pelo Laboratório' : '❌ Requisição Atualizada',
+                  body: isAccepted 
+                      ? `Sua requisição para o paciente "${req.patientName || 'Paciente'}" foi aceita e o caso já está em produção!`
+                      : `A requisição para "${req.patientName || 'Paciente'}" foi atualizada para ${updates.status}.`,
+                  urgency: 'NORMAL',
+                  senderName: currentOrg?.name || 'Laboratório',
+                  senderId: currentUser?.id,
+                  data: {
+                      requisitionId: id,
+                      status: updates.status,
+                      url: '/requisitions'
+                  }
+              }).catch((err) => logger.warn({ err }, "Erro ao notificar dentista sobre requisição"));
+          }
+      }
   };
 
   const addCardMachine = async (m: Omit<CardMachine, 'id' | 'organizationId' | 'createdAt'>) => {
@@ -1568,6 +1741,55 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     await api.apiDeleteCourier(orgId, id);
   };
 
+  const unreadNotificationCount = useMemo(() => {
+    return notifications.filter(n => !n.read).length;
+  }, [notifications]);
+
+  const updateNotificationPreferences = async (prefs: NotificationPreferences) => {
+    setNotificationPreferences(prefs);
+    try {
+      localStorage.setItem('labprox_notif_prefs', JSON.stringify(prefs));
+      if (currentUser?.id) {
+        api.apiUpdateUser(currentUser.id, { notificationPreferences: prefs } as any).catch(() => {});
+      }
+    } catch (e) {}
+  };
+
+  const markNotificationAsRead = async (id: string) => {
+    if (!currentUser) return;
+    const target = notifications.find(n => n.id === id);
+    const orgId = target?.organizationId || currentUser.organizationId || '';
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    await apiMarkNotificationAsRead(orgId, id, currentUser.id);
+  };
+
+  const markAllNotificationsAsRead = async () => {
+    if (!currentUser) return;
+    const unreadIds = notifications.filter(n => !n.read).map(n => n.id);
+    if (unreadIds.length === 0) return;
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    const orgId = currentUser.organizationId || '';
+    await apiMarkAllNotificationsAsRead(orgId, currentUser.id, unreadIds);
+  };
+
+  const deleteNotification = async (id: string) => {
+    if (!currentUser) return;
+    const target = notifications.find(n => n.id === id);
+    const orgId = target?.organizationId || currentUser.organizationId || '';
+    setNotifications(prev => prev.filter(n => n.id !== id));
+    await apiDeleteNotification(orgId, id, currentUser.id);
+  };
+
+  const sendNotification = async (notif: Omit<AppNotification, 'id' | 'createdAt' | 'read'>) => {
+    await apiCreateNotification(notif);
+  };
+
+  const requestPushPermission = async () => {
+    const perm = await requestPushNotificationPermission();
+    setPushStatus(checkPushSupport());
+    return perm;
+  };
+
   const contextValue = useMemo(() => ({
     currentUser, currentOrg, currentPlan, isLoadingAuth, globalSettings,
     allUsers, jobs, budgets, jobTypes, clinicServices, clinicRooms, clinicDentists, sectors, boxColors, alerts, commissions,
@@ -1577,6 +1799,16 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     activeAlert,
     allPayments,
     nfcBoxes,
+    notifications,
+    unreadNotificationCount,
+    notificationPreferences,
+    updateNotificationPreferences,
+    markNotificationAsRead,
+    markAllNotificationsAsRead,
+    deleteNotification,
+    sendNotification,
+    requestPushPermission,
+    pushStatus,
     login, logout, updateUser, addUser, deleteUser,
     addJob, updateJob, addBudget, updateBudget, deleteBudget, addCommissionRecord, updateCommissionStatus, updateCommissionRecord, deleteCommissionRecord,
     addInventoryCategory, updateInventoryCategory, deleteInventoryCategory, addInventoryItem, updateInventoryItem, deleteInventoryItem,
@@ -1619,6 +1851,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     cardMachines, bankAccounts, inventoryCategories, inventoryItems,
     allSuppliers, allSupplierProducts, supplierOrders,
     allPayments, cart, printData, activeOrganization, userConnections, activeDataId, couriers, onlineRequisitions, nfcBoxes,
+    notifications, unreadNotificationCount, notificationPreferences, pushStatus,
     theme, setTheme, toggleTheme,
     language, setLanguage
   ]);

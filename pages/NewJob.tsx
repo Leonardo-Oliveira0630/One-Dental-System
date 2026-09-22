@@ -1154,33 +1154,12 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                         <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">{isBudget ? t('newJob.budgetNumber', 'Nº Orçamento') : t('newJob.osNumber', 'Nº OS')} <span className="text-slate-400 font-medium normal-case ml-1">({t('common.automatic', 'Automático')})</span></label>
                         <input value={osNumber} onChange={e => setOsNumber(e.target.value)} onBlur={handleOsNumberBlur} placeholder={t('common.auto', 'Auto')} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-mono font-bold text-lg focus:ring-2 focus:ring-blue-500 transition-all placeholder:text-slate-300 placeholder:font-normal" />
                     </div>
-                    <div className="md:col-span-9">
-                         <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">{t('newJob.patientName', 'Nome do Paciente')} <span className="text-red-500">*</span></label>
-                         <input value={patientName} onChange={e => setPatientName(e.target.value.toUpperCase())} required placeholder="Ex: MARIA DAS DORES" className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all font-bold uppercase" />
-                    </div>
-                    
-                    <div className="md:col-span-3">
-                        <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">{t('newJob.caseOrigin', 'Origem do Caso')}</label>
-                        <select
-                            value={clientOrigin}
-                            onChange={e => {
-                                setClientOrigin(e.target.value as 'DENTIST' | 'LABORATORY');
-                                // clear job type search if origin changes to avoid invalid selections
-                                setSelectedTypeId('');
-                                setJobTypeSearchQuery('');
-                            }}
-                            className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all font-bold text-slate-700"
-                        >
-                            <option value="DENTIST">{t('newJob.originDentist', 'Dentista')}</option>
-                            <option value="LABORATORY">{t('newJob.originLab', 'Laboratório')}</option>
-                        </select>
-                    </div>
 
                     <div className="md:col-span-9 relative" ref={dropdownRef}>
-                      <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">{t('newJob.client', 'Cliente')} <span className="text-red-500">*</span></label>
+                      <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">{t('newJob.clientClinic', 'Clínica / Cliente')} <span className="text-red-500">*</span></label>
                       <div className="relative">
                         <div className="absolute left-3 top-3 text-slate-400">{selectedDentistId ? <Check size={18} className="text-green-500" /> : <SearchIcon size={18} />}</div>
-                        <input type="text" value={dentistSearchQuery} onChange={e => { setDentistSearchQuery(e.target.value.toUpperCase()); setShowDentistSuggestions(true); }} onFocus={() => setShowDentistSuggestions(true)} placeholder={t('newJob.searchDentistPlaceholder', 'Digite o nome do dentista...')} className={`w-full pl-10 pr-4 py-2.5 bg-white border rounded-xl outline-none transition-all focus:ring-2 font-bold uppercase ${selectedDentistId ? 'border-green-200 bg-green-50/30' : 'border-slate-200 focus:ring-blue-500'}`} />
+                        <input type="text" value={dentistSearchQuery} onChange={e => { setDentistSearchQuery(e.target.value.toUpperCase()); setShowDentistSuggestions(true); }} onFocus={() => setShowDentistSuggestions(true)} placeholder={t('newJob.searchDentistPlaceholder', 'Digite o nome do dentista ou clínica...')} className={`w-full pl-10 pr-4 py-2.5 bg-white border rounded-xl outline-none transition-all focus:ring-2 font-bold uppercase ${selectedDentistId ? 'border-green-200 bg-green-50/30' : 'border-slate-200 focus:ring-blue-500'}`} />
                       </div>
                       {showDentistSuggestions && dentistSearchQuery.length > 0 && (
                           <div className="absolute z-50 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2">
@@ -1220,6 +1199,28 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                             </select>
                         </div>
                     )}
+                    
+                    <div className="md:col-span-3">
+                        <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">{t('newJob.caseOrigin', 'Origem do Caso')}</label>
+                        <select
+                            value={clientOrigin}
+                            onChange={e => {
+                                setClientOrigin(e.target.value as 'DENTIST' | 'LABORATORY');
+                                // clear job type search if origin changes to avoid invalid selections
+                                setSelectedTypeId('');
+                                setJobTypeSearchQuery('');
+                            }}
+                            className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all font-bold text-slate-700"
+                        >
+                            <option value="DENTIST">{t('newJob.originDentist', 'Dentista')}</option>
+                            <option value="LABORATORY">{t('newJob.originLab', 'Laboratório')}</option>
+                        </select>
+                    </div>
+
+                    <div className="md:col-span-9">
+                         <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">{t('newJob.patientName', 'Nome do Paciente')} <span className="text-red-500">*</span></label>
+                         <input value={patientName} onChange={e => setPatientName(e.target.value.toUpperCase())} required placeholder="Ex: MARIA DAS DORES" className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all font-bold uppercase" />
+                    </div>
                   </div>
                 </div>
 
@@ -1601,6 +1602,41 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                     )}
                 </div>
 
+                {/* Observações Técnicas */}
+                <div className="bg-white p-4 md:p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-200">
+                    <h2 className="text-sm font-black text-slate-800 mb-4 flex items-center gap-2 uppercase tracking-widest">
+                        <FileText size={18} className="text-blue-500" /> Observações Técnicas / Histórico acumulado
+                    </h2>
+                    <textarea 
+                        value={notes} 
+                        onChange={e => setNotes(e.target.value)} 
+                        rows={4} 
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none text-xs font-bold transition-all placeholder:text-slate-400" 
+                        placeholder="Insira as observações aqui. O histórico anterior será reservado e continuará acumulando." 
+                    />
+                    
+                    {lastJobFound && (
+                        <div className="mt-3 text-xs border border-blue-100 bg-blue-50/70 p-3 rounded-2xl flex flex-col gap-1.5 animate-in fade-in slide-in-from-top-1 duration-300">
+                            <div className="flex items-center gap-1.5 font-bold text-blue-800">
+                                <AlertCircle size={14} className="text-blue-600 flex-shrink-0" />
+                                <span>Vínculo com Caso Anterior Detectado!</span>
+                            </div>
+                            <p className="text-[11px] text-slate-600 leading-normal">
+                                Importamos observações da <span className="font-extrabold text-blue-900">OS #{lastJobFound.osNumber}</span> (Paciente: <span className="font-semibold uppercase text-slate-800">{lastJobFound.patientName}</span>). 
+                                O campo observações agora é acumulativo com os detalhes do histórico.
+                            </p>
+                            {lastJobFound.notes ? (
+                                <div className="mt-1 bg-white border border-blue-100 text-slate-600 p-2.5 rounded-xl text-[11px] leading-relaxed font-mono max-h-32 overflow-y-auto whitespace-pre-line shadow-sm">
+                                    <div className="text-[9px] font-bold text-blue-600 mb-1 uppercase tracking-wider border-b border-blue-50 pb-1">Observações da OS #{lastJobFound.osNumber}:</div>
+                                    {lastJobFound.notes}
+                                </div>
+                            ) : (
+                                <p className="text-[10px] text-slate-400 italic bg-white border border-blue-100 p-2 rounded-xl text-center">Nenhuma observação técnica registrada no caso anterior.</p>
+                            )}
+                        </div>
+                    )}
+                </div>
+
                 {/* Materiais Enviados */}
                 {!isBudget && (
                 <div className="bg-white p-4 md:p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-200">
@@ -1770,38 +1806,6 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                 </div>
                 </>
                 )}
-
-                <div>
-                    <label className="block text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest">Observações Técnicas / Histórico acumulado</label>
-                    <textarea 
-                        value={notes} 
-                        onChange={e => setNotes(e.target.value)} 
-                        rows={5} 
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-xs font-bold" 
-                        placeholder="Insira as observações aqui. O histórico anterior será reservado e continuará acumulando." 
-                    />
-                    
-                    {lastJobFound && (
-                        <div className="mt-2 text-xs border border-blue-100 bg-blue-50/70 p-3 rounded-2xl flex flex-col gap-1.5 animate-in fade-in slide-in-from-top-1 duration-300">
-                            <div className="flex items-center gap-1.5 font-bold text-blue-800">
-                                <AlertCircle size={14} className="text-blue-600 flex-shrink-0" />
-                                <span>Vínculo com Caso Anterior Detectado!</span>
-                            </div>
-                            <p className="text-[11px] text-slate-600 leading-normal">
-                                Importamos observações da <span className="font-extrabold text-blue-900">OS #{lastJobFound.osNumber}</span> (Paciente: <span className="font-semibold uppercase text-slate-800">{lastJobFound.patientName}</span>). 
-                                O campo observações agora é acumulativo com os detalhes do histórico.
-                            </p>
-                            {lastJobFound.notes ? (
-                                <div className="mt-1 bg-white border border-blue-100 text-slate-600 p-2.5 rounded-xl text-[11px] leading-relaxed font-mono max-h-32 overflow-y-auto whitespace-pre-line shadow-sm">
-                                    <div className="text-[9px] font-bold text-blue-600 mb-1 uppercase tracking-wider border-b border-blue-50 pb-1">Observações da OS #{lastJobFound.osNumber}:</div>
-                                    {lastJobFound.notes}
-                                </div>
-                            ) : (
-                                <p className="text-[10px] text-slate-400 italic bg-white border border-blue-100 p-2 rounded-xl text-center">Nenhuma observação técnica registrada no caso anterior.</p>
-                            )}
-                        </div>
-                    )}
-                </div>
 
                 <div className="pt-6 border-t border-slate-100">
                     <div className="flex justify-between items-center mb-4">

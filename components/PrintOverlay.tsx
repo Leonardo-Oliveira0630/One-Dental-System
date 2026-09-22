@@ -133,7 +133,7 @@ export const PrintOverlay = () => {
                 </div>
               </div>
               
-              <div className="flex gap-3 mb-3">
+              <div className="flex gap-4 mb-3 items-stretch">
                 {/* Left column */}
                 <div className="flex flex-col gap-2 flex-1">
                     <div className="border border-gray-300 p-2 rounded flex justify-between items-start">
@@ -152,37 +152,33 @@ export const PrintOverlay = () => {
                             <p className="text-xs font-bold leading-tight mt-1 text-gray-700">{dentistCityState || '-'}</p>
                         </div>
                     </div>
-                    <div className="flex gap-2">
-                        <div className="border border-gray-300 p-2 rounded relative flex-1">
+                    <div className="border border-gray-300 p-2 rounded relative flex-1 flex items-center justify-between">
+                        <div className="overflow-hidden">
                             <p className="text-[10px] uppercase font-bold text-gray-500 mb-0.5 leading-none">Paciente</p>
                             <p className="text-[10pt] font-bold leading-tight truncate mt-1">{job.patientName}</p>
-                            {job.items.some(i => i.nature === 'REPETITION' || i.nature === 'ADJUSTMENT') && (
-                                <div className="absolute top-2 right-2 px-2 py-0.5 bg-black text-white text-[10px] font-black uppercase rounded-sm">
-                                    {job.items.find(i => i.nature === 'REPETITION' || i.nature === 'ADJUSTMENT')?.nature === 'REPETITION' ? 'REPETIÇÃO' : 'AJUSTE'}
-                                </div>
-                            )}
                         </div>
-                        <div className="bg-gray-100 p-2 rounded w-24 shrink-0 flex flex-col justify-center items-center">
-                            <p className="text-[10px] font-bold text-gray-500 leading-none mb-1">Caixa</p>
-                            <p className="font-bold text-lg leading-none">{job.boxNumber || '-'}</p>
-                        </div>
-                        <div className="bg-gray-100 p-2 rounded w-24 shrink-0 flex flex-col justify-center items-center">
-                            <p className="text-[10px] font-bold text-gray-500 leading-none mb-1">Prioridade</p>
-                            <p className="font-bold text-xs uppercase leading-none">{job.urgency}</p>
-                        </div>
+                        {job.items.some(i => i.nature === 'REPETITION' || i.nature === 'ADJUSTMENT') && (
+                            <div className="px-2 py-0.5 bg-black text-white text-[10px] font-black uppercase rounded-sm shrink-0">
+                                {job.items.find(i => i.nature === 'REPETITION' || i.nature === 'ADJUSTMENT')?.nature === 'REPETITION' ? 'REPETIÇÃO' : 'AJUSTE'}
+                            </div>
+                        )}
                     </div>
                 </div>
                 
                 {/* Right column */}
-                <div className="flex flex-col gap-2 w-32 shrink-0">
-                    <div className="bg-gray-100 p-2 rounded flex-1 flex flex-col justify-center items-center">
-                        <p className="text-[10px] font-bold text-gray-500 leading-tight">Data Entrada</p>
-                        <p className="font-mono text-sm leading-tight mt-0.5">{new Date(job.createdAt).toLocaleDateString()}</p>
-                    </div>
-                    <div className="bg-gray-100 p-2 rounded border-2 border-black flex-1 flex flex-col justify-center items-center">
-                        <p className="text-[10px] font-bold text-gray-500 leading-tight">Data Saída (Prevista)</p>
-                        <p className="font-mono text-sm font-bold leading-tight mt-0.5">{new Date(job.dueDate).toLocaleDateString()}</p>
-                    </div>
+                <div className="w-60 shrink-0 flex flex-col justify-center text-xs space-y-1 pl-3 border-l border-gray-200">
+                    <p className="text-gray-900 leading-tight">
+                        <span className="font-bold">Data Entrada:</span> {new Date(job.createdAt).toLocaleDateString('pt-BR')} {job.createdAt ? new Date(job.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''}
+                    </p>
+                    <p className="text-gray-900 leading-tight">
+                        <span className="font-bold">Data Saída (Prevista):</span> {new Date(job.dueDate).toLocaleDateString('pt-BR')}
+                    </p>
+                    <p className="text-gray-900 leading-tight">
+                        <span className="font-bold">Caixa:</span> {job.boxNumber || '-'}
+                    </p>
+                    <p className="text-gray-900 leading-tight">
+                        <span className="font-bold">Prioridade:</span> <span className="uppercase">{job.urgency || 'NORMAL'}</span>
+                    </p>
                 </div>
               </div>
               
@@ -190,14 +186,23 @@ export const PrintOverlay = () => {
                 <h3 className="font-bold border-b border-black mb-1 pb-1 uppercase text-xs shrink-0">Serviços do Pedido</h3>
                 <div className="">
                   <table className="w-full text-left text-xs border-collapse border border-gray-400">
-                      <thead><tr className="border-b border-gray-400"><th className="py-1 px-1 border border-gray-400 w-[4ch] text-center">Qtd</th><th className="py-1 px-1 border border-gray-400 w-20 text-center">Dentes</th><th className="py-1 px-1 border border-gray-400 w-[6ch] text-center">Cor</th><th className="py-1 px-1 border border-gray-400">Descrição</th></tr></thead>
+                      <thead>
+                          <tr className="border-b border-gray-400">
+                              <th className="py-1 px-1 border border-gray-400 w-[4ch] text-center">Qtd</th>
+                              <th className="py-1 px-1 border border-gray-400 w-28 text-center">Dentes</th>
+                              <th className="py-1 px-1 border border-gray-400 w-[6ch] text-center">Cor</th>
+                              <th className="py-1 px-1 border border-gray-400">Descrição</th>
+                          </tr>
+                      </thead>
                       <tbody className="divide-y divide-gray-400">
                           {job.items.filter(i => !i.isInternalStep).map((item, idx) => (
                               <tr key={`item-${idx}`}>
                                   <td className="py-1 px-1 border border-gray-400 font-bold align-top text-sm text-center">{item.quantity}</td>
-                                  <td className="py-1 px-1 border border-gray-400 font-bold align-top text-[10px] text-indigo-600 text-center">{formatTeethRange(item.selectedTeeth) || '-'}</td>
+                                  <td className="py-1 px-1 border border-gray-400 font-bold align-top text-[10px] text-indigo-600 text-center break-words whitespace-normal leading-relaxed max-w-[120px]">
+                                      {formatTeethRange(item.selectedTeeth) || '-'}
+                                  </td>
                                   <td className="py-1 px-1 border border-gray-400 font-bold align-top text-[11px] text-slate-800 break-words text-center">{item.color || (item as any).cor || '-'}</td>
-                                  <td className="py-1 px-1 border border-gray-400 align-top font-bold text-[10pt]"><div>{item.nature === 'REPETITION' ? '(R)' : item.nature === 'ADJUSTMENT' ? '(A)' : ''}{formatItemNameWithVariations(item, jobTypes)}</div></td>
+                                  <td className="py-1 px-1 border border-gray-400 align-top font-normal text-[10pt] text-gray-900"><div>{item.nature === 'REPETITION' ? '(R) ' : item.nature === 'ADJUSTMENT' ? '(A) ' : ''}{formatItemNameWithVariations(item, jobTypes)}</div></td>
                               </tr>
                           ))}
                       </tbody>
@@ -221,6 +226,60 @@ export const PrintOverlay = () => {
                 )}
               </div>
               
+              {/* Odontograma Numérico com Separação de Quadrantes */}
+              {(() => {
+                const selectedTeethSet = new Set(job.items?.flatMap(i => i.selectedTeeth || []) || []);
+                const q1 = ['18', '17', '16', '15', '14', '13', '12', '11'];
+                const q2 = ['21', '22', '23', '24', '25', '26', '27', '28'];
+                const q4 = ['48', '47', '46', '45', '44', '43', '42', '41'];
+                const q3 = ['31', '32', '33', '34', '35', '36', '37', '38'];
+
+                const renderTooth = (t: string) => {
+                  const isSelected = selectedTeethSet.has(t);
+                  return (
+                    <span
+                      key={t}
+                      className={`w-6 h-5 flex items-center justify-center text-[11px] font-mono leading-none ${
+                        isSelected
+                          ? 'bg-black text-white font-black rounded-sm'
+                          : 'text-gray-900 font-bold'
+                      }`}
+                    >
+                      {t}
+                    </span>
+                  );
+                };
+
+                return (
+                  <div className="mb-2 py-2 px-3 border border-gray-300 rounded bg-white shrink-0 flex flex-col items-center justify-center">
+                    <div className="flex items-center">
+                      {/* Quadrantes Direitos / Superior e Inferior (Q1 e Q4) */}
+                      <div className="flex flex-col items-end pr-2.5 gap-1">
+                        <div className="flex items-center gap-1.5">
+                          {q1.map(renderTooth)}
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          {q4.map(renderTooth)}
+                        </div>
+                      </div>
+
+                      {/* Divisória Vertical de Quadrante */}
+                      <div className="w-[1.5px] self-stretch bg-black min-h-[46px]"></div>
+
+                      {/* Quadrantes Esquerdos / Superior e Inferior (Q2 e Q3) */}
+                      <div className="flex flex-col items-start pl-2.5 gap-1">
+                        <div className="flex items-center gap-1.5">
+                          {q2.map(renderTooth)}
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          {q3.map(renderTooth)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
               <div className="mb-2 border border-gray-300 p-2 rounded flex-1">
                 <h3 className="font-bold text-[10px] uppercase text-gray-500 mb-1">Observações / Instruções</h3>
                 <p className="whitespace-pre-wrap text-xs leading-relaxed">{job.notes || "Sem observações."}</p>
@@ -272,7 +331,7 @@ export const PrintOverlay = () => {
                 </div>
               </div>
               
-              <div className="flex gap-3 mb-3">
+              <div className="flex gap-4 mb-3 items-stretch">
                 <div className="flex flex-col gap-2 flex-1">
                     <div className="border border-gray-300 p-2 rounded flex flex-col items-start">
                         <div className="w-full mb-1">
@@ -290,27 +349,28 @@ export const PrintOverlay = () => {
                             <p className="text-xs font-bold leading-tight mt-1 text-gray-700 break-words">{dentistFullAddress || '-'}</p>
                         </div>
                     </div>
-                    <div className="flex gap-2">
-                        <div className="border border-gray-300 p-2 rounded relative flex-1">
+                    <div className="border border-gray-300 p-2 rounded relative flex-1 flex items-center justify-between">
+                        <div className="overflow-hidden">
                             <p className="text-[10px] uppercase font-bold text-gray-500 mb-0.5 leading-none">Paciente</p>
                             <p className="text-[10pt] font-bold leading-tight truncate mt-1">{job.patientName}</p>
-                        </div>
-                        <div className="bg-gray-100 p-2 rounded w-24 shrink-0 flex flex-col justify-center items-center">
-                            <p className="text-[10px] font-bold text-gray-500 leading-none mb-1">Caixa</p>
-                            <p className="font-bold text-lg leading-none">{job.boxNumber || '-'}</p>
                         </div>
                     </div>
                 </div>
                 
-                <div className="flex flex-col gap-2 w-32 shrink-0">
-                    <div className="bg-gray-100 p-2 rounded flex-1 flex flex-col justify-center items-center">
-                        <p className="text-[10px] font-bold text-gray-500 leading-tight">Data Entrada</p>
-                        <p className="font-mono text-sm leading-tight mt-0.5">{new Date(job.createdAt).toLocaleDateString()}</p>
-                    </div>
-                    <div className="bg-gray-100 p-2 rounded border-2 border-black flex-1 flex flex-col justify-center items-center">
-                        <p className="text-[10px] font-bold text-gray-500 leading-tight">Data Saída</p>
-                        <p className="font-mono text-sm font-bold leading-tight mt-0.5">{new Date(job.dueDate).toLocaleDateString()}</p>
-                    </div>
+                {/* Right column */}
+                <div className="w-60 shrink-0 flex flex-col justify-center text-xs space-y-1 pl-3 border-l border-gray-200">
+                    <p className="text-gray-900 leading-tight">
+                        <span className="font-bold">Data Entrada:</span> {new Date(job.createdAt).toLocaleDateString('pt-BR')} {job.createdAt ? new Date(job.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''}
+                    </p>
+                    <p className="text-gray-900 leading-tight">
+                        <span className="font-bold">Data Saída:</span> {new Date(job.dueDate).toLocaleDateString('pt-BR')}
+                    </p>
+                    <p className="text-gray-900 leading-tight">
+                        <span className="font-bold">Caixa:</span> {job.boxNumber || '-'}
+                    </p>
+                    <p className="text-gray-900 leading-tight">
+                        <span className="font-bold">Prioridade:</span> <span className="uppercase">{job.urgency || 'NORMAL'}</span>
+                    </p>
                 </div>
               </div>
 
@@ -321,7 +381,7 @@ export const PrintOverlay = () => {
                       <thead><tr className="border-b border-gray-400"><th className="py-1 px-1 border border-gray-400 w-[4ch]">Qtd</th><th className="py-1 px-1 border border-gray-400">Descrição</th><th className="py-1 px-1 border border-gray-400 w-24 text-right">Valor Unit.</th><th className="py-1 px-1 border border-gray-400 w-24 text-right">Total</th></tr></thead>
                       <tbody className="divide-y divide-gray-400">
                           {job.items.filter(i => !i.isInternalStep).map((item, idx) => (
-                              <tr key={`item-${idx}`}><td className="py-1 px-1 border border-gray-400 font-bold align-top text-sm text-center">{item.quantity}</td><td className="py-1 px-1 border border-gray-400 align-top font-bold text-[10pt]"><div>{item.nature === 'REPETITION' ? '(R)' : item.nature === 'ADJUSTMENT' ? '(A)' : ''}{formatItemNameWithVariations(item, jobTypes)} {item.selectedTeeth?.length ? ` - Dentes: ${formatTeethRange(item.selectedTeeth)}` : ''}</div></td><td className="py-1 px-1 border border-gray-400 align-top text-right text-gray-700 text-sm">{(item.price || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td><td className="py-1 px-1 border border-gray-400 align-top font-bold text-right text-sm">{((item.price || 0) * item.quantity).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td></tr>
+                              <tr key={`item-${idx}`}><td className="py-1 px-1 border border-gray-400 font-bold align-top text-sm text-center">{item.quantity}</td><td className="py-1 px-1 border border-gray-400 align-top font-normal text-[10pt] text-gray-900"><div>{item.nature === 'REPETITION' ? '(R) ' : item.nature === 'ADJUSTMENT' ? '(A) ' : ''}{formatItemNameWithVariations(item, jobTypes)} {item.selectedTeeth?.length ? ` - Dentes: ${formatTeethRange(item.selectedTeeth)}` : ''}</div></td><td className="py-1 px-1 border border-gray-400 align-top text-right text-gray-700 text-sm">{(item.price || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td><td className="py-1 px-1 border border-gray-400 align-top font-bold text-right text-sm">{((item.price || 0) * item.quantity).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td></tr>
                           ))}
                       </tbody>
                   </table>

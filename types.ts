@@ -721,6 +721,8 @@ export interface JobType {
   promoVariationOptionIds?: string[];
   promoVariationOptionName?: string;
   promoVariationGroupName?: string;
+  ratingAverage?: number;
+  ratingCount?: number;
 }
 
 export interface ClinicService {
@@ -1657,3 +1659,56 @@ export interface BioSettings {
   links: BioLink[];
   updatedAt?: any;
 }
+
+export type NotificationType = 
+  | 'DENTIST_MESSAGE'
+  | 'MANAGER_ALERT'
+  | 'WEB_ORDER'
+  | 'ONLINE_REQUISITION'
+  | 'APPROVAL_REQUEST'
+  | 'APPROVAL_RESOLVED'
+  | 'JOB_STATUS_CHANGE'
+  | 'SYSTEM';
+
+export interface AppNotification {
+  id: string;
+  organizationId: string;
+  userId?: string | null; // specific recipient, or null for broadcast
+  targetSector?: string | null;
+  targetRole?: UserRole[] | null;
+  requiredPermission?: PermissionKey | null;
+  type: NotificationType;
+  title: string;
+  body: string;
+  data?: {
+    jobId?: string;
+    osNumber?: string;
+    requisitionId?: string;
+    orderId?: string;
+    alertId?: string;
+    patientName?: string;
+    dentistName?: string;
+    senderName?: string;
+    url?: string;
+    action?: string;
+    [key: string]: any;
+  };
+  read: boolean;
+  readBy?: string[];
+  createdAt: Date;
+  senderName?: string;
+  senderId?: string;
+  urgency?: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
+}
+
+export interface NotificationPreferences {
+  enabled: boolean;
+  sound: boolean;
+  pushEnabled: boolean;
+  dentistMessages: boolean;
+  managerAlerts: boolean;
+  webOrders: boolean;
+  onlineRequisitions: boolean;
+  jobStatusChanges: boolean;
+}
+

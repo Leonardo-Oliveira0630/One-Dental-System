@@ -811,22 +811,10 @@ export const isLabOrganization = (org: any): boolean => {
         return false;
     }
 
-    // 5. Name indicators: Planning centers, clinical practices, doctors, test clinics
-    const isExplicitLabName = (
-        nameLower.includes('lab') || 
-        nameLower.includes('laboratório') || 
-        nameLower.includes('laboratorio') || 
-        nameLower.includes('prótese') || 
-        nameLower.includes('protese') || 
-        nameLower.includes('protético') || 
-        nameLower.includes('protetico') ||
-        nameLower.includes('dental lab') ||
-        nameLower.includes('protrack')
-    );
-
-    // Specific clinic / planning center / test exclusions
-    if (
+    // 5. Specific clinic / planning center / dentist / doctor exclusions
+    const isClinicalOrPlanningName = (
         nameLower.includes('planejamento') ||
+        nameLower.includes('axioma') ||
         nameLower === 'teste2' ||
         nameLower === 'teste 2' ||
         nameLower === 'test2' ||
@@ -841,27 +829,28 @@ export const isLabOrganization = (org: any): boolean => {
         nameLower.startsWith('consultório') || 
         nameLower.startsWith('consultorio') ||
         nameLower.startsWith('clínica') || 
-        nameLower.startsWith('clinica')
-    ) {
-        if (!isExplicitLabName) return false;
-    }
+        nameLower.startsWith('clinica') ||
+        nameLower.includes('consultório') || 
+        nameLower.includes('consultorio') || 
+        nameLower.includes('clínica') || 
+        nameLower.includes('clinica') || 
+        nameLower.includes('odontologia') || 
+        nameLower.includes('odonto ') || 
+        nameLower.includes('ortodontia') || 
+        nameLower.includes('implantodontia') || 
+        nameLower.includes('periodontia') || 
+        nameLower.includes('endodontia') || 
+        nameLower.includes('harmonização') || 
+        nameLower.includes('harmonizacao')
+    );
 
-    if (
-        (nameLower.includes('consultório') || 
-         nameLower.includes('consultorio') || 
-         nameLower.includes('clínica') || 
-         nameLower.includes('clinica') || 
-         nameLower.includes('odontologia') || 
-         nameLower.includes('odonto ') || 
-         nameLower.includes('ortodontia') || 
-         nameLower.includes('implantodontia') || 
-         nameLower.includes('periodontia') || 
-         nameLower.includes('endodontia') || 
-         nameLower.includes('harmonização') || 
-         nameLower.includes('harmonizacao')) &&
-        !isExplicitLabName
-    ) {
-        return false;
+    if (isClinicalOrPlanningName) {
+        if (orgType !== 'LAB' && orgType !== 'LAB_OUTSOURCED' && org.isLab !== true) {
+            return false;
+        }
+        if (org.isClinic === true || org.isDentist === true || org.cro) {
+            return false;
+        }
     }
 
     // 6. Definite labs by explicit type or flags
@@ -874,12 +863,24 @@ export const isLabOrganization = (org: any): boolean => {
         return true;
     }
 
-    // 8. Fallback for labs with explicit lab naming or store configuration
+    const isExplicitLabName = (
+        nameLower.includes('lab') || 
+        nameLower.includes('laboratório') || 
+        nameLower.includes('laboratorio') || 
+        nameLower.includes('prótese') || 
+        nameLower.includes('protese') || 
+        nameLower.includes('protético') || 
+        nameLower.includes('protetico') ||
+        nameLower.includes('dental lab') ||
+        nameLower.includes('protrack')
+    );
+
+    // 8. Fallback for labs with explicit lab naming
     if (isExplicitLabName) {
         return true;
     }
 
-    if (org.isLabFreeStoreOnly === true || (org.storeSlug && !nameLower.includes('clinica') && !nameLower.includes('consultorio'))) {
+    if (org.isLabFreeStoreOnly === true) {
         return true;
     }
 
@@ -1344,6 +1345,23 @@ export const apiAddLabRating = async (rating: LabRating) => {
         }
     } catch(e) {
         logger.warn({ err: e }, "[apiAddLabRating] Could not update lab avg rating");
+    }
+
+    if (rating.serviceId) {
+        try {
+            const serviceRef = doc(db, `organizations/${rating.labId}/jobTypes`, rating.serviceId);
+            const serviceSnap = await getDoc(serviceRef);
+            if (serviceSnap.exists()) {
+                const serviceData = serviceSnap.data() as JobType;
+                const currentCount = serviceData.ratingCount || 0;
+                const currentAvg = serviceData.ratingAverage || 0;
+                const newCount = currentCount + 1;
+                const newAvg = ((currentAvg * currentCount) + rating.score) / newCount;
+                await updateDoc(serviceRef, { ratingAverage: newAvg, ratingCount: newCount });
+            }
+        } catch(e) {
+            logger.warn({ err: e }, "[apiAddLabRating] Could not update service avg rating");
+        }
     }
 };
 

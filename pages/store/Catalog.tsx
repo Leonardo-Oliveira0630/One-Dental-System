@@ -6,7 +6,7 @@ import {
     Plus, Search, ShoppingBag, BadgePercent, Package, X, Building, Tag, Store, 
     ChevronLeft, ChevronRight, Star, ImageIcon, MessageSquare, 
     LayoutGrid, List, Heart, ExternalLink, Info, Loader2, ChevronDown, Handshake, Shield, Lock, CheckCircle, MapPin, ShoppingCart, Share2, Copy,
-    ClipboardList, Ticket, Clock
+    ClipboardList, Ticket, Clock, Camera, Award, Sparkles
 } from 'lucide-react';
 import { JobType, VariationGroup, CartItem, LabRating, BannerConfig } from '../../types';
 import { useNavigate, useParams, useLocation, Link } from 'react-router-dom';
@@ -328,8 +328,8 @@ const PortfolioSection = ({ portfolio }: { portfolio: any[] }) => {
 
 import { ShopeeStyleReviewsView } from '../../components/ShopeeStyleReviewsView';
 
-const ReviewsSection = ({ labId }: { labId: string }) => {
-    return <ShopeeStyleReviewsView labId={labId} />;
+const ReviewsSection = ({ labId, availableServices }: { labId: string; availableServices?: { id: string; name: string; category?: string }[] }) => {
+    return <ShopeeStyleReviewsView labId={labId} availableServices={availableServices} />;
 };
 
 // Variation Configuration Modal (Component with Partner Checking & Service Reviews Tab)
@@ -606,7 +606,23 @@ const VariationConfigModal = ({ product, selectedLab, localPriceTables, onClose,
 
                 <div className="flex justify-between items-center px-4 py-3.5 sm:px-6 sm:py-4 border-b border-slate-100 dark:border-slate-800 shrink-0">
                     <div className="min-w-0 pr-3">
-                        <h3 className="font-black text-lg sm:text-2xl text-slate-900 dark:text-white tracking-tight truncate">{product.name}</h3>
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="font-black text-lg sm:text-2xl text-slate-900 dark:text-white tracking-tight truncate">{product.name}</h3>
+                            <button
+                                type="button"
+                                onClick={() => setModalTab('REVIEWS')}
+                                className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/70 border border-amber-200 dark:border-amber-800/70 px-2.5 py-0.5 rounded-full hover:bg-amber-100 dark:hover:bg-amber-900/60 transition-colors cursor-pointer"
+                                title="Ver reputação e avaliações deste serviço"
+                            >
+                                <Star size={12} className="fill-amber-400 text-amber-400" />
+                                <span className="font-black text-slate-900 dark:text-white">
+                                    {product.ratingAverage ? product.ratingAverage.toFixed(1) : '5.0'}
+                                </span>
+                                <span className="text-slate-500 dark:text-slate-400 text-[10px]">
+                                    ({product.ratingCount || 0} {product.ratingCount === 1 ? 'avaliação' : 'avaliações'})
+                                </span>
+                            </button>
+                        </div>
                         <div className="flex items-center gap-2 flex-wrap mt-0.5">
                             <span className="text-[10px] sm:text-xs text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest">{t('store.customConfig', 'Configuração Personalizada')}</span>
                             {product.productionTimeDays !== undefined && product.productionTimeDays !== null && Number(product.productionTimeDays) > 0 && (
@@ -784,9 +800,11 @@ export const Catalog = () => {
     const [activeTab, setActiveTab] = useState<'PRODUCTS' | 'PROMOTIONS' | 'PORTFOLIO' | 'REVIEWS' | 'ABOUT'>('PRODUCTS');
     const [localJobTypes, setLocalJobTypes] = useState<JobType[]>([]);
     const [localPriceTables, setLocalPriceTables] = useState<any[]>([]);
+    const [labRatings, setLabRatings] = useState<LabRating[]>([]);
     const [loadingProducts, setLoadingProducts] = useState(false);
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [copiedServiceId, setCopiedServiceId] = useState<string | null>(null);
+    const [configuringProductInitialTab, setConfiguringProductInitialTab] = useState<'CONFIG' | 'REVIEWS'>('CONFIG');
 
     const handleShareProduct = (productId: string) => {
         const slugOrId = selectedLab?.storeSlug || selectedLab?.id;
@@ -843,8 +861,12 @@ export const Catalog = () => {
         if (slug) {
             return fetchedLab || allLaboratories.find(l => l.storeSlug === slug || l.id === slug) || allSuppliers?.find(s => s.storeSlug === slug || s.id === slug) || null;
         }
-        return activeOrganization;
-    }, [slug, fetchedLab, allLaboratories, allSuppliers, activeOrganization]);
+        if (activeOrganization) return activeOrganization;
+        if (currentOrg && (api.isLabOrganization(currentOrg) || currentOrg.orgType === 'LAB' || currentOrg.orgType === 'LAB_OUTSOURCED' || (currentOrg as any).isLab)) {
+            return currentOrg;
+        }
+        return allLaboratories[0] || null;
+    }, [slug, fetchedLab, allLaboratories, allSuppliers, activeOrganization, currentOrg]);
 
     useEffect(() => {
         if (!selectedLab?.id) {
@@ -854,6 +876,10 @@ export const Catalog = () => {
             return;
         }
         setLoadingProducts(true);
+        const unsubRatings = api.subscribeLabRatings(selectedLab.id, (ratings) => {
+            setLabRatings(ratings);
+        });
+
         if (selectedLab.orgType === 'SUPPLIER') {
             const unsub = api.subscribeInventoryItems(selectedLab.id, (items) => {
                 const mapped: JobType[] = items.map(item => ({
@@ -869,7 +895,10 @@ export const Catalog = () => {
                 setLocalJobTypes(mapped);
                 setLoadingProducts(false);
             });
-            return unsub;
+            return () => {
+                unsub();
+                unsubRatings();
+            };
         } else {
             let unsubTypes = api.subscribeJobTypes(selectedLab.id, (types) => {
                 setLocalJobTypes(types);
@@ -881,6 +910,7 @@ export const Catalog = () => {
             return () => {
                 unsubTypes();
                 unsubTables();
+                unsubRatings();
             };
         }
     }, [selectedLab?.id, selectedLab?.orgType]);
@@ -1035,10 +1065,72 @@ export const Catalog = () => {
         return { price: type.basePrice, isCustom: false };
     };
 
+    // Reputation calculation per service type from live reviews & static fields
+    const serviceRatingsMap = useMemo(() => {
+        const map = new Map<string, { scores: number[]; mediaCount: number; tagCounts: Record<string, number> }>();
+        labRatings.forEach(r => {
+            const sId = r.serviceId || 'UNKNOWN';
+            if (!map.has(sId)) {
+                map.set(sId, { scores: [], mediaCount: 0, tagCounts: {} });
+            }
+            const entry = map.get(sId)!;
+            entry.scores.push(Number(r.score) || 5);
+            if ((r.imageUrls?.length || 0) > 0 || (r.videoUrls?.length || 0) > 0) {
+                entry.mediaCount += 1;
+            }
+            (r.tags || []).forEach((t: string) => {
+                entry.tagCounts[t] = (entry.tagCounts[t] || 0) + 1;
+            });
+        });
+
+        const result: Record<string, { avg: number; count: number; countWithMedia: number; topTags: string[] }> = {};
+        map.forEach((data, sId) => {
+            const count = data.scores.length;
+            const avg = count > 0 ? (data.scores.reduce((a, b) => a + b, 0) / count) : 5.0;
+            const topTags = Object.entries(data.tagCounts)
+                .sort((a, b) => b[1] - a[1])
+                .map(([tag]) => tag)
+                .slice(0, 2);
+            result[sId] = { avg, count, countWithMedia: data.mediaCount, topTags };
+        });
+        return result;
+    }, [labRatings]);
+
+    const getServiceReputation = (product: JobType) => {
+        const fromMap = serviceRatingsMap[product.id];
+        if (fromMap && fromMap.count > 0) {
+            return fromMap;
+        }
+        if (product.ratingCount && product.ratingCount > 0) {
+            return {
+                avg: product.ratingAverage || 5.0,
+                count: product.ratingCount,
+                countWithMedia: 0,
+                topTags: []
+            };
+        }
+        return {
+            avg: 5.0,
+            count: 0,
+            countWithMedia: 0,
+            topTags: []
+        };
+    };
+
     const handleConfigureProduct = (product: JobType) => {
         if (isGuest) {
             setShowAuthModal(true);
         } else {
+            setConfiguringProductInitialTab('CONFIG');
+            setConfiguringProduct(product);
+        }
+    };
+
+    const handleOpenProductReviews = (product: JobType) => {
+        if (isGuest) {
+            setShowAuthModal(true);
+        } else {
+            setConfiguringProductInitialTab('REVIEWS');
             setConfiguringProduct(product);
         }
     };
@@ -1142,7 +1234,7 @@ export const Catalog = () => {
                     </div>
                 ) : (
                     <div className="flex-1 p-3 sm:p-6 md:p-8 space-y-6 sm:space-y-8 pb-20 animate-in fade-in duration-500 overflow-y-auto">
-                {configuringProduct && <VariationConfigModal product={configuringProduct} selectedLab={selectedLab} localPriceTables={localPriceTables} onClose={() => setConfiguringProduct(null)} />}
+                {configuringProduct && <VariationConfigModal product={configuringProduct} selectedLab={selectedLab} localPriceTables={localPriceTables} initialTab={configuringProductInitialTab} onClose={() => setConfiguringProduct(null)} />}
             
             {showAuthModal && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md p-3 sm:p-4 animate-in fade-in duration-300">
@@ -1356,6 +1448,7 @@ export const Catalog = () => {
                             <div className={storeSettings.layoutType === 'LIST' ? 'space-y-4' : 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8'}>
                                 {products.map(product => {
                                     const { price, isCustom } = getPrice(product);
+                                    const rep = getServiceReputation(product);
                                     if (storeSettings.layoutType === 'LIST') {
                                         return (
                                             <div key={product.id} className="bg-white dark:bg-[#131B2A] p-4 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm flex items-center justify-between group hover:shadow-md dark:hover:border-slate-700 transition-all">
@@ -1372,20 +1465,37 @@ export const Catalog = () => {
                                                                     {product.productionTimeDays} {product.productionTimeDays === 1 ? t('store.businessDay', 'dia útil') : t('store.businessDays', 'dias úteis')}
                                                                 </span>
                                                             )}
+                                                            {/* Service Reputation Badge */}
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => { e.stopPropagation(); handleOpenProductReviews(product); }}
+                                                                className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 border border-amber-200/80 dark:border-amber-800/80 px-2 py-0.5 rounded-full hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors cursor-pointer"
+                                                                title="Ver avaliações deste serviço"
+                                                            >
+                                                                <Star size={10} className="fill-amber-400 text-amber-400" />
+                                                                <span>{rep.count > 0 ? rep.avg.toFixed(1) : '5.0'}</span>
+                                                                <span className="text-slate-400 dark:text-slate-500 font-normal">({rep.count})</span>
+                                                                {rep.countWithMedia > 0 && (
+                                                                    <span className="inline-flex items-center gap-0.5 text-blue-600 dark:text-blue-400 font-semibold ml-0.5">
+                                                                        <Camera size={9} />
+                                                                        <span>{rep.countWithMedia}</span>
+                                                                    </span>
+                                                                )}
+                                                            </button>
                                                         </div>
-                                                        <h3 className="font-bold text-slate-800 dark:text-white text-lg leading-tight">{product.name}</h3>
+                                                        <h3 className="font-bold text-slate-800 dark:text-white text-lg leading-tight mt-0.5">{product.name}</h3>
                                                         <div className="flex items-center gap-4 mt-1">
-                                                             <span className="text-xs font-bold text-slate-400 dark:text-slate-400">{t('store.startingFrom', 'A partir de')}</span>
-                                                             {isPriceVisible ? (
-                                                                 <>
+                                                            <span className="text-xs font-bold text-slate-400 dark:text-slate-400">{t('store.startingFrom', 'A partir de')}</span>
+                                                            {isPriceVisible ? (
+                                                                <>
                                                                     <span className={`font-black ${isCustom ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-400'}`}>R$ {price.toFixed(2)}</span>
                                                                     {isCustom && <span className="bg-green-50 dark:bg-green-950/60 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-800 text-[8px] font-black px-2 py-0.5 rounded tracking-widest">{t('store.exclusive', 'EXCLUSIVO')}</span>}
-                                                                 </>
-                                                             ) : (
-                                                                 <button onClick={(e) => { e.stopPropagation(); navigate(`/login?redirect=${encodeURIComponent(location.pathname + location.search)}`); }} className="flex items-center gap-1.5 text-xs font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 px-2.5 py-0.5 border border-amber-100/50 dark:border-amber-800/50 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors cursor-pointer">
+                                                                </>
+                                                            ) : (
+                                                                <button onClick={(e) => { e.stopPropagation(); navigate(`/login?redirect=${encodeURIComponent(location.pathname + location.search)}`); }} className="flex items-center gap-1.5 text-xs font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 px-2.5 py-0.5 border border-amber-100/50 dark:border-amber-800/50 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors cursor-pointer">
                                                                     <Lock size={12} /> {t('store.loginToSeePrices', 'Faça login para ver valores')}
-                                                                 </button>
-                                                             )}
+                                                                </button>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -1417,21 +1527,55 @@ export const Catalog = () => {
                                                     <Package size={80} className="relative z-10 text-slate-300 dark:text-slate-600 group-hover:text-blue-400 dark:group-hover:text-blue-400 transition-colors duration-300" />
                                                 )}
                                                 {isCustom && (<div className="absolute top-4 right-4 bg-green-500 text-white text-[10px] font-black px-3 py-1 rounded-full flex items-center gap-1 shadow-xl z-20"><BadgePercent size={12} /> {t('store.specialPrice', 'SPECIAL PRICE')}</div>)}
-                                                <div className="absolute bottom-4 left-4 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md px-4 py-1.5 rounded-full text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-widest z-20 border border-slate-200/80 dark:border-slate-700/80 shadow-xs">{product.category}</div>
+                                                
+                                                {/* Top left category badge */}
+                                                <div className="absolute bottom-4 left-4 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md px-3.5 py-1.5 rounded-full text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-widest z-20 border border-slate-200/80 dark:border-slate-700/80 shadow-xs">
+                                                    {product.category}
+                                                </div>
+
+                                                {/* Reputation Tag overlay top-left */}
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => { e.stopPropagation(); handleOpenProductReviews(product); }}
+                                                    className="absolute top-4 left-4 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md px-3 py-1.5 rounded-full text-[11px] font-black text-slate-900 dark:text-white z-20 border border-amber-200/80 dark:border-amber-800/80 shadow-sm flex items-center gap-1.5 hover:scale-105 transition-transform cursor-pointer"
+                                                    title="Ver reputação e avaliações deste serviço"
+                                                >
+                                                    <Star size={13} className="fill-amber-400 text-amber-400" />
+                                                    <span>{rep.count > 0 ? rep.avg.toFixed(1) : '5.0'}</span>
+                                                    <span className="text-slate-400 dark:text-slate-500 text-[10px] font-normal">({rep.count})</span>
+                                                    {rep.countWithMedia > 0 && (
+                                                        <span className="inline-flex items-center text-blue-600 dark:text-blue-400 font-bold ml-0.5">
+                                                            <Camera size={11} />
+                                                        </span>
+                                                    )}
+                                                </button>
+
                                                 <div className="absolute inset-0 bg-blue-900/0 group-hover:bg-blue-900/10 dark:group-hover:bg-blue-500/10 transition-colors duration-300 pointer-events-none" />
                                             </div>
                                             <div className="p-4 sm:p-8 flex flex-col flex-1">
-                                                <div className="mb-6 flex-1 text-center md:text-left">
+                                                <div className="mb-4 flex-1 text-center md:text-left">
                                                     <h3 className="font-black text-slate-900 dark:text-white text-xl tracking-tight leading-tight group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{product.name}</h3>
+                                                    
+                                                    {/* Top Praised Tags / Badges */}
+                                                    {rep.topTags.length > 0 && (
+                                                        <div className="flex items-center gap-1.5 flex-wrap mt-2 justify-center md:justify-start">
+                                                            {rep.topTags.map(tag => (
+                                                                <span key={tag} className="text-[10px] font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md border border-slate-200/60 dark:border-slate-700/60">
+                                                                    ✓ {tag}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    )}
+
                                                     {product.productionTimeDays !== undefined && product.productionTimeDays !== null && Number(product.productionTimeDays) > 0 && (
-                                                        <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 mt-2 bg-slate-50 dark:bg-slate-800/60 px-2.5 py-1 rounded-xl border border-slate-200/60 dark:border-slate-700/60 w-fit mx-auto md:mx-0">
+                                                        <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 mt-2.5 bg-slate-50 dark:bg-slate-800/60 px-2.5 py-1 rounded-xl border border-slate-200/60 dark:border-slate-700/60 w-fit mx-auto md:mx-0">
                                                             <Clock size={12} className="text-blue-600 dark:text-blue-400 shrink-0" />
                                                             <span>Prazo: <strong className="text-slate-900 dark:text-white font-bold">{product.productionTimeDays} {product.productionTimeDays === 1 ? t('store.businessDay', 'dia útil') : t('store.businessDays', 'dias úteis')}</strong></span>
                                                         </div>
                                                     )}
                                                 </div>
-                                                <div className="pt-6 border-t border-slate-100 dark:border-slate-800/80">
-                                                    <div className="flex justify-between items-end mb-6">
+                                                <div className="pt-4 border-t border-slate-100 dark:border-slate-800/80">
+                                                    <div className="flex justify-between items-end">
                                                         <div className="flex flex-col">
                                                             <span className="text-[10px] text-slate-400 dark:text-slate-400 font-black uppercase tracking-widest mb-1">{isCustom ? t('store.yourOffer', 'Sua Oferta') : t('store.investment', 'Investimento')}</span>
                                                             <div className="flex items-baseline gap-2">
@@ -1573,7 +1717,10 @@ export const Catalog = () => {
 
                 {activeTab === 'REVIEWS' && (
                     <motion.div key="reviews" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
-                        <ReviewsSection labId={selectedLab.id} />
+                        <ReviewsSection 
+                            labId={selectedLab.id} 
+                            availableServices={localJobTypes.map(p => ({ id: p.id, name: p.name, category: p.category }))}
+                        />
                     </motion.div>
                 )}
 

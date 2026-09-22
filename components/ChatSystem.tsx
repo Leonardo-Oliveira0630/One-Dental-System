@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { ChatMessage, Job, UserRole, Attachment } from '../types';
 import * as api from '../services/firebaseService';
+import { apiCreateNotification } from '../services/notificationService';
 import { smartCompress } from '../services/compressionService';
 import { 
   Send, Paperclip, X, Loader2, Edit3, Trash2, 
@@ -94,6 +95,45 @@ export const ChatSystem: React.FC<ChatSystemProps> = ({ job, orgId }) => {
                 createdAt: new Date()
             };
             await api.apiSendChatMessage(orgId, job.id, newMsg);
+
+            // Disparar notificação respeitando permissões
+            const isSenderDentist = currentUser.role === UserRole.CLIENT;
+            if (isSenderDentist) {
+                // Notificar equipe do laboratório que possui permissão de visualizar ordens de serviço ('jobs:view')
+                apiCreateNotification({
+                    organizationId: orgId,
+                    requiredPermission: 'jobs:view',
+                    type: 'DENTIST_MESSAGE',
+                    title: `💬 Mensagem do Dr(a). ${currentUser.name}`,
+                    body: inputText ? `${job.patientName ? `[${job.patientName}] ` : ''}${inputText}` : `Novo anexo enviado no caso do paciente ${job.patientName || ''}`,
+                    urgency: 'NORMAL',
+                    senderName: currentUser.name,
+                    senderId: currentUser.id,
+                    data: {
+                        jobId: job.id,
+                        patientName: job.patientName,
+                        url: `/jobs?jobId=${job.id}`
+                    }
+                }).catch(() => {});
+            } else if (job.dentistId || (job as any).clientId) {
+                const targetDentistId = job.dentistId || (job as any).clientId;
+                // Notificar o dentista responsável pelo caso
+                apiCreateNotification({
+                    organizationId: orgId,
+                    userId: targetDentistId,
+                    type: 'DENTIST_MESSAGE',
+                    title: `💬 Mensagem do Laboratório no caso ${job.patientName || ''}`,
+                    body: inputText ? inputText : 'Novo anexo compartilhado no seu caso.',
+                    urgency: 'NORMAL',
+                    senderName: currentUser.name,
+                    senderId: currentUser.id,
+                    data: {
+                        jobId: job.id,
+                        patientName: job.patientName,
+                        url: `/jobs?jobId=${job.id}`
+                    }
+                }).catch(() => {});
+            }
         }
 
         setInputText('');
