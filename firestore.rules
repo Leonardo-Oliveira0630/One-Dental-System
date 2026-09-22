@@ -72,6 +72,10 @@ service cloud.firestore {
         isSuperAdmin() || 
         (userExists() && getUserData().get('organizationId', '') == resource.data.get('organizationId', '') && (isAdmin() || hasPermission('users:manage')))
       );
+
+      match /notifications/{notifId} {
+        allow read, write, delete: if isAuthenticated() && (request.auth.uid == userId || isSuperAdmin());
+      }
     }
     
     match /verificationCodes/{userId} {

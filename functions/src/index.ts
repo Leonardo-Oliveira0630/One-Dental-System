@@ -1976,14 +1976,14 @@ export const onboardFrenetMerchant = onCall({ cors: true }, async (request: any)
   const cleanPhone = rawPhone.length > 11 ? rawPhone.slice(-11) : rawPhone;
 
   // 6. Monta o payload conforme a especificação da API de Parceiros Frenet
-  const frenetRegisterPayload = {
+  const frenetRegisterPayload: any = {
     Name: name,
     Email: email,
     FederalDocument: rawCpfCnpj,
     Person: isLegalEntity ? "J" : "F",
     Type: 1,
     CompanyName: name,
-    StateDocument: orgData.stateRegistration || orgData.croNumero || "ISENTO",
+    StateDocument: isLegalEntity ? (orgData.stateRegistration || "ISENTO") : "",
     UrlSite: `https://labprox.com.br/loja/${orgData.storeSlug || orgId}`,
     ZipCode: rawCep,
     City: city,
@@ -2003,8 +2003,7 @@ export const onboardFrenetMerchant = onCall({ cors: true }, async (request: any)
 
   const partnerEndpoints = [
     "https://register.apifrenet.com.br/v1/partner/register",
-    "https://api.frenet.com.br/v1/partner/register",
-    "https://api.frenet.com.br/partner/customer"
+    "https://api.frenet.com.br/v1/partner/register"
   ];
 
   for (const endpoint of partnerEndpoints) {
@@ -2014,6 +2013,7 @@ export const onboardFrenetMerchant = onCall({ cors: true }, async (request: any)
         headers: {
           "token": partnerToken,
           "partner_token": partnerToken,
+          "Authorization": `Bearer ${partnerToken}`,
           "Content-Type": "application/json",
           "Accept": "application/json"
         },
@@ -2036,9 +2036,14 @@ export const onboardFrenetMerchant = onCall({ cors: true }, async (request: any)
     } catch (apiErr: any) {
       const status = apiErr.response?.status;
       const errData = apiErr.response?.data;
-      const msg = errData?.Message || errData?.message || errData?.error || apiErr.message;
+      let msg = errData?.Message || errData?.message || errData?.error || errData?.error_description || apiErr.message;
+      if (errData?.Errors && Array.isArray(errData.Errors)) {
+        msg = errData.Errors.join(", ");
+      }
       logger.warn(`[Frenet Partner Onboarding] Erro em ${endpoint} (${status}):`, errData || msg);
-      lastErrorMsg = typeof msg === "string" ? msg : JSON.stringify(msg);
+      if (status !== 404 || !lastErrorMsg) {
+        lastErrorMsg = typeof msg === "string" ? msg : JSON.stringify(msg);
+      }
 
       if (errData?.Token || errData?.token) {
         customerToken = errData.Token || errData.token;

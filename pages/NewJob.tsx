@@ -782,6 +782,10 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
         commissionDisabled: commissionDisabled, selectedTeeth: itemSelectedTeeth && itemSelectedTeeth.length > 0 ? itemSelectedTeeth : (manualTeethText.trim() ? [manualTeethText.trim()] : undefined), color: itemColor || undefined 
     };
     setAddedItems([...addedItems, newItem]);
+    setSelectedTypeId('');
+    setJobTypeSearchQuery('');
+    setIsSearchingJobType(false);
+    setShowJobTypeSuggestions(false);
     setQuantity(1); setItemColor(''); setSelectedVariations({}); setVariationTextValues({}); setItemSelectedTeeth([]); setManualTeethText(''); setCommissionDisabled(false); setManualPrice(null); setDiscountValue(0); setItemNature('NORMAL'); setIsInternalStep(false);
   };
 
@@ -1261,19 +1265,22 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                                                 setIsSearchingJobType(true);
                                             }}
                                             placeholder="Buscar tipo de prótese..."
-                                            className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-sm"
+                                            className="w-full pl-10 pr-12 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-sm text-slate-800"
                                         />
-                                        {selectedTypeId && (
+                                        {(selectedTypeId || jobTypeSearchQuery || isSearchingJobType) && (
                                             <button 
                                                 type="button"
-                                                onClick={() => {
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
                                                     setSelectedTypeId('');
                                                     setJobTypeSearchQuery('');
                                                     setIsSearchingJobType(false);
+                                                    setShowJobTypeSuggestions(false);
                                                 }}
-                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                                                className="absolute right-2.5 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center rounded-full bg-slate-100 hover:bg-red-50 text-slate-500 hover:text-red-600 transition-all border border-slate-200 shadow-xs z-10"
+                                                title="Limpar campo"
                                             >
-                                                <X size={14} />
+                                                <X size={15} className="stroke-[2.5]" />
                                             </button>
                                         )}
                                     </div>

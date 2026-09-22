@@ -66,6 +66,10 @@ export const FrenetConfigCard: React.FC<FrenetConfigCardProps> = ({
   const [activationError, setActivationError] = useState<string | null>(null);
   const [activationSuccess, setActivationSuccess] = useState(false);
 
+  const [showManualToken, setShowManualToken] = useState(false);
+  const [manualToken, setManualToken] = useState(organization.frenetToken || organization.logistics?.frenetCustomerToken || '');
+  const [isSavingManualToken, setIsSavingManualToken] = useState(false);
+
   const [isSavingOptions, setIsSavingOptions] = useState(false);
   const [optionsSaveSuccess, setOptionsSaveSuccess] = useState(false);
 
@@ -205,6 +209,43 @@ export const FrenetConfigCard: React.FC<FrenetConfigCardProps> = ({
       setLogisticsStatus('error');
     } finally {
       setIsActivating(false);
+    }
+  };
+
+  const handleSaveManualToken = async () => {
+    if (!manualToken.trim()) {
+      alert('Informe um Token Frenet válido.');
+      return;
+    }
+    if (!originCep || cleanCep(originCep).length !== 8) {
+      alert('Informe o CEP de Origem da expedição.');
+      return;
+    }
+
+    setIsSavingManualToken(true);
+    try {
+      await onSave({
+        frenetToken: manualToken.trim(),
+        frenetOriginCep: cleanCep(originCep),
+        frenetEnabled: true,
+        logistics: {
+          provider: 'frenet',
+          enabled: true,
+          status: 'active',
+          frenetCustomerToken: manualToken.trim(),
+          originCep: cleanCep(originCep),
+          isPartnerManaged: false,
+          updatedAt: new Date()
+        }
+      });
+      setLogisticsStatus('active');
+      setShowManualToken(false);
+      alert('Token Frenet vinculado com sucesso!');
+    } catch (err: any) {
+      console.error(err);
+      alert('Erro ao salvar token Frenet: ' + (err.message || err));
+    } finally {
+      setIsSavingManualToken(false);
     }
   };
 
@@ -408,7 +449,44 @@ export const FrenetConfigCard: React.FC<FrenetConfigCardProps> = ({
               <FileText size={15} />
               <span>Verificar / Editar Dados Cadastrais</span>
             </button>
+
+            <button
+              type="button"
+              onClick={() => setShowManualToken(!showManualToken)}
+              className="px-4 py-3 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 font-bold text-xs rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer"
+            >
+              <span>{showManualToken ? 'Ocultar Token Manual' : 'Já possui Token Frenet?'}</span>
+            </button>
           </div>
+
+          {showManualToken && (
+            <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl space-y-3 mt-3 animate-in fade-in duration-150">
+              <h5 className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                Inserir Token Frenet Manualmente
+              </h5>
+              <p className="text-[11px] text-slate-500">
+                Caso sua empresa já possua conta na Frenet, cole aqui o Token de Acesso gerado no painel Frenet (Dados Cadastrais).
+              </p>
+              <div className="flex flex-col sm:flex-row items-center gap-2">
+                <input
+                  type="password"
+                  placeholder="Cole seu Token Frenet aqui..."
+                  value={manualToken}
+                  onChange={e => setManualToken(e.target.value)}
+                  className="w-full sm:flex-1 px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono text-slate-800 dark:text-slate-200"
+                />
+                <button
+                  type="button"
+                  disabled={isSavingManualToken || !manualToken.trim()}
+                  onClick={handleSaveManualToken}
+                  className="w-full sm:w-auto px-4 py-2 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white font-bold text-xs rounded-xl transition-colors shrink-0 cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  {isSavingManualToken ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+                  <span>Salvar Token</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         /* Painel Conectado com Sucesso */

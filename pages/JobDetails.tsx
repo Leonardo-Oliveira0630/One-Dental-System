@@ -2814,12 +2814,20 @@ export const JobDetails = () => {
                         </button>
                     )}
                 </div>
-                <h1 className="text-xl md:text-2xl font-black text-slate-800 leading-tight uppercase truncate">{job.patientName}</h1>
-                <div className="flex flex-wrap items-center gap-2 text-slate-500 mt-1 font-bold text-xs uppercase">
-                    <span className="flex items-center gap-1 truncate"><User size={14} className="text-blue-500 shrink-0" /> {job.dentistName}</span>
+                <div className="flex flex-wrap items-center gap-2 text-slate-900 leading-tight">
+                    <h1 className="text-xl md:text-2xl font-black uppercase truncate flex items-center gap-2 text-slate-800">
+                        <User size={20} className="text-blue-600 shrink-0" />
+                        {job.dentistName}
+                    </h1>
                     {job.subDentistName && (
-                        <span className="flex items-center gap-1 border-l border-slate-300 pl-2 truncate"><Stethoscope size={14} className="text-indigo-500 shrink-0" /> Dr(a). {job.subDentistName}</span>
+                        <span className="flex items-center gap-1 text-xs md:text-sm font-bold text-slate-500 border-l border-slate-300 pl-2 truncate">
+                            <Stethoscope size={14} className="text-indigo-500 shrink-0" /> Dr(a). {job.subDentistName}
+                        </span>
                     )}
+                </div>
+                <div className="flex items-center gap-1.5 mt-1 font-bold text-base md:text-lg uppercase text-slate-600 truncate">
+                    <span className="text-[11px] font-black uppercase text-slate-400 tracking-wider">Paciente:</span>
+                    <span className="text-slate-700 font-extrabold truncate">{job.patientName}</span>
                 </div>
             </div>
             

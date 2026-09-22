@@ -54,6 +54,7 @@ async function run() {
 
       console.log(`📍 Destino: ${flags.orgId ? `Organização ID [${flags.orgId}]` : 'Configuração Global do Sistema (settings/global)'}`);
       console.log('--------------------------------------------------------');
+      console.log(`🤝 Partner Token:      ${maskKey(data.frenetPartnerToken || data.frenet_partner_token || data.frenetPartnerKey)}`);
       console.log(`🔑 Token Frenet:       ${maskKey(data.frenetToken || data.frenet_token)}`);
       console.log(`📫 CEP de Origem:      ${data.frenetOriginCep || data.frenetCep || data.cep || '(não configurado)'}`);
       console.log(`👤 Usuário/Login:      ${data.frenetUser || '(não configurado)'}`);
@@ -67,26 +68,28 @@ async function run() {
   }
 
   // Se nenhum argumento for passado, exibe instrução de uso
+  const partnerToken = flags.partnerToken || flags.partner_token || flags.partnerKey;
   const token = flags.token || flags.key || flags.t;
   const cep = flags.cep || flags.originCep || flags.origin_cep;
   const password = flags.password || flags.senha || flags.p;
   const user = flags.user || flags.usuario || flags.u;
   const orgId = flags.orgId || flags.org;
 
-  if (!token && !cep && !password && !user && !flags.clear) {
+  if (!partnerToken && !token && !cep && !password && !user && !flags.clear) {
     console.log('ℹ️  COMO USAR:');
+    console.log('   node set-frenet-keys.mjs --partnerToken "SEU_PARTNER_TOKEN"');
     console.log('   node set-frenet-keys.mjs --token "SEU_TOKEN_FRENET" --cep "01001000"');
-    console.log('   node set-frenet-keys.mjs --token "TOKEN" --cep "01001000" --password "SENHA" --user "EMAIL"');
     console.log('   node set-frenet-keys.mjs --show                 (Para ver as chaves atuais)');
     console.log('   node set-frenet-keys.mjs --orgId "ID_DA_ORG" --token "TOKEN" (Para salvar em um Lab/Fornecedor específico)\n');
     console.log('💡 PARÂMETROS DISPONÍVEIS:');
-    console.log('   --token <string>    : Token de Acesso da Frenet gerado no painel da Frenet');
-    console.log('   --cep <string>      : CEP padrão do remetente (apenas números ou formatado)');
-    console.log('   --password <string> : Senha / Chave secreta da API Frenet (opcional)');
-    console.log('   --user <string>     : Usuário / Email Frenet (opcional)');
-    console.log('   --orgId <string>    : ID da organização (se omitido, salva nas configurações globais do backend)');
-    console.log('   --show              : Exibe o status atual das chaves no backend (com máscara de segurança)');
-    console.log('   --clear             : Remove as chaves do backend\n');
+    console.log('   --partnerToken <string> : Partner Token (Token Mestre de Parceiro Frenet do Labprox)');
+    console.log('   --token <string>        : Token de Acesso padrão da Frenet');
+    console.log('   --cep <string>          : CEP padrão do remetente (apenas números ou formatado)');
+    console.log('   --password <string>     : Senha / Chave secreta da API Frenet (opcional)');
+    console.log('   --user <string>         : Usuário / Email Frenet (opcional)');
+    console.log('   --orgId <string>        : ID da organização (se omitido, salva nas configurações globais do backend)');
+    console.log('   --show                  : Exibe o status atual das chaves no backend (com máscara de segurança)');
+    console.log('   --clear                 : Remove as chaves do backend\n');
     process.exit(0);
   }
 
@@ -95,6 +98,7 @@ async function run() {
     
     if (flags.clear) {
       const clearData = {
+        frenetPartnerToken: '',
         frenetToken: '',
         frenetOriginCep: '',
         frenetPassword: '',
@@ -110,6 +114,7 @@ async function run() {
       updatedAt: new Date()
     };
 
+    if (partnerToken) payloadToSave.frenetPartnerToken = String(partnerToken).trim();
     if (token) payloadToSave.frenetToken = String(token).trim();
     if (cep) payloadToSave.frenetOriginCep = String(cep).replace(/\D/g, '').trim();
     if (password) payloadToSave.frenetPassword = String(password).trim();
@@ -120,10 +125,11 @@ async function run() {
     console.log('✅ CHAVES SALVAS COM SUCESSO NO BACKEND!');
     console.log('--------------------------------------------------------');
     console.log(`📍 Armazenado em:       ${orgId ? `organizations/${orgId}` : 'settings/global (Backend Cloud)'}`);
-    if (token) console.log(`🔑 Token Frenet:         ${maskKey(payloadToSave.frenetToken)}`);
-    if (cep)   console.log(`📫 CEP de Origem:        ${payloadToSave.frenetOriginCep}`);
-    if (user)  console.log(`👤 Usuário:              ${payloadToSave.frenetUser}`);
-    if (password) console.log(`🔒 Senha:                ********`);
+    if (partnerToken) console.log(`🤝 Partner Token:        ${maskKey(payloadToSave.frenetPartnerToken)}`);
+    if (token)        console.log(`🔑 Token Frenet:         ${maskKey(payloadToSave.frenetToken)}`);
+    if (cep)          console.log(`📫 CEP de Origem:        ${payloadToSave.frenetOriginCep}`);
+    if (user)         console.log(`👤 Usuário:              ${payloadToSave.frenetUser}`);
+    if (password)     console.log(`🔒 Senha:                ********`);
     console.log('--------------------------------------------------------');
     console.log('🚀 As Cloud Functions e rotas de cálculo de frete já estão');
     console.log('   utilizando estas credenciais de forma 100% segura!\n');
