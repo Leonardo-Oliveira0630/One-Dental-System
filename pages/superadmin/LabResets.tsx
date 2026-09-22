@@ -110,9 +110,15 @@ export const LabResets = () => {
             }
 
             if (selections.receipts) {
-                const q = collection(db, `organizations/${org.id}/dentistPayments`);
-                const count = await deleteDocsInQuery(q);
-                results.push(`${count} Recibos`);
+                // Deleta recibos criados na coleção global 'receipts'
+                const receiptsQuery = query(collection(db, 'receipts'), where('organizationId', '==', org.id));
+                const receiptsCount = await deleteDocsInQuery(receiptsQuery);
+
+                // Deleta pagamentos/recibos na subcoleção 'dentistPayments'
+                const paymentsQuery = collection(db, `organizations/${org.id}/dentistPayments`);
+                const paymentsCount = await deleteDocsInQuery(paymentsQuery);
+
+                results.push(`${receiptsCount + paymentsCount} Recibos e Pagamentos`);
             }
 
             if (selections.billing) {
