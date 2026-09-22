@@ -576,11 +576,27 @@ export const Inventory = () => {
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
                     <input 
                         type="text" 
-                        placeholder={t("inventory.searchPlaceholder", "Buscar...")}
+                        placeholder={
+                            activeTab === 'ITEMS' && activeOwnerGroup 
+                                ? t("inventory.searchItemsPlaceholder", "Buscar por nome do item ou código SKU...") 
+                                : activeTab === 'ITEMS' && !activeOwnerGroup
+                                ? t("inventory.searchStocksPlaceholder", "Buscar estoque por nome do dentista/laboratório ou itens...")
+                                : t("inventory.searchPlaceholder", "Buscar...")
+                        }
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-12 pr-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                        className="w-full pl-12 pr-10 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white shadow-sm"
                     />
+                    {searchQuery && (
+                        <button 
+                            type="button" 
+                            onClick={() => setSearchQuery('')}
+                            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100 transition-colors"
+                            title={t("common.clear", "Limpar")}
+                        >
+                            <X size={16} />
+                        </button>
+                    )}
                 </div>
                 <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 sm:gap-4 w-full xl:w-auto">
                     {(activeTab === 'ITEMS' || activeTab === 'CATALOG') && canCreate && (

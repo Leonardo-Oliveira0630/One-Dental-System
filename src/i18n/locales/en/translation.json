@@ -1459,6 +1459,8 @@
     "tabCategories": "CATEGORIES",
     "tabCatalog": "PRODUCT CATALOG",
     "searchPlaceholder": "Search...",
+    "searchItemsPlaceholder": "Search by item name or SKU code...",
+    "searchStocksPlaceholder": "Search stock by dentist/lab name or items...",
     "smartImport": "Smart Import",
     "createStock": "Create Stock",
     "newProduct": "New Product",

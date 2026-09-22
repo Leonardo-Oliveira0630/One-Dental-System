@@ -1974,26 +1974,29 @@ export const onboardFrenetMerchant = onCall({ cors: true }, async (request: any)
 
   const isLegalEntity = rawCpfCnpj.length === 14;
   const cleanPhone = rawPhone.length > 11 ? rawPhone.slice(-11) : rawPhone;
+  const numPhone = parseInt(cleanPhone, 10) || 0;
+  const numCep = parseInt(rawCep, 10) || 0;
 
-  // 6. Monta o payload conforme a especificação da API de Parceiros Frenet
+  // 6. Monta o payload estritamente conforme a especificação OpenAPI da API Frenet (/partner/register)
   const frenetRegisterPayload: any = {
     Name: name,
     Email: email,
     FederalDocument: rawCpfCnpj,
-    Person: isLegalEntity ? "J" : "F",
     Type: 1,
+    Person: isLegalEntity ? "J" : "F",
     CompanyName: name,
-    StateDocument: isLegalEntity ? (orgData.stateRegistration || "ISENTO") : "",
+    StateDocument: isLegalEntity ? (orgData.stateRegistration || "ISENTO") : undefined,
     UrlSite: `https://labprox.com.br/loja/${orgData.storeSlug || orgId}`,
-    ZipCode: rawCep,
+    ZipCode: numCep,
     City: city,
     State: state,
-    Address: address,
-    Number: number,
-    Complement: complement || "",
-    District: neighborhood,
-    Phone: cleanPhone,
-    SendEmail: true
+    Street: address,
+    AddressNumber: String(number),
+    AddressComplement: complement || "",
+    Neighborhood: neighborhood,
+    PhoneNumber: numPhone,
+    SendEmail: true,
+    SendEmailConfirmation: false
   };
 
   let customerToken = "";
@@ -2003,14 +2006,17 @@ export const onboardFrenetMerchant = onCall({ cors: true }, async (request: any)
 
   const partnerEndpoints = [
     "https://register.apifrenet.com.br/v1/partner/register",
-    "https://api.frenet.com.br/v1/partner/register"
+    "http://api.frenet.com.br/v1/partner/register"
   ];
 
   for (const endpoint of partnerEndpoints) {
     try {
-      logger.info(`[Frenet Partner Onboarding] Chamando ${endpoint} para a loja ${orgId}...`);
+      logger.info(`[Frenet Partner Onboarding] Chamando ${endpoint} para a loja ${orgId}...`, {
+        payload: { ...frenetRegisterPayload, FederalDocument: '***' }
+      });
       const res = await axios.post(endpoint, frenetRegisterPayload, {
         headers: {
+          "x-partner-token": partnerToken,
           "token": partnerToken,
           "partner_token": partnerToken,
           "Authorization": `Bearer ${partnerToken}`,
@@ -2023,25 +2029,33 @@ export const onboardFrenetMerchant = onCall({ cors: true }, async (request: any)
       const resData = res.data || {};
       logger.info("[Frenet Partner Onboarding] Resposta Frenet:", {
         status: res.status,
-        hasToken: Boolean(resData.Token || resData.token || resData.UserToken || resData.access_token)
+        hasToken: Boolean(resData.Token || resData.token),
+        success: resData.Success,
+        message: resData.Message
       });
 
-      customerToken = resData.Token || resData.token || resData.UserToken || resData.access_token || resData.data?.token || "";
-      customerId = resData.Id || resData.id || resData.CustomerId || resData.UserId || resData.data?.id || "";
-      frenetUser = resData.User || resData.user || resData.Email || email;
+      customerToken = resData.Token || resData.token || resData.UserToken || resData.access_token || "";
+      customerId = resData.LoginInstantAccessToken || resData.Id || resData.id || "";
+      frenetUser = email;
 
       if (customerToken) {
         break;
+      } else if (resData.Success === false && resData.Message) {
+        lastErrorMsg = resData.Message;
       }
     } catch (apiErr: any) {
       const status = apiErr.response?.status;
       const errData = apiErr.response?.data;
       let msg = errData?.Message || errData?.message || errData?.error || errData?.error_description || apiErr.message;
-      if (errData?.Errors && Array.isArray(errData.Errors)) {
+      if (errData?.Fields && Array.isArray(errData.Fields)) {
+        msg = `Campos obrigatórios ou com formato inválido: ${errData.Fields.join(", ")}${msg ? ` - ${msg}` : ''}`;
+      } else if (errData?.Errors && Array.isArray(errData.Errors)) {
         msg = errData.Errors.join(", ");
       }
       logger.warn(`[Frenet Partner Onboarding] Erro em ${endpoint} (${status}):`, errData || msg);
-      if (status !== 404 || !lastErrorMsg) {
+      if (status === 404) {
+        lastErrorMsg = "A API de parceiro da Frenet retornou 404. Isso ocorre quando o Token de Parceiro (x-partner-token) ainda não foi habilitado pelo suporte comercial da Frenet (parceiros@frenet.com.br) para criação automática de subcontas. O lojista pode criar sua conta gratuitamente em painel.frenet.com.br e inserir o Token de Acesso em 'Já possui Token Frenet?'.";
+      } else {
         lastErrorMsg = typeof msg === "string" ? msg : JSON.stringify(msg);
       }
 

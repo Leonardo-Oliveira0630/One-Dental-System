@@ -16,7 +16,8 @@ import {
   RefreshCw,
   Info,
   Sliders,
-  Check
+  Check,
+  ExternalLink
 } from 'lucide-react';
 import { Organization } from '../types';
 import { formatCep, cleanCep, getCarrierBadgeConfig } from '../services/frenetService';
@@ -461,16 +462,27 @@ export const FrenetConfigCard: React.FC<FrenetConfigCardProps> = ({
 
           {showManualToken && (
             <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl space-y-3 mt-3 animate-in fade-in duration-150">
-              <h5 className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                Inserir Token Frenet Manualmente
-              </h5>
-              <p className="text-[11px] text-slate-500">
-                Caso sua empresa já possua conta na Frenet, cole aqui o Token de Acesso gerado no painel Frenet (Dados Cadastrais).
+              <div className="flex items-center justify-between">
+                <h5 className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                  Inserir Token Frenet Diretamente
+                </h5>
+                <a
+                  href="https://painel.frenet.com.br"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[11px] font-bold text-amber-600 hover:text-amber-700 dark:text-amber-400 inline-flex items-center gap-1 hover:underline"
+                >
+                  <span>Abrir Painel Frenet</span>
+                  <ExternalLink size={12} />
+                </a>
+              </div>
+              <p className="text-[11px] text-slate-500 leading-relaxed">
+                Você pode criar uma conta gratuita na Frenet em menos de 1 minuto em <strong className="text-slate-700 dark:text-slate-300">painel.frenet.com.br</strong>. Após logar, acesse o menu <strong className="text-slate-700 dark:text-slate-300">"Dados Cadastrais"</strong> no canto superior, copie seu <strong className="text-slate-700 dark:text-slate-300">Token de Acesso</strong> e cole no campo abaixo:
               </p>
               <div className="flex flex-col sm:flex-row items-center gap-2">
                 <input
                   type="password"
-                  placeholder="Cole seu Token Frenet aqui..."
+                  placeholder="Ex: 9A8B7C6D5E4F3G2H1I0J..."
                   value={manualToken}
                   onChange={e => setManualToken(e.target.value)}
                   className="w-full sm:flex-1 px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-mono text-slate-800 dark:text-slate-200"
@@ -482,7 +494,7 @@ export const FrenetConfigCard: React.FC<FrenetConfigCardProps> = ({
                   className="w-full sm:w-auto px-4 py-2 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white font-bold text-xs rounded-xl transition-colors shrink-0 cursor-pointer flex items-center justify-center gap-1.5"
                 >
                   {isSavingManualToken ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
-                  <span>Salvar Token</span>
+                  <span>Validar e Salvar Token</span>
                 </button>
               </div>
             </div>
