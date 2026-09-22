@@ -62,6 +62,7 @@ export const Inventory = () => {
         name: '', description: '', type: 'MATERIAL', categoryId: '', currentStock: 0, minStock: 0, costPrice: 0, sellPrice: 0, dentistOwnerId: ''
     });
     const [showCatalogSuggestions, setShowCatalogSuggestions] = useState(false);
+    const [showSkuSuggestions, setShowSkuSuggestions] = useState(false);
     
     // Bulk Import Logic
     const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
@@ -302,6 +303,29 @@ export const Inventory = () => {
                             sellPrice: Number(item.sellPrice) || 0,
                             dentistOwnerId: activeOwnerGroup && activeOwnerGroup !== 'LAB' ? activeOwnerGroup : null,
                         } as any);
+
+                        // Garante que o item importado também vai para o banco de produtos base do lab
+                        try {
+                            const itemCodeTrim = (item.code || '').trim().toLowerCase();
+                            const itemNameTrim = (item.name || '').trim().toLowerCase();
+                            const exists = (productCatalogItems || []).some(p => 
+                                (itemCodeTrim && p.code && p.code.trim().toLowerCase() === itemCodeTrim) ||
+                                (itemNameTrim && p.name && p.name.trim().toLowerCase() === itemNameTrim)
+                            );
+                            if (!exists) {
+                                await addProductCatalogItem({
+                                    name: item.name || 'Sem Nome',
+                                    code: item.code || '',
+                                    description: item.description || '',
+                                    type: 'MATERIAL',
+                                    categoryId: finalCategoryId,
+                                    costPrice: Number(item.costPrice) || 0,
+                                    sellPrice: Number(item.sellPrice) || 0,
+                                } as any);
+                            }
+                        } catch (errSync) {
+                            console.warn("Erro ao sincronizar catálogo no import:", errSync);
+                        }
                     }
                 }
                 alert(`Sucesso! ${parsedItems.length} itens importados e cadastrados em massa.`);
@@ -325,6 +349,96 @@ export const Inventory = () => {
             ...(allUsers || []).filter(u => u.role === 'CLIENT')
         ];
     }, [manualDentists, allUsers]);
+
+    // Banco unificado de produtos do lab (Banco de Produtos Base + Itens de todos os estoques)
+    const labDatabaseProducts = React.useMemo(() => {
+        const list: Array<{
+            id: string;
+            name: string;
+            code: string;
+            description: string;
+            categoryId: string;
+            type: InventoryItemType;
+            costPrice: number;
+            sellPrice: number;
+        }> = [];
+
+        const seen = new Set<string>();
+
+        // 1. Produtos do Banco de Produtos Base do Lab
+        (productCatalogItems || []).forEach(p => {
+            const code = (p.code || '').trim();
+            const name = (p.name || '').trim();
+            const key = `${code.toLowerCase()}::${name.toLowerCase()}`;
+            if (!seen.has(key) && (name || code)) {
+                seen.add(key);
+                list.push({
+                    id: p.id,
+                    name,
+                    code,
+                    description: p.description || '',
+                    categoryId: p.categoryId || '',
+                    type: p.type || 'MATERIAL',
+                    costPrice: Number(p.costPrice) || 0,
+                    sellPrice: Number(p.sellPrice) || 0,
+                });
+            }
+        });
+
+        // 2. Itens cadastrados em qualquer estoque do laboratório
+        (inventoryItems || []).forEach(i => {
+            const code = (i.code || '').trim();
+            const name = (i.name || '').trim();
+            const key = `${code.toLowerCase()}::${name.toLowerCase()}`;
+            if (!seen.has(key) && (name || code)) {
+                seen.add(key);
+                list.push({
+                    id: i.id,
+                    name,
+                    code,
+                    description: i.description || '',
+                    categoryId: i.categoryId || '',
+                    type: i.type || 'MATERIAL',
+                    costPrice: Number(i.costPrice) || 0,
+                    sellPrice: Number(i.sellPrice) || 0,
+                });
+            }
+        });
+
+        return list;
+    }, [productCatalogItems, inventoryItems]);
+
+    // Sugestões filtradas para autocomplete com busca inteligente por SKU ou Nome
+    const filteredCatalogSuggestions = React.useMemo(() => {
+        const skuQ = (itemForm.code || '').trim().toLowerCase();
+        const nameQ = (itemForm.name || '').trim().toLowerCase();
+
+        // Se o usuário digitou SKU:
+        if (skuQ) {
+            // Se o usuário digitou o SKU completo exatamente igual a um item cadastrado:
+            const exactSkuMatches = labDatabaseProducts.filter(p => p.code && p.code.trim().toLowerCase() === skuQ);
+            if (exactSkuMatches.length > 0) {
+                // Aparece somente a opção correspondente a esse SKU exato
+                return exactSkuMatches;
+            }
+            // Ao ir digitando o SKU, vão aparecendo as opções correspondentes que contenham esse SKU
+            const partialSkuMatches = labDatabaseProducts.filter(p => p.code && p.code.trim().toLowerCase().includes(skuQ));
+            if (partialSkuMatches.length > 0) {
+                return partialSkuMatches.slice(0, 15);
+            }
+        }
+
+        // Se o usuário está digitando no campo Nome:
+        if (nameQ) {
+            return labDatabaseProducts.filter(p => 
+                p.name.toLowerCase().includes(nameQ) || 
+                (p.code && p.code.toLowerCase().includes(nameQ))
+            ).slice(0, 15);
+        }
+
+        // Padrão: primeiras opções do banco
+        return labDatabaseProducts.slice(0, 10);
+    }, [itemForm.code, itemForm.name, labDatabaseProducts]);
 
     const filteredCategories = inventoryCategories.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()));
     
@@ -429,6 +543,8 @@ export const Inventory = () => {
     };
 
     const openItemModal = (item?: InventoryItem) => {
+        setShowCatalogSuggestions(false);
+        setShowSkuSuggestions(false);
         if (item) {
             setEditingItemId(item.id);
             setItemForm({ ...item, dentistOwnerId: item.dentistOwnerId || '' });
@@ -437,11 +553,34 @@ export const Inventory = () => {
             setEditingItemId(null);
             const ownerId = activeOwnerGroup && activeOwnerGroup !== 'LAB' ? activeOwnerGroup : '';
             setItemForm({
-                name: '', description: '', type: 'MATERIAL', categoryId: '', currentStock: 0, minStock: 0, costPrice: 0, sellPrice: 0, dentistOwnerId: ownerId
+                name: '', code: '', description: '', type: 'MATERIAL', categoryId: '', currentStock: 0, minStock: 0, costPrice: 0, sellPrice: 0, dentistOwnerId: ownerId
             });
             setDentistSearch(ownerId ? getDentistName(ownerId) : '');
         }
         setIsItemModalOpen(true);
+    };
+
+    const handleSelectCatalogItem = (catItem: {
+        name: string;
+        code?: string;
+        description?: string;
+        categoryId?: string;
+        type?: InventoryItemType;
+        costPrice?: number;
+        sellPrice?: number;
+    }) => {
+        setItemForm(prev => ({
+            ...prev,
+            name: catItem.name || prev.name,
+            code: catItem.code || prev.code || '',
+            description: catItem.description !== undefined ? catItem.description : prev.description,
+            categoryId: catItem.categoryId || prev.categoryId,
+            type: catItem.type || prev.type || 'MATERIAL',
+            costPrice: catItem.costPrice !== undefined ? catItem.costPrice : prev.costPrice,
+            sellPrice: catItem.sellPrice !== undefined ? catItem.sellPrice : prev.sellPrice,
+        }));
+        setShowCatalogSuggestions(false);
+        setShowSkuSuggestions(false);
     };
 
     const saveItem = async (e: React.FormEvent) => {
@@ -456,6 +595,31 @@ export const Inventory = () => {
         } else {
             await addInventoryItem(data as any);
         }
+
+        // Garante que todo item cadastrado vai para o banco de dados de produtos do laboratório
+        try {
+            const itemCodeTrim = (itemForm.code || '').trim().toLowerCase();
+            const itemNameTrim = (itemForm.name || '').trim().toLowerCase();
+            const existsInCatalog = (productCatalogItems || []).some(p => 
+                (itemCodeTrim && p.code && p.code.trim().toLowerCase() === itemCodeTrim) ||
+                (itemNameTrim && p.name && p.name.trim().toLowerCase() === itemNameTrim)
+            );
+
+            if (!existsInCatalog) {
+                await addProductCatalogItem({
+                    name: itemForm.name.trim(),
+                    code: itemForm.code?.trim() || '',
+                    description: itemForm.description || '',
+                    categoryId: itemForm.categoryId,
+                    type: itemForm.type || 'MATERIAL',
+                    costPrice: Number(itemForm.costPrice) || 0,
+                    sellPrice: Number(itemForm.sellPrice) || 0,
+                } as any);
+            }
+        } catch (syncErr) {
+            console.warn("Erro ao sincronizar produto no banco de produtos do lab:", syncErr);
+        }
+
         setIsItemModalOpen(false);
     };
 
@@ -981,17 +1145,80 @@ export const Inventory = () => {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:p-6">
                             <div className="md:col-span-2 space-y-4">
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <div className="md:col-span-2 relative">
-                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">{t("inventory.productName", "Nome do Produto")}</label>
+                                    {/* Campo Código SKU com autocomplete inteligente */}
+                                    <div className="md:col-span-1 relative">
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex items-center justify-between">
+                                            <span>{t("inventory.itemSkuCode", "Código do Item (SKU)")}</span>
+                                            {itemForm.code && (
+                                                <span className="text-[10px] text-indigo-600 font-semibold lowercase">
+                                                    {filteredCatalogSuggestions.length === 1 && (filteredCatalogSuggestions[0].code || '').toLowerCase() === itemForm.code.trim().toLowerCase() ? "✓ SKU exato" : "busca por SKU"}
+                                                </span>
+                                            )}
+                                        </label>
                                         <input 
-                                            required type="text" 
+                                            type="text" 
+                                            value={itemForm.code || ''} 
+                                            onChange={e => {
+                                                setItemForm({...itemForm, code: e.target.value});
+                                                setShowSkuSuggestions(true);
+                                                setShowCatalogSuggestions(true);
+                                            }} 
+                                            onFocus={() => {
+                                                setShowSkuSuggestions(true);
+                                                if (itemForm.code) setShowCatalogSuggestions(true);
+                                            }}
+                                            onBlur={() => setTimeout(() => setShowSkuSuggestions(false), 250)}
+                                            className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none uppercase font-mono font-bold" 
+                                            placeholder="Ex: TIT-HEX-001" 
+                                        />
+
+                                        {/* SKU Dropdown Suggestions */}
+                                        {showSkuSuggestions && !editingItemId && itemForm.code && filteredCatalogSuggestions.length > 0 && (
+                                            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 max-h-60 overflow-y-auto">
+                                                <div className="px-3 py-1.5 bg-indigo-50 border-b border-indigo-100 text-[10px] font-bold text-indigo-800 flex items-center justify-between">
+                                                    <span>Opções por SKU ({filteredCatalogSuggestions.length})</span>
+                                                </div>
+                                                {filteredCatalogSuggestions.map(catItem => (
+                                                    <div 
+                                                        key={catItem.id}
+                                                        onClick={() => handleSelectCatalogItem(catItem)}
+                                                        className="p-3 hover:bg-indigo-50/60 cursor-pointer border-b border-slate-50 last:border-0 transition-colors"
+                                                    >
+                                                        <div className="flex items-center justify-between gap-1">
+                                                            <span className="font-mono font-bold text-indigo-700 text-xs bg-indigo-100/70 px-1.5 py-0.5 rounded">
+                                                                {catItem.code || 'S/ SKU'}
+                                                            </span>
+                                                            <span className="text-xs text-slate-500 font-medium">
+                                                                {(catItem.sellPrice || 0).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}
+                                                            </span>
+                                                        </div>
+                                                        <div className="font-bold text-slate-800 text-xs mt-1 truncate">{catItem.name}</div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Campo Nome com Autocomplete */}
+                                    <div className="md:col-span-2 relative">
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex items-center justify-between">
+                                            <span>{t("inventory.productName", "Nome do Produto")}</span>
+                                            {itemForm.code && (
+                                                <span className="text-[10px] text-indigo-500 font-normal">
+                                                    sugestões por SKU ativas
+                                                </span>
+                                            )}
+                                        </label>
+                                        <input 
+                                            required 
+                                            type="text" 
                                             value={itemForm.name || ''} 
                                             onChange={e => {
                                                 setItemForm({...itemForm, name: e.target.value});
                                                 setShowCatalogSuggestions(true);
                                             }}
                                             onFocus={() => setShowCatalogSuggestions(true)}
-                                            onBlur={() => setTimeout(() => setShowCatalogSuggestions(false), 200)}
+                                            onBlur={() => setTimeout(() => setShowCatalogSuggestions(false), 250)}
                                             className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none" 
                                             placeholder={t("inventory.productNamePlaceholder", "Ex: Componente Titânio Hexágono Externo")} 
                                         />
@@ -999,40 +1226,37 @@ export const Inventory = () => {
                                         {/* Catalog Autocomplete Dropdown */}
                                         {showCatalogSuggestions && !editingItemId && (
                                             <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 max-h-60 overflow-y-auto">
-                                                {productCatalogItems.filter(p => p.name.toLowerCase().includes((itemForm.name || '').toLowerCase())).slice(0, 10).map(catItem => (
+                                                {itemForm.code && (
+                                                    <div className="px-3 py-1.5 bg-slate-50 border-b border-slate-100 text-[11px] font-semibold text-slate-600 flex items-center justify-between">
+                                                        <span>Correspondência para SKU: <strong className="text-indigo-600 font-mono">{itemForm.code}</strong></span>
+                                                        <span className="text-[10px] text-slate-400">{filteredCatalogSuggestions.length} encontrado(s)</span>
+                                                    </div>
+                                                )}
+                                                {filteredCatalogSuggestions.map(catItem => (
                                                     <div 
                                                         key={catItem.id}
-                                                        onClick={() => {
-                                                            setItemForm({
-                                                                ...itemForm,
-                                                                name: catItem.name,
-                                                                code: catItem.code || itemForm.code,
-                                                                description: catItem.description || itemForm.description,
-                                                                categoryId: catItem.categoryId || itemForm.categoryId,
-                                                                type: catItem.type || itemForm.type,
-                                                                costPrice: catItem.costPrice || itemForm.costPrice,
-                                                                sellPrice: catItem.sellPrice || itemForm.sellPrice
-                                                            });
-                                                            setShowCatalogSuggestions(false);
-                                                        }}
-                                                        className="p-3 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-0"
+                                                        onClick={() => handleSelectCatalogItem(catItem)}
+                                                        className="p-3 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-0 transition-colors"
                                                     >
-                                                        <div className="font-bold text-slate-800">{catItem.name}</div>
-                                                        <div className="text-xs text-slate-500 flex gap-2">
-                                                            {catItem.code && <span>SKU: {catItem.code}</span>}
+                                                        <div className="flex items-center justify-between gap-2">
+                                                            <div className="font-bold text-slate-800">{catItem.name}</div>
+                                                            {catItem.code && (
+                                                                <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded text-xs font-mono font-bold shrink-0">
+                                                                    SKU: {catItem.code}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <div className="text-xs text-slate-500 flex gap-2 mt-1">
+                                                            {catItem.type && <span className="capitalize">{catItem.type.toLowerCase()}</span>}
                                                             <span>• {(catItem.sellPrice || 0).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</span>
                                                         </div>
                                                     </div>
                                                 ))}
-                                                {productCatalogItems.filter(p => p.name.toLowerCase().includes((itemForm.name || '').toLowerCase())).length === 0 && (
+                                                {filteredCatalogSuggestions.length === 0 && (
                                                     <div className="p-3 text-xs text-slate-500 text-center">{t("inventory.noBaseProduct", "Nenhum produto base encontrado.")}</div>
                                                 )}
                                             </div>
                                         )}
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">{t("inventory.itemSkuCode", "Código do Item (SKU)")}</label>
-                                        <input type="text" value={itemForm.code || ''} onChange={e => setItemForm({...itemForm, code: e.target.value})} className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none uppercase" placeholder="Ex: TIT-HEX-001" />
                                     </div>
                                 </div>
                                 <div>

@@ -3,6 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { AlertTriangle, Trash2, CheckSquare, Square, Building2, Search } from 'lucide-react';
 import { db } from '../../services/firebaseConfig';
 import { collection, query, where, getDocs, deleteDoc } from 'firebase/firestore';
+import { isLabOrganization } from '../../services/firebaseService';
 
 export const LabResets = () => {
     const { allOrganizations } = useApp();
@@ -11,8 +12,9 @@ export const LabResets = () => {
     const [isResetting, setIsResetting] = useState(false);
     
     const labs = useMemo(() => {
-        return allOrganizations.filter(o => o.orgType === 'LAB' || o.orgType === 'LAB_OUTSOURCED')
-          .filter(o => o.name.toLowerCase().includes(search.toLowerCase()) || o.id.toLowerCase().includes(search.toLowerCase()));
+        return allOrganizations
+          .filter(o => isLabOrganization(o) || o.orgType === 'LAB' || o.orgType === 'LAB_OUTSOURCED' || (o as any).isLab === true)
+          .filter(o => (o.name || '').toLowerCase().includes(search.toLowerCase()) || (o.id || '').toLowerCase().includes(search.toLowerCase()));
     }, [allOrganizations, search]);
 
     const [selections, setSelections] = useState({
