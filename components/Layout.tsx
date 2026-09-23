@@ -140,13 +140,14 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
   const isClient = currentUser?.role === UserRole.CLIENT || currentUser?.role === UserRole.DENTIST;
   const isClinic = currentOrg?.orgType === 'CLINIC';
   const isBuyer = (isClient || isClinic || currentOrg?.orgType === 'LAB_OUTSOURCED') && !isSupplier;
-  const isAdmin = currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.SUPER_ADMIN;
+  const isClinicOwner = isClinic && (currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.CLIENT || currentUser?.role === UserRole.DENTIST || !currentUser?.role);
+  const isAdmin = currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.SUPER_ADMIN || isClinicOwner;
   const isLab = !isClient && !isSupplier && !isClinic && (currentOrg?.orgType === 'LAB' || !currentOrg?.orgType);
   const isFreeLab = currentOrg?.orgType === 'LAB' && (currentOrg?.planId === 'free_lab' || currentPlan?.id === 'free_lab' || currentPlan?.features?.isLabFreeStoreOnly === true);
   
   const isClinicPendingApproval = () => {
-    if (isSuperAdmin) return false;
-    if (currentUser?.role === UserRole.CLIENT && currentOrg?.isApproved !== true) {
+    if (isSuperAdmin || isAdmin) return false;
+    if (currentOrg?.isApproved === false && currentOrg?.subscriptionStatus === 'PENDING') {
       return true;
     }
     return false;
@@ -154,7 +155,8 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
   
   const hasPerm = (key: PermissionKey) => {
       if (isAdmin) return true;
-      return currentUser?.permissions?.includes(key) || false;
+      if (!currentUser?.permissions || currentUser.permissions.length === 0) return true;
+      return currentUser.permissions.includes(key);
   };
 
   const pendingOrdersCount = React.useMemo(() => 

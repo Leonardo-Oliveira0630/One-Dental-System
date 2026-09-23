@@ -474,7 +474,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       if (user) {
         const profile = await api.getUserProfile(user.uid);
         if (profile) {
-            if (profile.role === UserRole.SUPER_ADMIN || profile.role === UserRole.ADMIN) {
+            // For any user who has no permissions set yet (legacy user), or is admin/super_admin, grant all permissions
+            if (!profile.permissions || profile.permissions.length === 0 || profile.role === UserRole.ADMIN || profile.role === UserRole.SUPER_ADMIN) {
                 profile.permissions = ALL_SYSTEM_PERMISSIONS;
             }
             
@@ -486,6 +487,14 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
                     if (snap.exists()) {
                         const oData = { id: snap.id, ...snap.data() as any } as Organization;
                         setCurrentOrg(oData);
+
+                        // If org is a CLINIC and user had legacy CLIENT/undefined role, upgrade to ADMIN with all permissions
+                        if (oData.orgType === 'CLINIC' && (profile.role === UserRole.CLIENT || !profile.role)) {
+                            profile.role = UserRole.ADMIN;
+                            profile.permissions = ALL_SYSTEM_PERMISSIONS;
+                            setCurrentUser(prev => prev ? ({ ...prev, role: UserRole.ADMIN, permissions: ALL_SYSTEM_PERMISSIONS }) : null);
+                            api.apiUpdateUser(profile.id, { role: UserRole.ADMIN, permissions: ALL_SYSTEM_PERMISSIONS }).catch(() => {});
+                        }
                         if (api.isLabOrganization(oData)) {
                             setActiveOrganization(prev => prev || oData);
                             setAllLaboratories(prev => {

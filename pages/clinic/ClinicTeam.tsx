@@ -110,41 +110,9 @@ export const CLINIC_PERMISSIONS: { key: PermissionKey; label: string; category: 
 export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, PermissionKey[]> = {
   [UserRole.ADMIN]: CLINIC_PERMISSIONS.map(p => p.key),
   [UserRole.MANAGER]: CLINIC_PERMISSIONS.map(p => p.key),
-  [UserRole.DENTIST]: [
-    'patients:view', 'patients:create', 'patients:edit', 'patients:history_edit',
-    'schedule:view', 'schedule:create', 'schedule:edit',
-    'clinic_rooms:view',
-    'clinic_dentists:view',
-    'clinic_services:view',
-    'clinic_inventory:view', 'clinic_inventory:create',
-    'dentist_cases:view', 'dentist_cases:create', 'dentist_cases:edit',
-    'requisitions:view', 'requisitions:create', 'requisitions:edit',
-    'partnerships:view',
-    'store:view', 'store:buy'
-  ],
-  [UserRole.COLLABORATOR]: [
-    'patients:view', 'patients:create', 'patients:edit',
-    'schedule:view', 'schedule:create', 'schedule:edit',
-    'clinic_finance:view', 'clinic_finance:create',
-    'clinic_rooms:view',
-    'clinic_dentists:view',
-    'clinic_services:view',
-    'clinic_inventory:view',
-    'store:view'
-  ],
-  [UserRole.CLIENT]: [
-    'patients:view', 'patients:create', 'patients:edit', 'patients:history_edit',
-    'schedule:view', 'schedule:create', 'schedule:edit',
-    'clinic_finance:view', 'clinic_finance:create',
-    'clinic_rooms:view',
-    'clinic_dentists:view',
-    'clinic_services:view',
-    'clinic_inventory:view',
-    'dentist_cases:view', 'dentist_cases:create', 'dentist_cases:edit',
-    'requisitions:view', 'requisitions:create', 'requisitions:edit',
-    'partnerships:view',
-    'store:view', 'store:buy'
-  ],
+  [UserRole.DENTIST]: CLINIC_PERMISSIONS.map(p => p.key),
+  [UserRole.COLLABORATOR]: CLINIC_PERMISSIONS.map(p => p.key),
+  [UserRole.CLIENT]: CLINIC_PERMISSIONS.map(p => p.key),
   [UserRole.SUPER_ADMIN]: CLINIC_PERMISSIONS.map(p => p.key),
   [UserRole.HELPDESK]: []
 };
@@ -186,7 +154,8 @@ export const ClinicTeam = () => {
   const isCurrentAdmin = currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.SUPER_ADMIN;
   const hasPerm = (key: PermissionKey) => {
     if (isCurrentAdmin) return true;
-    return currentUser?.permissions?.includes(key) || false;
+    if (!currentUser?.permissions || currentUser.permissions.length === 0) return true;
+    return currentUser.permissions.includes(key);
   };
 
   const canManageTeam = isCurrentAdmin || hasPerm('clinic_users:create') || hasPerm('clinic_users:edit');
@@ -317,22 +286,36 @@ export const ClinicTeam = () => {
     }
     setIsSubmitting(true);
     try {
-      const res = await api.apiRegisterUserInOrg(userEmail, userPass, userName, userRole, currentOrg.id, userSpecialty || 'Geral');
+      const allClinicPerms = CLINIC_PERMISSIONS.map(p => p.key);
+      const res = await api.apiRegisterUserInOrg(
+        userEmail, 
+        userPass, 
+        userName, 
+        userRole, 
+        currentOrg.id, 
+        userSpecialty || 'Geral',
+        undefined,
+        {
+          permissions: allClinicPerms,
+          cro: userCro || undefined,
+          specialty: userSpecialty || undefined,
+          phone: userPhone || undefined
+        }
+      );
       
-      // Update with default permissions and extra fields
+      // Update with all permissions and extra fields
       if (res?.uid) {
-        const defaultPerms = ROLE_DEFAULT_PERMISSIONS[userRole] || [];
         await updateUser(res.uid, {
           cro: userCro || undefined,
           specialty: userSpecialty || undefined,
           phone: userPhone || undefined,
-          permissions: defaultPerms
+          permissions: allClinicPerms
         });
       }
 
       setIsAddingUser(false);
       resetForm();
-      alert("Colaborador cadastrado com sucesso!");
+      alert("Colaborador cadastrado com sucesso! Todas as permissões foram ativadas inicialmente e podem ser ajustadas a qualquer momento.");
     } catch (err: any) {
       alert(err.message || "Erro ao criar usuário. Verifique se o e-mail já está em uso.");
     } finally {
@@ -342,7 +325,7 @@ export const ClinicTeam = () => {
 
   const handleOpenPermissions = (user: User) => {
     setSelectedUserForPerms(user);
-    setTempPerms(user.permissions || ROLE_DEFAULT_PERMISSIONS[user.role] || []);
+    setTempPerms(user.permissions && user.permissions.length > 0 ? user.permissions : CLINIC_PERMISSIONS.map(p => p.key));
     setPermSearchTerm('');
   };
 
