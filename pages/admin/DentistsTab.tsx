@@ -153,10 +153,17 @@ export const DentistsTab = () => {
   const [showTechnicalManager, setShowTechnicalManager] = useState(false);
 
   const isAdmin = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER';
-  const canCreate = isAdmin || currentUser?.permissions?.includes('clients:create');
-  const canEdit = isAdmin || currentUser?.permissions?.includes('clients:edit');
-  const canDelete = isAdmin || currentUser?.permissions?.includes('clients:delete');
-  const canBlock = isAdmin || currentUser?.permissions?.includes('clients:block_manage');
+  const hasPerm = (perm: string) => {
+    if (isAdmin) return true;
+    return (currentUser?.permissions as string[])?.includes(perm) || false;
+  };
+
+  const canCreate = hasPerm('clients:create');
+  const canEdit = hasPerm('clients:edit');
+  const canDelete = hasPerm('clients:delete');
+  const canBlock = hasPerm('clients:block_manage');
+  const canViewPrices = hasPerm('clients:prices_view') || hasPerm('clients:prices_edit') || hasPerm('prices:view') || hasPerm('catalog:prices_view');
+  const canEditPrices = hasPerm('clients:prices_edit');
 
   const handleCEPBlur = async () => {
     if (!formData.cep) return;
@@ -252,11 +259,6 @@ export const DentistsTab = () => {
     setFormData(prev => ({ ...prev, [name]: val }));
   };
 
-  const hasPerm = (perm: PermissionKey) => {
-    if (currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.SUPER_ADMIN) return true;
-    return currentUser?.permissions?.includes(perm) || false;
-  };
-
   const handleSaveManualDentist = async (e: React.FormEvent) => {
       e.preventDefault();
       if (!formData.name) return;
@@ -264,8 +266,11 @@ export const DentistsTab = () => {
           const dataToSave: any = { ...formData };
           
           // STRICT PERMISSION CHECK
-          if (!hasPerm('catalog:prices_view')) {
+          if (!canEditPrices) {
               delete dataToSave.priceTableId;
+              delete dataToSave.isCustomPricing;
+              delete dataToSave.customPrices;
+              delete dataToSave.globalDiscountPercent;
           }
 
           if (!hasPerm('clients:block_manage')) {
@@ -1271,7 +1276,7 @@ export const DentistsTab = () => {
                       <div>
                         <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-3 border-b border-blue-100 pb-1">4. Configurações Financeiras e Tabela</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {hasPerm('catalog:prices_view') && (
+                          {canViewPrices && (
                             <div>
                                 <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">Tabela de Preços Base</label>
                                 <div className="relative">
@@ -1280,7 +1285,7 @@ export const DentistsTab = () => {
                                         name="priceTableId" 
                                         value={formData.priceTableId} 
                                         onChange={handleInputChange}
-                                        disabled={!canEdit}
+                                        disabled={!canEditPrices}
                                         className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold disabled:opacity-60"
                                     >
                                         <option value="">Tabela Genérica (Padrão do Laboratório)</option>
@@ -1398,70 +1403,74 @@ export const DentistsTab = () => {
                             </div>
                           )}
 
-                          <div className="md:col-span-2 flex flex-col gap-4 pt-4 border-t border-slate-100">
-                             <div className="flex items-center justify-between bg-blue-50 p-4 rounded-xl border border-blue-100">
-                                <div>
-                                    <p className="text-xs font-black text-blue-800 uppercase">Tabela Personalizada</p>
-                                    <p className="text-[10px] text-blue-600 font-bold">Ignora a tabela base e aplica descontos manuais</p>
-                                </div>
-                                <label className={`relative inline-flex items-center ${!canEdit ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}>
-                                    <input 
-                                        type="checkbox"
-                                        disabled={!canEdit}
-                                        className="sr-only peer" 
-                                        checked={formData.isCustomPricing}
-                                        onChange={e => {
-                                            const isChecked = e.target.checked;
-                                            setFormData(prev => ({
-                                                ...prev,
-                                                isCustomPricing: isChecked
-                                            }));
-                                        }}
-                                    />
-                                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                                </label>
-                             </div>
-
-                             {formData.isCustomPricing && (
-                                <div className="space-y-4 animate-in slide-in-from-top-2">
-                                  <div className="bg-green-50 p-4 sm:p-6 rounded-2xl border border-green-100">
-                                      <div className="flex items-center justify-between mb-4">
-                                          <div className="flex items-center gap-3 text-green-800">
-                                              <Percent size={24} />
-                                              <div>
-                                                  <h4 className="font-black uppercase tracking-widest text-sm">Desconto Global Customizado</h4>
-                                                  <p className="text-[10px] text-green-700 font-medium">Aplica-se a todos os serviços e variações sem valor fixo individual</p>
-                                              </div>
-                                          </div>
-                                          <div className="flex items-center gap-2">
-                                              <button
-                                                  type="button"
-                                                  onClick={() => setFormData(prev => ({ ...prev, customPrices: [] }))}
-                                                  className="px-2 py-1 text-[10px] font-bold bg-white text-green-800 border border-green-200 hover:bg-green-100 rounded-lg transition-all"
-                                              >
-                                                  Usar Global em Todos
-                                              </button>
-                                              <button
-                                                  type="button"
-                                                  onClick={() => setFormData(prev => ({ ...prev, globalDiscountPercent: 0 }))}
-                                                  className="px-2 py-1 text-[10px] font-bold bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 rounded-lg transition-all"
-                                              >
-                                                  Zerar Global
-                                              </button>
-                                          </div>
-                                      </div>
-                                      <div className="flex items-center gap-4">
-                                          <input 
-                                              type="range" 
-                                              min="0" 
-                                              max="50" 
-                                              value={formData.globalDiscountPercent || 0}
-                                              onChange={e => setFormData(prev => ({ ...prev, globalDiscountPercent: parseInt(e.target.value) || 0 }))}
-                                              className="flex-1 h-2 bg-green-200 rounded-lg appearance-none cursor-pointer accent-green-600"
-                                          />
-                                          <span className="font-black text-2xl text-green-700 w-16 text-right">{formData.globalDiscountPercent || 0}%</span>
-                                      </div>
+                          {canViewPrices && (
+                            <div className="md:col-span-2 flex flex-col gap-4 pt-4 border-t border-slate-100">
+                               <div className="flex items-center justify-between bg-blue-50 p-4 rounded-xl border border-blue-100">
+                                  <div>
+                                      <p className="text-xs font-black text-blue-800 uppercase">Tabela Personalizada</p>
+                                      <p className="text-[10px] text-blue-600 font-bold">Ignora a tabela base e aplica descontos manuais</p>
                                   </div>
+                                  <label className={`relative inline-flex items-center ${!canEditPrices ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}>
+                                      <input 
+                                          type="checkbox"
+                                          disabled={!canEditPrices}
+                                          className="sr-only peer" 
+                                          checked={formData.isCustomPricing}
+                                          onChange={e => {
+                                              const isChecked = e.target.checked;
+                                              setFormData(prev => ({
+                                                  ...prev,
+                                                  isCustomPricing: isChecked
+                                              }));
+                                          }}
+                                      />
+                                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                  </label>
+                               </div>
+
+                               {formData.isCustomPricing && (
+                                  <div className="space-y-4 animate-in slide-in-from-top-2">
+                                    <div className="bg-green-50 p-4 sm:p-6 rounded-2xl border border-green-100">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <div className="flex items-center gap-3 text-green-800">
+                                                <Percent size={24} />
+                                                <div>
+                                                    <h4 className="font-black uppercase tracking-widest text-sm">Desconto Global Customizado</h4>
+                                                    <p className="text-[10px] text-green-700 font-medium">Aplica-se a todos os serviços e variações sem valor fixo individual</p>
+                                                </div>
+                                            </div>
+                                            {canEditPrices && (
+                                              <div className="flex items-center gap-2">
+                                                  <button
+                                                      type="button"
+                                                      onClick={() => setFormData(prev => ({ ...prev, customPrices: [] }))}
+                                                      className="px-2 py-1 text-[10px] font-bold bg-white text-green-800 border border-green-200 hover:bg-green-100 rounded-lg transition-all"
+                                                  >
+                                                      Usar Global em Todos
+                                                  </button>
+                                                  <button
+                                                      type="button"
+                                                      onClick={() => setFormData(prev => ({ ...prev, globalDiscountPercent: 0 }))}
+                                                      className="px-2 py-1 text-[10px] font-bold bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 rounded-lg transition-all"
+                                                  >
+                                                      Zerar Global
+                                                  </button>
+                                              </div>
+                                            )}
+                                        </div>
+                                        <div className="flex items-center gap-4">
+                                            <input 
+                                                type="range" 
+                                                min="0" 
+                                                max="50" 
+                                                disabled={!canEditPrices}
+                                                value={formData.globalDiscountPercent || 0}
+                                                onChange={e => setFormData(prev => ({ ...prev, globalDiscountPercent: parseInt(e.target.value) || 0 }))}
+                                                className="flex-1 h-2 bg-green-200 rounded-lg appearance-none cursor-pointer accent-green-600 disabled:opacity-60"
+                                            />
+                                            <span className="font-black text-2xl text-green-700 w-16 text-right">{formData.globalDiscountPercent || 0}%</span>
+                                        </div>
+                                    </div>
 
                                   <div className="grid grid-cols-1 gap-2 max-h-80 overflow-y-auto pr-2">
                                       {jobTypes.map((type: any) => {
@@ -1525,7 +1534,8 @@ export const DentistsTab = () => {
                                                                       }
                                                                       setFormData(prev => ({ ...prev, customPrices: newCustomPrices }));
                                                                   }}
-                                                                  className="w-12 px-2 py-1 text-xs font-bold text-center outline-none bg-transparent"
+                                                                  disabled={!canEditPrices}
+                                                                  className="w-12 px-2 py-1 text-xs font-bold text-center outline-none bg-transparent disabled:opacity-60"
                                                                   placeholder={formData.globalDiscountPercent ? `${formData.globalDiscountPercent}%` : "0"}
                                                               />
                                                               <span className="px-1 text-[10px] font-bold text-slate-400 border-l">%</span>
@@ -1535,6 +1545,7 @@ export const DentistsTab = () => {
                                                               <span className="px-1 text-[10px] font-bold text-slate-400">R$</span>
                                                               <input 
                                                                   type="number" 
+                                                                  disabled={!canEditPrices}
                                                                   value={cp?.fixedPrice !== undefined && cp.fixedPrice > 0 ? cp.fixedPrice : ''}
                                                                   onChange={e => {
                                                                       const raw = e.target.value;
@@ -1627,7 +1638,8 @@ export const DentistsTab = () => {
                                                                                                   }
                                                                                                   setFormData(prev => ({ ...prev, customPrices: newCustomPrices }));
                                                                                               }}
-                                                                                              className="w-16 px-1 py-1 text-[10px] bg-slate-50 border border-slate-200 rounded text-right outline-none focus:border-blue-400 font-bold"
+                                                                                              disabled={!canEditPrices}
+                                                                                              className="w-16 px-1 py-1 text-[10px] bg-slate-50 border border-slate-200 rounded text-right outline-none focus:border-blue-400 font-bold disabled:opacity-60"
                                                                                               placeholder={finalVarPrice.toFixed(2)}
                                                                                           />
                                                                                       </div>
@@ -1647,6 +1659,7 @@ export const DentistsTab = () => {
                                 </div>
                              )}
                           </div>
+                          )}
                         </div>
                       </div>
 

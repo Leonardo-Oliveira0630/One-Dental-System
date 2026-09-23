@@ -41,6 +41,9 @@ export const Dentists = () => {
         if (currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.SUPER_ADMIN) return true;
         return (currentUser?.permissions as string[])?.includes(perm) || false;
     };
+
+    const canViewPrices = hasPerm('clients:prices_view') || hasPerm('clients:prices_edit') || hasPerm('prices:view') || hasPerm('catalog:prices_view');
+    const canEditPrices = hasPerm('clients:prices_edit');
     
     // Modal State
     const [selectedClient, setSelectedClient] = useState<{ id: string, name: string, isManual: boolean } | null>(null);
@@ -232,9 +235,6 @@ export const Dentists = () => {
             }) : [];
 
             const updates: any = {
-                globalDiscountPercent: globalDiscount,
-                customPrices: cleanedCustomPrices,
-                isCustomPricing: isCustomPricing,
                 clientType: clientType,
                 technicalManagerName: technicalManagerName || '',
                 technicalManagerEmail: technicalManagerEmail || '',
@@ -243,8 +243,11 @@ export const Dentists = () => {
             };
 
             // STRICT PERMISSION CHECK
-            if (hasPerm('catalog:prices_view')) {
+            if (canEditPrices) {
                 updates.priceTableId = priceTableId;
+                updates.globalDiscountPercent = globalDiscount;
+                updates.customPrices = cleanedCustomPrices;
+                updates.isCustomPricing = isCustomPricing;
             }
 
             if (hasPerm('clients:block_manage')) {
@@ -1133,7 +1136,7 @@ export const Dentists = () => {
 
                         <div className="flex flex-col gap-2 mt-6">
                             <div className="grid grid-cols-2 gap-2">
-                                {hasPerm('catalog:prices_view') && (
+                                {canViewPrices && (
                                     <button 
                                         onClick={() => handleOpenPricing(client)}
                                         className="py-2.5 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-indigo-50 hover:text-indigo-600 transition-all flex items-center justify-center gap-2 text-[11px] border border-slate-200"
@@ -1253,13 +1256,14 @@ export const Dentists = () => {
                                 )}
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:p-6">
-                                {hasPerm('catalog:prices_view') && (
+                                {canViewPrices && (
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{t('dentists.basePriceTable', 'Tabela de Preços Base')}</label>
                                         <select 
                                             value={priceTableId}
+                                            disabled={!canEditPrices}
                                             onChange={e => setPriceTableId(e.target.value)}
-                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-700"
+                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-700 disabled:opacity-60"
                                         >
                                             <option value="">{t('dentists.genericTableDefault', 'Tabela Genérica (Padrão do Laboratório)')}</option>
                                             {priceTables.map(table => (
@@ -1418,24 +1422,27 @@ export const Dentists = () => {
                                 )}
 
                                 <div className="space-y-4">
-                                     <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 flex items-center justify-between">
-                                        <div>
-                                            <p className="text-xs font-black text-blue-800 uppercase">{t('dentists.customTable', 'Tabela Personalizada')}</p>
-                                            <p className="text-[10px] text-blue-600 font-bold">{t('dentists.customTableDesc', 'Personalize descontos e preços fixos específicos para este cliente')}</p>
+                                    {canViewPrices && (
+                                        <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 flex items-center justify-between">
+                                            <div>
+                                                <p className="text-xs font-black text-blue-800 uppercase">{t('dentists.customTable', 'Tabela Personalizada')}</p>
+                                                <p className="text-[10px] text-blue-600 font-bold">{t('dentists.customTableDesc', 'Personalize descontos e preços fixos específicos para este cliente')}</p>
+                                            </div>
+                                            <label className={`relative inline-flex items-center ${!canEditPrices ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}>
+                                                <input 
+                                                    type="checkbox" 
+                                                    disabled={!canEditPrices}
+                                                    className="sr-only peer" 
+                                                    checked={isCustomPricing}
+                                                    onChange={e => {
+                                                        const checked = e.target.checked;
+                                                        setIsCustomPricing(checked);
+                                                    }}
+                                                />
+                                                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                            </label>
                                         </div>
-                                        <label className="relative inline-flex items-center cursor-pointer">
-                                            <input 
-                                                type="checkbox" 
-                                                className="sr-only peer" 
-                                                checked={isCustomPricing}
-                                                onChange={e => {
-                                                    const checked = e.target.checked;
-                                                    setIsCustomPricing(checked);
-                                                }}
-                                            />
-                                            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                                        </label>
-                                    </div>
+                                    )}
 
                                     {hasPerm('clients:block_manage') && (
                                         <div className="space-y-2">
@@ -1506,7 +1513,8 @@ export const Dentists = () => {
                                 </div>
                             </div>
 
-                            {isCustomPricing ? (
+                            {canViewPrices && (
+                                isCustomPricing ? (
                                 <>
                                     <div className="bg-green-50 p-4 sm:p-6 rounded-2xl border border-green-100">
                                         <div className="flex items-center justify-between mb-4">
@@ -1517,32 +1525,35 @@ export const Dentists = () => {
                                                     <p className="text-[10px] text-green-700 font-medium">{t('dentists.customGlobalDiscountDesc', 'Aplica-se a todos os serviços e variações sem preço fixo individual')}</p>
                                                 </div>
                                             </div>
-                                            <div className="flex items-center gap-2">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setCustomPrices([])}
-                                                    title={t('dentists.useGlobalAllTooltip', 'Limpar personalizações individuais para que todos usem o desconto global')}
-                                                    className="px-2.5 py-1 text-[10px] font-bold bg-white text-green-800 border border-green-200 hover:bg-green-100 rounded-lg transition-all shadow-xs"
-                                                >
-                                                    {t('dentists.useGlobalAll', 'Usar Global em Todos')}
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => { setGlobalDiscount(0); }}
-                                                    className="px-2.5 py-1 text-[10px] font-bold bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 rounded-lg transition-all shadow-xs"
-                                                >
-                                                    {t('dentists.resetGlobal', 'Zerar Global')}
-                                                </button>
-                                            </div>
+                                            {canEditPrices && (
+                                                <div className="flex items-center gap-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setCustomPrices([])}
+                                                        title={t('dentists.useGlobalAllTooltip', 'Limpar personalizações individuais para que todos usem o desconto global')}
+                                                        className="px-2.5 py-1 text-[10px] font-bold bg-white text-green-800 border border-green-200 hover:bg-green-100 rounded-lg transition-all shadow-xs"
+                                                    >
+                                                        {t('dentists.useGlobalAll', 'Usar Global em Todos')}
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => { setGlobalDiscount(0); }}
+                                                        className="px-2.5 py-1 text-[10px] font-bold bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 rounded-lg transition-all shadow-xs"
+                                                    >
+                                                        {t('dentists.resetGlobal', 'Zerar Global')}
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
                                         <div className="flex items-center gap-4">
                                             <input 
                                                 type="range" 
                                                 min="0" 
                                                 max="50" 
+                                                disabled={!canEditPrices}
                                                 value={globalDiscount}
                                                 onChange={e => setGlobalDiscount(parseInt(e.target.value) || 0)}
-                                                className="flex-1 h-2 bg-green-200 rounded-lg appearance-none cursor-pointer accent-green-600"
+                                                className="flex-1 h-2 bg-green-200 rounded-lg appearance-none cursor-pointer accent-green-600 disabled:opacity-60"
                                             />
                                             <span className="font-black text-2xl text-green-700 w-16 text-right">{globalDiscount}%</span>
                                         </div>
@@ -1622,7 +1633,8 @@ export const Dentists = () => {
                                                                                 }
                                                                                 setCustomPrices(newCustomPrices);
                                                                             }}
-                                                                            className="w-14 px-2 py-2 font-bold text-center outline-none bg-transparent"
+                                                                            disabled={!canEditPrices}
+                                                                            className="w-14 px-2 py-2 font-bold text-center outline-none bg-transparent disabled:opacity-60"
                                                                             placeholder={globalDiscount > 0 ? `${globalDiscount}%` : "0"}
                                                                         />
                                                                         <span className="px-1 text-[10px] font-bold text-slate-400 border-l">%</span>
@@ -1652,7 +1664,8 @@ export const Dentists = () => {
                                                                                 }
                                                                                 setCustomPrices(newCustomPrices);
                                                                             }}
-                                                                            className="w-20 px-2 py-2 font-bold text-center outline-none bg-transparent"
+                                                                            disabled={!canEditPrices}
+                                                                            className="w-20 px-2 py-2 font-bold text-center outline-none bg-transparent disabled:opacity-60"
                                                                             placeholder={finalPrice.toFixed(2)}
                                                                         />
                                                                     </div>
@@ -1730,7 +1743,8 @@ export const Dentists = () => {
                                                                                                             }
                                                                                                             setCustomPrices(newCustomPrices);
                                                                                                         }}
-                                                                                                        className="w-20 px-2 py-1 bg-white border border-slate-200 rounded-md font-bold text-right outline-none focus:border-blue-400 transition-all text-xs"
+                                                                                                        disabled={!canEditPrices}
+                                                                                                        className="w-20 px-2 py-1 bg-white border border-slate-200 rounded-md font-bold text-right outline-none focus:border-blue-400 transition-all text-xs disabled:opacity-60"
                                                                                                         placeholder={finalVariationPrice.toFixed(2)}
                                                                                                     />
                                                                                                 </div>
@@ -1757,6 +1771,7 @@ export const Dentists = () => {
                                     <p className="font-bold text-slate-600">{t('dentists.usingBaseTable', 'Usando Tabela de Preços Base')}</p>
                                     <p className="text-xs text-slate-400 max-w-sm mx-auto mt-2">{t('dentists.usingBaseTableDesc', 'Os preços serão calculados automaticamente com base na tabela selecionada acima. Ative o modo personalizado se precisar de descontos específicos para este cliente.')}</p>
                                 </div>
+                            )
                             )}
                         </div>
 

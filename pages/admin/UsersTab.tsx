@@ -53,12 +53,18 @@ const AVAILABLE_PERMISSIONS: { key: PermissionKey, label: string, category: stri
     { key: 'catalog:create', label: 'Criar Tipos de Serviço', category: 'Catálogo' },
     { key: 'catalog:edit', label: 'Editar Tipos de Serviço', category: 'Catálogo' },
     { key: 'catalog:delete', label: 'Excluir Tipos de Serviço', category: 'Catálogo' },
-    { key: 'catalog:prices_view', label: 'Ver Tabelas de Preços', category: 'Catálogo' },
+    { key: 'prices:view', label: 'Ver Tabelas de Preços', category: 'Tabelas de Preços' },
+    { key: 'prices:create', label: 'Criar Tabelas de Preços', category: 'Tabelas de Preços' },
+    { key: 'prices:edit', label: 'Editar Tabelas de Preços', category: 'Tabelas de Preços' },
+    { key: 'prices:delete', label: 'Excluir Tabelas de Preços', category: 'Tabelas de Preços' },
     { key: 'clients:view', label: 'Ver Dentistas e Clientes', category: 'Clientes' },
     { key: 'clients:create', label: 'Criar Dentistas', category: 'Clientes' },
-    { key: 'clients:edit', label: 'Editar Dentistas e Preços', category: 'Clientes' },
-    { key: 'clients:delete', label: 'Excluir Dentistas', category: 'Clientes' },
+    { key: 'clients:edit', label: 'Editar Dados de Clientes', category: 'Clientes' },
+    { key: 'clients:delete', label: 'Excluir Clientes', category: 'Clientes' },
+    { key: 'clients:prices_view', label: 'Ver Tabela e Preços Personalizados do Cliente', category: 'Clientes' },
+    { key: 'clients:prices_edit', label: 'Definir/Editar Tabela e Preços Personalizados', category: 'Clientes' },
     { key: 'clients:block_manage', label: 'Bloquear/Desbloquear Clientes', category: 'Clientes' },
+    { key: 'clients:statement_view', label: 'Ver Extrato e Histórico Financeiro', category: 'Clientes' },
     { key: 'sectors:view', label: 'Ver Setores', category: 'Administração' },
     { key: 'sectors:create', label: 'Criar Setores', category: 'Administração' },
     { key: 'sectors:edit', label: 'Editar Setores', category: 'Administração' },
@@ -615,39 +621,70 @@ export const UsersTab = () => {
 
       {/* MODAL: GERENCIAR PERMISSÕES */}
       {selectedUserForPerms && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col animate-in zoom-in duration-200 overflow-hidden">
-                  <div className="px-4 pb-4 sm:px-6 sm:pb-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-3xl">
-                      <div>
-                          <h3 className="text-xl font-black text-slate-800 flex items-center gap-2"><ShieldCheck className="text-blue-600" /> Controle de Acesso</h3>
-                          <p className="text-xs text-slate-500 font-bold uppercase">Permissões para {selectedUserForPerms.name}</p>
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-4">
+              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col animate-in zoom-in duration-200 overflow-hidden border border-slate-100">
+                  {/* HEADER */}
+                  <div className="p-4 sm:px-6 sm:py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
+                      <div className="flex items-center gap-3 min-w-0">
+                          <div className="p-2.5 bg-blue-100 text-blue-600 rounded-xl shrink-0">
+                              <ShieldCheck size={22} />
+                          </div>
+                          <div className="min-w-0">
+                              <h3 className="text-lg sm:text-xl font-black text-slate-800 leading-tight truncate">Controle de Acesso</h3>
+                              <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-0.5 truncate">Permissões para {selectedUserForPerms.name}</p>
+                          </div>
                       </div>
-                      <button onClick={() => setSelectedUserForPerms(null)} className="p-2 hover:bg-slate-200 rounded-full"><X size={24}/></button>
+                      <button 
+                          onClick={() => setSelectedUserForPerms(null)} 
+                          className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-200/80 rounded-xl transition-colors shrink-0 ml-2"
+                      >
+                          <X size={20}/>
+                      </button>
                   </div>
+
+                  {/* BODY */}
                   <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:p-8">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           {Array.from(new Set(AVAILABLE_PERMISSIONS.map(p => p.category))).map(cat => (
-                              <div key={cat} className="space-y-3">
-                                  <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest pb-2 border-b border-slate-100">{cat}</h4>
+                              <div key={cat} className="space-y-3 bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
+                                  <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest pb-2 border-b border-slate-200/80">{cat}</h4>
                                   <div className="space-y-2">
-                                      {AVAILABLE_PERMISSIONS.filter(p => p.category === cat).map(perm => (
-                                          <label key={perm.key} className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:bg-blue-50 transition-all cursor-pointer group">
-                                              <div className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-all ${tempPerms.includes(perm.key) ? 'bg-blue-600 border-blue-600' : 'border-slate-300'}`}>
-                                                  {tempPerms.includes(perm.key) && <Check size={14} className="text-white" />}
-                                              </div>
-                                              <input type="checkbox" className="hidden" checked={tempPerms.includes(perm.key)} onChange={() => togglePermission(perm.key)} />
-                                              <span className={`text-sm font-bold ${tempPerms.includes(perm.key) ? 'text-blue-800' : 'text-slate-600'}`}>{perm.label}</span>
-                                          </label>
-                                      ))}
+                                      {AVAILABLE_PERMISSIONS.filter(p => p.category === cat).map(perm => {
+                                          const isChecked = tempPerms.includes(perm.key);
+                                          return (
+                                              <label key={perm.key} className={`flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer group select-none ${
+                                                  isChecked ? 'bg-blue-50/80 border-blue-200 text-blue-900 shadow-xs' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100/60'
+                                              }`}>
+                                                  <div className={`w-5 h-5 rounded-lg flex items-center justify-center border-2 transition-all shrink-0 ${isChecked ? 'bg-blue-600 border-blue-600' : 'border-slate-300 group-hover:border-slate-400'}`}>
+                                                      {isChecked && <Check size={13} className="text-white stroke-[3]" />}
+                                                  </div>
+                                                  <input type="checkbox" className="hidden" checked={isChecked} onChange={() => togglePermission(perm.key)} />
+                                                  <span className="text-xs sm:text-sm font-bold leading-tight">{perm.label}</span>
+                                              </label>
+                                          );
+                                      })}
                                   </div>
                               </div>
                           ))}
                       </div>
                   </div>
-                  <div className="px-4 pb-4 sm:px-6 sm:pb-6 border-t bg-slate-50 rounded-b-3xl flex justify-end gap-3">
-                      <button onClick={() => setSelectedUserForPerms(null)} className="px-6 py-3 font-bold text-slate-500">Cancelar</button>
-                      <button onClick={handleSavePermissions} disabled={isSubmitting} className="px-10 py-3 bg-slate-900 text-white font-black rounded-xl shadow-xl flex items-center justify-center gap-2">
-                        {isSubmitting ? <Loader2 className="animate-spin" /> : <><Save size={18} /> SALVAR</>}
+
+                  {/* FOOTER */}
+                  <div className="p-4 sm:px-6 sm:py-4 border-t border-slate-100 bg-slate-50 flex flex-col-reverse sm:flex-row justify-end items-center gap-3 shrink-0">
+                      <button 
+                          type="button"
+                          onClick={() => setSelectedUserForPerms(null)} 
+                          className="w-full sm:w-auto px-6 py-2.5 font-bold text-slate-600 hover:bg-slate-200/70 rounded-xl transition-all text-sm text-center"
+                      >
+                          Cancelar
+                      </button>
+                      <button 
+                          type="button"
+                          onClick={handleSavePermissions} 
+                          disabled={isSubmitting} 
+                          className="w-full sm:w-auto px-8 py-2.5 bg-slate-900 text-white font-black rounded-xl shadow-lg shadow-slate-900/10 hover:bg-slate-800 transition-all flex items-center justify-center gap-2 disabled:opacity-50 text-sm"
+                      >
+                        {isSubmitting ? <Loader2 className="animate-spin" size={16} /> : <><Save size={16} /> SALVAR</>}
                       </button>
                   </div>
               </div>

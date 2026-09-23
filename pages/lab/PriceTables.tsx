@@ -14,11 +14,12 @@ export const PriceTables = () => {
         return (currentUser?.permissions as string[])?.includes(perm) || false;
     };
 
-    const canCreate = hasPerm('catalog:create') || hasPerm('catalog:prices_view'); // or general catalog permissions
-    const canEdit = hasPerm('catalog:edit') || hasPerm('clients:edit');
-    const canDelete = hasPerm('catalog:delete');
+    const canView = hasPerm('prices:view') || hasPerm('catalog:prices_view');
+    const canCreate = hasPerm('prices:create') || hasPerm('catalog:create');
+    const canEdit = hasPerm('prices:edit') || hasPerm('catalog:edit');
+    const canDelete = hasPerm('prices:delete') || hasPerm('catalog:delete');
 
-    if (!hasPerm('catalog:prices_view')) {
+    if (!canView) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[60vh] text-slate-500">
                 <Table size={48} className="mb-4 opacity-20" />
