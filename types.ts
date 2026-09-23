@@ -1296,6 +1296,125 @@ export interface ClinicClinicalCard {
   createdAt: Date;
 }
 
+export type TreatmentPlanStatus = 
+  | 'RASCUNHO' 
+  | 'EM_AVALIACAO' 
+  | 'AGUARDANDO_ACEITE' 
+  | 'ACEITO' 
+  | 'EM_ANDAMENTO' 
+  | 'CONCLUIDO' 
+  | 'CANCELADO';
+
+export type TreatmentProcedureStatus = 
+  | 'PLANEJADO' 
+  | 'AGUARDANDO' 
+  | 'AGENDADO' 
+  | 'EM_ANDAMENTO' 
+  | 'CONCLUIDO' 
+  | 'CANCELADO';
+
+export type TreatmentPriority = 'BAIXA' | 'NORMAL' | 'ALTA' | 'URGENTE';
+
+export interface TreatmentProcedure {
+  id: string;
+  serviceId?: string;
+  name: string;
+  category?: string;
+  teeth: string[];
+  quantity: number;
+  dentistId?: string;
+  dentistName?: string;
+  unitPrice: number;
+  discountType?: 'VALUE' | 'PERCENT';
+  discountValue?: number;
+  finalPrice: number;
+  priority: TreatmentPriority;
+  notes?: string;
+  status: TreatmentProcedureStatus;
+  
+  // Agendamento integration
+  appointmentId?: string;
+  appointmentDate?: Date;
+  appointmentTime?: string;
+  roomId?: string;
+  
+  // Conclusão
+  completedAt?: Date;
+  completedByDentistName?: string;
+  completionNotes?: string;
+  
+  // Future lab integration hook
+  jobId?: string;
+  labRequired?: boolean;
+}
+
+export interface TreatmentBudget {
+  validityDays?: number;
+  validUntil?: Date;
+  paymentMethod?: 'DINHEIRO' | 'PIX' | 'CARTAO_CREDITO' | 'CARTAO_DEBITO' | 'BOLETO' | 'TRANSFERENCIA' | 'OUTRO';
+  installmentsCount?: number;
+  downPayment?: number;
+  installmentValue?: number;
+  notes?: string;
+  generatedAt?: Date;
+  generatedBy?: string;
+  financialEntriesCreated?: boolean;
+}
+
+export interface TreatmentAcceptance {
+  acceptedAt?: Date;
+  acceptedBy?: string;
+  registeredByDentistName?: string;
+  registeredByUserId?: string;
+  notes?: string;
+  signatureUrl?: string;
+  status: 'AGUARDANDO_ACEITE' | 'ACEITO' | 'RECUSADO';
+}
+
+export interface ClinicTreatmentPlan {
+  id: string;
+  organizationId: string;
+  patientId: string;
+  patientName: string;
+  name: string;
+  dentistId: string;
+  dentistName: string;
+  status: TreatmentPlanStatus;
+  
+  // Dates
+  createdAt: Date;
+  updatedAt: Date;
+  startDate?: Date;
+  expectedEndDate?: Date;
+  completedAt?: Date;
+  
+  // Clinical Diagnosis
+  diagnosis?: string;
+  clinicalNotes?: string;
+  recommendations?: string;
+  priority: TreatmentPriority;
+  diagnosedTeeth?: string[];
+  
+  // Procedures
+  procedures: TreatmentProcedure[];
+  
+  // Financials
+  subtotal: number;
+  discountType: 'VALUE' | 'PERCENT';
+  discountValue: number;
+  additionValue: number;
+  finalAmount: number;
+  
+  // Budget Details
+  budget?: TreatmentBudget;
+  
+  // Acceptance
+  acceptance?: TreatmentAcceptance;
+  
+  // General Notes
+  notes?: string;
+}
+
 export interface ClinicAnamnesis {
   id: string;
   patientId: string;

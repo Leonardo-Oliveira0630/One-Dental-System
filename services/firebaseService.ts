@@ -25,7 +25,7 @@ import {
   User, UserRole, PermissionKey, ALL_SYSTEM_PERMISSIONS, Job, JobStatus, JobType, Sector, JobAlert, ClinicPatient, 
   Appointment, Organization, SubscriptionPlan, OrganizationConnection, 
   Coupon, LabCoupon, CommissionRecord, ManualDentist, Expense, BillingBatch, GlobalSettings, LabRating, DeliveryRoute, RouteItem, BoxColor, ChatMessage, ClinicService, ClinicRoom, ClinicDentist, PatientHistoryRecord, PaymentRecord, PriceTable, DentistPayment, CardMachine, BankAccount,
-  Tutorial, Courier, ClinicBudget, ClinicPrescription, ClinicClinicalCard, ClinicAnamnesis, ClinicPatientFinance, OnlineRequisition, SupplierOrder, CaseApprovalItem, CaseApprovalReply, CaseApprovalFile, Budget,
+  Tutorial, Courier, ClinicBudget, ClinicPrescription, ClinicClinicalCard, ClinicAnamnesis, ClinicPatientFinance, ClinicTreatmentPlan, OnlineRequisition, SupplierOrder, CaseApprovalItem, CaseApprovalReply, CaseApprovalFile, Budget,
   OrderReturnRequest, SupplierChatMessage, SupplierConversation
 } from '../types';
 
@@ -740,6 +740,43 @@ export const subscribePatientFinance = (orgId: string, patientId: string, cb: (f
 };
 export const apiAddPatientFinance = (orgId: string, patientId: string, f: ClinicPatientFinance) => setDoc(doc(db, `organizations/${orgId}/patients/${patientId}/finance`, f.id), f);
 export const apiDeletePatientFinance = (orgId: string, patientId: string, id: string) => deleteDoc(doc(db, `organizations/${orgId}/patients/${patientId}/finance`, id));
+
+// Treatment Plans Subcollection
+export const subscribePatientTreatmentPlans = (orgId: string, patientId: string, cb: (plans: ClinicTreatmentPlan[]) => void) => {
+    if (!orgId || !patientId) return () => {};
+    return onSnapshot(collection(db, `organizations/${orgId}/patients/${patientId}/treatment_plans`), (snap: any) => {
+        cb(snap.docs.map((d: any) => {
+            const data = d.data();
+            return {
+                id: d.id,
+                ...data,
+                createdAt: toDate(data.createdAt),
+                updatedAt: toDate(data.updatedAt),
+                startDate: data.startDate ? toDate(data.startDate) : undefined,
+                expectedEndDate: data.expectedEndDate ? toDate(data.expectedEndDate) : undefined,
+                completedAt: data.completedAt ? toDate(data.completedAt) : undefined,
+                procedures: (data.procedures || []).map((p: any) => ({
+                    ...p,
+                    appointmentDate: p.appointmentDate ? toDate(p.appointmentDate) : undefined,
+                    completedAt: p.completedAt ? toDate(p.completedAt) : undefined,
+                })),
+                budget: data.budget ? {
+                    ...data.budget,
+                    validUntil: data.budget.validUntil ? toDate(data.budget.validUntil) : undefined,
+                    generatedAt: data.budget.generatedAt ? toDate(data.budget.generatedAt) : undefined,
+                } : undefined,
+                acceptance: data.acceptance ? {
+                    ...data.acceptance,
+                    acceptedAt: data.acceptance.acceptedAt ? toDate(data.acceptance.acceptedAt) : undefined,
+                } : undefined,
+            } as ClinicTreatmentPlan;
+        }));
+    }, (error: any) => logger.warn(`[Firestore] Erro em subscribePatientTreatmentPlans: ${error.code}`));
+};
+export const apiSavePatientTreatmentPlan = (orgId: string, patientId: string, plan: ClinicTreatmentPlan) => 
+    setDoc(doc(db, `organizations/${orgId}/patients/${patientId}/treatment_plans`, plan.id), sanitizeForFirestore(plan));
+export const apiDeletePatientTreatmentPlan = (orgId: string, patientId: string, id: string) => 
+    deleteDoc(doc(db, `organizations/${orgId}/patients/${patientId}/treatment_plans`, id));
 
 export const subscribeAppointments = (orgId: string, cb: (a: Appointment[]) => void) => {
     if (!orgId) return () => {};
@@ -2451,6 +2488,8 @@ export const apiDeleteEntireSystem = async (orgId: string, userId: string) => {
                     for (const c of clinicalCards.docs) await deleteDoc(c.ref);
                     const anamnesis = await getDocs(collection(db, `organizations/${orgId}/patients/${d.id}/anamnesis`));
                     for (const an of anamnesis.docs) await deleteDoc(an.ref);
+                    const treatmentPlans = await getDocs(collection(db, `organizations/${orgId}/patients/${d.id}/treatment_plans`));
+                    for (const tp of treatmentPlans.docs) await deleteDoc(tp.ref);
                     const finance = await getDocs(collection(db, `organizations/${orgId}/patients/${d.id}/finance`));
                     for (const f of finance.docs) await deleteDoc(f.ref);
                 }

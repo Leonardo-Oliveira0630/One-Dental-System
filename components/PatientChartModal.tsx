@@ -9,16 +9,17 @@ import {
 import { useApp } from '../context/AppContext';
 import { 
     ClinicPatient, Appointment, ClinicBudget, ClinicPrescription, 
-    ClinicClinicalCard, ClinicAnamnesis, ClinicPatientFinance, AppointmentStatus, ClinicService
+    ClinicClinicalCard, ClinicAnamnesis, ClinicPatientFinance, ClinicTreatmentPlan, AppointmentStatus, ClinicService
 } from '../types';
 import * as api from '../services/firebaseService';
+import { TreatmentPlanModal } from './TreatmentPlanModal';
 
 interface PatientChartModalProps {
     patient: ClinicPatient;
     onClose: () => void;
 }
 
-type TabType = 'SOBRE' | 'CONSULTAS' | 'FINANCEIRO' | 'ORCAMENTOS' | 'FICHAS' | 'ANEXOS' | 'PRESCRICOES' | 'ANAMNESE' | 'PROTESES';
+type TabType = 'SOBRE' | 'PLANOS_TRATAMENTO' | 'CONSULTAS' | 'FINANCEIRO' | 'ORCAMENTOS' | 'FICHAS' | 'ANEXOS' | 'PRESCRICOES' | 'ANAMNESE' | 'PROTESES';
 
 export const PatientChartModal: React.FC<PatientChartModalProps> = ({ patient, onClose }) => {
     const { 
@@ -45,6 +46,11 @@ export const PatientChartModal: React.FC<PatientChartModalProps> = ({ patient, o
     const [anamnesisRecords, setAnamnesisRecords] = useState<ClinicAnamnesis[]>([]);
     const [finances, setFinances] = useState<ClinicPatientFinance[]>([]);
     const [patientHistory, setPatientHistory] = useState<any[]>([]);
+    const [treatmentPlans, setTreatmentPlans] = useState<ClinicTreatmentPlan[]>([]);
+
+    // Treatment Plan Modal States
+    const [showTreatmentPlanModal, setShowTreatmentPlanModal] = useState(false);
+    const [selectedPlanToEdit, setSelectedPlanToEdit] = useState<ClinicTreatmentPlan | null>(null);
 
     // Loading states
     const [isSaving, setIsSaving] = useState(false);
@@ -151,6 +157,7 @@ export const PatientChartModal: React.FC<PatientChartModalProps> = ({ patient, o
         });
         const unsubFinance = api.subscribePatientFinance(orgId, patient.id, setFinances);
         const unsubHistory = api.subscribePatientHistory(orgId, patient.id, setPatientHistory);
+        const unsubTreatmentPlans = api.subscribePatientTreatmentPlans(orgId, patient.id, setTreatmentPlans);
 
         return () => {
             unsubBudgets();
@@ -159,6 +166,7 @@ export const PatientChartModal: React.FC<PatientChartModalProps> = ({ patient, o
             unsubAnamnesis();
             unsubFinance();
             unsubHistory();
+            unsubTreatmentPlans();
         };
     }, [patient, currentUser]);
 
@@ -640,9 +648,10 @@ export const PatientChartModal: React.FC<PatientChartModalProps> = ({ patient, o
 
                 {/* HORIZONTAL TABS SYSTEM */}
                 <div className="bg-white border-b border-slate-100 overflow-x-auto scrollbar-none flex gap-1 shrink-0 px-4 md:px-8">
-                    {(isLimited ? (['SOBRE', 'PROTESES'] as const) : (['SOBRE', 'CONSULTAS', 'FINANCEIRO', 'ORCAMENTOS', 'FICHAS', 'ANEXOS', 'PRESCRICOES', 'ANAMNESE', 'PROTESES'] as const)).map((tab: TabType) => {
+                    {(isLimited ? (['SOBRE', 'PROTESES'] as const) : (['SOBRE', 'PLANOS_TRATAMENTO', 'CONSULTAS', 'FINANCEIRO', 'ORCAMENTOS', 'FICHAS', 'ANEXOS', 'PRESCRICOES', 'ANAMNESE', 'PROTESES'] as const)).map((tab: TabType) => {
                         const labels: { [key: string]: string } = {
                             SOBRE: 'Sobre',
+                            PLANOS_TRATAMENTO: 'Plano de Tratamento',
                             CONSULTAS: 'Consultas',
                             FINANCEIRO: 'Financeiro',
                             ORCAMENTOS: 'Orçamentos',
@@ -815,6 +824,212 @@ export const PatientChartModal: React.FC<PatientChartModalProps> = ({ patient, o
                                                     </button>
                                                 </div>
                                             </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </motion.div>
+                        )}
+
+                        {/* TAB: PLANO DE TRATAMENTO PANEL */}
+                        {activeTab === 'PLANOS_TRATAMENTO' && (
+                            <motion.div key="planos_tratamento" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                                    <div>
+                                        <h3 className="text-sm font-black uppercase text-slate-400 tracking-widest flex items-center gap-2">
+                                            <Sparkles size={18} className="text-teal-600"/> Planos de Tratamento Odontológico
+                                        </h3>
+                                        <p className="text-xs text-slate-500 font-medium mt-0.5">
+                                            Planejamento visual integrado com odontograma, procedimentos, orçamento e agendamento.
+                                        </p>
+                                    </div>
+                                    <button 
+                                        onClick={() => {
+                                            setSelectedPlanToEdit(null);
+                                            setShowTreatmentPlanModal(true);
+                                        }}
+                                        className="px-5 py-2.5 bg-gradient-to-r from-teal-600 to-indigo-600 hover:from-teal-700 hover:to-indigo-700 text-white font-black text-xs rounded-xl flex items-center gap-2 shadow-md transition active:scale-95 shrink-0"
+                                    >
+                                        <Plus size={16}/> + NOVO PLANO DE TRATAMENTO
+                                    </button>
+                                </div>
+
+                                {/* KPI Metrics Summary */}
+                                {treatmentPlans.length > 0 && (
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                        <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                                            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Total de Planos</span>
+                                            <p className="text-xl font-black text-slate-800 mt-1">{treatmentPlans.length}</p>
+                                        </div>
+                                        <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                                            <span className="text-[10px] font-black uppercase tracking-wider text-indigo-500">Em Andamento</span>
+                                            <p className="text-xl font-black text-indigo-700 mt-1">
+                                                {treatmentPlans.filter(p => p.status === 'EM_ANDAMENTO' || p.status === 'ACEITO').length}
+                                            </p>
+                                        </div>
+                                        <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                                            <span className="text-[10px] font-black uppercase tracking-wider text-emerald-500">Concluídos</span>
+                                            <p className="text-xl font-black text-emerald-700 mt-1">
+                                                {treatmentPlans.filter(p => p.status === 'CONCLUIDO').length}
+                                            </p>
+                                        </div>
+                                        <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                                            <span className="text-[10px] font-black uppercase tracking-wider text-teal-600">Total Planejado</span>
+                                            <p className="text-xl font-black text-slate-900 mt-1">
+                                                R$ {treatmentPlans.reduce((sum, p) => sum + (p.finalAmount || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Treatment Plans List */}
+                                <div className="space-y-4">
+                                    {treatmentPlans.map(plan => {
+                                        const statusLabels: Record<string, { label: string; bg: string; text: string }> = {
+                                            RASCUNHO: { label: 'Rascunho', bg: 'bg-slate-100', text: 'text-slate-700' },
+                                            EM_AVALIACAO: { label: 'Em Avaliação', bg: 'bg-blue-50', text: 'text-blue-700' },
+                                            AGUARDANDO_ACEITE: { label: 'Aguardando Aceite', bg: 'bg-amber-50', text: 'text-amber-700' },
+                                            ACEITO: { label: 'Aceito', bg: 'bg-emerald-50', text: 'text-emerald-700' },
+                                            EM_ANDAMENTO: { label: 'Em Andamento', bg: 'bg-indigo-50', text: 'text-indigo-700' },
+                                            CONCLUIDO: { label: 'Concluído', bg: 'bg-teal-50', text: 'text-teal-700' },
+                                            CANCELADO: { label: 'Cancelado', bg: 'bg-rose-50', text: 'text-rose-700' }
+                                        };
+                                        const st = statusLabels[plan.status] || statusLabels.RASCUNHO;
+
+                                        const totalProcs = (plan.procedures || []).length;
+                                        const completedProcs = (plan.procedures || []).filter(p => p.status === 'CONCLUIDO').length;
+                                        const progressPct = totalProcs > 0 ? (completedProcs / totalProcs) * 100 : 0;
+
+                                        return (
+                                            <div 
+                                                key={plan.id}
+                                                className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-100 shadow-sm hover:border-indigo-200 transition-all space-y-4 relative group"
+                                            >
+                                                {/* Header Row */}
+                                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                                                    <div className="space-y-1">
+                                                        <div className="flex items-center gap-2.5 flex-wrap">
+                                                            <h4 className="font-black text-slate-900 text-base uppercase tracking-tight">
+                                                                {plan.name}
+                                                            </h4>
+                                                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${st.bg} ${st.text}`}>
+                                                                {st.label}
+                                                            </span>
+                                                            {plan.priority && (
+                                                                <span className="px-2 py-0.5 rounded-md text-[9px] font-bold bg-slate-100 text-slate-600 uppercase">
+                                                                    Prioridade: {plan.priority}
+                                                                </span>
+                                                            )}
+                                                        </div>
+
+                                                        <p className="text-xs text-slate-400 font-bold flex items-center gap-3 flex-wrap">
+                                                            <span>Dentista: <strong className="text-slate-700">{plan.dentistName}</strong></span>
+                                                            <span>•</span>
+                                                            <span>Criado em: {new Date(plan.createdAt).toLocaleDateString('pt-BR')}</span>
+                                                            {plan.updatedAt && (
+                                                                <>
+                                                                    <span>•</span>
+                                                                    <span>Atualizado: {new Date(plan.updatedAt).toLocaleDateString('pt-BR')}</span>
+                                                                </>
+                                                            )}
+                                                        </p>
+                                                    </div>
+
+                                                    {/* Price Tag */}
+                                                    <div className="text-left sm:text-right">
+                                                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">Valor Final</span>
+                                                        <p className="text-xl font-black text-indigo-700">
+                                                            R$ {(plan.finalAmount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                        </p>
+                                                        {plan.discountValue ? (
+                                                            <span className="text-[10px] font-bold text-rose-500">
+                                                                Desconto: R$ {(plan.discountValue || 0).toFixed(2)}
+                                                            </span>
+                                                        ) : null}
+                                                    </div>
+                                                </div>
+
+                                                {/* Progress Bar & Procedures Count */}
+                                                <div className="bg-slate-50 p-3.5 rounded-2xl space-y-2 border border-slate-100">
+                                                    <div className="flex justify-between items-center text-xs font-bold text-slate-600">
+                                                        <span>Procedimentos: <strong>{totalProcs}</strong> ({completedProcs} concluídos)</span>
+                                                        <span className="text-indigo-600 font-black">{progressPct.toFixed(0)}% concluído</span>
+                                                    </div>
+                                                    <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                                                        <div 
+                                                            className="bg-gradient-to-r from-teal-500 to-indigo-600 h-full rounded-full transition-all duration-300"
+                                                            style={{ width: `${progressPct}%` }}
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                {/* Diagnosis summary if exists */}
+                                                {plan.diagnosis && (
+                                                    <p className="text-xs text-slate-600 font-medium bg-slate-50/50 p-2.5 rounded-xl border border-slate-100">
+                                                        <strong className="text-slate-700">Diagnóstico:</strong> {plan.diagnosis}
+                                                    </p>
+                                                )}
+
+                                                {/* Actions */}
+                                                <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+                                                    <div className="text-xs text-slate-400 font-bold">
+                                                        {plan.acceptance?.status === 'ACEITO' ? (
+                                                            <span className="text-emerald-600 flex items-center gap-1 font-black">
+                                                                <ShieldCheck size={14}/> Aceito pelo paciente
+                                                            </span>
+                                                        ) : (
+                                                            <span>Aceite pendente</span>
+                                                        )}
+                                                    </div>
+
+                                                    <div className="flex items-center gap-2">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                if (confirm(`Deseja realmente excluir o plano "${plan.name}"?`)) {
+                                                                    if (currentUser?.organizationId) {
+                                                                        api.apiDeletePatientTreatmentPlan(currentUser.organizationId, patient.id, plan.id);
+                                                                    }
+                                                                }
+                                                            }}
+                                                            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition"
+                                                            title="Excluir Plano"
+                                                        >
+                                                            <Trash2 size={16}/>
+                                                        </button>
+
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setSelectedPlanToEdit(plan);
+                                                                setShowTreatmentPlanModal(true);
+                                                            }}
+                                                            className="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-black flex items-center gap-1.5 transition"
+                                                        >
+                                                            <Edit2 size={14}/> Ver / Editar Plano Completo
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+
+                                    {treatmentPlans.length === 0 && (
+                                        <div className="py-14 bg-white text-center text-slate-400 rounded-3xl border border-dashed border-slate-200 p-8 space-y-3">
+                                            <Sparkles size={40} className="mx-auto text-slate-300"/>
+                                            <p className="font-black text-slate-700 text-sm">Nenhum plano de tratamento cadastrado para este paciente.</p>
+                                            <p className="text-xs text-slate-400 max-w-md mx-auto">
+                                                Crie um novo plano para associar procedimentos ao odontograma anatômico, simular orçamentos e gerenciar as etapas clínicas.
+                                            </p>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setSelectedPlanToEdit(null);
+                                                    setShowTreatmentPlanModal(true);
+                                                }}
+                                                className="px-5 py-2.5 bg-gradient-to-r from-teal-600 to-indigo-600 text-white font-black text-xs rounded-xl shadow-md inline-flex items-center gap-2 mt-2"
+                                            >
+                                                <Plus size={15}/> Criar Primeiro Plano de Tratamento
+                                            </button>
                                         </div>
                                     )}
                                 </div>
@@ -1619,6 +1834,22 @@ export const PatientChartModal: React.FC<PatientChartModalProps> = ({ patient, o
                     </AnimatePresence>
                 </div>
             </motion.div>
+
+            {/* TREATMENT PLAN MODAL */}
+            {showTreatmentPlanModal && (
+                <TreatmentPlanModal
+                    patient={patientInfo}
+                    planToEdit={selectedPlanToEdit}
+                    onClose={() => {
+                        setShowTreatmentPlanModal(false);
+                        setSelectedPlanToEdit(null);
+                    }}
+                    onSaved={() => {
+                        setShowTreatmentPlanModal(false);
+                        setSelectedPlanToEdit(null);
+                    }}
+                />
+            )}
         </div>
     );
 };
