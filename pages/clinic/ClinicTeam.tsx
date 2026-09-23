@@ -693,17 +693,17 @@ export const ClinicTeam = () => {
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-xl my-auto animate-in zoom-in duration-200 overflow-hidden border border-slate-100">
             {/* MODAL HEADER */}
-            <div className="p-4 sm:px-6 sm:py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-teal-100 text-teal-700 rounded-xl">
+            <div className="p-4 sm:px-6 sm:py-5 border-b border-slate-100 flex justify-between items-center gap-3 bg-slate-50 shrink-0">
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                <div className="p-2.5 bg-teal-100 text-teal-700 rounded-xl shrink-0">
                   <UserPlus size={22} />
                 </div>
-                <div>
-                  <h3 className="text-lg sm:text-xl font-black text-slate-800 leading-tight">Novo Colaborador</h3>
-                  <p className="text-xs text-slate-500 font-medium">Cadastre um profissional ou funcionário para a clínica.</p>
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-base sm:text-xl font-black text-slate-800 leading-tight truncate">Novo Colaborador</h3>
+                  <p className="text-xs text-slate-500 font-medium truncate">Cadastre um profissional ou funcionário para a clínica.</p>
                 </div>
               </div>
-              <button onClick={() => setIsAddingUser(false)} className="text-slate-400 hover:text-slate-600 p-2 rounded-xl hover:bg-slate-200/60 transition-colors">
+              <button onClick={() => setIsAddingUser(false)} className="text-slate-400 hover:text-slate-700 p-2 rounded-xl hover:bg-slate-200/60 transition-colors shrink-0">
                 <X size={20}/>
               </button>
             </div>
@@ -843,17 +843,17 @@ export const ClinicTeam = () => {
       {editingUser && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-xl my-auto animate-in zoom-in duration-200 overflow-hidden border border-slate-100">
-            <div className="p-4 sm:px-6 sm:py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-blue-100 text-blue-700 rounded-xl">
+            <div className="p-4 sm:px-6 sm:py-5 border-b border-slate-100 flex justify-between items-center gap-3 bg-slate-50 shrink-0">
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                <div className="p-2.5 bg-blue-100 text-blue-700 rounded-xl shrink-0">
                   <Edit size={22} />
                 </div>
-                <div>
-                  <h3 className="text-lg sm:text-xl font-black text-slate-800 leading-tight">Editar Colaborador</h3>
-                  <p className="text-xs text-slate-500 font-medium">Atualize os dados e perfil de {editingUser.name}.</p>
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-base sm:text-xl font-black text-slate-800 leading-tight truncate">Editar Colaborador</h3>
+                  <p className="text-xs text-slate-500 font-medium truncate">Atualize os dados e perfil de {editingUser.name}.</p>
                 </div>
               </div>
-              <button onClick={() => setEditingUser(null)} className="text-slate-400 hover:text-slate-600 p-2 rounded-xl hover:bg-slate-200/60 transition-colors">
+              <button onClick={() => setEditingUser(null)} className="text-slate-400 hover:text-slate-700 p-2 rounded-xl hover:bg-slate-200/60 transition-colors shrink-0">
                 <X size={20}/>
               </button>
             </div>
@@ -967,13 +967,13 @@ export const ClinicTeam = () => {
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-4">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col animate-in zoom-in duration-200 overflow-hidden border border-slate-100">
             {/* HEADER FIXO */}
-            <div className="p-4 sm:px-6 sm:py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
-              <div className="flex items-center gap-3 min-w-0">
+            <div className="p-4 sm:px-6 sm:py-5 border-b border-slate-100 flex justify-between items-center gap-3 bg-slate-50 shrink-0">
+              <div className="flex items-center gap-3 min-w-0 flex-1">
                 <div className="p-2.5 bg-teal-100 text-teal-700 rounded-xl shrink-0">
                   <ShieldCheck size={24} />
                 </div>
-                <div className="min-w-0">
-                  <h3 className="text-lg sm:text-xl font-black text-slate-800 leading-tight truncate">
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-base sm:text-xl font-black text-slate-800 leading-tight truncate">
                     Permissões: {selectedUserForPerms.name}
                   </h3>
                   <div className="flex items-center gap-2 mt-0.5 flex-wrap">
@@ -992,7 +992,7 @@ export const ClinicTeam = () => {
 
               <button
                 onClick={() => setSelectedUserForPerms(null)}
-                className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-200/80 rounded-xl transition-colors shrink-0 ml-2"
+                className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-200/80 rounded-xl transition-colors shrink-0"
               >
                 <X size={20} />
               </button>
@@ -1104,7 +1104,7 @@ export const ClinicTeam = () => {
             </div>
 
             {/* FOOTER FIXO */}
-            <div className="p-4 sm:px-6 sm:py-4 border-t border-slate-100 bg-slate-50 flex flex-col-reverse sm:flex-row justify-end items-center gap-3 shrink-0">
+            <div className="p-4 sm:px-6 sm:py-4 border-t border-slate-100 bg-slate-50 flex flex-col-reverse sm:flex-row justify-end items-stretch sm:items-center gap-2 sm:gap-3 shrink-0">
               <button
                 type="button"
                 onClick={() => setSelectedUserForPerms(null)}

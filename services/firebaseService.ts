@@ -22,7 +22,7 @@ const { getToken, onMessage } = messagingPkg as any;
 
 import { db, auth, storage, functions, messaging } from './firebaseConfig';
 import { 
-  User, UserRole, Job, JobStatus, JobType, Sector, JobAlert, ClinicPatient, 
+  User, UserRole, PermissionKey, ALL_SYSTEM_PERMISSIONS, Job, JobStatus, JobType, Sector, JobAlert, ClinicPatient, 
   Appointment, Organization, SubscriptionPlan, OrganizationConnection, 
   Coupon, LabCoupon, CommissionRecord, ManualDentist, Expense, BillingBatch, GlobalSettings, LabRating, DeliveryRoute, RouteItem, BoxColor, ChatMessage, ClinicService, ClinicRoom, ClinicDentist, PatientHistoryRecord, PaymentRecord, PriceTable, DentistPayment, CardMachine, BankAccount,
   Tutorial, Courier, ClinicBudget, ClinicPrescription, ClinicClinicalCard, ClinicAnamnesis, ClinicPatientFinance, OnlineRequisition, SupplierOrder, CaseApprovalItem, CaseApprovalReply, CaseApprovalFile, Budget,
@@ -999,7 +999,15 @@ export const apiRegisterOrganization = async (email: string, pass: string, owner
         ...(address || {})
     };
     await setDoc(doc(db, 'organizations', orgId), org);
-    const profile: User = { id: userCred.user.uid, name: ownerName, email, role: UserRole.ADMIN, organizationId: orgId, ...(address || {}) };
+    const profile: User = { 
+        id: userCred.user.uid, 
+        name: ownerName, 
+        email, 
+        role: UserRole.ADMIN, 
+        organizationId: orgId, 
+        permissions: ALL_SYSTEM_PERMISSIONS, 
+        ...(address || {}) 
+    };
     await setDoc(doc(db, 'users', userCred.user.uid), profile);
     return profile;
 };
@@ -1011,7 +1019,15 @@ export const apiRegisterOutsourcedLab = async (email: string, pass: string, owne
         ...(address || {})
     };
     await setDoc(doc(db, 'organizations', orgId), org);
-    const profile: User = { id: userCred.user.uid, name: ownerName, email, role: UserRole.ADMIN, organizationId: orgId, ...(address || {}) };
+    const profile: User = { 
+        id: userCred.user.uid, 
+        name: ownerName, 
+        email, 
+        role: UserRole.ADMIN, 
+        organizationId: orgId, 
+        permissions: ALL_SYSTEM_PERMISSIONS, 
+        ...(address || {}) 
+    };
     await setDoc(doc(db, 'users', userCred.user.uid), profile);
     return profile;
 };
@@ -1023,7 +1039,16 @@ export const apiRegisterDentist = async (email: string, pass: string, name: stri
         ...(address || {})
     };
     await setDoc(doc(db, 'organizations', orgId), org);
-    const profile: User = { id: userCred.user.uid, name, email, role: UserRole.CLIENT, organizationId: orgId, clinicName, ...(address || {}) };
+    const profile: User = { 
+        id: userCred.user.uid, 
+        name, 
+        email, 
+        role: UserRole.ADMIN, 
+        organizationId: orgId, 
+        clinicName, 
+        permissions: ALL_SYSTEM_PERMISSIONS, 
+        ...(address || {}) 
+    };
     await setDoc(doc(db, 'users', userCred.user.uid), profile);
     return profile;
 };
@@ -1176,9 +1201,18 @@ export const apiSyncStoreOrders = async (params: { organizationId?: string; clie
     const fn = httpsCallable(functions, 'syncStoreOrders');
     return (await fn(params)).data as any;
 };
-export const apiRegisterUserInOrg = async (email: string, pass: string, name: string, role: UserRole, organizationId: string, sector?: string, sectors?: string[]) => {
+export const apiRegisterUserInOrg = async (
+    email: string, 
+    pass: string, 
+    name: string, 
+    role: UserRole, 
+    organizationId: string, 
+    sector?: string, 
+    sectors?: string[],
+    extra?: { permissions?: PermissionKey[]; cro?: string; specialty?: string; phone?: string }
+) => {
     const fn = httpsCallable(functions, 'registerUserInOrg');
-    return (await fn({ email, pass, name, role, organizationId, sector, sectors })).data;
+    return (await fn({ email, pass, name, role, organizationId, sector, sectors, ...(extra || {}) })).data;
 };
 export const apiValidateCro = async (uf: string, numero: string, categoria: string) => {
     const fn = httpsCallable(functions, 'validateCro');
@@ -1699,7 +1733,15 @@ export const apiRegisterSupplier = async (email: string, pass: string, ownerName
         ...(address || {})
     };
     await setDoc(doc(db, 'organizations', orgId), org);
-    const profile: User = { id: userCred.user.uid, name: ownerName, email, role: UserRole.ADMIN, organizationId: orgId, ...(address || {}) };
+    const profile: User = { 
+        id: userCred.user.uid, 
+        name: ownerName, 
+        email, 
+        role: UserRole.ADMIN, 
+        organizationId: orgId, 
+        permissions: ALL_SYSTEM_PERMISSIONS, 
+        ...(address || {}) 
+    };
     await setDoc(doc(db, 'users', userCred.user.uid), profile);
     return profile;
 };

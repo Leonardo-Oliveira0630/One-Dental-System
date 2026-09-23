@@ -377,6 +377,37 @@ export type PermissionKey =
   | 'clinic_settings:view' | 'clinic_settings:edit'
   | 'store:view' | 'store:buy';
 
+export const ALL_SYSTEM_PERMISSIONS: PermissionKey[] = [
+  'jobs:view', 'jobs:create', 'jobs:edit', 'jobs:delete', 'jobs:return', 'jobs:finish', 'jobs:alert', 'jobs:print', 'jobs:chat_toggle', 'jobs:approval', 'jobs:change_status',
+  'finance:view', 'finance:create', 'finance:edit', 'finance:delete',
+  'catalog:view', 'catalog:create', 'catalog:edit', 'catalog:delete', 'catalog:prices_view',
+  'prices:view', 'prices:create', 'prices:edit', 'prices:delete',
+  'clients:view', 'clients:create', 'clients:edit', 'clients:delete', 'clients:block_manage', 'clients:statement_view', 'clients:prices_view', 'clients:prices_edit',
+  'sectors:view', 'sectors:create', 'sectors:edit', 'sectors:delete',
+  'users:view', 'users:create', 'users:edit', 'users:delete',
+  'commissions:view', 'commissions:create', 'commissions:edit', 'commissions:delete',
+  'receipts:view', 'receipts:create', 'receipts:edit', 'receipts:delete',
+  'logistics:view', 'logistics:create', 'logistics:edit', 'logistics:delete',
+  'boxes:view', 'boxes:create', 'boxes:edit', 'boxes:delete',
+  'inventory:view', 'inventory:create', 'inventory:edit', 'inventory:delete',
+  'vip:view',
+  'calendar:view',
+  'store_suppliers:view',
+  'patients:view', 'patients:create', 'patients:edit', 'patients:delete', 'patients:history_edit',
+  'schedule:view', 'schedule:create', 'schedule:edit', 'schedule:delete',
+  'clinic_finance:view', 'clinic_finance:create', 'clinic_finance:edit', 'clinic_finance:delete',
+  'clinic_rooms:view', 'clinic_rooms:create', 'clinic_rooms:edit', 'clinic_rooms:delete',
+  'clinic_dentists:view', 'clinic_dentists:create', 'clinic_dentists:edit', 'clinic_dentists:delete',
+  'clinic_services:view', 'clinic_services:create', 'clinic_services:edit', 'clinic_services:delete',
+  'clinic_inventory:view', 'clinic_inventory:create', 'clinic_inventory:edit', 'clinic_inventory:delete',
+  'dentist_cases:view', 'dentist_cases:create', 'dentist_cases:edit', 'dentist_cases:delete',
+  'requisitions:view', 'requisitions:create', 'requisitions:edit', 'requisitions:delete',
+  'partnerships:view', 'partnerships:manage',
+  'clinic_users:view', 'clinic_users:create', 'clinic_users:edit', 'clinic_users:delete',
+  'clinic_settings:view', 'clinic_settings:edit',
+  'store:view', 'store:buy'
+];
+
 export type InventoryItemType = 'MATERIAL' | 'MACHINERY' | 'SUPPLY' | 'IMPLANT' | 'OTHER';
 
 export interface InventoryCategory {

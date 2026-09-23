@@ -3,7 +3,7 @@ import logger, { getCircularReplacer } from "../utils/logger";
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
 import { 
   User, Job, JobType, CartItem, UserRole, Sector, JobAlert, Attachment,
-  ClinicPatient, Appointment, Organization, SubscriptionPlan, OrganizationConnection, Coupon, LabCoupon, CommissionRecord, CommissionStatus, ManualDentist, GlobalSettings, DeliveryRoute, RouteItem, BoxColor, ClinicService, ClinicRoom, ClinicDentist, PermissionKey, PaymentRecord, PriceTable, BillingBatch, DentistPayment, Courier,
+  ClinicPatient, Appointment, Organization, SubscriptionPlan, OrganizationConnection, Coupon, LabCoupon, CommissionRecord, CommissionStatus, ManualDentist, GlobalSettings, DeliveryRoute, RouteItem, BoxColor, ClinicService, ClinicRoom, ClinicDentist, PermissionKey, ALL_SYSTEM_PERMISSIONS, PaymentRecord, PriceTable, BillingBatch, DentistPayment, Courier,
   CardMachine, BankAccount,
   JobStatus, UrgencyLevel, OnlineRequisition, Budget,
   AppNotification, NotificationPreferences
@@ -85,20 +85,7 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
   throw new Error(JSON.stringify(errInfo, getCircularReplacer()));
 }
 
-const ALL_PERMISSIONS: PermissionKey[] = [
-  'jobs:view', 'jobs:create', 'jobs:edit', 'jobs:delete',
-  'finance:view', 'finance:create', 'finance:edit', 'finance:delete',
-  'catalog:view', 'catalog:create', 'catalog:edit', 'catalog:delete', 'catalog:prices_view',
-  'clients:view', 'clients:create', 'clients:edit', 'clients:delete', 'clients:block_manage', 'clients:statement_view',
-  'sectors:view', 'sectors:create', 'sectors:edit', 'sectors:delete',
-  'users:view', 'users:create', 'users:edit', 'users:delete',
-  'commissions:view', 'commissions:create', 'commissions:edit', 'commissions:delete',
-  'receipts:view', 'receipts:create', 'receipts:edit', 'receipts:delete',
-  'logistics:view', 'logistics:create', 'logistics:edit', 'logistics:delete',
-  'boxes:view', 'boxes:create', 'boxes:edit', 'boxes:delete',
-  'inventory:view', 'inventory:create', 'inventory:edit', 'inventory:delete',
-  'vip:view', 'calendar:view'
-];
+const ALL_PERMISSIONS: PermissionKey[] = ALL_SYSTEM_PERMISSIONS;
 
 interface AppContextType {
   currentUser: User | null;
@@ -487,8 +474,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       if (user) {
         const profile = await api.getUserProfile(user.uid);
         if (profile) {
-            if (profile.role === UserRole.SUPER_ADMIN) {
-                profile.permissions = ALL_PERMISSIONS;
+            if (profile.role === UserRole.SUPER_ADMIN || profile.role === UserRole.ADMIN) {
+                profile.permissions = ALL_SYSTEM_PERMISSIONS;
             }
             
             setCurrentUser(profile);

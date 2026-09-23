@@ -339,7 +339,7 @@ export const registerUserInOrg = onCall(async (request) => {
     throw new HttpsError("unauthenticated", "Usuário não autenticado.");
   }
 
-  const { email, pass, name, role, organizationId, sector, sectors } = request.data || {};
+  const { email, pass, name, role, organizationId, sector, sectors, permissions, cro, specialty, phone } = request.data || {};
 
   const cleanEmail = (email || "").toLowerCase().trim();
   const cleanName = (name || "").trim();
@@ -430,6 +430,12 @@ export const registerUserInOrg = onCall(async (request) => {
     if (sectors && Array.isArray(sectors)) {
       userData.sectors = sectors;
     }
+    if (permissions && Array.isArray(permissions)) {
+      userData.permissions = permissions;
+    }
+    if (cro) userData.cro = cro;
+    if (specialty) userData.specialty = specialty;
+    if (phone) userData.phone = phone;
 
     await admin.firestore()
       .collection("users")

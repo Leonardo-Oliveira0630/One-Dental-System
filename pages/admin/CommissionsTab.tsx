@@ -129,19 +129,19 @@ export const CommissionsTab = () => {
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-4">
               <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col animate-in zoom-in duration-200 overflow-hidden border border-slate-100">
                   {/* HEADER */}
-                  <div className="p-4 sm:px-6 sm:py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
-                      <div className="flex items-center gap-3 min-w-0">
+                  <div className="p-4 sm:px-6 sm:py-5 border-b border-slate-100 flex justify-between items-center gap-3 bg-slate-50 shrink-0">
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
                           <div className="p-2.5 bg-blue-100 text-blue-600 rounded-xl shrink-0">
                               <DollarSign size={22} />
                           </div>
-                          <div className="min-w-0">
-                              <h3 className="text-lg sm:text-xl font-black text-slate-800 leading-tight truncate">{t('admin.commissions.table', 'Tabela:')} {configUser.name}</h3>
+                          <div className="min-w-0 flex-1">
+                              <h3 className="text-base sm:text-xl font-black text-slate-800 leading-tight truncate">{t('admin.commissions.table', 'Tabela:')} {configUser.name}</h3>
                               <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-0.5 truncate">{t('admin.commissions.leaveBlank', 'Deixe em branco para usar a comissão base do serviço')}</p>
                           </div>
                       </div>
                       <button 
                           onClick={() => setConfigUser(null)} 
-                          className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-200/80 rounded-xl transition-colors shrink-0 ml-2"
+                          className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-200/80 rounded-xl transition-colors shrink-0"
                       >
                           <X size={20}/>
                       </button>
@@ -259,7 +259,7 @@ export const CommissionsTab = () => {
                       )}
                   </div>
                   {/* FOOTER */}
-                  <div className="p-4 sm:px-6 sm:py-4 border-t border-slate-100 bg-slate-50 flex flex-col-reverse sm:flex-row justify-end items-center gap-3 shrink-0">
+                  <div className="p-4 sm:px-6 sm:py-4 border-t border-slate-100 bg-slate-50 flex flex-col-reverse sm:flex-row justify-end items-stretch sm:items-center gap-2 sm:gap-3 shrink-0">
                       <button 
                           type="button"
                           onClick={() => setConfigUser(null)} 
