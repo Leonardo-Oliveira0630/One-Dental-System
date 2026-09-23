@@ -29,6 +29,7 @@ import { DentistsManagement } from './pages/clinic/DentistsManagement';
 import { ClinicFinance } from './pages/clinic/ClinicFinance';
 import { ClinicSettings } from './pages/clinic/ClinicSettings';
 import { ClinicInventory } from './pages/clinic/ClinicInventory';
+import { ClinicTeam } from './pages/clinic/ClinicTeam';
 import { Partnerships } from './pages/dentist/Partnerships';
 import { Dentists } from './pages/lab/Dentists';
 import { Finance } from './pages/lab/Finance';
@@ -206,6 +207,8 @@ const AppContent = () => {
       <Route path="/clinic/dentists" element={<ProtectedRoute><DentistsManagement /></ProtectedRoute>} />
       <Route path="/clinic/finance" element={<ProtectedRoute><ClinicFinance /></ProtectedRoute>} />
       <Route path="/clinic/inventory" element={<ProtectedRoute><ClinicInventory /></ProtectedRoute>} />
+      <Route path="/clinic/team" element={<ProtectedRoute><ClinicTeam /></ProtectedRoute>} />
+      <Route path="/clinic/users" element={<ProtectedRoute><ClinicTeam /></ProtectedRoute>} />
       <Route path="/clinic-settings" element={<ProtectedRoute><ClinicSettings /></ProtectedRoute>} />
       <Route path="/dentist/partnerships" element={<ProtectedRoute><Partnerships /></ProtectedRoute>} />
       <Route path="/requisitions" element={<ProtectedRoute><DentistRequisitions /></ProtectedRoute>} />

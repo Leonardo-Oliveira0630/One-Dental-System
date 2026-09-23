@@ -979,17 +979,17 @@ export const DentistsTab = () => {
         {/* MODAL: CADASTRO MANUAL */}
         {isAddingDentist && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
-              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl my-auto animate-in zoom-in duration-200">
-                  <div className="px-4 pb-4 sm:px-6 sm:pb-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-3xl">
+              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl my-auto animate-in zoom-in duration-200 overflow-hidden border border-slate-100">
+                  <div className="p-4 sm:px-6 sm:py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
                       <div>
                         <h3 className="text-xl font-black flex items-center gap-2 text-slate-800">
                           <Stethoscope className="text-blue-600" /> {editingDentistId ? 'Editar Cadastro de Cliente' : 'Ficha de Cadastro de Cliente'}
                         </h3>
                         <p className="text-xs text-slate-500 font-medium mt-0.5">Mantenha os dados atualizados para correta identificação e emissão financeira.</p>
                       </div>
-                      <button onClick={() => { setIsAddingDentist(false); setEditingDentistId(null); }} className="text-slate-400 hover:text-slate-600 p-2 rounded-full hover:bg-slate-200/60 transition-colors"><X size={22}/></button>
+                      <button onClick={() => { setIsAddingDentist(false); setEditingDentistId(null); }} className="text-slate-400 hover:text-slate-600 p-2 rounded-full hover:bg-slate-200/60 transition-colors shrink-0"><X size={22}/></button>
                   </div>
-                  <form onSubmit={handleSaveManualDentist} className="px-4 pb-4 sm:px-6 sm:pb-6 space-y-6 pt-4">
+                  <form onSubmit={handleSaveManualDentist} className="p-4 sm:p-6 space-y-6">
                       {/* Completeness Notification Banner inside Form */}
                       {formCompleteness.isIncomplete ? (
                         <div className="bg-amber-50 border border-amber-200 p-3.5 rounded-2xl flex items-start gap-3">
@@ -1725,7 +1725,7 @@ export const DentistsTab = () => {
         {isImportModalOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-md p-4">
             <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in duration-300">
-              <div className="px-4 pb-4 sm:px-6 sm:pb-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+              <div className="p-4 sm:px-6 sm:py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 shrink-0">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center shadow-lg"><Sparkles size={24} /></div>
                   <div>

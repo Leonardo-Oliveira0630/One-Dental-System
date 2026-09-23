@@ -341,6 +341,7 @@ export enum UserRole {
   MANAGER = 'MANAGER',
   COLLABORATOR = 'COLLABORATOR',
   CLIENT = 'CLIENT',
+  DENTIST = 'DENTIST',
   SUPER_ADMIN = 'SUPER_ADMIN',
   HELPDESK = 'HELPDESK'
 }
@@ -360,7 +361,21 @@ export type PermissionKey =
   | 'inventory:view' | 'inventory:create' | 'inventory:edit' | 'inventory:delete'
   | 'vip:view'
   | 'calendar:view'
-  | 'store_suppliers:view';
+  | 'store_suppliers:view'
+  // CLINIC & DENTIST PERMISSIONS
+  | 'patients:view' | 'patients:create' | 'patients:edit' | 'patients:delete' | 'patients:history_edit'
+  | 'schedule:view' | 'schedule:create' | 'schedule:edit' | 'schedule:delete'
+  | 'clinic_finance:view' | 'clinic_finance:create' | 'clinic_finance:edit' | 'clinic_finance:delete'
+  | 'clinic_rooms:view' | 'clinic_rooms:create' | 'clinic_rooms:edit' | 'clinic_rooms:delete'
+  | 'clinic_dentists:view' | 'clinic_dentists:create' | 'clinic_dentists:edit' | 'clinic_dentists:delete'
+  | 'clinic_services:view' | 'clinic_services:create' | 'clinic_services:edit' | 'clinic_services:delete'
+  | 'clinic_inventory:view' | 'clinic_inventory:create' | 'clinic_inventory:edit' | 'clinic_inventory:delete'
+  | 'dentist_cases:view' | 'dentist_cases:create' | 'dentist_cases:edit' | 'dentist_cases:delete'
+  | 'requisitions:view' | 'requisitions:create' | 'requisitions:edit' | 'requisitions:delete'
+  | 'partnerships:view' | 'partnerships:manage'
+  | 'clinic_users:view' | 'clinic_users:create' | 'clinic_users:edit' | 'clinic_users:delete'
+  | 'clinic_settings:view' | 'clinic_settings:edit'
+  | 'store:view' | 'store:buy';
 
 export type InventoryItemType = 'MATERIAL' | 'MACHINERY' | 'SUPPLY' | 'IMPLANT' | 'OTHER';
 
@@ -768,6 +783,8 @@ export interface User {
   email: string;
   role: UserRole;
   phone?: string;
+  cro?: string;
+  specialty?: string;
   cpfCnpj?: string;
   organizationId?: string;
   sector?: string;
