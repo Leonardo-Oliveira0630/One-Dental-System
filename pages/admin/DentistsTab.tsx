@@ -954,7 +954,11 @@ export const DentistsTab = () => {
                                       }} title="Editar Cadastro" className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg cursor-pointer"><Edit size={18}/></button>
                                   )}
                                   {canDelete && (
-                                      <button onClick={() => deleteManualDentist(dentist.id)} title="Excluir Cadastro" className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg cursor-pointer"><Trash2 size={18}/></button>
+                                      <button onClick={() => {
+                                          if (window.confirm(`Tem certeza que deseja excluir o cliente "${dentist.name}"? Esta ação não pode ser desfeita.`)) {
+                                              deleteManualDentist(dentist.id);
+                                          }
+                                      }} title="Excluir Cadastro" className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg cursor-pointer"><Trash2 size={18}/></button>
                                   )}
                               </div>
                           </td>
@@ -1276,7 +1280,8 @@ export const DentistsTab = () => {
                                         name="priceTableId" 
                                         value={formData.priceTableId} 
                                         onChange={handleInputChange}
-                                        className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold"
+                                        disabled={!canEdit}
+                                        className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold disabled:opacity-60"
                                     >
                                         <option value="">Tabela Genérica (Padrão do Laboratório)</option>
                                         {priceTables.map(table => (
@@ -1399,9 +1404,11 @@ export const DentistsTab = () => {
                                     <p className="text-xs font-black text-blue-800 uppercase">Tabela Personalizada</p>
                                     <p className="text-[10px] text-blue-600 font-bold">Ignora a tabela base e aplica descontos manuais</p>
                                 </div>
-                                <label className="relative inline-flex items-center cursor-pointer">
+                                <label className={`relative inline-flex items-center ${!canEdit ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}>
                                     <input 
-                                            className="sr-only peer" 
+                                        type="checkbox"
+                                        disabled={!canEdit}
+                                        className="sr-only peer" 
                                         checked={formData.isCustomPricing}
                                         onChange={e => {
                                             const isChecked = e.target.checked;

@@ -9,13 +9,19 @@ export const LabResets = () => {
     const { allOrganizations } = useApp();
     const [selectedOrgId, setSelectedOrgId] = useState('');
     const [search, setSearch] = useState('');
+    const [filterType, setFilterType] = useState<'ALL' | 'LABS_ONLY'>('ALL');
     const [isResetting, setIsResetting] = useState(false);
     
     const labs = useMemo(() => {
         return allOrganizations
-          .filter(o => isLabOrganization(o) || o.orgType === 'LAB' || o.orgType === 'LAB_OUTSOURCED' || (o as any).isLab === true)
+          .filter(o => {
+              if (filterType === 'LABS_ONLY') {
+                  return isLabOrganization(o) || o.orgType === 'LAB' || o.orgType === 'LAB_OUTSOURCED' || (o as any).isLab === true;
+              }
+              return true;
+          })
           .filter(o => (o.name || '').toLowerCase().includes(search.toLowerCase()) || (o.id || '').toLowerCase().includes(search.toLowerCase()));
-    }, [allOrganizations, search]);
+    }, [allOrganizations, search, filterType]);
 
     const [selections, setSelections] = useState({
         jobTypes: false,
@@ -178,6 +184,31 @@ export const LabResets = () => {
                             <Building2 size={16} className="text-blue-500" />
                             1. Selecionar Laboratório
                         </h2>
+
+                        <div className="flex gap-1 mb-4 bg-slate-100 p-1 rounded-xl">
+                            <button
+                                type="button"
+                                onClick={() => setFilterType('ALL')}
+                                className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all ${
+                                    filterType === 'ALL'
+                                        ? 'bg-white text-slate-800 shadow-sm'
+                                        : 'text-slate-500 hover:text-slate-800'
+                                }`}
+                            >
+                                Todas ({allOrganizations.length})
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setFilterType('LABS_ONLY')}
+                                className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all ${
+                                    filterType === 'LABS_ONLY'
+                                        ? 'bg-white text-slate-800 shadow-sm'
+                                        : 'text-slate-500 hover:text-slate-800'
+                                }`}
+                            >
+                                Somente Labs
+                            </button>
+                        </div>
 
                         <div className="relative mb-4">
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
