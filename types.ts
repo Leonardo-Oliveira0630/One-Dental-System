@@ -645,6 +645,7 @@ export interface Job {
   patientName: string;
   dentistId: string;
   dentistName: string;
+  clinicName?: string;
   clientOrigin?: 'DENTIST' | 'LABORATORY';
   status: JobStatus;
   urgency: UrgencyLevel;

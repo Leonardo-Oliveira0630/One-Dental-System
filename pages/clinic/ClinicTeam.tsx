@@ -117,8 +117,10 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, PermissionKey[]> = {
   [UserRole.HELPDESK]: []
 };
 
+const DENTIST_COLORS = ['#0d9488', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#6366f1', '#14b8a6', '#06b6d4'];
+
 export const ClinicTeam = () => {
-  const { allUsers, deleteUser, updateUser, currentOrg, currentPlan, currentUser } = useApp();
+  const { allUsers, deleteUser, updateUser, currentOrg, currentPlan, currentUser, clinicDentists, addClinicDentist, updateClinicDentist } = useApp();
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAddingUser, setIsAddingUser] = useState(false);
@@ -313,9 +315,29 @@ export const ClinicTeam = () => {
         });
       }
 
+      // Automatically add to clinical staff (Corpo Clínico) if role is DENTIST
+      if (userRole === UserRole.DENTIST) {
+        const existingDentist = clinicDentists.find(d => 
+          (userCro && d.cro && d.cro.trim().toLowerCase() === userCro.trim().toLowerCase()) ||
+          d.name.trim().toLowerCase() === userName.trim().toLowerCase() ||
+          (res?.uid && d.id === res.uid)
+        );
+
+        if (!existingDentist) {
+          const randomColor = DENTIST_COLORS[clinicDentists.length % DENTIST_COLORS.length] || '#0d9488';
+          await addClinicDentist({
+            name: userName,
+            cro: userCro || 'CRO',
+            specialty: userSpecialty || 'Cirurgião-Dentista',
+            color: randomColor,
+            active: true
+          });
+        }
+      }
+
       setIsAddingUser(false);
       resetForm();
-      alert("Colaborador cadastrado com sucesso! Todas as permissões foram ativadas inicialmente e podem ser ajustadas a qualquer momento.");
+      alert("Colaborador cadastrado com sucesso! Todas as permissões foram ativadas e o dentista foi adicionado ao Corpo Clínico.");
     } catch (err: any) {
       alert(err.message || "Erro ao criar usuário. Verifique se o e-mail já está em uso.");
     } finally {
@@ -387,6 +409,34 @@ export const ClinicTeam = () => {
         specialty: userSpecialty || undefined,
         phone: userPhone || undefined
       });
+
+      // If user is set to DENTIST, sync with clinicDentists
+      if (userRole === UserRole.DENTIST) {
+        const existingDentist = clinicDentists.find(d => 
+          (userCro && d.cro && d.cro.trim().toLowerCase() === userCro.trim().toLowerCase()) ||
+          d.name.trim().toLowerCase() === (editingUser.name || '').trim().toLowerCase() ||
+          d.name.trim().toLowerCase() === userName.trim().toLowerCase() ||
+          d.id === editingUser.id
+        );
+
+        if (existingDentist) {
+          await updateClinicDentist(existingDentist.id, {
+            name: userName,
+            cro: userCro || existingDentist.cro,
+            specialty: userSpecialty || existingDentist.specialty
+          });
+        } else {
+          const randomColor = DENTIST_COLORS[clinicDentists.length % DENTIST_COLORS.length] || '#0d9488';
+          await addClinicDentist({
+            name: userName,
+            cro: userCro || 'CRO',
+            specialty: userSpecialty || 'Cirurgião-Dentista',
+            color: randomColor,
+            active: true
+          });
+        }
+      }
+
       setEditingUser(null);
       alert("Dados atualizados com sucesso!");
     } catch (err: any) { 

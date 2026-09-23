@@ -7,6 +7,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { Activity, Clock, AlertTriangle, CheckCircle, Sparkles, ShoppingBag, Building, Handshake, ArrowUpRight } from 'lucide-react';
 import { getProductionInsights } from '../services/geminiService';
 import { useNavigate } from 'react-router-dom';
+import { ClientRetentionRadar } from '../components/ClientRetentionRadar';
 
 interface StatCardProps {
   title: string;
@@ -160,6 +161,9 @@ export const Dashboard = () => {
         <StatCard title={t('dashboard.vipUrgent', 'VIP/Urgente')} value={urgent} icon={<AlertTriangle size={20} className="text-[#F59E0B]" />} color="bg-[#F59E0B]/10 dark:bg-[#F59E0B]/20" />
         <StatCard title={t('dashboard.delayed', 'Atrasados')} value={delayed} icon={<Clock size={20} className="text-[#EF4444]" />} color="bg-[#EF4444]/10 dark:bg-[#EF4444]/20" />
       </div>
+
+      {/* Client Retention Radar & Quality Intelligence */}
+      <ClientRetentionRadar />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:p-6 md:gap-4 sm:p-8">
         <div className="bg-white dark:bg-[#131B2A] p-4 sm:p-6 md:p-4 sm:p-8 rounded-card shadow-soft border border-slate-100 dark:border-slate-800 w-full overflow-hidden">

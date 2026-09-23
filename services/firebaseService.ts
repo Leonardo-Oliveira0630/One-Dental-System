@@ -1050,6 +1050,18 @@ export const apiRegisterDentist = async (email: string, pass: string, name: stri
         ...(address || {}) 
     };
     await setDoc(doc(db, 'users', userCred.user.uid), profile);
+
+    // Automatically add founder to clinicDentists collection
+    const initialDentist: ClinicDentist = {
+        id: `cdentist_${Date.now()}`,
+        name,
+        cro: (address as any)?.cro || (address as any)?.croNumero || 'CRO',
+        specialty: (address as any)?.specialty || 'Cirurgião-Dentista / Responsável',
+        color: '#0d9488',
+        active: true
+    };
+    await setDoc(doc(db, `organizations/${orgId}/clinicDentists`, initialDentist.id), initialDentist).catch(() => {});
+
     return profile;
 };
 export const apiAddSubscriptionPlan = (p: SubscriptionPlan) => setDoc(doc(db, 'subscriptionPlans', p.id), p);
