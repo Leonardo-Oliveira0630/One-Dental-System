@@ -393,7 +393,7 @@ export const Partnerships = ({ onSelectLab }: { onSelectLab?: (labId: string) =>
                                                 {review.videoUrls?.map((vidUrl, i) => (
                                                     <a key={i} href={vidUrl} target="_blank" rel="noreferrer" className="w-14 h-14 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-black flex items-center justify-center text-white relative hover:opacity-90">
                                                         <video src={vidUrl} className="w-full h-full object-cover opacity-60" />
-                                                        <span className="absolute text-[9px] font-bold bg-blue-600 px-1 py-0.5 rounded">Vídeo</span>
+                                                        <span className="absolute text-[9px] font-bold bg-blue-600 px-1 py-0.5 rounded">{t('common.video', 'Vídeo')}</span>
                                                     </a>
                                                 ))}
                                             </div>

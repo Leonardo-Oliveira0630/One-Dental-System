@@ -235,8 +235,8 @@ export const TreatmentPlanModal: React.FC<TreatmentPlanModalProps> = ({
       setProcName(s.name);
       setProcCategory(s.category || 'Dentística');
       setProcUnitPrice(s.price || 0);
-      if (s.estimatedDurationMinutes) {
-        setSchedDuration(s.estimatedDurationMinutes);
+      if (s.durationMinutes) {
+        setSchedDuration(s.durationMinutes);
       }
     }
   };

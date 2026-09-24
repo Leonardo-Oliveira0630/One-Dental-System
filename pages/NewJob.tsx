@@ -1075,7 +1075,7 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
             setLastCreatedJob({ ...newJob, id: jobId || 'temp-id', organizationId: currentUser.organizationId || '' } as Job);
         }
     } catch (err) { 
-        alert("Erro ao salvar o caso no sistema. Verifique sua conexão com a internet."); 
+        alert(t('newJob.saveError', "Erro ao salvar o caso no sistema. Verifique sua conexão com a internet.")); 
     } finally {
         setIsSubmitting(false);
     }
@@ -1174,14 +1174,14 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                                         <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${d.type === 'ONLINE' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-600'}`}>{d.type === 'ONLINE' ? 'WEB' : 'INTERNO'}</span>
                                     </button>
                                 ))}
-                                <button type="button" onClick={handleManualDentistEntry} className="w-full text-left p-4 bg-slate-50 hover:bg-blue-600 hover:text-white transition-all group flex items-center gap-3 border-t"><div className="p-2 rounded-lg bg-white shadow-sm"><Plus size={16} className="text-blue-600" /></div><p className="text-xs font-black uppercase tracking-wider">Usar Nome Avulso: "{dentistSearchQuery}"</p></button>
+                                <button type="button" onClick={handleManualDentistEntry} className="w-full text-left p-4 bg-slate-50 hover:bg-blue-600 hover:text-white transition-all group flex items-center gap-3 border-t"><div className="p-2 rounded-lg bg-white shadow-sm"><Plus size={16} className="text-blue-600" /></div><p className="text-xs font-black uppercase tracking-wider">{t('newJob.useManualName', { query: dentistSearchQuery, defaultValue: `Usar Nome Avulso: "${dentistSearchQuery}"` })}</p></button>
                              </div>
                           </div>
                       )}
                     </div>
                     {isBudget && selectedDentistObj && (selectedDentistObj.address || selectedDentistObj.city) && (
                         <div className="md:col-span-12 mt-2 p-3 bg-slate-50 border border-slate-200 rounded-xl">
-                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1"><MapPin size={12} className="inline mr-1"/> Endereço do Cliente</p>
+                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1"><MapPin size={12} className="inline mr-1"/> {t('newJob.clientAddress', 'Endereço do Cliente')}</p>
                             <p className="text-xs text-slate-700 font-bold uppercase">{selectedDentistObj.address}, {selectedDentistObj.number}{selectedDentistObj.complement ? ` - ${selectedDentistObj.complement}` : ''} - {selectedDentistObj.neighborhood}, {selectedDentistObj.city}/{selectedDentistObj.state}</p>
                             {selectedDentistObj.cep && <p className="text-[10px] text-slate-500 font-bold mt-0.5">CEP: {selectedDentistObj.cep}</p>}
                         </div>
@@ -1189,14 +1189,14 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                     {selectedDentistObj?.subDentists && selectedDentistObj.subDentists.length > 0 && (
                         <div className="md:col-span-12">
                             <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">
-                                Dentista Solicitante <span className="text-slate-400 font-medium normal-case ml-1">(Opcional)</span>
+                                {t('newJob.subDentistLabel', 'Dentista Solicitante')} <span className="text-slate-400 font-medium normal-case ml-1">({t('common.optional', 'Opcional')})</span>
                             </label>
                             <select
                                 value={subDentistName}
                                 onChange={e => setSubDentistName(e.target.value)}
                                 className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all font-bold text-slate-700"
                             >
-                                <option value="">(Nenhum)</option>
+                                <option value="">({t('common.none', 'Nenhum')})</option>
                                 {selectedDentistObj.subDentists.map((sd: any) => (
                                     <option key={sd.id} value={sd.name}>{sd.name}</option>
                                 ))}
@@ -1229,7 +1229,7 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                 </div>
 
                 <div className="bg-white p-4 md:p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-200">
-                    <h2 className="text-sm font-black text-slate-800 mb-4 flex items-center gap-2 uppercase tracking-widest"><Layers size={18} className="text-blue-500" /> Configurar Itens da OS <span className="text-red-500">*</span></h2>
+                    <h2 className="text-sm font-black text-slate-800 mb-4 flex items-center gap-2 uppercase tracking-widest"><Layers size={18} className="text-blue-500" /> {t('newJob.configureItems', 'Configurar Itens da OS')} <span className="text-red-500">*</span></h2>
                     <div className="bg-slate-50 p-4 md:p-4 sm:p-6 rounded-2xl border border-slate-200">
                         <div className="flex flex-col xl:flex-row gap-6">
                             <div className="flex-1 space-y-6">
@@ -1237,16 +1237,16 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                             <div className={`grid grid-cols-1 ${isBudget ? '' : 'md:grid-cols-2'} gap-4`}>
                                 {!isBudget && (
                                 <div className="space-y-2">
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Natureza do Item</label>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('newJob.itemNature', 'Natureza do Item')}</label>
                                     <div className="flex gap-2">
-                                        <button type="button" onClick={() => { setItemNature('NORMAL'); setCommissionDisabled(false); }} className={`flex-1 py-2.5 rounded-xl border-2 font-black text-[10px] uppercase transition-all ${itemNature === 'NORMAL' ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-400'}`}>Normal</button>
-                                        <button type="button" onClick={() => { setItemNature('REPETITION'); setCommissionDisabled(true); }} className={`flex-1 py-2.5 rounded-xl border-2 font-black text-[10px] uppercase transition-all ${itemNature === 'REPETITION' ? 'border-red-600 bg-red-50 text-red-700' : 'border-slate-200 bg-white text-slate-400'}`}>Repetição</button>
-                                        <button type="button" onClick={() => { setItemNature('ADJUSTMENT'); setCommissionDisabled(true); }} className={`flex-1 py-2.5 rounded-xl border-2 font-black text-[10px] uppercase transition-all ${itemNature === 'ADJUSTMENT' ? 'border-orange-600 bg-orange-50 text-orange-700' : 'border-slate-200 bg-white text-slate-400'}`}>Ajuste</button>
+                                        <button type="button" onClick={() => { setItemNature('NORMAL'); setCommissionDisabled(false); }} className={`flex-1 py-2.5 rounded-xl border-2 font-black text-[10px] uppercase transition-all ${itemNature === 'NORMAL' ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-400'}`}>{t('newJob.natureNormal', 'Normal')}</button>
+                                        <button type="button" onClick={() => { setItemNature('REPETITION'); setCommissionDisabled(true); }} className={`flex-1 py-2.5 rounded-xl border-2 font-black text-[10px] uppercase transition-all ${itemNature === 'REPETITION' ? 'border-red-600 bg-red-50 text-red-700' : 'border-slate-200 bg-white text-slate-400'}`}>{t('newJob.natureRepetition', 'Repetição')}</button>
+                                        <button type="button" onClick={() => { setItemNature('ADJUSTMENT'); setCommissionDisabled(true); }} className={`flex-1 py-2.5 rounded-xl border-2 font-black text-[10px] uppercase transition-all ${itemNature === 'ADJUSTMENT' ? 'border-orange-600 bg-orange-50 text-orange-700' : 'border-slate-200 bg-white text-slate-400'}`}>{t('newJob.natureAdjustment', 'Ajuste')}</button>
                                     </div>
                                 </div>
                                 )}
                                 <div className="relative" ref={jobTypeDropdownRef}>
-                                    <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">Tipo de Prótese</label>
+                                    <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">{t('newJob.prosthesisType', 'Tipo de Prótese')}</label>
                                     <div className="relative">
                                         <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
                                             <SearchIcon size={16} />
@@ -1264,7 +1264,7 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                                                 setShowJobTypeSuggestions(true);
                                                 setIsSearchingJobType(true);
                                             }}
-                                            placeholder="Buscar tipo de prótese..."
+                                            placeholder={t('newJob.searchProsthesisPlaceholder', 'Buscar tipo de prótese...')}
                                             className="w-full pl-10 pr-12 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-sm text-slate-800"
                                         />
                                         {(selectedTypeId || jobTypeSearchQuery || isSearchingJobType) && (
@@ -1278,7 +1278,7 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                                                     setShowJobTypeSuggestions(false);
                                                 }}
                                                 className="absolute right-2.5 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center rounded-full bg-slate-100 hover:bg-red-50 text-slate-500 hover:text-red-600 transition-all border border-slate-200 shadow-xs z-10"
-                                                title="Limpar campo"
+                                                title={t('newJob.clearField', 'Limpar campo')}
                                             >
                                                 <X size={15} className="stroke-[2.5]" />
                                             </button>
@@ -1314,7 +1314,7 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                                                         </button>
                                                     ))
                                                 ) : (
-                                                    <div className="p-4 text-center text-slate-400 text-xs font-bold">Nenhum tipo encontrado</div>
+                                                    <div className="p-4 text-center text-slate-400 text-xs font-bold">{t('newJob.noTypeFound', 'Nenhum tipo encontrado')}</div>
                                                 )}
                                             </div>
                                         </div>
@@ -1323,15 +1323,15 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
                                 <div className={`w-full ${itemSelectedTeeth.length > 0 ? 'opacity-50 pointer-events-none' : ''}`}>
-                                    <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">Qtd</label>
+                                    <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">{t('newJob.quantity', 'Qtd')}</label>
                                     <input type="number" min="1" value={quantity} readOnly={itemSelectedTeeth.length > 0} onChange={e => setQuantity(parseInt(e.target.value) || 1)} className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl outline-none text-center font-black" />
                                 </div>
                                 <div className="w-full">
-                                    <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">Cor</label>
+                                    <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">{t('newJob.color', 'Cor')}</label>
                                     <input type="text" value={itemColor} onChange={e => setItemColor(e.target.value)} placeholder="Ex: A3" className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl outline-none font-bold text-slate-800 text-xs text-center" />
                                 </div>
                                 <div className="w-full">
-                                    <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">Dentes</label>
+                                    <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">{t('newJob.teeth', 'Dentes')}</label>
                                     <input type="text" value={itemSelectedTeeth.length > 0 ? formatTeethRange(itemSelectedTeeth) : manualTeethText} readOnly={itemSelectedTeeth.length > 0} onChange={e => setManualTeethText(e.target.value)} placeholder="Ex: 11-13" className={`w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl outline-none font-bold text-slate-800 text-xs text-center ${itemSelectedTeeth.length > 0 ? 'opacity-50 pointer-events-none' : ''}`} />
                                 </div>
                             </div>
@@ -1361,19 +1361,19 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                         <div className="pt-4 border-t border-slate-200 space-y-4">
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Preço Final Unitário (R$)</label>
+                                    <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">{t('newJob.finalUnitPrice', 'Preço Final Unitário (R$)')}</label>
                                     <input type="number" step="0.01" value={manualPrice !== null ? manualPrice : calculatedBasePrice.toFixed(2)} onChange={e => setManualPrice(parseFloat(e.target.value))} className="w-full px-4 py-2.5 border rounded-xl font-black focus:ring-2 outline-none" />
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Desconto Extra</label>
+                                    <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">{t('newJob.extraDiscount', 'Desconto Extra')}</label>
                                     <div className="flex gap-2">
                                         <select 
                                             value={discountType} 
                                             onChange={(e) => setDiscountType(e.target.value as 'PERCENTAGE' | 'FIXED')}
                                             className="w-1/3 px-2 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-black focus:ring-2 outline-none text-xs"
                                         >
-                                            <option value="PERCENTAGE">% (Porcentagem)</option>
-                                            <option value="FIXED">R$ (Valor Fixo)</option>
+                                            <option value="PERCENTAGE">{t('newJob.percentageDiscount', '% (Porcentagem)')}</option>
+                                            <option value="FIXED">{t('newJob.fixedDiscount', 'R$ (Valor Fixo)')}</option>
                                         </select>
                                         <input 
                                             type="number" 
@@ -1404,9 +1404,9 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                                         </div>
                                         <div className="ml-3 text-sm leading-6">
                                             <label htmlFor="commission-active" className="font-black text-slate-800 uppercase tracking-tight text-[11px]">
-                                                Ativar Comissão para este item
+                                                {t('newJob.activateCommission', 'Ativar Comissão para este item')}
                                             </label>
-                                            <p className="text-[10px] text-slate-500 font-bold">Por padrão, ajustes e repetições não geram comissão no app.</p>
+                                            <p className="text-[10px] text-slate-500 font-bold">{t('newJob.commissionHelp', 'Por padrão, ajustes e repetições não geram comissão no app.')}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -1414,14 +1414,14 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                         </div>
 
                         <button type="button" onClick={handleAddItem} disabled={!selectedTypeId} className="w-full py-4 bg-blue-600 text-white font-black rounded-2xl hover:bg-blue-700 active:scale-95 transition-all flex items-center justify-center gap-2 shadow-xl shadow-blue-100 disabled:opacity-50">
-                            <Plus size={20} /> ADICIONAR AO CASO
+                            <Plus size={20} /> {t('newJob.addToCase', 'ADICIONAR AO CASO')}
                         </button>
                     </div>
 
                     {activeJobType && (
                         <div className="w-full xl:w-[350px] shrink-0 xl:border-l border-slate-200 xl:pl-6 pt-6 xl:pt-0">
                             <div className="space-y-2">
-                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Dentes Relacionados (Opcional)</h4>
+                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">{t('newJob.relatedTeethOptional', 'Dentes Relacionados (Opcional)')}</h4>
                                 <div className="bg-transparent flex justify-center items-center overflow-hidden">
                                     <Odontogram 
                                         selectedTeeth={itemSelectedTeeth} 
@@ -1440,7 +1440,7 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                                     />
                                 </div>
                                 {itemSelectedTeeth.length > 0 && (
-                                    <p className="text-xs text-indigo-600 font-bold text-center">Dentes selecionados: {itemSelectedTeeth.sort().join(', ')}</p>
+                                    <p className="text-xs text-indigo-600 font-bold text-center">{t('newJob.selectedTeethCount', { teeth: itemSelectedTeeth.sort().join(', '), defaultValue: `Dentes selecionados: ${itemSelectedTeeth.sort().join(', ')}` })}</p>
                                 )}
                             </div>
                         </div>
@@ -1487,7 +1487,7 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                                         <div className="flex items-center gap-1.5 mt-0.5">
                                             {(item.nature === 'REPETITION' || item.nature === 'ADJUSTMENT') && (
                                                 <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${item.nature === 'REPETITION' ? 'bg-red-100 text-red-600' : 'bg-orange-100 text-orange-600'} inline-block`}>
-                                                    {item.nature === 'REPETITION' ? 'Repetição' : 'Ajuste'}
+                                                    {item.nature === 'REPETITION' ? t('newJob.natureRepetition', 'Repetição') : t('newJob.natureAdjustment', 'Ajuste')}
                                                 </span>
                                             )}
                                             {(item.nature === 'REPETITION' || item.nature === 'ADJUSTMENT') && (
@@ -1499,7 +1499,7 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                                                     }}
                                                     className={`text-[9px] font-black uppercase px-2 py-1 rounded-md transition-all flex items-center gap-1 hover:scale-105 active:scale-95 shadow-sm ${!item.commissionDisabled ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-50 text-red-600 border border-red-100'}`}
                                                 >
-                                                    {!item.commissionDisabled ? '✅ COMISSÃO ATIVA' : '🚫 COMISSÃO INATIVA'}
+                                                    {!item.commissionDisabled ? t('newJob.commissionActiveBadge', '✅ COMISSÃO ATIVA') : t('newJob.commissionInactiveBadge', '🚫 COMISSÃO INATIVA')}
                                                 </button>
                                             )}
                                         </div>
@@ -1511,7 +1511,7 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                                         <button 
                                             type="button" 
                                             onClick={() => handleEditItem(item)} 
-                                            title="Editar Serviço"
+                                            title={t('newJob.editService', 'Editar Serviço')}
                                             className="p-2 text-slate-300 hover:text-blue-500 transition-colors"
                                         >
                                             <Edit3 size={18}/>
@@ -1520,6 +1520,7 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                                             type="button" 
                                             onClick={() => setAddedItems(addedItems.filter(i => i.id !== item.id))} 
                                             className="p-2 text-slate-300 hover:text-red-500 transition-colors"
+                                            title={t('common.delete', 'Excluir')}
                                         >
                                             <Trash2 size={18}/>
                                         </button>
@@ -1533,9 +1534,9 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
 
                 <div className="bg-white p-4 md:p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-200">
                     <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-sm font-black text-slate-800 flex items-center gap-2 uppercase tracking-widest"><Package size={18} className="text-blue-500" /> Venda de Implantes/Componentes</h2>
+                        <h2 className="text-sm font-black text-slate-800 flex items-center gap-2 uppercase tracking-widest"><Package size={18} className="text-blue-500" /> {t('newJob.productSalesTitle', 'Venda de Implantes/Componentes')}</h2>
                         <button type="button" onClick={() => setIsAddingProduct(!isAddingProduct)} className={`text-xs font-black px-3 py-1.5 rounded-lg transition-colors ${isAddingProduct ? 'bg-slate-100 text-slate-500 hover:bg-slate-200' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'}`}>
-                            {isAddingProduct ? 'Cancelar' : '+ Vender Produto'}
+                            {isAddingProduct ? t('common.cancel', 'Cancelar') : t('newJob.sellProductBtn', '+ Vender Produto')}
                         </button>
                     </div>
 
@@ -1543,32 +1544,32 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                         <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4 mb-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-1">
-                                    <label className="text-[10px] font-black text-slate-500 uppercase">Produto / Implante</label>
+                                    <label className="text-[10px] font-black text-slate-500 uppercase">{t('newJob.productOrImplant', 'Produto / Implante')}</label>
                                     <select value={selectedProductId} onChange={e => {
                                         setSelectedProductId(e.target.value);
                                         const prod = inventoryItems.find(i => i.id === e.target.value);
                                         if (prod) setProductManualPrice(prod.sellPrice);
                                     }} className="w-full p-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                        <option value="">Selecione um item no estoque...</option>
+                                        <option value="">{t('newJob.selectProductFromStock', 'Selecione um item no estoque...')}</option>
                                         {inventoryItems.filter(item => !item.dentistOwnerId || item.dentistOwnerId === selectedDentistId).map(item => (
                                             <option key={item.id} value={item.id} disabled={item.currentStock <= 0}>
-                                                {item.name} ({item.currentStock > 0 ? `${item.currentStock} un.` : 'Sem Estoque'}) {item.dentistOwnerId ? '- ESTOQUE DO CLIENTE' : ''}
+                                                {item.name} ({item.currentStock > 0 ? `${item.currentStock} un.` : t('newJob.outOfStock', 'Sem Estoque')}) {item.dentistOwnerId ? `- ${t('newJob.clientOwnStock', 'ESTOQUE DO CLIENTE')}` : ''}
                                             </option>
                                         ))}
                                     </select>
                                 </div>
                                 <div className="flex gap-2">
                                     <div className="space-y-1 flex-1">
-                                        <label className="text-[10px] font-black text-slate-500 uppercase">Qtd.</label>
+                                        <label className="text-[10px] font-black text-slate-500 uppercase">{t('newJob.quantity', 'Qtd.')}</label>
                                         <input type="number" min="1" value={productQuantity} onChange={e => setProductQuantity(Number(e.target.value))} className="w-full p-2.5 rounded-xl border border-slate-200 bg-white" />
                                     </div>
                                     <div className="space-y-1 flex-[1.5]">
-                                        <label className="text-[10px] font-black text-slate-500 uppercase">Valor Un. (R$)</label>
+                                        <label className="text-[10px] font-black text-slate-500 uppercase">{t('newJob.unitValue', 'Valor Un. (R$)')}</label>
                                         <input type="number" step="0.01" value={productManualPrice !== null ? productManualPrice : ''} onChange={e => setProductManualPrice(Number(e.target.value))} className="w-full p-2.5 rounded-xl border border-slate-200 bg-white" />
                                     </div>
                                     <div className="space-y-1 flex-[1.5]">
                                         <label className="text-[10px] font-black text-slate-500 uppercase flex justify-between items-center">
-                                           <span>Desc (%)</span>
+                                           <span>{t('newJob.discountPercent', 'Desc (%)')}</span>
                                            {productDiscountPercent > 0 && <span className="text-[8px] text-green-600 font-bold bg-green-50 px-1 rounded">-{(productDiscountPercent).toFixed(1)}%</span>}
                                         </label>
                                         <div className="relative">
@@ -1581,7 +1582,7 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                                 </div>
                             </div>
                             <button type="button" onClick={handleAddProduct} disabled={!selectedProductId} className="w-full py-3 bg-blue-600 text-white font-black rounded-xl cursor-pointer hover:bg-blue-700 disabled:opacity-50 transition-all text-xs">
-                                ADICIONAR PRODUTO AO CASO
+                                {t('newJob.addProductToCase', 'ADICIONAR PRODUTO AO CASO')}
                             </button>
                         </div>
                     )}
@@ -1595,7 +1596,7 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                                     <div className="min-w-0">
                                         <p className="font-black text-slate-800 text-sm uppercase truncate max-w-[200px] leading-tight">{prod.name}</p>
                                         {prod.dentistOwnerId && (
-                                            <p className="text-[9px] text-amber-700 font-bold uppercase overflow-hidden whitespace-nowrap text-ellipsis mt-1">Estoque do Próprio Dentista</p>
+                                            <p className="text-[9px] text-amber-700 font-bold uppercase overflow-hidden whitespace-nowrap text-ellipsis mt-1">{t('newJob.clientOwnStockLabel', 'Estoque do Próprio Dentista')}</p>
                                         )}
                                     </div>
                                 </div>
@@ -1612,33 +1613,36 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                 {/* Observações Técnicas */}
                 <div className="bg-white p-4 md:p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-200">
                     <h2 className="text-sm font-black text-slate-800 mb-4 flex items-center gap-2 uppercase tracking-widest">
-                        <FileText size={18} className="text-blue-500" /> Observações Técnicas / Histórico acumulado
+                        <FileText size={18} className="text-blue-500" /> {t('newJob.technicalNotesTitle', 'Observações Técnicas / Histórico acumulado')}
                     </h2>
                     <textarea 
                         value={notes} 
                         onChange={e => setNotes(e.target.value)} 
                         rows={4} 
                         className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none text-xs font-bold transition-all placeholder:text-slate-400" 
-                        placeholder="Insira as observações aqui. O histórico anterior será reservado e continuará acumulando." 
+                        placeholder={t('newJob.technicalNotesPlaceholder', 'Insira as observações aqui. O histórico anterior será reservado e continuará acumulando.')} 
                     />
                     
                     {lastJobFound && (
                         <div className="mt-3 text-xs border border-blue-100 bg-blue-50/70 p-3 rounded-2xl flex flex-col gap-1.5 animate-in fade-in slide-in-from-top-1 duration-300">
                             <div className="flex items-center gap-1.5 font-bold text-blue-800">
                                 <AlertCircle size={14} className="text-blue-600 flex-shrink-0" />
-                                <span>Vínculo com Caso Anterior Detectado!</span>
+                                <span>{t('newJob.previousJobLinkDetected', 'Vínculo com Caso Anterior Detectado!')}</span>
                             </div>
                             <p className="text-[11px] text-slate-600 leading-normal">
-                                Importamos observações da <span className="font-extrabold text-blue-900">OS #{lastJobFound.osNumber}</span> (Paciente: <span className="font-semibold uppercase text-slate-800">{lastJobFound.patientName}</span>). 
-                                O campo observações agora é acumulativo com os detalhes do histórico.
+                                {t('newJob.importedNotesFromOs', {
+                                  osNumber: lastJobFound.osNumber,
+                                  patientName: lastJobFound.patientName,
+                                  defaultValue: `Importamos observações da OS #${lastJobFound.osNumber} (Paciente: ${lastJobFound.patientName}). O campo observações agora é acumulativo com os detalhes do histórico.`
+                                })}
                             </p>
                             {lastJobFound.notes ? (
                                 <div className="mt-1 bg-white border border-blue-100 text-slate-600 p-2.5 rounded-xl text-[11px] leading-relaxed font-mono max-h-32 overflow-y-auto whitespace-pre-line shadow-sm">
-                                    <div className="text-[9px] font-bold text-blue-600 mb-1 uppercase tracking-wider border-b border-blue-50 pb-1">Observações da OS #{lastJobFound.osNumber}:</div>
+                                    <div className="text-[9px] font-bold text-blue-600 mb-1 uppercase tracking-wider border-b border-blue-50 pb-1">{t('newJob.notesFromOsHeader', { osNumber: lastJobFound.osNumber, defaultValue: `Observações da OS #${lastJobFound.osNumber}:` })}</div>
                                     {lastJobFound.notes}
                                 </div>
                             ) : (
-                                <p className="text-[10px] text-slate-400 italic bg-white border border-blue-100 p-2 rounded-xl text-center">Nenhuma observação técnica registrada no caso anterior.</p>
+                                <p className="text-[10px] text-slate-400 italic bg-white border border-blue-100 p-2 rounded-xl text-center">{t('newJob.noTechnicalNotesFromPrevious', 'Nenhuma observação técnica registrada no caso anterior.')}</p>
                             )}
                         </div>
                     )}
@@ -1649,7 +1653,7 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                 <div className="bg-white p-4 md:p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-200">
                     <div className="flex items-center justify-between mb-4">
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                            <Box size={14} className="text-slate-400" /> Materiais Enviados pelo Dentista
+                            <Box size={14} className="text-slate-400" /> {t('newJob.receivedMaterialsTitle', 'Materiais Enviados pelo Dentista')}
                         </label>
                         <button 
                             type="button" 
@@ -1657,7 +1661,7 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                             className="text-[10px] font-black text-indigo-600 hover:text-indigo-800 flex items-center gap-1 uppercase"
                         >
                             {isAddingMaterial ? <X size={14} /> : <Plus size={14} />} 
-                            {isAddingMaterial ? 'Cancelar' : 'Novo Material'}
+                            {isAddingMaterial ? t('common.cancel', 'Cancelar') : t('newJob.newMaterialBtn', 'Novo Material')}
                         </button>
                     </div>
 
@@ -1667,7 +1671,7 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                                 type="text"
                                 value={newMaterialName}
                                 onChange={e => setNewMaterialName(e.target.value)}
-                                placeholder="Nome do material (ex: Molde de Gesso)"
+                                placeholder={t('newJob.materialNamePlaceholder', 'Nome do material (ex: Molde de Gesso)')}
                                 className="flex-1 p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold focus:ring-2 focus:ring-indigo-500 outline-none"
                                 onKeyDown={e => {
                                     if (e.key === 'Enter') {
@@ -1677,11 +1681,11 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                                 }}
                             />
                             <button 
-                                type="button"
+                                type="button" 
                                 onClick={handleAddMaterial}
                                 className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-black hover:bg-indigo-700"
                             >
-                                Adicionar
+                                {t('common.add', 'Adicionar')}
                             </button>
                         </div>
                     )}
@@ -1727,7 +1731,7 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                                         </div>
                                         {isChecked && (
                                             <div className="flex items-center gap-2 pl-8">
-                                                <span className="text-[10px] font-bold text-slate-500 uppercase">Qtd:</span>
+                                                <span className="text-[10px] font-bold text-slate-500 uppercase">{t('newJob.quantity', 'Qtd')}:</span>
                                                 <input 
                                                     type="number"
                                                     min="1"
@@ -1742,7 +1746,7 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                             })}
                         </div>
                     ) : (
-                        <p className="text-xs font-medium text-slate-500 italic bg-slate-50 p-4 rounded-xl border border-slate-100 text-center">Nenhum material cadastrado. Clique em "Novo Material" para adicionar opções.</p>
+                        <p className="text-xs font-medium text-slate-500 italic bg-slate-50 p-4 rounded-xl border border-slate-100 text-center">{t('newJob.noMaterialsRegistered', 'Nenhum material cadastrado. Clique em "Novo Material" para adicionar opções.')}</p>
                     )}
                 </div>
                 )}
@@ -1750,12 +1754,12 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
             
             <div className="lg:col-span-4 space-y-4 md:space-y-6">
               <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 sticky top-4 sm:p-6 space-y-6">
-                <h2 className="text-sm font-black text-slate-800 flex items-center gap-2 uppercase tracking-widest"><Box size={18} className="text-blue-500" /> Logística Interna</h2>
+                <h2 className="text-sm font-black text-slate-800 flex items-center gap-2 uppercase tracking-widest"><Box size={18} className="text-blue-500" /> {t('newJob.internalLogistics', 'Logística Interna')}</h2>
 
                 {!isBudget && (
                 <>
                 <div>
-                    <label className="block text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest">Nível de Prioridade</label>
+                    <label className="block text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest">{t('newJob.priorityLevel', 'Nível de Prioridade')}</label>
                     <div className="grid grid-cols-2 gap-2">
                         {[UrgencyLevel.LOW, UrgencyLevel.NORMAL, UrgencyLevel.HIGH, UrgencyLevel.VIP].map(level => (
                             <button
@@ -1776,18 +1780,18 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                 </div>
 
                 <div>
-                    <label className="block text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest">Previsão de Saída <span className="text-red-500">*</span></label>
+                    <label className="block text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest">{t('newJob.outputDueDate', 'Previsão de Saída')} <span className="text-red-500">*</span></label>
                     <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} required className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-black text-sm" />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <label className="block text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest">Nº Caixa</label>
+                        <label className="block text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest">{t('newJob.boxNumberLabel', 'Nº Caixa')}</label>
                         <input value={boxNumber} onChange={e => setBoxNumber(e.target.value)} placeholder="00" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-center font-black text-2xl focus:ring-2 focus:ring-blue-500 outline-none" />
                         {activeJobsWithSameBox.length > 0 && (
                             <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-xl relative z-10">
                                 <div className="flex items-center gap-2 text-amber-700 font-bold mb-2 text-[10px] uppercase">
                                     <AlertTriangle size={14} />
-                                    <span>Caixa em uso!</span>
+                                    <span>{t('newJob.boxInUseWarning', 'Caixa em uso!')}</span>
                                 </div>
                                 <ul className="space-y-2">
                                     {activeJobsWithSameBox.map(conflictingJob => (
@@ -1803,7 +1807,7 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                         )}
                     </div>
                     <div>
-                        <label className="block text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest">Cor</label>
+                        <label className="block text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest">{t('newJob.color', 'Cor')}</label>
                         <div className="flex flex-wrap gap-1.5 justify-center">
                             {boxColors.map(color => (
                                 <button key={color.id} type="button" onClick={() => setSelectedColorId(color.id)} className={`w-7 h-7 rounded-full border-2 transition-all ${selectedColorId === color.id ? 'border-slate-900 scale-125 shadow-md' : 'border-transparent opacity-60'}`} style={{ backgroundColor: color.hex }} />
@@ -1816,12 +1820,12 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
 
                 <div className="pt-6 border-t border-slate-100">
                     <div className="flex justify-between items-center mb-4">
-                        <span className="text-[10px] font-black text-slate-400 uppercase">Total do Caso</span>
+                        <span className="text-[10px] font-black text-slate-400 uppercase">{isBudget ? t('newJob.totalBudget', 'Total do Orçamento') : t('newJob.totalCase', 'Total do Caso')}</span>
                         <span className="text-2xl font-black text-slate-900">R$ {addedItems.reduce((acc, i) => acc + (i.price * i.quantity), 0).toFixed(2)}</span>
                     </div>
                     <button type="submit" disabled={isSubmitting} className="w-full py-5 bg-gradient-to-r from-blue-600 to-indigo-700 text-white font-black rounded-2xl hover:shadow-2xl active:scale-95 transition-all flex items-center justify-center gap-3 shadow-xl shadow-blue-900/20 disabled:opacity-50 disabled:cursor-not-allowed">
                         {isSubmitting ? <RefreshCw size={24} className="animate-spin" /> : <FileCheck size={24} />} 
-                        {isSubmitting ? 'SALVANDO...' : 'SALVAR NO SISTEMA'}
+                        {isSubmitting ? t('newJob.savingToSystem', 'SALVANDO...') : (isBudget ? t('newJob.saveBudget', 'SALVAR ORÇAMENTO') : t('newJob.saveInSystem', 'SALVAR NO SISTEMA'))}
                     </button>
                 </div>
               </div>

@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useApp } from '../../context/AppContext';
 import { Job, JobStatus, SectorMovement, Sector, UserRole } from '../../types';
 import { 
@@ -26,6 +27,7 @@ import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 
 export const Kanban = () => {
+  const { t } = useTranslation();
   const { jobs, sectors, allUsers, currentOrg } = useApp();
   const navigate = useNavigate();
 
@@ -41,7 +43,7 @@ export const Kanban = () => {
 
   // Helper para resolver o nome do setor
   const getSectorName = (sectorKey?: string): string => {
-    if (!sectorKey || sectorKey === 'TRANSITION') return 'Setor de Transição';
+    if (!sectorKey || sectorKey === 'TRANSITION') return t('kanban.transitionSector', 'Setor de Transição');
     const found = sectors.find(
       s => s.id === sectorKey || s.name.toLowerCase() === sectorKey.toLowerCase()
     );
@@ -63,7 +65,7 @@ export const Kanban = () => {
         id: mov.id || Math.random().toString(),
         sectorKey: mov.sector,
         sectorName: getSectorName(mov.sector),
-        entryUserName: mov.entryUserName || 'Colaborador não identificado',
+        entryUserName: mov.entryUserName || t('common.unidentifiedStaff', 'Colaborador não identificado'),
         entryUserId: mov.entryUserId,
         entryTime: mov.entryTime ? new Date(mov.entryTime) : undefined,
       }));
@@ -85,7 +87,7 @@ export const Kanban = () => {
     return [{
       id: 'transition',
       sectorKey: 'TRANSITION',
-      sectorName: 'Setor de Transição',
+      sectorName: t('kanban.transitionSector', 'Setor de Transição'),
       entryUserName: undefined,
       entryUserId: undefined,
       entryTime: undefined,
@@ -244,17 +246,17 @@ export const Kanban = () => {
   const inSectorsCount = totalActiveCases - inTransitionCount;
 
   return (
-    <div className="flex flex-col min-h-full bg-slate-50 dark:bg-[#0B0F17] p-3 md:p-6 pb-24 md:pb-12 print:hidden">
+    <div className="flex flex-col min-h-full bg-slate-50 dark:bg-[#0B0F17] p-3 md:p-6 pb-24 md:pb-12 print:hidden" id="kanban-page-container">
       
       {/* Header com Título e Estatísticas Rápidas */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 shrink-0">
         <div>
           <div className="flex items-center gap-2">
             <Layers className="text-[#00B8D9] h-7 w-7" />
-            <h1 className="text-2xl font-black text-slate-800 dark:text-slate-100 tracking-tight">Kanban de Produção</h1>
+            <h1 className="text-2xl font-black text-slate-800 dark:text-slate-100 tracking-tight">{t('kanban.title', 'Kanban de Produção')}</h1>
           </div>
           <p className="text-slate-500 dark:text-slate-400 font-medium text-sm mt-0.5">
-            Acompanhe o fluxo de casos em tempo real por setores e por colaboradores
+            {t('kanban.subtitle', 'Acompanhe o fluxo de casos em tempo real por setores e por colaboradores')}
           </p>
         </div>
 
@@ -262,21 +264,21 @@ export const Kanban = () => {
         <div className="flex items-center gap-2 flex-wrap">
           <div className="bg-white dark:bg-[#131B2A] border border-slate-200 dark:border-slate-800 px-3 py-1.5 rounded-xl shadow-xs flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Total Ativos:</span>
+            <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{t('kanban.totalActive', 'Total Ativos:')}</span>
             <span className="text-xs font-extrabold text-slate-900 dark:text-slate-100 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-md">
               {totalActiveCases}
             </span>
           </div>
           <div className="bg-white dark:bg-[#131B2A] border border-slate-200 dark:border-slate-800 px-3 py-1.5 rounded-xl shadow-xs flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
-            <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Em Setores:</span>
+            <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{t('kanban.inSectors', 'Em Setores:')}</span>
             <span className="text-xs font-extrabold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/50 px-1.5 py-0.5 rounded-md">
               {inSectorsCount}
             </span>
           </div>
           <div className="bg-white dark:bg-[#131B2A] border border-slate-200 dark:border-slate-800 px-3 py-1.5 rounded-xl shadow-xs flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
-            <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Em Transição:</span>
+            <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{t('kanban.inTransition', 'Em Transição:')}</span>
             <span className="text-xs font-extrabold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 px-1.5 py-0.5 rounded-md">
               {inTransitionCount}
             </span>
@@ -293,14 +295,14 @@ export const Kanban = () => {
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Pesquise por Paciente, Dentista, Nº da OS ou Nº da Caixa para ver setor e colaborador..."
+              placeholder={t('kanban.searchPlaceholder', 'Pesquise por Paciente, Dentista, Nº da OS ou Nº da Caixa para ver setor e colaborador...')}
               className="w-full pl-11 pr-10 py-3 bg-slate-50 dark:bg-[#0B0F17] hover:bg-slate-100/70 dark:hover:bg-[#0B0F17]/80 focus:bg-white dark:focus:bg-[#0B0F17] border border-slate-200 dark:border-slate-700 focus:border-[#00B8D9] rounded-xl text-slate-800 dark:text-slate-100 placeholder-slate-400 text-sm font-medium outline-none transition-all"
             />
             {searchTerm && (
               <button
                 onClick={() => setSearchTerm('')}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
-                title="Limpar busca"
+                title={t('kanban.clearSearch', 'Limpar busca')}
               >
                 <X size={16} />
               </button>
@@ -312,7 +314,7 @@ export const Kanban = () => {
         <div className="flex flex-wrap items-center justify-between gap-2 mt-2.5 pt-2.5 border-t border-slate-100 dark:border-slate-800 text-xs">
           <div className="flex items-center gap-1.5 text-slate-400 dark:text-slate-500 font-medium">
             <SlidersHorizontal size={13} className="text-[#00B8D9]" />
-            <span>Busca instantânea com suporte a multi-setor e colaborador de entrada.</span>
+            <span>{t('kanban.searchHint', 'Busca instantânea com suporte a multi-setor e colaborador de entrada.')}</span>
           </div>
 
           <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-0.5 rounded-lg border border-slate-200/50 dark:border-slate-700/50">
@@ -322,7 +324,7 @@ export const Kanban = () => {
                 activeTab === 'ALL' ? 'bg-white dark:bg-[#131B2A] text-slate-800 dark:text-slate-100 shadow-xs' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
               }`}
             >
-              Ambos os Quadros
+              {t('kanban.bothBoards', 'Ambos os Quadros')}
             </button>
             <button
               onClick={() => setActiveTab('SECTORS')}
@@ -330,7 +332,7 @@ export const Kanban = () => {
                 activeTab === 'SECTORS' ? 'bg-white dark:bg-[#131B2A] text-slate-800 dark:text-slate-100 shadow-xs' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
               }`}
             >
-              Por Setores
+              {t('kanban.bySectors', 'Por Setores')}
             </button>
             <button
               onClick={() => setActiveTab('COLLABORATORS')}
@@ -338,7 +340,7 @@ export const Kanban = () => {
                 activeTab === 'COLLABORATORS' ? 'bg-white dark:bg-[#131B2A] text-slate-800 dark:text-slate-100 shadow-xs' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
               }`}
             >
-              Por Colaboradores
+              {t('kanban.byCollaborators', 'Por Colaboradores')}
             </button>
           </div>
         </div>
@@ -350,14 +352,18 @@ export const Kanban = () => {
               <div className="flex items-center gap-2">
                 <Sparkles className="text-amber-500 h-4 w-4" />
                 <h3 className="text-sm font-bold text-slate-800">
-                  Resultado da Localização Rápida ({searchFilteredJobs.length} {searchFilteredJobs.length === 1 ? 'caso encontrado' : 'casos encontrados'})
+                  {t('kanban.quickResultTitle', {
+                    count: searchFilteredJobs.length,
+                    label: searchFilteredJobs.length === 1 ? t('kanban.caseFound', 'caso encontrado') : t('kanban.casesFound', 'casos encontrados'),
+                    defaultValue: `Resultado da Localização Rápida (${searchFilteredJobs.length} ${searchFilteredJobs.length === 1 ? 'caso encontrado' : 'casos encontrados'})`
+                  })}
                 </h3>
               </div>
               <button
                 onClick={() => setSearchTerm('')}
                 className="text-xs font-bold text-blue-600 hover:text-blue-800 underline"
               >
-                Limpar filtro
+                {t('kanban.clearFilter', 'Limpar filtro')}
               </button>
             </div>
 
@@ -387,7 +393,7 @@ export const Kanban = () => {
                         )}
                         {isMultiSector && (
                           <span className="text-[10px] font-black uppercase tracking-wider bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded-md border border-purple-200">
-                            Multi-Setor ({activeSectors.length})
+                            {t('kanban.multiSectorBadge', { count: activeSectors.length, defaultValue: `Multi-Setor (${activeSectors.length})` })}
                           </span>
                         )}
                       </div>
@@ -407,7 +413,7 @@ export const Kanban = () => {
                       {/* ONDE SE ENCONTRA: SETOR(ES) E COLABORADOR(ES) */}
                       <div className="bg-white rounded-lg p-2.5 border border-slate-200/80 space-y-2">
                         <div className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center justify-between">
-                          <span>Localização Atual</span>
+                          <span>{t('kanban.currentLocation', 'Localização Atual')}</span>
                           <ExternalLink size={11} className="text-slate-400 group-hover:text-blue-600 transition-colors" />
                         </div>
 
@@ -430,14 +436,14 @@ export const Kanban = () => {
                             </div>
 
                             <div className="flex items-center gap-1.5 pl-4 text-xs">
-                              <span className="text-slate-400 text-[11px]">Colaborador:</span>
+                              <span className="text-slate-400 text-[11px]">{t('kanban.collaborator', 'Colaborador:')}</span>
                               {sectorInfo.entryUserName ? (
                                 <span className="font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100 text-[11px]">
                                   {sectorInfo.entryUserName}
                                 </span>
                               ) : (
                                 <span className="text-amber-600 font-semibold text-[11px] flex items-center gap-1">
-                                  <AlertCircle size={11} /> Sem colaborador ativo
+                                  <AlertCircle size={11} /> {t('kanban.noActiveCollaborator', 'Sem colaborador ativo')}
                                 </span>
                               )}
                             </div>
@@ -451,8 +457,8 @@ export const Kanban = () => {
             ) : (
               <div className="bg-slate-50 p-6 rounded-xl border border-dashed border-slate-200 text-center">
                 <Search className="mx-auto h-8 w-8 text-slate-300 mb-2" />
-                <p className="text-sm font-bold text-slate-600">Nenhum caso encontrado para "{searchTerm}"</p>
-                <p className="text-xs text-slate-400 mt-1">Verifique a ortografia do paciente, dentista, número da OS ou número da caixa.</p>
+                <p className="text-sm font-bold text-slate-600">{t('kanban.noCaseFoundFor', { term: searchTerm, defaultValue: `Nenhum caso encontrado para "${searchTerm}"` })}</p>
+                <p className="text-xs text-slate-400 mt-1">{t('kanban.searchCheckSpelling', 'Verifique a ortografia do paciente, dentista, número da OS ou número da caixa.')}</p>
               </div>
             )}
           </div>
@@ -470,12 +476,12 @@ export const Kanban = () => {
                 <MapPin size={18} />
               </div>
               <div>
-                <h2 className="text-lg font-black text-slate-800 dark:text-slate-100 tracking-tight">1. Fluxo por Setores</h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Visualização por bancadas e etapas de produção do laboratório</p>
+                <h2 className="text-lg font-black text-slate-800 dark:text-slate-100 tracking-tight">{t('kanban.flowBySectors', '1. Fluxo por Setores')}</h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">{t('kanban.flowBySectorsDesc', 'Visualização por bancadas e etapas de produção do laboratório')}</p>
               </div>
             </div>
             <span className="text-xs font-bold text-slate-500 dark:text-slate-400 bg-white dark:bg-[#131B2A] border border-slate-200 dark:border-slate-800 px-2.5 py-1 rounded-lg">
-              {sectors.length + 1} Colunas
+              {t('kanban.columnsCount', { count: sectors.length + 1, defaultValue: `${sectors.length + 1} Colunas` })}
             </span>
           </div>
 
@@ -483,8 +489,8 @@ export const Kanban = () => {
             <div className="flex gap-4 items-start min-w-max">
               {/* Setor de Transição */}
               <SectorColumn
-                title="Setor de Transição"
-                description="Casos aguardando entrada em setor"
+                title={t('kanban.transitionSector', 'Setor de Transição')}
+                description={t('kanban.transitionSectorDesc', 'Casos aguardando entrada em setor')}
                 items={groupedJobsBySector['TRANSITION'] || []}
                 isTransition={true}
                 navigate={navigate}
@@ -515,12 +521,12 @@ export const Kanban = () => {
                 <Users size={18} />
               </div>
               <div>
-                <h2 className="text-lg font-black text-slate-800 dark:text-slate-100 tracking-tight">2. Casos por Colaboradores</h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Visualização dos casos sob responsabilidade de cada profissional</p>
+                <h2 className="text-lg font-black text-slate-800 dark:text-slate-100 tracking-tight">{t('kanban.casesByCollaborators', '2. Casos por Colaboradores')}</h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">{t('kanban.casesByCollaboratorsDesc', 'Visualização dos casos sob responsabilidade de cada profissional')}</p>
               </div>
             </div>
             <span className="text-xs font-bold text-slate-500 dark:text-slate-400 bg-white dark:bg-[#131B2A] border border-slate-200 dark:border-slate-800 px-2.5 py-1 rounded-lg">
-              {collaboratorsList.length + 1} Colunas
+              {t('kanban.columnsCount', { count: collaboratorsList.length + 1, defaultValue: `${collaboratorsList.length + 1} Colunas` })}
             </span>
           </div>
 
@@ -528,8 +534,8 @@ export const Kanban = () => {
             <div className="flex gap-4 items-start min-w-max">
               {/* Coluna Sem Colaborador / Não Atribuídos */}
               <CollaboratorColumn
-                title="Sem Colaborador Ativo"
-                subtitle="Aguardando início por técnico"
+                title={t('kanban.noActiveCollaboratorTitle', 'Sem Colaborador Ativo')}
+                subtitle={t('kanban.awaitingTechnician', 'Aguardando início por técnico')}
                 items={groupedJobsByCollaborator['UNASSIGNED'] || []}
                 isUnassigned={true}
                 getSectorName={getSectorName}
@@ -571,6 +577,8 @@ const SectorColumn = ({
   isTransition?: boolean;
   navigate: (path: string) => void;
 }) => {
+  const { t } = useTranslation();
+
   return (
     <div className={`flex flex-col w-80 shrink-0 rounded-2xl border min-h-[420px] max-h-[680px] ${
       isTransition 
@@ -643,14 +651,14 @@ const SectorColumn = ({
                   </div>
                 ) : (
                   <div className="flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 px-2 py-0.5 rounded border border-amber-100 dark:border-amber-900/50 w-fit">
-                    <AlertCircle size={11} /> Sem colaborador ativo
+                    <AlertCircle size={11} /> {t('kanban.noActiveCollaborator', 'Sem colaborador ativo')}
                   </div>
                 )}
 
                 {movement?.entryTime && (
                   <div className="flex items-center gap-1 text-[10px] font-semibold text-slate-400 dark:text-slate-500 pl-0.5">
                     <Clock size={10} />
-                    Entrada: {format(new Date(movement.entryTime), "dd/MM 'às' HH:mm")}
+                    {t('kanban.entryPrefix', 'Entrada:')} {format(new Date(movement.entryTime), "dd/MM 'às' HH:mm")}
                   </div>
                 )}
               </div>
@@ -661,7 +669,7 @@ const SectorColumn = ({
         {items.length === 0 && (
           <div className="h-40 flex flex-col items-center justify-center text-slate-400 dark:text-slate-600 gap-1.5 opacity-60">
             <Box size={22} className="text-slate-300 dark:text-slate-600" />
-            <span className="text-xs font-bold text-center">Nenhum caso</span>
+            <span className="text-xs font-bold text-center">{t('kanban.noCases', 'Nenhum caso')}</span>
           </div>
         )}
       </div>
@@ -687,6 +695,8 @@ const CollaboratorColumn = ({
   getSectorName: (key?: string) => string;
   navigate: (path: string) => void;
 }) => {
+  const { t } = useTranslation();
+
   return (
     <div className={`flex flex-col w-80 shrink-0 rounded-2xl border min-h-[420px] max-h-[680px] ${
       isUnassigned 
@@ -729,7 +739,7 @@ const CollaboratorColumn = ({
                 time: m.entryTime ? new Date(m.entryTime) : undefined,
               }))
             : [{
-                name: job.currentSector ? getSectorName(job.currentSector) : 'Setor de Transição',
+                name: job.currentSector ? getSectorName(job.currentSector) : t('kanban.transitionSector', 'Setor de Transição'),
                 time: job.sectorEntryTime ? new Date(job.sectorEntryTime) : undefined,
               }];
 
@@ -765,7 +775,7 @@ const CollaboratorColumn = ({
                 </div>
               </div>
 
-              {/* Rodapé: SETORES QUE ESTE COLABORADOR ESTÁ EXECUTANDO (Sem repetir o nome do colaborador) */}
+              {/* Rodapé: SETORES QUE ESTE COLABORADOR ESTÁ EXECUTANDO */}
               <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex flex-col gap-1.5">
                 {activeSectors.map((sectorItem, sIdx) => (
                   <div key={sIdx} className="flex items-center justify-between text-xs">
@@ -790,7 +800,7 @@ const CollaboratorColumn = ({
         {items.length === 0 && (
           <div className="h-40 flex flex-col items-center justify-center text-slate-400 dark:text-slate-600 gap-1.5 opacity-60">
             <Users size={22} className="text-slate-300 dark:text-slate-600" />
-            <span className="text-xs font-bold text-center">Nenhum caso ativo</span>
+            <span className="text-xs font-bold text-center">{t('kanban.noActiveCases', 'Nenhum caso ativo')}</span>
           </div>
         )}
       </div>

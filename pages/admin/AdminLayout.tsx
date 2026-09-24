@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { useApp } from '../../context/AppContext';
 import { NavLink, Outlet } from 'react-router-dom';
 import { 
@@ -6,6 +7,7 @@ import {
 } from 'lucide-react';
 
 export const AdminLayout = () => {
+  const { t } = useTranslation();
   const { currentOrg, currentPlan, currentUser } = useApp();
   const [copied, setCopied] = React.useState(false);
 
@@ -22,15 +24,15 @@ export const AdminLayout = () => {
   };
 
   const navItems = [
-    { to: '/admin/organizacao', icon: <Building2 size={16} />, label: 'Marca', show: isAdmin },
-    { to: '/admin/setores', icon: <Briefcase size={16} />, label: 'Setores', show: !isFreeLab && hasPerm('sectors:view') },
-    { to: '/admin/caixas', icon: <Box size={16} />, label: 'Caixas', show: !isFreeLab && hasPerm('boxes:view') },
-    { to: '/admin/equipe', icon: <Users size={16} />, label: 'Equipe', show: !isFreeLab && hasPerm('users:view') },
-    { to: '/admin/clientes', icon: <Stethoscope size={16} />, label: 'Clientes', show: !isFreeLab && hasPerm('clients:view') },
-    { to: '/admin/comissoes', icon: <DollarSign size={16} />, label: 'Ganhos', show: !isFreeLab && hasPerm('commissions:view') },
-    { to: '/admin/pagamentos', icon: <Wallet size={16} />, label: 'Banco', show: hasPerm('finance:view') },
-    { to: '/admin/assinatura', icon: <Crown size={16} />, label: 'Plano', show: isAdmin },
-    { to: '/admin/cupons', icon: <Ticket size={16} />, label: 'Cupons', show: isAdmin },
+    { to: '/admin/organizacao', icon: <Building2 size={16} />, label: t('admin.tabs.brand', 'Marca'), show: isAdmin },
+    { to: '/admin/setores', icon: <Briefcase size={16} />, label: t('admin.tabs.sectors', 'Setores'), show: !isFreeLab && hasPerm('sectors:view') },
+    { to: '/admin/caixas', icon: <Box size={16} />, label: t('admin.tabs.boxes', 'Caixas'), show: !isFreeLab && hasPerm('boxes:view') },
+    { to: '/admin/equipe', icon: <Users size={16} />, label: t('admin.tabs.team', 'Equipe'), show: !isFreeLab && hasPerm('users:view') },
+    { to: '/admin/clientes', icon: <Stethoscope size={16} />, label: t('admin.tabs.clients', 'Clientes'), show: !isFreeLab && hasPerm('clients:view') },
+    { to: '/admin/comissoes', icon: <DollarSign size={16} />, label: t('admin.tabs.earnings', 'Ganhos'), show: !isFreeLab && hasPerm('commissions:view') },
+    { to: '/admin/pagamentos', icon: <Wallet size={16} />, label: t('admin.tabs.bank', 'Banco'), show: hasPerm('finance:view') },
+    { to: '/admin/assinatura', icon: <Crown size={16} />, label: t('admin.tabs.plan', 'Plano'), show: isAdmin },
+    { to: '/admin/cupons', icon: <Ticket size={16} />, label: t('admin.tabs.coupons', 'Cupons'), show: isAdmin },
   ].filter(item => item.show);
 
   return (
@@ -52,25 +54,25 @@ export const AdminLayout = () => {
             <div className="flex items-center gap-2 mt-1 text-slate-400 font-mono text-xs">
               <span className="hidden sm:inline">ID:</span>
               <span className="bg-white/10 px-2 py-0.5 rounded truncate">{currentOrg?.id}</span>
-              <button onClick={copyOrgId} className="p-1 hover:text-white transition-colors">
-                {copied ? <Check size={12} /> : <Copy size={12} />}
+              <button onClick={copyOrgId} className="p-1 hover:text-white transition-colors cursor-pointer" title={t('admin.idCopied', 'Copiar ID')}>
+                {copied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
               </button>
             </div>
           </div>
         </div>
         <div className="w-full md:w-auto bg-blue-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-blue-900/40">
-          <Crown size={14} /> Plano {currentPlan?.name || '---'}
+          <Crown size={14} /> {t('admin.currentPlanBadge', 'Plano {{name}}', { name: currentPlan?.name || '---' })}
         </div>
       </div>
 
-      {/* TABS NAVIGATION: Responsive, touch-scrollable pill bar for tablet, mobile & desktop */}
+      {/* TABS NAVIGATION */}
       <div className="flex items-center gap-1.5 md:gap-2 p-1.5 md:p-2 bg-white dark:bg-[#131B2A] rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-x-auto no-scrollbar scroll-smooth mx-2 md:mx-0">
         {navItems.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
             className={({ isActive }) =>
-              `flex items-center justify-center gap-2 px-3.5 py-2.5 md:px-4 md:py-2.5 text-xs md:text-sm font-bold rounded-xl transition-all whitespace-nowrap shrink-0 ${
+              `flex items-center justify-center gap-2 px-3.5 py-2.5 md:px-4 md:py-2.5 text-xs md:text-sm font-bold rounded-xl transition-all whitespace-nowrap shrink-0 cursor-pointer ${
                 isActive 
                   ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20 font-black' 
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 bg-transparent'

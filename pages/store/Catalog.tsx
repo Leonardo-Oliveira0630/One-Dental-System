@@ -24,6 +24,7 @@ import { MyVouchersTab } from './MyVouchersTab';
 // --- Components ---
 
 const BannerCarousel = ({ images }: { images: BannerConfig[] }) => {
+    const { t } = useTranslation();
     const [index, setIndex] = useState(0);
     const [direction, setDirection] = useState(1); // 1 for next/right, -1 for prev/left
 
@@ -40,8 +41,8 @@ const BannerCarousel = ({ images }: { images: BannerConfig[] }) => {
         return (
             <div className="w-full aspect-[21/9] md:aspect-[25/7] bg-gradient-to-r from-[#0F4C81] to-[#00B8D9] rounded-card p-4 sm:p-8 flex items-center justify-between text-white overflow-hidden relative shadow-premium">
                 <div className="z-10 animate-in slide-in-from-left duration-700">
-                    <h1 className="text-3xl md:text-5xl font-black mb-4 tracking-tighter col-span-1 border-none outline-none">Catálogo Digital</h1>
-                    <p className="text-slate-100 text-lg font-medium max-w-md opacity-90">Qualidade e precisão para seus casos clínicos.</p>
+                    <h1 className="text-3xl md:text-5xl font-black mb-4 tracking-tighter col-span-1 border-none outline-none">{t('store.digitalCatalog', 'Catálogo Digital')}</h1>
+                    <p className="text-slate-100 text-lg font-medium max-w-md opacity-90">{t('store.catalogBannerSubtitle', 'Qualidade e precisão para seus casos clínicos.')}</p>
                 </div>
                 <ShoppingBag size={180} className="absolute -right-10 -bottom-10 text-white/10 rotate-12 pointer-events-none" />
             </div>
@@ -612,7 +613,7 @@ const VariationConfigModal = ({ product, selectedLab, localPriceTables, onClose,
                                 type="button"
                                 onClick={() => setModalTab('REVIEWS')}
                                 className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/70 border border-amber-200 dark:border-amber-800/70 px-2.5 py-0.5 rounded-full hover:bg-amber-100 dark:hover:bg-amber-900/60 transition-colors cursor-pointer"
-                                title="Ver reputação e avaliações deste serviço"
+                                title={t('store.viewServiceReputation', 'Ver reputação e avaliações deste serviço')}
                             >
                                 <Star size={12} className="fill-amber-400 text-amber-400" />
                                 <span className="font-black text-slate-900 dark:text-white">
@@ -1470,7 +1471,7 @@ export const Catalog = () => {
                                                                 type="button"
                                                                 onClick={(e) => { e.stopPropagation(); handleOpenProductReviews(product); }}
                                                                 className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 border border-amber-200/80 dark:border-amber-800/80 px-2 py-0.5 rounded-full hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors cursor-pointer"
-                                                                title="Ver avaliações deste serviço"
+                                                                title={t('store.viewServiceReviews', 'Ver avaliações deste serviço')}
                                                             >
                                                                 <Star size={10} className="fill-amber-400 text-amber-400" />
                                                                 <span>{rep.count > 0 ? rep.avg.toFixed(1) : '5.0'}</span>
@@ -1538,7 +1539,7 @@ export const Catalog = () => {
                                                     type="button"
                                                     onClick={(e) => { e.stopPropagation(); handleOpenProductReviews(product); }}
                                                     className="absolute top-4 left-4 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md px-3 py-1.5 rounded-full text-[11px] font-black text-slate-900 dark:text-white z-20 border border-amber-200/80 dark:border-amber-800/80 shadow-sm flex items-center gap-1.5 hover:scale-105 transition-transform cursor-pointer"
-                                                    title="Ver reputação e avaliações deste serviço"
+                                                    title={t('store.viewServiceReputation', 'Ver reputação e avaliações deste serviço')}
                                                 >
                                                     <Star size={13} className="fill-amber-400 text-amber-400" />
                                                     <span>{rep.count > 0 ? rep.avg.toFixed(1) : '5.0'}</span>

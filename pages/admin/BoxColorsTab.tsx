@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useApp } from '../../context/AppContext';
 import { Plus, Trash2, Box, Palette, X, Cpu, Key, HelpCircle, CheckCircle2, Loader2, Search } from 'lucide-react';
 import { getContrastColor } from '../../services/mockData';
 import { ActivationService, getNfcUidFormats } from '../../services/nfcServices';
 
 export const BoxColorsTab = () => {
+  const { t } = useTranslation();
   const { boxColors, addBoxColor, deleteBoxColor, currentUser, currentOrg, nfcBoxes } = useApp();
   
   // Tab control: 'COLORS' (default) or 'NFC_KITS'
@@ -39,7 +41,7 @@ export const BoxColorsTab = () => {
 
     const orgId = currentOrg?.id;
     if (!orgId) {
-      setActivationMessage({ text: 'Organização não encontrada.', type: 'error' });
+      setActivationMessage({ text: t('common.orgNotFound', 'Organização não encontrada.'), type: 'error' });
       return;
     }
 
@@ -59,13 +61,13 @@ export const BoxColorsTab = () => {
       );
 
       setActivationMessage({ 
-        text: `Kit ${kitCode.toUpperCase()} ativado com sucesso! Suas caixas estão prontas para uso.`, 
+        text: t('admin.boxes.removeKitSuccess', `Kit ${kitCode.toUpperCase()} ativado com sucesso! Suas caixas estão prontas para uso.`), 
         type: 'success' 
       });
       setKitCode('');
     } catch (err: any) {
       console.error(err);
-      setActivationMessage({ text: 'Falha na ativação: ' + err.message, type: 'error' });
+      setActivationMessage({ text: t('admin.boxes.removeKitError', 'Falha na ativação: {{error}}', { error: err.message }), type: 'error' });
     } finally {
       setIsActivating(false);
     }
@@ -75,15 +77,15 @@ export const BoxColorsTab = () => {
     const orgId = currentOrg?.id;
     if (!orgId) return;
 
-    if (!window.confirm(`ATENÇÃO: Deseja realmente excluir/desvincular o Kit NFC "${codigoKit}" deste laboratório? As caixas deste kit deixarão de funcionar neste sistema.`)) {
+    if (!window.confirm(t('admin.boxes.confirmRemoveKit', 'ATENÇÃO: Deseja realmente excluir/desvincular o Kit NFC "{{kit}}" deste laboratório? As caixas deste kit deixarão de funcionar neste sistema.', { kit: codigoKit }))) {
         return;
     }
 
     try {
         await ActivationService.removeLabKit(codigoKit, orgId);
-        alert(`Kit ${codigoKit} removido com sucesso.`);
+        alert(t('admin.boxes.removeKitSuccess', 'Kit {{code}} removido com sucesso.', { code: codigoKit }));
     } catch (err: any) {
-        alert("Erro ao remover kit: " + err.message);
+        alert(t('admin.boxes.removeKitError', 'Erro ao remover kit: {{error}}', { error: err.message }));
     }
   };
 
@@ -117,26 +119,26 @@ export const BoxColorsTab = () => {
         <button
           id="tab-btn-colors"
           onClick={() => setActiveTab('COLORS')}
-          className={`pb-3 px-4 font-black text-sm tracking-tight border-b-2 transition-all flex items-center gap-2 ${
+          className={`pb-3 px-4 font-black text-sm tracking-tight border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
             activeTab === 'COLORS' 
               ? 'border-indigo-600 text-indigo-600' 
               : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
           <Palette size={16} />
-          Cores das Caixas
+          {t('admin.boxes.boxColorsTab', 'Cores das Caixas')}
         </button>
         <button
           id="tab-btn-nfc"
           onClick={() => setActiveTab('NFC_KITS')}
-          className={`pb-3 px-4 font-black text-sm tracking-tight border-b-2 transition-all flex items-center gap-2 relative ${
+          className={`pb-3 px-4 font-black text-sm tracking-tight border-b-2 transition-all flex items-center gap-2 relative cursor-pointer ${
             activeTab === 'NFC_KITS' 
               ? 'border-indigo-600 text-indigo-600' 
               : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
           <Cpu size={16} />
-          Kits e Caixas NFC
+          {t('admin.boxes.nfcKitsTab', 'Kits e Caixas NFC')}
           {nfcBoxes.length > 0 && (
             <span className="ml-1.5 px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded-full">
               {nfcBoxes.length}
@@ -150,16 +152,16 @@ export const BoxColorsTab = () => {
         <div className="space-y-6" id="box-colors-view">
           <div className="flex justify-between items-center">
             <div>
-              <h3 className="font-bold text-slate-800 text-lg">Cores Disponíveis</h3>
-              <p className="text-xs text-slate-400 mt-0.5">Defina as cores utilizadas na identificação física de caixas organizadoras.</p>
+              <h3 className="font-bold text-slate-800 text-lg">{t('admin.boxes.availableColorsTitle', 'Cores Disponíveis')}</h3>
+              <p className="text-xs text-slate-400 mt-0.5">{t('admin.boxes.availableColorsDesc', 'Defina as cores utilizadas na identificação física de caixas organizadoras.')}</p>
             </div>
             {!isAddingColor && (
               <button 
                 id="btn-new-color"
                 onClick={() => setIsAddingColor(true)} 
-                className="px-4 py-2.5 bg-indigo-600 text-white font-bold text-sm rounded-xl flex items-center gap-2 shadow-sm hover:bg-indigo-700 transition-all active:scale-98"
+                className="px-4 py-2.5 bg-indigo-600 text-white font-bold text-sm rounded-xl flex items-center gap-2 shadow-sm hover:bg-indigo-700 transition-all active:scale-98 cursor-pointer"
               >
-                <Plus size={18}/> Nova Cor
+                <Plus size={18}/> {t('admin.boxes.newColorButton', 'Nova Cor')}
               </button>
             )}
           </div>
@@ -167,22 +169,22 @@ export const BoxColorsTab = () => {
           {isAddingColor && (
             <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-200 animate-in zoom-in duration-200" id="add-color-form-panel">
               <div className="flex justify-between items-center mb-4">
-                <h4 className="font-bold text-slate-700 uppercase text-xs tracking-widest">Configurar Nova Cor</h4>
-                <button onClick={() => setIsAddingColor(false)} className="text-slate-400 hover:text-red-500"><X size={18}/></button>
+                <h4 className="font-bold text-slate-700 uppercase text-xs tracking-widest">{t('admin.boxes.configureNewColorTitle', 'Configurar Nova Cor')}</h4>
+                <button onClick={() => setIsAddingColor(false)} className="text-slate-400 hover:text-red-500 cursor-pointer"><X size={18}/></button>
               </div>
               <form onSubmit={handleColorSubmit} className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
                 <div className="md:col-span-6">
-                  <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Nome da Cor (Ex: Azul Turquesa)</label>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">{t('admin.boxes.colorNameLabel', 'Nome da Cor')}</label>
                   <input 
                     value={name} 
                     onChange={e => setName(e.target.value)} 
-                    placeholder="Nome da cor" 
+                    placeholder={t('admin.boxes.colorNamePlaceholder', 'Ex: Azul Turquesa')} 
                     required
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 text-sm" 
                   />
                 </div>
                 <div className="md:col-span-3">
-                  <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Seletor Hexadecimal</label>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">{t('admin.boxes.colorHexLabel', 'Código Hexadecimal')}</label>
                   <div className="flex gap-2">
                     <input 
                       type="color"
@@ -199,8 +201,8 @@ export const BoxColorsTab = () => {
                     />
                   </div>
                 </div>
-                <button type="submit" className="md:col-span-3 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm rounded-xl shadow-md shadow-indigo-600/10 flex items-center justify-center gap-2 active:scale-98 transition-all">
-                  <Plus size={18}/> ADICIONAR
+                <button type="submit" className="md:col-span-3 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm rounded-xl shadow-md shadow-indigo-600/10 flex items-center justify-center gap-2 active:scale-98 transition-all cursor-pointer">
+                  <Plus size={18}/> {t('admin.boxes.saveColorButton', 'Salvar Cor')}
                 </button>
               </form>
             </div>
@@ -223,7 +225,7 @@ export const BoxColorsTab = () => {
                 </div>
                 <button 
                   onClick={() => deleteBoxColor(color.id)}
-                  className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                  className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
                 >
                   <Trash2 size={18}/>
                 </button>
@@ -231,7 +233,7 @@ export const BoxColorsTab = () => {
             ))}
             {boxColors.length === 0 && (
               <div className="col-span-full py-12 text-center text-slate-400 italic text-sm">
-                Nenhuma cor personalizada cadastrada.
+                {t('admin.boxes.emptyColors', 'Nenhuma cor personalizada cadastrada.')}
               </div>
             )}
           </div>
@@ -246,15 +248,15 @@ export const BoxColorsTab = () => {
             <div className="lg:col-span-5 space-y-4">
               <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4" id="activation-card">
                 <div>
-                  <h3 className="font-bold text-slate-800 text-base">Ativar Lote de Caixas NFC</h3>
+                  <h3 className="font-bold text-slate-800 text-base">{t('admin.boxes.activateNfcBatchTitle', 'Ativar Lote de Caixas NFC')}</h3>
                   <p className="text-xs text-slate-400 mt-1">
-                    Digite o código único do kit NFC impresso no encarte para ativar suas caixas neste laboratório.
+                    {t('admin.boxes.nfcActivationDesc', 'Digite o código único do kit NFC impresso no encarte para ativar suas caixas neste laboratório.')}
                   </p>
                 </div>
 
                 <form onSubmit={handleActivateKit} className="space-y-3">
                   <div>
-                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5">Código do Kit NFC</label>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5">{t('admin.boxes.kitCodeLabel', 'Código do Kit NFC')}</label>
                     <div className="relative">
                       <Key className="absolute left-3.5 top-3.5 text-slate-400" size={16} />
                       <input
@@ -263,7 +265,7 @@ export const BoxColorsTab = () => {
                         type="text"
                         value={kitCode}
                         onChange={e => setKitCode(e.target.value)}
-                        placeholder="Ex: KIT-2026-000001"
+                        placeholder={t('admin.boxes.kitCodePlaceholder', 'Ex: KIT-2026-000001')}
                         className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 uppercase font-mono font-bold"
                       />
                     </div>
@@ -273,15 +275,15 @@ export const BoxColorsTab = () => {
                     id="btn-submit-activation"
                     type="submit"
                     disabled={isActivating}
-                    className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm rounded-xl transition-all shadow-md shadow-indigo-600/10 flex items-center justify-center gap-2 disabled:opacity-50"
+                    className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm rounded-xl transition-all shadow-md shadow-indigo-600/10 flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
                   >
                     {isActivating ? (
                       <>
                         <Loader2 size={16} className="animate-spin" />
-                        Validando Kit...
+                        {t('common.loading', 'Validando Kit...')}
                       </>
                     ) : (
-                      'Ativar Kit NFC'
+                      t('admin.boxes.activateBatchButton', 'Ativar Kit NFC')
                     )}
                   </button>
                 </form>
@@ -306,30 +308,30 @@ export const BoxColorsTab = () => {
               <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-3" id="activation-info-box">
                 <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
                   <HelpCircle size={14} className="text-indigo-500" />
-                  Como funciona?
+                  {t('admin.boxes.howItWorksTitle', 'Como funciona?')}
                 </h4>
                 <p className="text-xs text-slate-500 leading-relaxed">
-                  A ativação do kit copia o mapeamento de UIDs físicos das caixas diretamente para o banco de dados do seu laboratório.
+                  {t('admin.boxes.howItWorks1', 'A ativação do kit copia o mapeamento de UIDs físicos das caixas diretamente para o banco de dados do seu laboratório.')}
                 </p>
                 <p className="text-xs text-slate-500 leading-relaxed">
-                  Depois de ativado, basta aproximar qualquer uma das caixas do leitor durante o fluxo de entrada/saída de setores ou na busca de casos no painel de controle. O sistema identificará automaticamente o trabalho ativo!
+                  {t('admin.boxes.howItWorks2', 'Depois de ativado, basta aproximar qualquer uma das caixas do leitor durante o fluxo de entrada/saída de setores ou na busca de casos no painel de controle. O sistema identificará automaticamente o trabalho ativo!')}
                 </p>
               </div>
 
-              {/* Active Kits (Multiple kit support) */}
+              {/* Active Kits */}
               {activeKits.length > 0 && (
                 <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3" id="active-kits-summary-card">
                   <div className="flex items-center justify-between">
                     <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
                       <Cpu size={14} className="text-indigo-500" />
-                      Kits Vinculados ({activeKits.length})
+                      {t('admin.boxes.linkedKits', 'Kits Vinculados ({{count}})', { count: activeKits.length })}
                     </h4>
                     <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded text-[9px] font-bold uppercase tracking-tight">
                       Multi-Kit
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-500 leading-relaxed">
-                    Você pode adquirir e ativar múltiplos lotes de caixas NFC no seu laboratório. Elas funcionam de forma cumulativa e simultânea!
+                    {t('admin.boxes.multiKitDesc', 'Você pode adquirir e ativar múltiplos lotes de caixas NFC no seu laboratório. Elas funcionam de forma cumulativa e simultânea!')}
                   </p>
                   <div className="space-y-2">
                     {activeKits.map(code => {
@@ -339,14 +341,14 @@ export const BoxColorsTab = () => {
                           <div className="flex flex-col">
                              <span className="font-bold text-slate-700">{code}</span>
                              <span className="text-[9px] text-slate-400 font-sans mt-0.5">
-                               {count} {count === 1 ? 'caixa ativada' : 'caixas ativadas'}
+                               {count} {count === 1 ? t('admin.boxes.oneBoxActivated', 'caixa ativada') : t('admin.boxes.manyBoxesActivated', 'caixas ativadas')}
                              </span>
                           </div>
                           
                           <button
                              onClick={() => handleRemoveKit(code)}
-                             className="opacity-0 group-hover:opacity-100 p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
-                             title="Remover/Desvincular este kit"
+                             className="opacity-0 group-hover:opacity-100 p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all cursor-pointer"
+                             title={t('admin.boxes.removeKitTitle', 'Remover/Desvincular este kit')}
                           >
                              <Trash2 size={16} />
                           </button>
@@ -363,12 +365,12 @@ export const BoxColorsTab = () => {
               <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4" id="active-boxes-list-card">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
-                    <h3 className="font-bold text-slate-800 text-base">Caixas Ativas</h3>
-                    <p className="text-xs text-slate-400 mt-0.5">Relação de caixas físicas e UIDs reconhecidos por este laboratório.</p>
+                    <h3 className="font-bold text-slate-800 text-base">{t('admin.boxes.activeBoxesTitle', 'Caixas Ativas')}</h3>
+                    <p className="text-xs text-slate-400 mt-0.5">{t('admin.boxes.activeBoxesDesc', 'Relação de caixas físicas e UIDs reconhecidos por este laboratório.')}</p>
                   </div>
                   {nfcBoxes.length > 0 && (
                     <span className="self-start sm:self-center px-3 py-1 bg-emerald-50 text-emerald-800 rounded-full font-bold text-[10px] uppercase">
-                      {nfcBoxes.length} Caixas
+                      {nfcBoxes.length} {t('admin.boxes.boxesCount', 'Caixas')}
                     </span>
                   )}
                 </div>
@@ -382,7 +384,7 @@ export const BoxColorsTab = () => {
                         type="text"
                         value={nfcBoxSearch}
                         onChange={e => setNfcBoxSearch(e.target.value)}
-                        placeholder="Pesquisar por Caixa, UID..."
+                        placeholder={t('admin.boxes.searchPlaceholder', 'Pesquisar por Caixa, UID...')}
                         className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:bg-white"
                       />
                     </div>
@@ -393,7 +395,7 @@ export const BoxColorsTab = () => {
                         onChange={e => setSelectedKitFilter(e.target.value)}
                         className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:bg-white font-mono font-bold text-slate-700"
                       >
-                        <option value="ALL">Todos os Kits</option>
+                        <option value="ALL">{t('admin.boxes.allKits', 'Todos os Kits')}</option>
                         {activeKits.map(code => (
                           <option key={code} value={code}>{code}</option>
                         ))}
@@ -405,13 +407,13 @@ export const BoxColorsTab = () => {
                 {nfcBoxes.length === 0 ? (
                   <div className="text-center py-16 border border-dashed border-slate-200 rounded-xl">
                     <Cpu size={36} className="mx-auto text-slate-300 mb-2" />
-                    <p className="text-sm font-bold text-slate-600">Nenhum Kit NFC Ativo</p>
+                    <p className="text-sm font-bold text-slate-600">{t('admin.boxes.noActiveKits', 'Nenhum Kit NFC Ativo')}</p>
                     <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">
-                      Digite o código de ativação do kit enviado pelo suporte do LabProx para habilitar o rastreamento automatizado.
+                      {t('admin.boxes.noActiveKitsDesc', 'Digite o código de ativação do kit enviado pelo suporte do Labprox para habilitar o rastreamento automatizado.')}
                     </p>
                   </div>
                 ) : filteredNfcBoxes.length === 0 ? (
-                  <p className="text-center py-8 text-slate-400 text-xs font-mono">Nenhuma caixa corresponde aos filtros.</p>
+                  <p className="text-center py-8 text-slate-400 text-xs font-mono">{t('admin.boxes.noBoxesMatchFilter', 'Nenhuma caixa corresponde aos filtros.')}</p>
                 ) : (
                   <div className="max-h-[350px] overflow-y-auto space-y-2 pr-1 font-mono text-xs">
                     {filteredNfcBoxes.map((box) => (

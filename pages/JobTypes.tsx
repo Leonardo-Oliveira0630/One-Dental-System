@@ -1,5 +1,5 @@
-
 import React, { useState, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import * as XLSX from 'xlsx';
 import { useApp } from '../context/AppContext';
 import { JobType, VariationGroup, VariationOption } from '../types';
@@ -15,6 +15,7 @@ const generateFirestoreId = (prefix: string) => {
 };
 
 export const JobTypes = () => {
+  const { t } = useTranslation();
   const { jobTypes, addJobType, updateJobType, deleteJobType, uploadFile, sectors, currentUser, currentOrg, currentPlan, priceTables } = useApp();
   
   const isFreeLab = currentOrg?.orgType === 'LAB' && (currentOrg?.planId === 'free_lab' || currentPlan?.id === 'free_lab' || currentPlan?.features?.isLabFreeStoreOnly === true);
@@ -29,11 +30,11 @@ export const JobTypes = () => {
     const doc = new jsPDF();
     const orgName = currentOrg?.name || 'Laboratório';
     doc.setFontSize(18);
-    doc.text(`Catálogo de Serviços - ${orgName}`, 14, 22);
+    doc.text(t('jobTypes.pdfCatalogTitle', { orgName, defaultValue: `Catálogo de Serviços - ${orgName}` }), 14, 22);
     
     doc.setFontSize(11);
     doc.setTextColor(100);
-    doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 14, 30);
+    doc.text(t('jobTypes.pdfGeneratedAt', { date: new Date().toLocaleString(), defaultValue: `Gerado em: ${new Date().toLocaleString()}` }), 14, 30);
 
     const tableData: any[] = [];
     
@@ -62,7 +63,7 @@ export const JobTypes = () => {
 
     autoTable(doc, {
       startY: 40,
-      head: [['Serviço / Variação', 'Categoria', 'Valor Base / Adicional']],
+      head: [[t('jobTypes.pdfServiceVariation', 'Serviço / Variação'), t('jobTypes.pdfCategory', 'Categoria'), t('jobTypes.pdfBasePrice', 'Valor Base / Adicional')]],
       body: tableData,
       theme: 'grid',
       headStyles: { fillColor: [79, 70, 229] },
@@ -119,7 +120,7 @@ export const JobTypes = () => {
     e.stopPropagation();
     const slugOrId = currentOrg?.storeSlug || currentOrg?.id;
     if (!slugOrId) {
-        alert("O laboratório ainda não possui identificador ou link de loja.");
+        alert(t('jobTypes.noStoreSlugAlert', 'O laboratório ainda não possui identificador ou link de loja.'));
         return;
     }
     const shareUrl = `${window.location.origin}/#/store/${slugOrId}?serviceId=${type.id}`;
@@ -130,11 +131,10 @@ export const JobTypes = () => {
         })
         .catch((err) => {
             console.error("Erro ao copiar link:", err);
-            alert("Não foi possível copiar o link automaticamente.");
+            alert(t('jobTypes.copyLinkErrorAlert', 'Não foi possível copiar o link automaticamente.'));
         });
   };
 
-  
   const isPromo = (jt: any) => {
     if (jt.isPromotion === true) return true;
     if (jt.isPromotion === false) return false;
@@ -149,99 +149,106 @@ export const JobTypes = () => {
   // Form State
   const [name, setName] = useState('');
   const [category, setCategory] = useState('');
-  const [basePrice, setBasePrice] = useState(0);
+  const [basePrice, setBasePrice] = useState<number>(0);
   const [baseCommission, setBaseCommission] = useState<number | ''>('');
   const [productionTimeDays, setProductionTimeDays] = useState<number | ''>('');
   const [variationGroups, setVariationGroups] = useState<VariationGroup[]>([]);
   const [isVisibleInStore, setIsVisibleInStore] = useState(true);
   const [isVisibleInOutsourcing, setIsVisibleInOutsourcing] = useState(true);
-  const [isVisibleInternally, setIsVisibleInternally] = useState(true);
+  const [isVisibleInternally, setIsVisibleInternally] = useState(!isFreeLab);
   const [isVisibleInternallyLabs, setIsVisibleInternallyLabs] = useState(false);
-  const [imageUrl, setImageUrl] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imageUrl, setImageUrl] = useState('');
   const [previewUrl, setPreviewUrl] = useState('');
-  const [allowedSectors, setAllowedSectors] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
-  const [mainTab, setMainTab] = useState<'SERVICES' | 'PROMOTIONS'>('SERVICES');
-  const [isPromotion, setIsPromotion] = useState(false);
-  const [promotionQuantity, setPromotionQuantity] = useState<number | ''>('');
-  const [isVoucherCombo, setIsVoucherCombo] = useState(true);
-  const [promotionCallText, setPromotionCallText] = useState('');
-  const [originalJobTypeId, setOriginalJobTypeId] = useState('');
-  const [applyToAllVariations, setApplyToAllVariations] = useState(true);
-  const [promoVariationOptionId, setPromoVariationOptionId] = useState('');
-  const [promoVariationOptionIds, setPromoVariationOptionIds] = useState<string[]>([]);
+  const [allowedSectors, setAllowedSectors] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Import State
+  // Main Tabs State (Services vs Promotions)
+  const [mainTab, setMainTab] = useState<'SERVICES' | 'PROMOTIONS'>('SERVICES');
+
+  // Promotion Fields State
+  const [isPromotion, setIsPromotion] = useState(false);
+  const [promotionQuantity, setPromotionQuantity] = useState<number | ''>('');
+  const [promotionCallText, setPromotionCallText] = useState('');
+  const [isVoucherCombo, setIsVoucherCombo] = useState(true);
+  const [originalJobTypeId, setOriginalJobTypeId] = useState<string>('');
+  const [applyToAllVariations, setApplyToAllVariations] = useState(true);
+  const [promoVariationOptionId, setPromoVariationOptionId] = useState<string>('');
+  const [promoVariationOptionIds, setPromoVariationOptionIds] = useState<string[]>([]);
+
+  // Bulk Import State
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [importStatus, setImportStatus] = useState<'IDLE' | 'ANALYZING' | 'PREVIEW'>('IDLE');
+  const [importStatus, setImportStatus] = useState<'IDLE' | 'PREVIEW'>('IDLE');
+  const [importPreview, setImportPreview] = useState<{ name: string; category: string; basePrice: number; isValid: boolean }[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [importPreview, setImportPreview] = useState<any[]>([]);
 
-  const analyzeColumnsWithoutAI = (sampleData: any[]) => {
-    const keys = Object.keys(sampleData[0] || {});
-    const findExact = (targets: string[]) => keys.find(k => targets.some(t => k.trim().toLowerCase() === t.toLowerCase()));
-
-    return {
-        name: findExact(['nome', 'name', 'serviço', 'servico', 'descrição', 'descricao', 'produto']),
-        category: findExact(['categoria', 'category', 'tipo', 'grupo']),
-        basePrice: findExact(['preço', 'preco', 'valor', 'price', 'preço base', 'valor base']),
-    };
-  };
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setImportStatus('ANALYZING');
     setIsAnalyzing(true);
-
     const reader = new FileReader();
-    reader.onload = async (evt) => {
+    reader.onload = (evt) => {
       try {
         const bstr = evt.target?.result;
-        const wb = XLSX.read(bstr, { type: 'binary', cellDates: true, raw: true });
+        const wb = XLSX.read(bstr, { type: 'binary' });
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
-        const data = XLSX.utils.sheet_to_json(ws, { defval: "" });
+        const data: any[] = XLSX.utils.sheet_to_json(ws, { header: 1 });
 
-        if (data.length === 0) {
-          alert("O arquivo parece estar vazio.");
-          setImportStatus('IDLE');
+        if (data.length <= 1) {
+          alert("A planilha parece estar vazia ou sem cabeçalhos.");
+          setIsAnalyzing(false);
           return;
         }
 
-        const mapping = analyzeColumnsWithoutAI(data);
+        const headers = (data[0] || []).map((h: any) => String(h).trim().toLowerCase());
         
-        const processedData = data.map((row: any) => {
-            const getVal = (key: string) => {
-                const colName = (mapping as any)[key];
-                if (!colName) return '';
-                const val = row[colName];
-                return val !== undefined && val !== null ? String(val).trim() : '';
-            };
+        let nameIdx = headers.findIndex((h: string) => h.includes('nome') || h.includes('serviço') || h.includes('servico') || h.includes('item') || h.includes('produto'));
+        let catIdx = headers.findIndex((h: string) => h.includes('categoria') || h.includes('grupo') || h.includes('tipo'));
+        let priceIdx = headers.findIndex((h: string) => h.includes('preço') || h.includes('preco') || h.includes('valor') || h.includes('r$'));
 
-            let basePrice = 0;
-            const priceStr = getVal('basePrice').replace(/[^0-9.,]/g, '').replace(',', '.');
-            if (priceStr) {
-                basePrice = parseFloat(priceStr);
-            }
+        if (nameIdx === -1) nameIdx = 0;
+        if (catIdx === -1) catIdx = 1;
+        if (priceIdx === -1) priceIdx = 2;
 
-            return {
-                name: getVal('name'),
-                category: getVal('category'),
-                basePrice: isNaN(basePrice) ? 0 : basePrice,
-                isValid: !!getVal('name')
-            };
-        }).filter(item => item.name);
+        const previewList: { name: string; category: string; basePrice: number; isValid: boolean }[] = [];
 
-        setImportPreview(processedData);
+        for (let i = 1; i < data.length; i++) {
+          const row = data[i];
+          if (!row || row.length === 0) continue;
+
+          const rawName = row[nameIdx];
+          const rawCat = row[catIdx];
+          const rawPrice = row[priceIdx];
+
+          if (!rawName) continue;
+
+          const nameStr = String(rawName).trim();
+          const catStr = rawCat ? String(rawCat).trim() : 'Geral';
+          
+          let parsedPrice = 0;
+          if (typeof rawPrice === 'number') {
+            parsedPrice = rawPrice;
+          } else if (typeof rawPrice === 'string') {
+            const cleanPrice = rawPrice.replace('R$', '').replace(/\s/g, '').replace(/\./g, '').replace(',', '.');
+            parsedPrice = parseFloat(cleanPrice) || 0;
+          }
+
+          previewList.push({
+            name: nameStr,
+            category: catStr,
+            basePrice: parsedPrice,
+            isValid: Boolean(nameStr && parsedPrice >= 0)
+          });
+        }
+
+        setImportPreview(previewList);
         setImportStatus('PREVIEW');
       } catch (err) {
-        console.error(err);
-        alert("Erro ao processar arquivo.");
-        setImportStatus('IDLE');
+        console.error("Erro ao ler arquivo:", err);
+        alert("Erro ao processar o arquivo. Certifique-se de que é uma planilha válida.");
       } finally {
         setIsAnalyzing(false);
         if (fileInputRef.current) fileInputRef.current.value = '';
@@ -253,7 +260,7 @@ export const JobTypes = () => {
   const handleSaveImport = async () => {
     const validItems = importPreview.filter(i => i.isValid);
     if (validItems.length === 0) {
-      alert("Nenhum item válido para importar.");
+      alert(t('jobTypes.noValidItemsAlert', 'Nenhum item válido para importar.'));
       return;
     }
 
@@ -272,12 +279,12 @@ export const JobTypes = () => {
           variationGroups: []
         });
       }
-      alert(`${validItems.length} serviços importados com sucesso!`);
+      alert(t('jobTypes.importedSuccessAlert', { count: validItems.length, defaultValue: `${validItems.length} serviços importados com sucesso!` }));
       setImportStatus('IDLE');
       setImportPreview([]);
     } catch (err) {
       console.error(err);
-      alert("Erro ao salvar itens.");
+      alert(t('jobTypes.saveErrorAlert', 'Erro ao salvar itens.'));
     } finally {
       setIsSaving(false);
     }
@@ -321,7 +328,7 @@ export const JobTypes = () => {
       setSelectedTypeForStages(null);
     } catch (err) {
       console.error(err);
-      alert('Erro ao salvar etapas do serviço.');
+      alert(t('jobTypes.saveStagesErrorAlert', 'Erro ao salvar etapas do serviço.'));
     }
   };
 
@@ -410,7 +417,7 @@ export const JobTypes = () => {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !category) {
-        alert("Preencha o nome e a categoria.");
+        alert(t('jobTypes.fillNameAndCategoryAlert', 'Preencha o nome e a categoria.'));
         return;
     }
     
@@ -489,7 +496,7 @@ export const JobTypes = () => {
       resetForm();
     } catch (error) {
         console.error("Failed to save Job Type:", error);
-        alert("Falha ao salvar o tipo de trabalho. Verifique se você tem permissão ou está conectado a um laboratório.");
+        alert(t('jobTypes.saveJobTypeErrorAlert', 'Falha ao salvar o tipo de trabalho. Verifique se você tem permissão ou está conectado a um laboratório.'));
     } finally {
       setIsSaving(false);
     }
@@ -500,7 +507,7 @@ export const JobTypes = () => {
   const addGroup = () => {
       const newGroup: VariationGroup = {
           id: generateFirestoreId('group'),
-          name: `Novo Grupo ${variationGroups.length + 1}`,
+          name: t('jobTypes.newGroupName', { number: variationGroups.length + 1, defaultValue: `Novo Grupo ${variationGroups.length + 1}` }),
           selectionType: 'SINGLE',
           options: []
       };
@@ -518,7 +525,7 @@ export const JobTypes = () => {
   const addOption = (groupId: string) => {
       const newOption: VariationOption = {
           id: generateFirestoreId('opt'),
-          name: 'Nova Opção',
+          name: t('jobTypes.newOptionName', 'Nova Opção'),
           priceModifier: 0,
           disablesOptions: [],
           isDiscountExempt: false
@@ -552,19 +559,19 @@ export const JobTypes = () => {
 
   const getSelectionTypeLabel = (type: string) => {
       switch(type) {
-          case 'SINGLE': return 'Seleção Única (Radio)';
-          case 'MULTIPLE': return 'Múltipla Escolha (Check)';
-          case 'TEXT': return 'Campo de Texto (Input)';
+          case 'SINGLE': return t('jobTypes.singleSelect', 'Seleção Única (Radio)');
+          case 'MULTIPLE': return t('jobTypes.multipleSelect', 'Múltipla Escolha (Check)');
+          case 'TEXT': return t('jobTypes.textInput', 'Campo de Texto (Input)');
           default: return type;
       }
   };
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="space-y-6 pb-12" id="job-types-catalog-page">
        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-            <h1 className="text-2xl font-bold text-slate-900">Catálogo de Serviços e Promoções</h1>
-            <p className="text-slate-500">Gerencie tipos de próteses, preços, pacotes promocionais e variações.</p>
+            <h1 className="text-2xl font-bold text-slate-900">{t('jobTypes.title', 'Catálogo de Serviços e Promoções')}</h1>
+            <p className="text-slate-500">{t('jobTypes.subtitle', 'Gerencie tipos de próteses, preços, pacotes promocionais e variações.')}</p>
         </div>
         <div className="flex items-center gap-4">
             <div className="bg-slate-100 p-1 rounded-xl flex items-center shrink-0">
@@ -572,13 +579,13 @@ export const JobTypes = () => {
                     onClick={() => { setMainTab('SERVICES'); setIsPromotion(false); resetForm(); }}
                     className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${mainTab === 'SERVICES' ? 'bg-white shadow-sm text-blue-700' : 'text-slate-500 hover:text-slate-700'}`}
                 >
-                    Serviços
+                    {t('jobTypes.servicesTab', 'Serviços')}
                 </button>
                 <button
                     onClick={() => { setMainTab('PROMOTIONS'); setIsPromotion(true); resetForm(); }}
                     className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${mainTab === 'PROMOTIONS' ? 'bg-white shadow-sm text-blue-700' : 'text-slate-500 hover:text-slate-700'}`}
                 >
-                    Promoções
+                    {t('jobTypes.promotionsTab', 'Promoções')}
                 </button>
             </div>
             {canCreate && (
@@ -590,21 +597,21 @@ export const JobTypes = () => {
                                 onClick={() => fileInputRef.current?.click()}
                                 disabled={isAnalyzing}
                                 className="px-4 py-2 border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold rounded-lg flex items-center gap-2 whitespace-nowrap transition-colors"
-                                title="Importar de Planilha"
+                                title={t('jobTypes.importSheetTitle', 'Importar de Planilha')}
                             >
-                                <UploadCloud size={18} /> {isAnalyzing ? 'Analisando...' : 'Importar em Lote'}
+                                <UploadCloud size={18} /> {isAnalyzing ? t('jobTypes.analyzing', 'Analisando...') : t('jobTypes.importBatch', 'Importar em Lote')}
                             </button>
                             <button 
                                 onClick={exportToPDF}
                                 className="px-4 py-2 border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-lg flex items-center gap-2 whitespace-nowrap transition-colors"
-                                title="Exportar PDF"
+                                title={t('jobTypes.exportPdfTitle', 'Exportar PDF')}
                             >
                                 <Download size={18} /> PDF
                             </button>
                             <button 
                                 onClick={exportToXML}
                                 className="px-4 py-2 border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold rounded-lg flex items-center gap-2 whitespace-nowrap transition-colors"
-                                title="Exportar XML"
+                                title={t('jobTypes.exportXmlTitle', 'Exportar XML')}
                             >
                                 <FileCode size={18} /> XML
                             </button>
@@ -615,7 +622,7 @@ export const JobTypes = () => {
                             onClick={resetForm}
                             className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50 text-slate-600 flex items-center gap-2 whitespace-nowrap font-bold transition-colors"
                         >
-                            <Plus size={18} /> {mainTab === 'PROMOTIONS' ? 'Nova Promoção' : 'Novo Serviço'}
+                            <Plus size={18} /> {mainTab === 'PROMOTIONS' ? t('jobTypes.newPromotion', 'Nova Promoção') : t('jobTypes.newService', 'Novo Serviço')}
                         </button>
                     )}
                 </div>
@@ -626,12 +633,14 @@ export const JobTypes = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:p-8">
         {/* Left Column: List */}
         <div className="space-y-4 lg:col-span-1 order-2 lg:order-1">
-            <h3 className="font-bold text-slate-700 text-sm uppercase tracking-wider mb-2">{mainTab === 'PROMOTIONS' ? 'Promoções' : 'Serviços'} Cadastrados</h3>
+            <h3 className="font-bold text-slate-700 text-sm uppercase tracking-wider mb-2">
+                {mainTab === 'PROMOTIONS' ? t('jobTypes.registeredPromotions', 'Promoções Cadastradas') : t('jobTypes.registeredServices', 'Serviços Cadastrados')}
+            </h3>
             
             <div className="mb-3 relative">
                 <input 
                     type="text"
-                    placeholder="Pesquisar serviços..."
+                    placeholder={t('jobTypes.searchServices', 'Pesquisar serviços...')}
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
                     className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium text-sm transition-all text-slate-700"
@@ -670,7 +679,7 @@ export const JobTypes = () => {
                                         <button 
                                             onClick={(e) => { e.stopPropagation(); openStageConfigModal(type); }}
                                             className="p-1.5 rounded-lg border bg-slate-50 border-slate-100 hover:border-slate-200 text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-all"
-                                            title="Configuração de Etapas do Serviço (Catraca)"
+                                            title={t('jobTypes.stageConfigTooltip', 'Configuração de Etapas do Serviço (Catraca)')}
                                         >
                                             <Settings size={13} />
                                         </button>
@@ -681,7 +690,7 @@ export const JobTypes = () => {
                                                     ? 'bg-green-50 border-green-200 text-green-600' 
                                                     : 'bg-slate-50 border-slate-100 hover:border-slate-200 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50'
                                             }`}
-                                            title="Compartilhar Link"
+                                            title={t('jobTypes.shareLinkTooltip', 'Compartilhar Link')}
                                         >
                                             {copiedId === type.id ? <Check size={13} /> : <Share2 size={13} />}
                                         </button>
@@ -689,7 +698,7 @@ export const JobTypes = () => {
                                             <button 
                                                 onClick={(e) => { e.stopPropagation(); deleteJobType(type.id); }} 
                                                 className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100"
-                                                title="Excluir"
+                                                title={t('jobTypes.deleteTooltip', 'Excluir')}
                                             >
                                                 <Trash2 size={13} />
                                             </button>
@@ -706,28 +715,28 @@ export const JobTypes = () => {
                             <div className="flex items-center gap-2">
                                 <div className="text-xs text-slate-400 flex items-center gap-1">
                                     <Layers size={12} />
-                                    {type.variationGroups.length} grupos
+                                    {t('jobTypes.groupsCount', { count: type.variationGroups.length, defaultValue: `${type.variationGroups.length} grupos` })}
                                 </div>
                                 {type.productionTimeDays !== undefined && type.productionTimeDays !== null && Number(type.productionTimeDays) > 0 && (
                                     <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-100 font-semibold px-1.5 py-0.5 rounded flex items-center gap-1">
-                                        <Clock size={10} /> {type.productionTimeDays} {type.productionTimeDays === 1 ? 'dia útil' : 'dias úteis'}
+                                        <Clock size={10} /> {type.productionTimeDays === 1 ? t('jobTypes.workDay', { count: 1, defaultValue: '1 dia útil' }) : t('jobTypes.workDays', { count: type.productionTimeDays, defaultValue: `${type.productionTimeDays} dias úteis` })}
                                     </span>
                                 )}
                             </div>
                             <div className="flex gap-1 flex-wrap">
                                 {type.isVisibleInStore === false && (
                                     <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded flex items-center gap-1">
-                                        <EyeOff size={10} /> Oculto na Loja
+                                        <EyeOff size={10} /> {t('jobTypes.hiddenInStore', 'Oculto na Loja')}
                                     </span>
                                 )}
                                 {type.isVisibleInternally === false && (
-                                    <span className="text-[10px] bg-amber-50 text-amber-600 border border-amber-100 px-1.5 py-0.5 rounded flex items-center gap-1" title="Oculto para Dentistas">
-                                        <EyeOff size={10} /> Oculto (Dentistas)
+                                    <span className="text-[10px] bg-amber-50 text-amber-600 border border-amber-100 px-1.5 py-0.5 rounded flex items-center gap-1" title={t('jobTypes.hiddenForDentistsTitle', 'Oculto para Dentistas')}>
+                                        <EyeOff size={10} /> {t('jobTypes.hiddenDentists', 'Oculto (Dentistas)')}
                                     </span>
                                 )}
                                 {type.isVisibleInternallyLabs === false && (
-                                    <span className="text-[10px] bg-red-50 text-red-600 border border-red-100 px-1.5 py-0.5 rounded flex items-center gap-1" title="Oculto para Laboratórios">
-                                        <EyeOff size={10} /> Oculto (Labs)
+                                    <span className="text-[10px] bg-red-50 text-red-600 border border-red-100 px-1.5 py-0.5 rounded flex items-center gap-1" title={t('jobTypes.hiddenForLabsTitle', 'Oculto para Laboratórios')}>
+                                        <EyeOff size={10} /> {t('jobTypes.hiddenLabs', 'Oculto (Labs)')}
                                     </span>
                                 )}
                             </div>
@@ -748,7 +757,7 @@ export const JobTypes = () => {
                             activeTab === 'BASIC' ? 'bg-white text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'
                         }`}
                     >
-                        <Package size={18} /> Dados Gerais
+                        <Package size={18} /> {t('jobTypes.generalDataTab', 'Dados Gerais')}
                     </button>
                     <button
                         onClick={() => setActiveTab('VARIATIONS')}
@@ -756,7 +765,7 @@ export const JobTypes = () => {
                             activeTab === 'VARIATIONS' ? 'bg-white text-indigo-600 border-b-2 border-indigo-600' : 'text-slate-500 hover:text-slate-700'
                         }`}
                     >
-                        <Layers size={18} /> Grupos & Variações
+                        <Layers size={18} /> {t('jobTypes.groupsVariationsTab', 'Grupos & Variações')}
                         <span className="bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded-full text-[10px]">
                             {variationGroups.length}
                         </span>
@@ -768,7 +777,7 @@ export const JobTypes = () => {
                         <div className="space-y-6 animate-in fade-in slide-in-from-left-4 duration-300">
                              <div className="flex justify-between items-center">
                                 <h2 className="text-xl font-bold text-slate-800">
-                                    {isEditing ? `Editando: ${name}` : (mainTab === 'PROMOTIONS' ? 'Nova Promoção' : 'Novo Serviço')}
+                                    {isEditing ? t('jobTypes.editing', { name, defaultValue: `Editando: ${name}` }) : (mainTab === 'PROMOTIONS' ? t('jobTypes.newPromotion', 'Nova Promoção') : t('jobTypes.newService', 'Novo Serviço'))}
                                 </h2>
                              </div>
                              
@@ -777,30 +786,30 @@ export const JobTypes = () => {
                                     {mainTab === 'PROMOTIONS' && (
                                         <>
                                         <div>
-                                            <label className="block text-sm font-bold text-slate-700 mb-2">Tipo de Promoção</label>
+                                            <label className="block text-sm font-bold text-slate-700 mb-2">{t('jobTypes.promotionType', 'Tipo de Promoção')}</label>
                                             <div className="flex gap-4">
                                                 <label className="flex items-center gap-2 cursor-pointer">
                                                     <input type="radio" checked={isVoucherCombo} onChange={() => setIsVoucherCombo(true)} className="w-4 h-4 text-blue-600 focus:ring-blue-500" />
-                                                    <span className="text-sm text-slate-700">Pacote/Combo (Gera Voucher)</span>
+                                                    <span className="text-sm text-slate-700">{t('jobTypes.voucherCombo', 'Pacote/Combo (Gera Voucher)')}</span>
                                                 </label>
                                                 <label className="flex items-center gap-2 cursor-pointer">
                                                     <input type="radio" checked={!isVoucherCombo} onChange={() => setIsVoucherCombo(false)} className="w-4 h-4 text-blue-600 focus:ring-blue-500" />
-                                                    <span className="text-sm text-slate-700">Unitário (Desconto Direto)</span>
+                                                    <span className="text-sm text-slate-700">{t('jobTypes.singleDirect', 'Unitário (Desconto Direto)')}</span>
                                                 </label>
                                             </div>
                                             {isVoucherCombo && (
                                                 <p className="text-xs text-slate-500 mt-2 bg-slate-50 p-2 rounded border border-slate-200">
-                                                    O cliente comprará o pacote e receberá um voucher com a quantidade definida para resgatar em pedidos futuros sem precisar enviar paciente ou STL agora.
+                                                    {t('jobTypes.voucherComboHelp', 'O cliente comprará o pacote e receberá um voucher com a quantidade definida para resgatar em pedidos futuros sem precisar enviar paciente ou STL agora.')}
                                                 </p>
                                             )}
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-bold text-slate-700 mb-1">Serviço Original</label>
+                                            <label className="block text-sm font-bold text-slate-700 mb-1">{t('jobTypes.originalService', 'Serviço Original')}</label>
                                             <select value={originalJobTypeId} onChange={e => {
                                                 setOriginalJobTypeId(e.target.value);
                                                 setPromoVariationOptionId('');
                                             }} required className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
-                                                <option value="">Selecione um Serviço...</option>
+                                                <option value="">{t('jobTypes.selectServicePlaceholder', 'Selecione um Serviço...')}</option>
                                                 {jobTypes.filter(jt => !jt.isPromotion).map(jt => (
                                                     <option key={jt.id} value={jt.id}>{jt.name}</option>
                                                 ))}
@@ -808,7 +817,7 @@ export const JobTypes = () => {
                                         </div>
                                         {originalJobTypeId && (
                                             <div>
-                                                <label className="block text-sm font-bold text-slate-700 mb-2">Escopo da Promoção</label>
+                                                <label className="block text-sm font-bold text-slate-700 mb-2">{t('jobTypes.promotionScope', 'Escopo da Promoção')}</label>
                                                 <div className="flex gap-4 mb-2">
                                                     <label className="flex items-center gap-2 cursor-pointer">
                                                         <input type="radio" checked={applyToAllVariations} onChange={() => {
@@ -816,21 +825,21 @@ export const JobTypes = () => {
                                                             setPromoVariationOptionId("");
                                                             setPromoVariationOptionIds([]);
                                                         }} className="w-4 h-4 text-blue-600 focus:ring-blue-500" />
-                                                        <span className="text-xs font-medium text-slate-700">Qualquer variação (Todo o Serviço)</span>
+                                                        <span className="text-xs font-medium text-slate-700">{t('jobTypes.allVariationsScope', 'Qualquer variação (Todo o Serviço)')}</span>
                                                     </label>
                                                     <label className="flex items-center gap-2 cursor-pointer">
                                                         <input type="radio" checked={!applyToAllVariations} onChange={() => setApplyToAllVariations(false)} className="w-4 h-4 text-blue-600 focus:ring-blue-500" />
-                                                        <span className="text-xs font-medium text-slate-700">Variação Específica</span>
+                                                        <span className="text-xs font-medium text-slate-700">{t('jobTypes.specificVariationScope', 'Variação Específica')}</span>
                                                     </label>
                                                 </div>
                                                 
                                                 {!applyToAllVariations && (
                                                     <div className="space-y-4 mt-2 p-4 bg-slate-50 border border-slate-200 rounded-xl">
-                                                        <label className="block text-xs font-bold text-slate-700">Selecione as Variações Vigentes:</label>
+                                                        <label className="block text-xs font-bold text-slate-700">{t('jobTypes.selectActiveVariations', 'Selecione as Variações Vigentes:')}</label>
                                                         {(() => {
                                                             const originalType = jobTypes.find(jt => jt.id === originalJobTypeId);
                                                             if (!originalType || !originalType.variationGroups || originalType.variationGroups.length === 0) {
-                                                                return <p className="text-xs text-slate-500 italic">O serviço selecionado não possui variações cadastradas.</p>;
+                                                                return <p className="text-xs text-slate-500 italic">{t('jobTypes.noVariationsOnSelectedService', 'O serviço selecionado não possui variações cadastradas.')}</p>;
                                                             }
                                                             return originalType.variationGroups.map(group => (
                                                                 <div key={group.id} className="border-t border-slate-200 pt-2 first:border-0 first:pt-0">
@@ -861,7 +870,7 @@ export const JobTypes = () => {
                                                             ));
                                                         })()}
                                                         <p className="text-[10px] text-slate-500 leading-tight">
-                                                            A promoção será restrita e só poderá ser aplicada quando as variações selecionadas acima forem selecionadas pelo cliente no carrinho.
+                                                            {t('jobTypes.promoScopeHelp', 'A promoção será restrita e só poderá ser aplicada quando as variações selecionadas acima forem selecionadas pelo cliente no carrinho.')}
                                                         </p>
                                                     </div>
                                                 )}
@@ -870,35 +879,35 @@ export const JobTypes = () => {
                                     </>
                                 )}
                                     <div>
-                                        <label className="block text-sm font-bold text-slate-700 mb-1">{mainTab === 'PROMOTIONS' ? 'Nome do Pacote' : 'Nome do Serviço'}</label>
+                                        <label className="block text-sm font-bold text-slate-700 mb-1">{mainTab === 'PROMOTIONS' ? t('jobTypes.packageName', 'Nome do Pacote') : t('jobTypes.serviceName', 'Nome do Serviço')}</label>
                                         <input value={name} onChange={e => setName(e.target.value)} required className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"/>
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-bold text-slate-700 mb-1">Categoria</label>
-                                        <input value={category} onChange={e => setCategory(e.target.value)} required className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Ex: Prótese Fixa"/>
+                                        <label className="block text-sm font-bold text-slate-700 mb-1">{t('jobTypes.category', 'Categoria')}</label>
+                                        <input value={category} onChange={e => setCategory(e.target.value)} required className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder={t('jobTypes.categoryPlaceholder', 'Ex: Prótese Fixa')}/>
                                     </div>
                                     {mainTab === 'PROMOTIONS' && (
                                         <>
                                             {isVoucherCombo && (
                                                 <div>
-                                                    <label className="block text-sm font-bold text-slate-700 mb-1">Quantidade do Pacote</label>
+                                                    <label className="block text-sm font-bold text-slate-700 mb-1">{t('jobTypes.packageQuantity', 'Quantidade do Pacote')}</label>
                                                     <input type="number" min="1" value={promotionQuantity} onChange={e => setPromotionQuantity(e.target.value === '' ? '' : parseInt(e.target.value))} required={isVoucherCombo} className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Ex: 10"/>
                                                 </div>
                                             )}
                                             <div>
-                                                <label className="block text-sm font-bold text-slate-700 mb-1">Texto de Chamada</label>
-                                                <input value={promotionCallText} onChange={e => setPromotionCallText(e.target.value)} className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Ex: Aproveite o combo promocional!"/>
+                                                <label className="block text-sm font-bold text-slate-700 mb-1">{t('jobTypes.callText', 'Texto de Chamada')}</label>
+                                                <input value={promotionCallText} onChange={e => setPromotionCallText(e.target.value)} className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder={t('jobTypes.callTextPlaceholder', 'Ex: Aproveite o combo promocional!')}/>
                                             </div>
                                         </>
                                     )}
                                     <div>
-                                        <label className="block text-sm font-bold text-slate-700 mb-1">{mainTab === 'PROMOTIONS' ? 'Preço Promocional (R$)' : 'Preço Base (R$)'}</label>
+                                        <label className="block text-sm font-bold text-slate-700 mb-1">{mainTab === 'PROMOTIONS' ? t('jobTypes.promoPrice', 'Preço Promocional (R$)') : t('jobTypes.basePrice', 'Preço Base (R$)')}</label>
                                         <div className="flex flex-col gap-2">
                                             {mainTab === 'PROMOTIONS' && originalJobTypeId && promotionQuantity && (
                                                 <div className="flex items-center gap-2">
                                                     <input 
                                                         type="number" 
-                                                        placeholder="% de desconto" 
+                                                        placeholder={t('jobTypes.percentDiscountPlaceholder', '% de desconto')} 
                                                         className="w-1/3 px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
                                                         onChange={(e) => {
                                                             const val = parseFloat(e.target.value);
@@ -912,7 +921,7 @@ export const JobTypes = () => {
                                                         }}
                                                     />
                                                     <span className="text-xs text-slate-500 flex-1">
-                                                        (Opcional) Digite a % para calcular o R$ abaixo
+                                                        {t('jobTypes.percentDiscountHelp', '(Opcional) Digite a % para calcular o R$ abaixo')}
                                                     </span>
                                                 </div>
                                             )}
@@ -923,7 +932,7 @@ export const JobTypes = () => {
                                         </div>
                                         {mainTab === 'PROMOTIONS' && originalJobTypeId && promotionQuantity && (
                                             <div className="mt-2 text-xs font-medium text-slate-500 bg-slate-50 p-2 rounded-lg border border-slate-200 flex justify-between">
-                                                <span>Valor original total: R$ {((jobTypes.find(jt => jt.id === originalJobTypeId)?.basePrice || 0) * Number(promotionQuantity) || 0).toFixed(2)}</span>
+                                                <span>{t('jobTypes.originalTotalValue', { value: ((jobTypes.find(jt => jt.id === originalJobTypeId)?.basePrice || 0) * Number(promotionQuantity) || 0).toFixed(2), defaultValue: `Valor original total: R$ ${((jobTypes.find(jt => jt.id === originalJobTypeId)?.basePrice || 0) * Number(promotionQuantity) || 0).toFixed(2)}` })}</span>
                                                 {jobTypes.find(jt => jt.id === originalJobTypeId) && basePrice < ((jobTypes.find(jt => jt.id === originalJobTypeId)?.basePrice || 0) * Number(promotionQuantity)) && (
                                                     <span className="text-green-600 font-bold">-{Math.round(((((jobTypes.find(jt => jt.id === originalJobTypeId)?.basePrice || 0) * Number(promotionQuantity)) - basePrice) / ((jobTypes.find(jt => jt.id === originalJobTypeId)?.basePrice || 1) * Number(promotionQuantity))) * 100)}% off</span>
                                                 )}
@@ -933,14 +942,14 @@ export const JobTypes = () => {
                                     {mainTab === 'SERVICES' && (
                                     <>
                                         <div>
-                                            <label className="block text-sm font-bold text-slate-700 mb-1">Valor Base de Comissão (R$)</label>
+                                            <label className="block text-sm font-bold text-slate-700 mb-1">{t('jobTypes.baseCommissionValue', 'Valor Base de Comissão (R$)')}</label>
                                             <input type="number" step="0.01" value={baseCommission} onChange={e => setBaseCommission(e.target.value === '' ? '' : parseFloat(e.target.value))} placeholder="Ex: 5.00" className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"/>
-                                            <p className="text-xs text-slate-500 mt-1">Usado caso o colaborador não tenha valor fixo na aba Ganhos.</p>
+                                            <p className="text-xs text-slate-500 mt-1">{t('jobTypes.baseCommissionHelp', 'Usado caso o colaborador não tenha valor fixo na aba Ganhos.')}</p>
                                         </div>
                                         <div>
                                             <label className="block text-sm font-bold text-slate-700 mb-1 flex items-center gap-1.5">
                                                 <Clock size={15} className="text-blue-600" />
-                                                Prazo de Produção / Entrega (dias úteis)
+                                                {t('jobTypes.productionTimeDays', 'Prazo de Produção / Entrega (dias úteis)')}
                                             </label>
                                             <input 
                                                 type="number" 
@@ -948,10 +957,10 @@ export const JobTypes = () => {
                                                 step="1" 
                                                 value={productionTimeDays} 
                                                 onChange={e => setProductionTimeDays(e.target.value === '' ? '' : parseInt(e.target.value, 10))} 
-                                                placeholder="Ex: 5" 
+                                                placeholder={t('jobTypes.productionTimeDaysPlaceholder', 'Ex: 5')} 
                                                 className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                                             />
-                                            <p className="text-xs text-slate-500 mt-1">Exibido na loja online para o cliente avaliar o prazo antes de comprar.</p>
+                                            <p className="text-xs text-slate-500 mt-1">{t('jobTypes.productionTimeDaysHelp', 'Exibido na loja online para o cliente avaliar o prazo antes de comprar.')}</p>
                                         </div>
                                     </>
                                     )}
@@ -960,13 +969,13 @@ export const JobTypes = () => {
                                 {/* Store Configuration */}
                                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
                                     <h3 className="font-bold text-slate-700 flex items-center gap-2 border-b border-slate-200 pb-2 text-xs uppercase tracking-wider">
-                                        <Store size={18} className="text-zinc-500" /> Canais de Exibição/Vendas
+                                        <Store size={18} className="text-zinc-500" /> {t('jobTypes.displaySalesChannels', 'Canais de Exibição/Vendas')}
                                     </h3>
                                     
                                     <div className="space-y-3">
                                         <div className="flex flex-col gap-1 bg-white p-3 rounded-lg border border-slate-200">
                                             <div className="flex items-center justify-between">
-                                                <span className="text-xs font-bold text-slate-800">Loja Clínicas (Dentistas)</span>
+                                                <span className="text-xs font-bold text-slate-800">{t('jobTypes.clinicStore', 'Loja Clínicas (Dentistas)')}</span>
                                                 <button 
                                                     type="button" 
                                                     onClick={() => setIsVisibleInStore(!isVisibleInStore)}
@@ -975,12 +984,12 @@ export const JobTypes = () => {
                                                     <span className={`block w-3 h-3 bg-white rounded-full shadow transform transition-transform duration-200 ease-in-out mt-1 ml-1 ${isVisibleInStore ? 'translate-x-5' : 'translate-x-0'}`} />
                                                 </button>
                                             </div>
-                                            <span className="text-[10px] text-slate-400">Exibir no catálogo geral para cirurgiões-dentistas</span>
+                                            <span className="text-[10px] text-slate-400">{t('jobTypes.clinicStoreDesc', 'Exibir no catálogo geral para cirurgiões-dentistas')}</span>
                                         </div>
 
                                         <div className="flex flex-col gap-1 bg-white p-3 rounded-lg border border-slate-200">
                                             <div className="flex items-center justify-between">
-                                                <span className="text-xs font-bold text-slate-800">Canal Terceirização</span>
+                                                <span className="text-xs font-bold text-slate-800">{t('jobTypes.outsourcingChannel', 'Canal Terceirização')}</span>
                                                 <button 
                                                     type="button" 
                                                     onClick={() => setIsVisibleInOutsourcing(!isVisibleInOutsourcing)}
@@ -989,14 +998,14 @@ export const JobTypes = () => {
                                                     <span className={`block w-3 h-3 bg-white rounded-full shadow transform transition-transform duration-200 ease-in-out mt-1 ml-1 ${isVisibleInOutsourcing ? 'translate-x-5' : 'translate-x-0'}`} />
                                                 </button>
                                             </div>
-                                            <span className="text-[10px] text-slate-400">Exibir no catálogo para laboratórios parceiros contratantes</span>
+                                            <span className="text-[10px] text-slate-400">{t('jobTypes.outsourcingChannelDesc', 'Exibir no catálogo para laboratórios parceiros contratantes')}</span>
                                         </div>
 
                                         <div className={`flex flex-col gap-3 bg-white p-3 rounded-lg border border-slate-200 ${isFreeLab ? 'hidden' : 'flex'}`}>
                                             {!isFreeLab && (
                                                 <div className="flex flex-col gap-1">
                                                     <div className="flex items-center justify-between">
-                                                        <span className="text-xs font-bold text-slate-800">Trabalhos Internos (Dentistas)</span>
+                                                        <span className="text-xs font-bold text-slate-800">{t('jobTypes.internalJobsDentists', 'Trabalhos Internos (Dentistas)')}</span>
                                                         <button 
                                                             type="button" 
                                                             onClick={() => setIsVisibleInternally(!isVisibleInternally)}
@@ -1005,13 +1014,13 @@ export const JobTypes = () => {
                                                             <span className={`block w-3 h-3 bg-white rounded-full shadow transform transition-transform duration-200 ease-in-out mt-1 ml-1 ${isVisibleInternally ? 'translate-x-5' : 'translate-x-0'}`} />
                                                         </button>
                                                     </div>
-                                                    <span className="text-[10px] text-slate-400">Visível para dentistas no cadastro manual.</span>
+                                                    <span className="text-[10px] text-slate-400">{t('jobTypes.internalJobsDentistsDesc', 'Visível para dentistas no cadastro manual.')}</span>
                                                 </div>
                                             )}
                                             {!isFreeLab && (
                                                 <div className="flex flex-col gap-1 border-t border-slate-100 pt-2">
                                                     <div className="flex items-center justify-between">
-                                                        <span className="text-xs font-bold text-slate-800">Trabalhos Internos (Laboratórios)</span>
+                                                        <span className="text-xs font-bold text-slate-800">{t('jobTypes.internalJobsLabs', 'Trabalhos Internos (Laboratórios)')}</span>
                                                         <button 
                                                             type="button" 
                                                             onClick={() => setIsVisibleInternallyLabs(!isVisibleInternallyLabs)}
@@ -1020,14 +1029,14 @@ export const JobTypes = () => {
                                                             <span className={`block w-3 h-3 bg-white rounded-full shadow transform transition-transform duration-200 ease-in-out mt-1 ml-1 ${isVisibleInternallyLabs ? 'translate-x-5' : 'translate-x-0'}`} />
                                                         </button>
                                                     </div>
-                                                    <span className="text-[10px] text-slate-400">Visível para laboratórios parceiros no cadastro manual.</span>
+                                                    <span className="text-[10px] text-slate-400">{t('jobTypes.internalJobsLabsDesc', 'Visível para laboratórios parceiros no cadastro manual.')}</span>
                                                 </div>
                                             )}
                                         </div>
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-bold text-slate-700 mb-2">Imagem do Produto</label>
+                                        <label className="block text-sm font-bold text-slate-700 mb-2">{t('jobTypes.productImage', 'Imagem do Produto')}</label>
                                         <div className="flex items-center gap-4">
                                             <div className="w-20 h-20 bg-white border-2 border-dashed border-slate-300 rounded-xl flex items-center justify-center overflow-hidden relative group">
                                                 {previewUrl ? (
@@ -1046,10 +1055,10 @@ export const JobTypes = () => {
                                                 />
                                             </div>
                                             <div className="flex-1 text-xs text-slate-500">
-                                                <p>Clique na imagem para enviar.</p>
-                                                <p>Formatos: PNG, JPG.</p>
+                                                <p>{t('jobTypes.clickImageToUpload', 'Clique na imagem para enviar.')}</p>
+                                                <p>{t('jobTypes.supportedFormats', 'Formatos: PNG, JPG.')}</p>
                                                 {previewUrl && (
-                                                    <button type="button" onClick={() => { setPreviewUrl(''); setImageFile(null); setImageUrl(''); }} className="text-red-500 hover:underline mt-1">Remover Imagem</button>
+                                                    <button type="button" onClick={() => { setPreviewUrl(''); setImageFile(null); setImageUrl(''); }} className="text-red-500 hover:underline mt-1">{t('jobTypes.removeImage', 'Remover Imagem')}</button>
                                                 )}
                                             </div>
                                         </div>
@@ -1060,10 +1069,10 @@ export const JobTypes = () => {
                              {/* Allowed Sectors */}
                              <div className="bg-white p-4 rounded-xl border border-slate-200 mt-6 shadow-sm">
                                  <h3 className="font-bold text-slate-700 flex items-center gap-2 border-b border-slate-200 pb-2 mb-3">
-                                     <Briefcase size={18} className="text-blue-500" /> Setores Permitidos
+                                     <Briefcase size={18} className="text-blue-500" /> {t('jobTypes.allowedSectors', 'Setores Permitidos')}
                                  </h3>
                                  <p className="text-xs text-slate-500 mb-4">
-                                     Selecione os setores que este trabalho poderá passar. Se nenhum setor for selecionado, o trabalho poderá passar por qualquer setor.
+                                     {t('jobTypes.allowedSectorsDesc', 'Selecione os setores que este trabalho poderá passar. Se nenhum setor for selecionado, o trabalho poderá passar por qualquer setor.')}
                                  </p>
                                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                                      {sectors.map(sector => (
@@ -1086,7 +1095,7 @@ export const JobTypes = () => {
                              {/* Valores em Tabelas */}
                              <div className="bg-white p-4 rounded-xl border border-slate-200 mt-6 shadow-sm">
                                  <h3 className="font-bold text-slate-700 flex items-center gap-2 border-b border-slate-200 pb-2 mb-3">
-                                     <Store size={18} className="text-blue-500" /> Valores em Tabelas
+                                     <Store size={18} className="text-blue-500" /> {t('jobTypes.tableValues', 'Valores em Tabelas')}
                                  </h3>
                                  <div className="space-y-4">
                                      {priceTables?.map(table => {
@@ -1094,7 +1103,7 @@ export const JobTypes = () => {
                                          return (
                                              <div key={table.id} className="p-3 bg-slate-50 border border-slate-100 rounded-lg">
                                                 <div className="flex justify-between items-center font-bold text-slate-700">
-                                                    <span>{table.name} {table.isDefault && <span className="ml-2 text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full uppercase">Padrão</span>}</span>
+                                                    <span>{table.name} {table.isDefault && <span className="ml-2 text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full uppercase">{t('jobTypes.defaultBadge', 'Padrão')}</span>}</span>
                                                     <span className="text-blue-600 text-sm">R$ {tablePrice.toFixed(2)}</span>
                                                 </div>
                                                 
@@ -1122,7 +1131,7 @@ export const JobTypes = () => {
                                      })}
                                      {(!priceTables || priceTables.length === 0) && (
                                          <div className="text-sm text-slate-500 text-center py-4 bg-slate-50 rounded-lg border border-slate-100">
-                                             Nenhuma tabela de preço configurada.
+                                             {t('jobTypes.noPriceTables', 'Nenhuma tabela de preço configurada.')}
                                          </div>
                                      )}
                                  </div>
@@ -1135,15 +1144,15 @@ export const JobTypes = () => {
                     {activeTab === 'VARIATIONS' && (
                         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                             <div className="flex justify-between items-center">
-                                <h2 className="text-xl font-bold text-slate-800">Configurar Variações</h2>
+                                <h2 className="text-xl font-bold text-slate-800">{t('jobTypes.configureVariations', 'Configurar Variações')}</h2>
                                 <button type="button" onClick={addGroup} className="flex items-center gap-2 px-3 py-1.5 text-sm bg-indigo-100 text-indigo-700 rounded-lg font-bold hover:bg-indigo-200">
-                                    <Plus size={16} /> Novo Grupo
+                                    <Plus size={16} /> {t('jobTypes.newGroup', 'Novo Grupo')}
                                 </button>
                             </div>
                             
                             {variationGroups.length === 0 ? (
                                 <div className="text-center py-8 text-slate-400 border-2 border-dashed border-slate-200 rounded-xl">
-                                    Clique em "Novo Grupo" para começar.
+                                    {t('jobTypes.clickNewGroupToStart', 'Clique em "Novo Grupo" para começar.')}
                                 </div>
                             ) : (
                                 <div className="space-y-4">
@@ -1164,7 +1173,7 @@ export const JobTypes = () => {
                                                         type="button" 
                                                         onClick={() => updateGroup(group.id, { selectionType: cycleSelectionType(group.selectionType) })} 
                                                         className="flex items-center gap-2 text-xs font-bold text-slate-600 bg-white border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors" 
-                                                        title="Mudar tipo de seleção"
+                                                        title={t('jobTypes.changeSelectionType', 'Mudar tipo de seleção')}
                                                      >
                                                         {group.selectionType === 'SINGLE' && <ToggleLeft size={16} />}
                                                         {group.selectionType === 'MULTIPLE' && <ToggleRight size={16} />}
@@ -1182,12 +1191,12 @@ export const JobTypes = () => {
                                                         <div className="grid grid-cols-12 gap-2 items-end">
                                                             <div className="col-span-12 sm:col-span-6">
                                                                 <label className="text-[10px] text-slate-500 font-bold block">
-                                                                    {group.selectionType === 'TEXT' ? 'Rótulo do Campo (ex: Cor)' : 'Nome da Opção'}
+                                                                    {group.selectionType === 'TEXT' ? t('jobTypes.fieldLabel', 'Rótulo do Campo (ex: Cor)') : t('jobTypes.optionName', 'Nome da Opção')}
                                                                 </label>
-                                                                <input value={option.name} onChange={e => updateOption(group.id, option.id, { name: e.target.value })} className="w-full p-2 text-sm rounded bg-slate-50 focus:bg-white outline-none focus:ring-1 ring-slate-200 focus:ring-indigo-400" placeholder={group.selectionType === 'TEXT' ? "Ex: Especifique a cor" : "Ex: Zircônia Translúcida"} />
+                                                                <input value={option.name} onChange={e => updateOption(group.id, option.id, { name: e.target.value })} className="w-full p-2 text-sm rounded bg-slate-50 focus:bg-white outline-none focus:ring-1 ring-slate-200 focus:ring-indigo-400" placeholder={group.selectionType === 'TEXT' ? t('jobTypes.fieldLabelPlaceholder', 'Ex: Especifique a cor') : t('jobTypes.optionNamePlaceholder', 'Ex: Zircônia Translúcida')} />
                                                             </div>
                                                             <div className="col-span-6 sm:col-span-3">
-                                                                <label className="text-[10px] text-slate-500 font-bold block">Acréscimo (R$)</label>
+                                                                <label className="text-[10px] text-slate-500 font-bold block">{t('jobTypes.priceAddon', 'Acréscimo (R$)')}</label>
                                                                 <div className="relative">
                                                                     <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">R$</span>
                                                                     <input 
@@ -1200,12 +1209,12 @@ export const JobTypes = () => {
                                                                 </div>
                                                             </div>
                                                             <div className="col-span-4 sm:col-span-2 flex flex-col items-center">
-                                                                <label className="text-[10px] text-slate-500 font-bold block mb-1">Isento de Desconto</label>
+                                                                <label className="text-[10px] text-slate-500 font-bold block mb-1">{t('jobTypes.discountExempt', 'Isento de Desconto')}</label>
                                                                 <button 
                                                                     type="button" 
                                                                     onClick={() => updateOption(group.id, option.id, { isDiscountExempt: !option.isDiscountExempt })}
                                                                     className={`p-2 rounded-lg border transition-all ${option.isDiscountExempt ? 'bg-orange-100 border-orange-400 text-orange-600 shadow-inner' : 'bg-slate-50 border-slate-200 text-slate-400'}`}
-                                                                    title={option.isDiscountExempt ? 'Valor fixo (não aceita descontos)' : 'Valor descontável'}
+                                                                    title={option.isDiscountExempt ? t('jobTypes.fixedValueTooltip', 'Valor fixo (não aceita descontos)') : t('jobTypes.discountableValueTooltip', 'Valor descontável')}
                                                                 >
                                                                     <PercentCircle size={18} />
                                                                 </button>
@@ -1217,12 +1226,12 @@ export const JobTypes = () => {
                                                         <div className="pl-1">
                                                             <label className="text-[10px] text-slate-500 font-bold block mb-1 flex items-center gap-1">
                                                                 <AlertCircle size={10} className="text-orange-500" />
-                                                                Se esta opção for escolhida, DESABILITAR as seguintes opções:
+                                                                {t('jobTypes.disableOptionsIfSelected', 'Se esta opção for escolhida, DESABILITAR as seguintes opções:')}
                                                             </label>
                                                             
                                                             <div className="w-full border rounded bg-slate-50 max-h-32 overflow-y-auto p-2">
                                                                 {variationGroups.filter(g => g.id !== group.id).length === 0 && (
-                                                                    <p className="text-[10px] text-slate-400 italic p-1">Crie outros grupos para condicionar.</p>
+                                                                    <p className="text-[10px] text-slate-400 italic p-1">{t('jobTypes.createOtherGroupsHelp', 'Crie outros grupos para condicionar.')}</p>
                                                                 )}
                                                                 {variationGroups.filter(g => g.id !== group.id).map(otherGroup => (
                                                                     <div key={otherGroup.id} className="mb-2">
@@ -1234,15 +1243,15 @@ export const JobTypes = () => {
                                                                                     <label key={otherOption.id} className="flex items-center gap-2 cursor-pointer hover:bg-slate-100 rounded p-1">
                                                                                         <input 
                                                                                             type="checkbox" 
-                                                                                            checked={isChecked}
+                                                                                            checked={isChecked} 
                                                                                             onChange={() => {
                                                                                                 const current = option.disablesOptions || [];
                                                                                                 const newList = isChecked 
                                                                                                     ? current.filter(id => id !== otherOption.id) 
                                                                                                     : [...current, otherOption.id];
                                                                                                 updateOption(group.id, option.id, { disablesOptions: newList });
-                                                                                            }}
-                                                                                            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-3 h-3"
+                                                                                            }} 
+                                                                                            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-3 h-3" 
                                                                                         />
                                                                                         <span className="text-xs text-slate-700">{otherOption.name}</span>
                                                                                     </label>
@@ -1256,7 +1265,7 @@ export const JobTypes = () => {
                                                     </div>
                                                 ))}
                                                 <button type="button" onClick={() => addOption(group.id)} className="w-full text-xs text-center py-2 bg-slate-200 text-slate-600 rounded-lg hover:bg-slate-300 font-bold">
-                                                    + Adicionar {group.selectionType === 'TEXT' ? 'Campo' : 'Opção'}
+                                                    {group.selectionType === 'TEXT' ? t('jobTypes.addField', '+ Adicionar Campo') : t('jobTypes.addOption', '+ Adicionar Opção')}
                                                 </button>
                                             </div>
                                         </div>
@@ -1270,20 +1279,20 @@ export const JobTypes = () => {
                     <div className="mt-8 pt-6 border-t border-slate-100 flex justify-end gap-3">
                          {isEditing && (
                             <button 
-                                type="button"
+                                type="button" 
                                 onClick={resetForm}
                                 className="px-6 py-3 text-slate-500 hover:bg-slate-50 rounded-xl font-medium"
                             >
-                                Cancelar
+                                {t('common.cancel', 'Cancelar')}
                             </button>
                         )}
                         <button 
-                            type="submit"
+                            type="submit" 
                             disabled={isSaving || (isEditing ? !canEdit : !canCreate)}
                             className="px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-xl hover:shadow-lg shadow-blue-200 transition-all transform hover:scale-[1.02] flex items-center gap-2 disabled:opacity-50"
                         >
                             <Save size={20} />
-                            {isSaving ? 'Salvando...' : (isEditing ? 'Atualizar' : 'Salvar')}
+                            {isSaving ? t('jobTypes.savingBtn', 'Salvando...') : (isEditing ? t('jobTypes.updateBtn', 'Atualizar') : t('jobTypes.saveBtn', 'Salvar'))}
                         </button>
                     </div>
                 </form>
@@ -1302,8 +1311,8 @@ export const JobTypes = () => {
                               <Settings size={22} />
                           </div>
                           <div>
-                              <h3 className="text-lg font-black text-slate-800 tracking-tight">Configuração de Etapas</h3>
-                              <p className="text-xs text-slate-500 font-medium">Serviço: <span className="font-bold text-blue-600">{selectedTypeForStages.name}</span></p>
+                              <h3 className="text-lg font-black text-slate-800 tracking-tight">{t('jobTypes.stageConfigTitle', 'Configuração de Etapas')}</h3>
+                              <p className="text-xs text-slate-500 font-medium">{t('jobTypes.stageConfigServiceLabel', 'Serviço:')} <span className="font-bold text-blue-600">{selectedTypeForStages.name}</span></p>
                           </div>
                       </div>
                       <button 
@@ -1317,12 +1326,12 @@ export const JobTypes = () => {
                   {/* Modal Body */}
                   <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
                       <p className="text-xs text-slate-500 font-medium bg-blue-50/60 p-3 rounded-xl border border-blue-100/60 text-blue-900 leading-relaxed">
-                        Selecione as <strong>etapas</strong> de cada setor associadas a este serviço. Estas etapas serão exibidas para seleção no registro de saída do setor e permitirão tirar comissão por cada etapa concluída.
+                        {t('jobTypes.stageConfigDescription', 'Selecione as etapas de cada setor associadas a este serviço. Estas etapas serão exibidas para seleção no registro de saída do setor e permitirão tirar comissão por cada etapa concluída.')}
                       </p>
 
                       {sectors.length === 0 ? (
                           <div className="text-center py-8 text-slate-400 italic">
-                              Nenhum setor cadastrado no laboratório.
+                              {t('jobTypes.noSectorsRegistered', 'Nenhum setor cadastrado no laboratório.')}
                           </div>
                       ) : (
                           <div className="space-y-3">
@@ -1335,7 +1344,7 @@ export const JobTypes = () => {
                                       <div key={sector.id} className="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-xs">
                                           {/* Sector Header / Dropdown toggle */}
                                           <button 
-                                              type="button"
+                                              type="button" 
                                               onClick={() => toggleSectorExpand(sector.name)}
                                               className="w-full px-4 py-3 bg-slate-50 hover:bg-slate-100/80 flex items-center justify-between transition-colors border-b border-slate-100"
                                           >
@@ -1343,7 +1352,7 @@ export const JobTypes = () => {
                                                   <span className="font-black text-xs uppercase tracking-wider text-slate-700">{sector.name}</span>
                                                   {selectedStagesForSector.length > 0 && (
                                                       <span className="bg-blue-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full">
-                                                          {selectedStagesForSector.length} selecionada(s)
+                                                          {t('jobTypes.selectedStagesCount', { count: selectedStagesForSector.length, defaultValue: `${selectedStagesForSector.length} selecionada(s)` })}
                                                       </span>
                                                   )}
                                               </div>
@@ -1357,7 +1366,7 @@ export const JobTypes = () => {
                                               <div className="p-4 bg-white space-y-2">
                                                   {sectorStagesList.length === 0 ? (
                                                       <p className="text-xs text-slate-400 italic py-1">
-                                                          Nenhuma etapa cadastrada neste setor. Cadastre etapas na aba Admin &gt; Setores.
+                                                          {t('jobTypes.noStagesInSector', 'Nenhuma etapa cadastrada neste setor. Cadastre etapas na aba Admin > Setores.')}
                                                       </p>
                                                   ) : (
                                                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -1365,7 +1374,7 @@ export const JobTypes = () => {
                                                               const isChecked = selectedStagesForSector.includes(stageName);
                                                               return (
                                                                   <label 
-                                                                      key={sIdx}
+                                                                      key={sIdx} 
                                                                       className={`flex items-center gap-2.5 p-2.5 rounded-xl border cursor-pointer transition-all ${
                                                                           isChecked 
                                                                               ? 'bg-blue-50/80 border-blue-300 text-blue-900 font-bold shadow-xs' 
@@ -1373,10 +1382,10 @@ export const JobTypes = () => {
                                                                       }`}
                                                                   >
                                                                       <input 
-                                                                          type="checkbox"
-                                                                          checked={isChecked}
+                                                                          type="checkbox" 
+                                                                          checked={isChecked} 
                                                                           onChange={() => toggleStageForSector(sector.name, stageName)}
-                                                                          className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                                                          className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" 
                                                                       />
                                                                       <span className="text-xs tracking-tight">{stageName}</span>
                                                                   </label>
@@ -1396,18 +1405,18 @@ export const JobTypes = () => {
                   {/* Modal Footer */}
                   <div className="p-5 border-t border-slate-100 bg-slate-50 flex justify-end gap-3 shrink-0">
                       <button 
-                          type="button"
+                          type="button" 
                           onClick={() => setShowStageModal(false)}
                           className="px-5 py-2.5 text-xs font-bold text-slate-500 hover:bg-slate-200/60 rounded-xl transition-colors uppercase tracking-wider"
                       >
-                          Cancelar
+                          {t('common.cancel', 'Cancelar')}
                       </button>
                       <button 
-                          type="button"
+                          type="button" 
                           onClick={handleSaveSectorStages}
                           className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-md shadow-blue-500/20 transition-all"
                       >
-                          Salvar Etapas
+                          {t('jobTypes.saveStagesBtn', 'Salvar Etapas')}
                       </button>
                   </div>
               </div>
@@ -1420,9 +1429,9 @@ export const JobTypes = () => {
             <div className="bg-white rounded-3xl p-4 sm:p-8 max-w-3xl w-full shadow-2xl animate-in zoom-in duration-300 max-h-[90vh] flex flex-col">
                 <div className="flex justify-between items-center mb-6 shrink-0">
                     <div>
-                        <h2 className="text-2xl font-black text-slate-800">Visualizar Importação</h2>
+                        <h2 className="text-2xl font-black text-slate-800">{t('jobTypes.previewImportTitle', 'Visualizar Importação')}</h2>
                         <p className="text-sm font-bold text-slate-500 mt-1">
-                            {importPreview.filter(i => i.isValid).length} serviços encontrados e prontos para importar.
+                            {t('jobTypes.previewImportDesc', { count: importPreview.filter(i => i.isValid).length, defaultValue: `${importPreview.filter(i => i.isValid).length} serviços encontrados e prontos para importar.` })}
                         </p>
                     </div>
                     <button onClick={() => { setImportStatus('IDLE'); setImportPreview([]); }} className="p-2 bg-slate-100 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-200 transition-colors">
@@ -1434,16 +1443,16 @@ export const JobTypes = () => {
                     <table className="w-full text-left border-collapse">
                         <thead className="bg-slate-50 sticky top-0 z-10">
                             <tr>
-                                <th className="p-3 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200">Serviço</th>
-                                <th className="p-3 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200">Categoria</th>
-                                <th className="p-3 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200">Preço Base</th>
+                                <th className="p-3 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200">{t('jobTypes.serviceCol', 'Serviço')}</th>
+                                <th className="p-3 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200">{t('jobTypes.categoryCol', 'Categoria')}</th>
+                                <th className="p-3 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200">{t('jobTypes.basePriceCol', 'Preço Base')}</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                             {importPreview.map((item, idx) => (
                                 <tr key={idx} className={item.isValid ? '' : 'bg-red-50'}>
-                                    <td className="p-3 font-bold text-slate-700 text-xs">{item.name || <span className="text-red-500 italic">Inválido</span>}</td>
-                                    <td className="p-3 text-slate-600 text-xs">{item.category || 'Geral'}</td>
+                                    <td className="p-3 font-bold text-slate-700 text-xs">{item.name || <span className="text-red-500 italic">{t('jobTypes.invalid', 'Inválido')}</span>}</td>
+                                    <td className="p-3 text-slate-600 text-xs">{item.category || t('jobTypes.general', 'Geral')}</td>
                                     <td className="p-3 text-blue-600 font-bold text-xs">R$ {item.basePrice.toFixed(2)}</td>
                                 </tr>
                             ))}
@@ -1456,14 +1465,14 @@ export const JobTypes = () => {
                         onClick={() => { setImportStatus('IDLE'); setImportPreview([]); }}
                         className="px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black rounded-xl transition-colors"
                     >
-                        CANCELAR
+                        {t('common.cancel', 'CANCELAR')}
                     </button>
                     <button 
                         onClick={handleSaveImport}
                         disabled={isSaving || importPreview.filter(i => i.isValid).length === 0}
                         className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl transition-all active:scale-95 flex items-center gap-2 shadow-xl shadow-blue-500/20 disabled:opacity-50"
                     >
-                        {isSaving ? 'SALVANDO...' : 'CONFIRMAR IMPORTAÇÃO'}
+                        {isSaving ? t('jobTypes.savingImport', 'SALVANDO...') : t('jobTypes.confirmImport', 'CONFIRMAR IMPORTAÇÃO')}
                     </button>
                 </div>
             </div>

@@ -1,5 +1,5 @@
-
 import React, { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useApp } from '../context/AppContext';
 import { Job, JobStatus, UrgencyLevel } from '../types';
 import { 
@@ -13,6 +13,7 @@ import { getContrastColor } from '../services/mockData';
 type CalendarFilter = 'ALL' | 'DELAYED' | 'URGENT' | 'POST';
 
 export const ProductionCalendar = () => {
+  const { t } = useTranslation();
   const { jobs, updateJob, currentUser, manualDentists, allUsers } = useApp();
   const navigate = useNavigate();
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -109,7 +110,7 @@ export const ProductionCalendar = () => {
         history: [...(selectedJob.history || []).filter(Boolean), {
             id: `hist_fin_${Date.now()}`,
             timestamp: new Date(),
-            action: 'Trabalho Finalizado via Calendário',
+            action: t('calendar.historyFinalizedCalendar', 'Trabalho Finalizado via Calendário'),
             userId: currentUser?.id || 'sys',
             userName: currentUser?.name || 'Sistema',
             sector: 'Expedição'
@@ -118,7 +119,30 @@ export const ProductionCalendar = () => {
     setSelectedJob(null);
   };
 
-  const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+  const monthNames = [
+    t('calendar.months.0', 'Janeiro'),
+    t('calendar.months.1', 'Fevereiro'),
+    t('calendar.months.2', 'Março'),
+    t('calendar.months.3', 'Abril'),
+    t('calendar.months.4', 'Maio'),
+    t('calendar.months.5', 'Junho'),
+    t('calendar.months.6', 'Julho'),
+    t('calendar.months.7', 'Agosto'),
+    t('calendar.months.8', 'Setembro'),
+    t('calendar.months.9', 'Outubro'),
+    t('calendar.months.10', 'Novembro'),
+    t('calendar.months.11', 'Dezembro')
+  ];
+
+  const daysShort = [
+    t('calendar.daysShort.0', 'Dom'),
+    t('calendar.daysShort.1', 'Seg'),
+    t('calendar.daysShort.2', 'Ter'),
+    t('calendar.daysShort.3', 'Qua'),
+    t('calendar.daysShort.4', 'Qui'),
+    t('calendar.daysShort.5', 'Sex'),
+    t('calendar.daysShort.6', 'Sáb')
+  ];
 
   // --- Estilização Dinâmica ---
   const getJobColors = (job: Job) => {
@@ -135,15 +159,17 @@ export const ProductionCalendar = () => {
   const hours = Array.from({ length: 14 }, (_, i) => i + 7); // 07:00 as 20:00
 
   return (
-    <div className="space-y-4 md:space-y-6 flex-1 flex flex-col relative w-full overflow-hidden">
+    <div className="space-y-4 md:space-y-6 flex-1 flex flex-col relative w-full overflow-hidden" id="production-calendar-page">
       
       {/* Header Fixo */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shrink-0 px-2 md:px-0">
         <div>
           <h1 className="text-xl md:text-2xl font-black text-slate-900 flex items-center gap-2 uppercase tracking-tighter truncate">
-            <CalendarIcon className="text-blue-600 shrink-0" /> Agenda de Bancada
+            <CalendarIcon className="text-blue-600 shrink-0" /> {t('calendar.title', 'Agenda de Bancada')}
           </h1>
-          <p className="text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-widest opacity-60">Faturamento e Fluxo Diário</p>
+          <p className="text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-widest opacity-60">
+            {t('calendar.subtitle', 'Faturamento e Fluxo Diário')}
+          </p>
         </div>
         
         <div className="flex items-center gap-2 md:gap-4 bg-white p-1.5 md:p-2 rounded-2xl shadow-sm border border-slate-200 w-full md:w-auto justify-between">
@@ -155,14 +181,14 @@ export const ProductionCalendar = () => {
 
       {/* Legenda de Alertas INTERATIVA (FILTROS) */}
       <div className="bg-white px-4 py-3 rounded-2xl shadow-sm border border-slate-100 flex flex-wrap items-center gap-x-4 gap-y-2 shrink-0 mx-2 md:mx-0">
-          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mr-2">Filtrar por:</span>
+          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mr-2">{t('calendar.filterBy', 'Filtrar por:')}</span>
           
           <button 
             onClick={() => toggleFilter('DELAYED')}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border-2 transition-all active:scale-95 ${activeFilter === 'DELAYED' ? 'bg-red-500 border-red-600 text-white shadow-lg' : 'bg-white border-slate-100 text-slate-600 hover:border-red-200'}`}
           >
               <div className={`w-2 h-2 rounded-full ${activeFilter === 'DELAYED' ? 'bg-white' : 'bg-red-500'}`}></div>
-              <span className="text-[10px] font-black uppercase">Atrasados</span>
+              <span className="text-[10px] font-black uppercase">{t('calendar.delayed', 'Atrasados')}</span>
           </button>
 
           <button 
@@ -170,7 +196,7 @@ export const ProductionCalendar = () => {
             className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border-2 transition-all active:scale-95 ${activeFilter === 'URGENT' ? 'bg-orange-500 border-orange-600 text-white shadow-lg' : 'bg-white border-slate-100 text-slate-600 hover:border-orange-200'}`}
           >
               <div className={`w-2 h-2 rounded-full ${activeFilter === 'URGENT' ? 'bg-white' : 'bg-orange-500'}`}></div>
-              <span className="text-[10px] font-black uppercase">Urgentes</span>
+              <span className="text-[10px] font-black uppercase">{t('calendar.urgent', 'Urgentes')}</span>
           </button>
 
           <button 
@@ -178,7 +204,7 @@ export const ProductionCalendar = () => {
             className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border-2 transition-all active:scale-95 ${activeFilter === 'POST' ? 'bg-indigo-500 border-indigo-600 text-white shadow-lg' : 'bg-white border-slate-100 text-slate-600 hover:border-indigo-200'}`}
           >
               <div className={`w-2 h-2 rounded-full ${activeFilter === 'POST' ? 'bg-white' : 'bg-indigo-500'}`}></div>
-              <span className="text-[10px] font-black uppercase">Correios</span>
+              <span className="text-[10px] font-black uppercase">{t('calendar.post', 'Correios')}</span>
           </button>
 
           {activeFilter !== 'ALL' && (
@@ -186,7 +212,7 @@ export const ProductionCalendar = () => {
                 onClick={() => setActiveFilter('ALL')}
                 className="ml-auto flex items-center gap-1.5 text-blue-600 font-black text-[10px] uppercase hover:underline"
               >
-                  <FilterX size={14}/> Limpar Filtros
+                  <FilterX size={14}/> {t('calendar.clearFilters', 'Limpar Filtros')}
               </button>
           )}
       </div>
@@ -194,7 +220,7 @@ export const ProductionCalendar = () => {
       {/* Calendário Mensal */}
       <div className={`bg-white rounded-3xl shadow-sm border flex-1 flex flex-col overflow-hidden min-h-0 w-full transition-all ${activeFilter !== 'ALL' ? 'border-blue-300 ring-4 ring-blue-50' : 'border-slate-200'}`}>
         <div className="grid grid-cols-7 border-b border-slate-100 bg-slate-50/50 shrink-0">
-            {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(day => (
+            {daysShort.map(day => (
                 <div key={day} className="py-2.5 text-center text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest">{day}</div>
             ))}
         </div>
@@ -235,7 +261,7 @@ export const ProductionCalendar = () => {
                                     </div>
                                 );
                             })}
-                            {dayJobs.length > 4 && <div className="text-[7px] font-black text-slate-400 text-center py-1">+{dayJobs.length - 4} mais</div>}
+                            {dayJobs.length > 4 && <div className="text-[7px] font-black text-slate-400 text-center py-1">{t('calendar.moreItems', { count: dayJobs.length - 4, defaultValue: `+${dayJobs.length - 4} mais` })}</div>}
                             {dayJobs.length === 0 && activeFilter !== 'ALL' && <div className="flex-1"></div>}
                         </div>
                     </div>
@@ -244,18 +270,18 @@ export const ProductionCalendar = () => {
         </div>
       </div>
 
-      {/* DRAWER DA AGENDA DIÁRIA (Timeline Estilo Google) */}
+      {/* DRAWER DA AGENDA DIÁRIA */}
       {activeDayView !== null && (
           <div className="fixed inset-0 z-[80] flex items-center justify-end bg-black/40 backdrop-blur-sm animate-in fade-in">
               <div className="bg-white w-full md:w-[500px] h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
                   <div className="p-4 md:p-4 sm:p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
                       <div>
-                          <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Cronograma Diário</p>
+                          <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest">{t('calendar.dailySchedule', 'Cronograma Diário')}</p>
                           <h2 className="text-lg md:text-xl font-black text-slate-800 uppercase tracking-tighter">
-                            {activeDayView} de {monthNames[currentDate.getMonth()]}
+                            {activeDayView} {t('common.of', 'de')} {monthNames[currentDate.getMonth()]}
                           </h2>
                           {activeFilter !== 'ALL' && (
-                              <span className="text-[9px] font-black text-orange-600 uppercase tracking-tighter bg-orange-50 px-2 py-0.5 rounded">Filtro Ativo: {activeFilter}</span>
+                              <span className="text-[9px] font-black text-orange-600 uppercase tracking-tighter bg-orange-50 px-2 py-0.5 rounded">{t('calendar.activeFilter', { filter: activeFilter, defaultValue: `Filtro Ativo: ${activeFilter}` })}</span>
                           )}
                       </div>
                       <button onClick={() => setActiveDayView(null)} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><X size={24}/></button>
@@ -266,7 +292,7 @@ export const ProductionCalendar = () => {
                       {getJobsForDay(activeDayView).filter(j => !j.dueTime).length > 0 && (
                         <div className="space-y-3">
                             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                <Clock size={14}/> Horário a Definir
+                                <Clock size={14}/> {t('calendar.timeToDefine', 'Horário a Definir')}
                             </h3>
                             <div className="grid grid-cols-1 gap-3">
                                 {getJobsForDay(activeDayView).filter(j => !j.dueTime).map(job => {
@@ -299,10 +325,10 @@ export const ProductionCalendar = () => {
                         </div>
                       )}
 
-                      {/* Linha do Tempo Estilo Google */}
+                      {/* Linha do Tempo */}
                       <div className="space-y-4">
                           <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                              <LayoutGrid size={14}/> Linha do Tempo
+                              <LayoutGrid size={14}/> {t('calendar.timeline', 'Linha do Tempo')}
                           </h3>
                           <div className="relative border-l-2 border-slate-100 ml-10 pl-6 space-y-12 pb-20">
                               {hours.map(h => {
@@ -376,28 +402,28 @@ export const ProductionCalendar = () => {
                 <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                         <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                            <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Data Saída</label>
+                            <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">{t('calendar.exitDate', 'Data Saída')}</label>
                             <input type="date" value={newDate} onChange={e => setNewDate(e.target.value)} className="w-full bg-transparent border-0 font-bold outline-none text-sm"/>
                         </div>
                         <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                            <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Hora Saída</label>
+                            <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">{t('calendar.exitTime', 'Hora Saída')}</label>
                             <input type="time" value={newTime} onChange={e => setNewTime(e.target.value)} className="w-full bg-transparent border-0 font-bold outline-none text-sm"/>
                         </div>
                     </div>
 
                     <div className="space-y-3 pt-4 border-t border-slate-100">
                         <button onClick={handleUpdateJob} className="w-full py-4 bg-blue-600 text-white font-black rounded-2xl hover:bg-blue-700 shadow-xl flex items-center justify-center gap-2 transition-all active:scale-95">
-                            <Save size={20} /> SALVAR ALTERAÇÕES
+                            <Save size={20} /> {t('calendar.saveChanges', 'SALVAR ALTERAÇÕES')}
                         </button>
                         
                         {selectedJob.status !== JobStatus.COMPLETED && (
                              <button onClick={handleFinalizeJob} className="w-full py-4 bg-green-600 text-white font-black rounded-2xl hover:bg-green-700 shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95">
-                                <CheckCircle size={20} /> FINALIZAR AGORA
+                                <CheckCircle size={20} /> {t('calendar.finalizeNow', 'FINALIZAR AGORA')}
                             </button>
                         )}
                         
                         <button onClick={() => { setSelectedJob(null); navigate(`/jobs/${selectedJob.id}`); }} className="w-full py-3 text-slate-500 font-bold text-[10px] uppercase tracking-widest hover:bg-slate-50 rounded-xl transition-all">
-                            Ver Prontuário Completo
+                            {t('calendar.viewFullChart', 'Ver Prontuário Completo')}
                         </button>
                     </div>
                 </div>

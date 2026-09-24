@@ -7,6 +7,7 @@ import { cn } from "../../lib/utils";
 import NumberFlow from "@number-flow/react";
 import { motion } from "framer-motion";
 import { useRef, useState, useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { SubscriptionPlan } from "../../types";
 import { getDetailedPlanFeatures, PlanFeatureItem, isPlanPrivate } from "../../utils/planFeatures";
 import { Check, X, Lock, Sparkles } from "lucide-react";
@@ -20,9 +21,13 @@ interface PricingProps {
   regType?: string;
 }
 
-export default function PricingSection({ plans, selectedPlanId, onSelectPlan, title = "Escolha seu plano", subtitle = "Planos criados para o seu momento.", regType }: PricingProps) {
+export default function PricingSection({ plans, selectedPlanId, onSelectPlan, title, subtitle, regType }: PricingProps) {
+  const { t, i18n } = useTranslation();
   const [isYearly, setIsYearly] = useState(false);
   const pricingRef = useRef<HTMLDivElement>(null);
+
+  const displayTitle = title || t('admin.pricing.chooseYourPlan', 'Escolha seu plano');
+  const displaySubtitle = subtitle || t('admin.pricing.plansCreatedForYou', 'Planos criados para o seu momento.');
 
   const sortedPlans = useMemo(() => {
     return [...plans].sort((a, b) => {
@@ -93,7 +98,7 @@ export default function PricingSection({ plans, selectedPlanId, onSelectPlan, ti
               delay: 0,
             }}
           >
-            {title}
+            {displayTitle}
           </VerticalCutReveal>
         </h2>
 
@@ -104,7 +109,7 @@ export default function PricingSection({ plans, selectedPlanId, onSelectPlan, ti
           customVariants={revealVariants}
           className="text-slate-400"
         >
-          {subtitle}
+          {displaySubtitle}
         </TimelineContent>
 
         <div className="flex justify-center mt-6">
@@ -113,13 +118,13 @@ export default function PricingSection({ plans, selectedPlanId, onSelectPlan, ti
                   onClick={() => setIsYearly(false)}
                   className={`px-6 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${!isYearly ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'}`}
               >
-                  Mensal
+                  {t('admin.pricing.monthly', 'Mensal')}
               </button>
               <button 
                   onClick={() => setIsYearly(true)}
                   className={`px-6 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 ${isYearly ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'}`}
               >
-                  Anual <span className="text-[9px] bg-amber-500 text-white px-1.5 py-0.5 rounded-md leading-none">Desconto</span>
+                  {t('admin.pricing.yearly', 'Anual')} <span className="text-[9px] bg-amber-500 text-white px-1.5 py-0.5 rounded-md leading-none">{t('admin.pricing.discountBadge', 'Desconto')}</span>
               </button>
           </div>
         </div>
@@ -137,7 +142,7 @@ export default function PricingSection({ plans, selectedPlanId, onSelectPlan, ti
       <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 max-w-7xl gap-4 py-6 px-4 mx-auto relative z-10`}>
         {sortedPlans.map((plan, index) => {
           const isSelected = selectedPlanId === plan.id;
-          const features = getDetailedPlanFeatures(plan, regType);
+          const features = getDetailedPlanFeatures(plan, regType, (key, defVal, opts) => t(key, { defaultValue: defVal, ...opts }));
           const isExclusive = isPlanPrivate(plan);
           
           let displayPrice = plan.price;
@@ -170,17 +175,17 @@ export default function PricingSection({ plans, selectedPlanId, onSelectPlan, ti
               >
                 {isYearly && annualDiscount > 0 && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-500 text-white text-[10px] font-black uppercase px-3 py-1 rounded-full whitespace-nowrap shadow-sm z-30">
-                      Economize {annualDiscount}%
+                      {t('admin.pricing.savePercent', { percent: annualDiscount, defaultValue: `Economize ${annualDiscount}%` })}
                   </div>
                 )}
                 {isExclusive && (
                   <div className="absolute top-0 left-0 bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 text-[10px] font-black px-3 py-1 rounded-br-xl shadow-md z-30 flex items-center gap-1">
-                    <Lock size={10} className="stroke-[3]" /> EXCLUSIVO PARA VOCÊ
+                    <Lock size={10} className="stroke-[3]" /> {t('admin.pricing.exclusiveForYou', 'EXCLUSIVO PARA VOCÊ')}
                   </div>
                 )}
                 {Boolean(plan.trialDays && plan.trialDays > 0) && (
                   <div className="absolute top-0 right-0 bg-green-500 text-white text-[10px] font-black px-3 py-1 rounded-bl-xl shadow-sm z-30">
-                    {plan.trialDays} DIAS GRÁTIS
+                    {t('admin.pricing.daysFree', { days: plan.trialDays, defaultValue: `${plan.trialDays} DIAS GRÁTIS` })}
                   </div>
                 )}
                 <CardHeader className="text-left pb-4 pt-6 mt-2">
@@ -189,12 +194,12 @@ export default function PricingSection({ plans, selectedPlanId, onSelectPlan, ti
                   </div>
                   {oldPrice && (
                     <span className="text-[10px] font-bold text-slate-400 line-through">
-                        De R$ {oldPrice.toFixed(2)}/mês
+                        {t('admin.pricing.fromPrice', { price: oldPrice.toFixed(2), defaultValue: `De R$ ${oldPrice.toFixed(2)}/mês` })}
                     </span>
                   )}
                   <div className="flex items-baseline">
                     <span className="text-3xl font-semibold">
-                      {displayPrice === 0 ? "Grátis" : "R$ "}
+                      {displayPrice === 0 ? t('admin.pricing.free', 'Grátis') : "R$ "}
                       {displayPrice > 0 && (
                         <NumberFlow
                           format={{
@@ -207,13 +212,13 @@ export default function PricingSection({ plans, selectedPlanId, onSelectPlan, ti
                     </span>
                     {displayPrice > 0 && (
                       <span className="text-slate-400 ml-1 text-sm">
-                        /mês
+                        {t('admin.pricing.perMonth', '/mês')}
                       </span>
                     )}
                   </div>
                   {isYearly && displayPrice > 0 && (
                     <div className="text-[10px] font-bold text-indigo-400 mt-1">
-                        Cobrado R$ {(displayPrice * 12).toFixed(2)} ao ano
+                        {t('admin.pricing.billedAnnually', { price: (displayPrice * 12).toFixed(2), defaultValue: `Cobrado R$ ${(displayPrice * 12).toFixed(2)} ao ano` })}
                     </div>
                   )}
                 </CardHeader>
@@ -226,7 +231,7 @@ export default function PricingSection({ plans, selectedPlanId, onSelectPlan, ti
                         : "bg-slate-800 border border-slate-700 text-white hover:bg-slate-700"
                     }`}
                   >
-                    {isSelected ? "Selecionado" : "Selecionar Plano"}
+                    {isSelected ? t('admin.pricing.selected', 'Selecionado') : t('admin.pricing.selectPlan', 'Selecionar Plano')}
                   </button>
 
                   <div className="space-y-3 pt-4 border-t border-slate-700/50 mt-auto">

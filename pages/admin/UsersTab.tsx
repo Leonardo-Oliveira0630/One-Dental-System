@@ -1,5 +1,5 @@
-
 import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useApp } from '../../context/AppContext';
 import { UserRole, User, PermissionKey } from '../../types';
 import { 
@@ -89,6 +89,7 @@ const AVAILABLE_PERMISSIONS: { key: PermissionKey, label: string, category: stri
 ];
 
 export const UsersTab = () => {
+  const { t, i18n } = useTranslation();
   const { allUsers, deleteUser, updateUser, sectors, currentOrg, currentPlan } = useApp();
   
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -126,10 +127,11 @@ export const UsersTab = () => {
 
   // Alphabetical sort of team users
   const sortedTeamUsers = useMemo(() => {
+    const locale = i18n.language.startsWith('es') ? 'es' : i18n.language.startsWith('en') ? 'en' : 'pt-BR';
     return [...activeTeamUsers].sort((a, b) => 
-      (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' })
+      (a.name || '').localeCompare(b.name || '', locale, { sensitivity: 'base' })
     );
-  }, [activeTeamUsers]);
+  }, [activeTeamUsers, i18n.language]);
 
   // Filtered by search and role
   const filteredTeamUsers = useMemo(() => {
@@ -145,18 +147,24 @@ export const UsersTab = () => {
     });
   }, [sortedTeamUsers, searchTerm, roleFilter]);
 
+  const getRoleLabel = (role: UserRole | string) => {
+    if (role === UserRole.ADMIN) return t('admin.users.administrators', 'Administrador');
+    if (role === UserRole.MANAGER) return t('admin.users.managers', 'Gestor');
+    return t('admin.users.technicians', 'Técnico');
+  };
+
   const handleExportExcel = () => {
     const data = sortedTeamUsers.map((user, idx) => {
-      const roleLabel = user.role === UserRole.ADMIN ? 'Administrador' : user.role === UserRole.MANAGER ? 'Gestor' : 'Técnico';
-      const sectorsStr = user.sectors && user.sectors.length > 0 ? user.sectors.join(', ') : (user.sector || 'Geral');
+      const roleLabel = getRoleLabel(user.role);
+      const sectorsStr = user.sectors && user.sectors.length > 0 ? user.sectors.join(', ') : (user.sector || t('admin.users.general', 'Geral'));
       return {
         '#': idx + 1,
-        'Nome Completo': user.name || '',
-        'Email': user.email || '',
-        'Cargo': roleLabel,
-        'Setores Atuantes': sectorsStr,
-        'Permissões Ativas': user.permissions?.length || 0,
-        'Status': 'Ativo'
+        [t('admin.users.fullName', 'Nome Completo')]: user.name || '',
+        [t('admin.users.email', 'Email')]: user.email || '',
+        [t('admin.users.role', 'Cargo')]: roleLabel,
+        [t('admin.users.actingSectors', 'Setores Atuantes')]: sectorsStr,
+        [t('admin.users.colPermissions', 'Permissões Ativas')]: user.permissions?.length || 0,
+        'Status': t('admin.subscription.active', 'Ativo')
       };
     });
 
@@ -170,10 +178,10 @@ export const UsersTab = () => {
   };
 
   const handleExportCSV = () => {
-    const headers = ['#', 'Nome Completo', 'Email', 'Cargo', 'Setores Atuantes', 'Permissoes Ativas', 'Status'];
+    const headers = ['#', t('admin.users.fullName', 'Nome Completo'), t('admin.users.email', 'Email'), t('admin.users.role', 'Cargo'), t('admin.users.actingSectors', 'Setores Atuantes'), t('admin.users.colPermissions', 'Permissoes Ativas'), 'Status'];
     const rows = sortedTeamUsers.map((user, idx) => {
-      const roleLabel = user.role === UserRole.ADMIN ? 'Administrador' : user.role === UserRole.MANAGER ? 'Gestor' : 'Técnico';
-      const sectorsStr = user.sectors && user.sectors.length > 0 ? user.sectors.join(', ') : (user.sector || 'Geral');
+      const roleLabel = getRoleLabel(user.role);
+      const sectorsStr = user.sectors && user.sectors.length > 0 ? user.sectors.join(', ') : (user.sector || t('admin.users.general', 'Geral'));
       return [
         idx + 1,
         user.name || '',
@@ -181,7 +189,7 @@ export const UsersTab = () => {
         roleLabel,
         sectorsStr,
         user.permissions?.length || 0,
-        'Ativo'
+        t('admin.subscription.active', 'Ativo')
       ];
     });
 
@@ -218,7 +226,11 @@ export const UsersTab = () => {
     e.preventDefault();
     if (!userName || !userEmail || !userPass || !currentOrg) return;
     if (isAtMaxUsers) {
-      alert(`Erro: Cota máxima de colaboradores atingida! Seu plano permite no máximo ${maxUsersLimit} colaboradores. Faça um upgrade de plano na aba "Plano" para liberar mais cadastros.`);
+      alert(t('admin.users.quotaExceededDesc', {
+        plan: currentPlan?.name || t('admin.subscription.currentPlan', 'Plano Atual'),
+        limit: maxUsersLimit,
+        defaultValue: `Erro: Cota máxima de colaboradores atingida! Seu plano permite no máximo ${maxUsersLimit} colaboradores.`
+      }));
       return;
     }
     setIsSubmitting(true);
@@ -227,9 +239,9 @@ export const UsersTab = () => {
         const res = await api.apiRegisterUserInOrg(userEmail, userPass, userName, userRole, currentOrg.id, primarySector, userSectors);
         setIsAddingUser(false);
         resetForm();
-        alert(res?.message || "Colaborador cadastrado com sucesso!");
+        alert(res?.message || t('admin.users.userSavedSuccess', "Colaborador cadastrado com sucesso!"));
     } catch (err: any) {
-        alert(err.message || "Erro ao criar usuário. Verifique se o e-mail já está em uso ou se você tem permissões.");
+        alert(err.message || t('admin.users.saveError', "Erro ao criar usuário. Verifique se o e-mail já está em uso ou se você tem permissões."));
     } finally { setIsSubmitting(false); }
   };
 
@@ -239,9 +251,9 @@ export const UsersTab = () => {
       try {
         await updateUser(selectedUserForPerms.id, { permissions: tempPerms });
         setSelectedUserForPerms(null);
-        alert("Permissões atualizadas!");
+        alert(t('admin.users.saveSuccess', "Permissões atualizadas!"));
       } catch (err: any) {
-        alert("Falha ao salvar permissões.");
+        alert(t('admin.users.saveError', "Falha ao salvar permissões."));
       } finally { setIsSubmitting(false); }
   };
 
@@ -266,18 +278,18 @@ export const UsersTab = () => {
           const primarySector = userSectors.length > 0 ? userSectors[0] : '';
           await updateUser(editingUser.id, { name: userName, role: userRole, sector: primarySector, sectors: userSectors });
           setEditingUser(null);
-          alert("Dados atualizados!");
-      } catch (err: any) { alert("Erro ao atualizar."); } finally { setIsSubmitting(false); }
+          alert(t('admin.users.userUpdatedSuccess', "Dados atualizados!"));
+      } catch (err: any) { alert(t('admin.users.saveError', "Erro ao atualizar.")); } finally { setIsSubmitting(false); }
   };
 
   const handleDeleteUser = async (id: string) => {
-    if (!window.confirm("Tem certeza que deseja excluir este colaborador? Esta ação é irreversível e removerá o acesso do usuário.")) return;
+    if (!window.confirm(t('admin.users.deleteConfirm', "Tem certeza que deseja excluir este colaborador? Esta ação é irreversível e removerá o acesso do usuário."))) return;
     setIsSubmitting(true);
     try {
       await deleteUser(id);
-      alert("Colaborador excluído com sucesso!");
+      alert(t('admin.users.userDeletedSuccess', "Colaborador excluído com sucesso!"));
     } catch (err) {
-      alert("Erro ao excluir colaborador. Verifique se você tem permissões de administrador.");
+      alert(t('admin.users.deleteError', "Erro ao excluir colaborador. Verifique se você tem permissões de administrador."));
     } finally {
       setIsSubmitting(false);
     }
@@ -289,10 +301,13 @@ export const UsersTab = () => {
         <div className="p-4 bg-orange-50 border border-orange-200 rounded-2xl flex items-start gap-3">
           <AlertCircle className="text-orange-600 shrink-0 mt-0.5" size={20} />
           <div>
-            <p className="font-bold text-orange-800 text-sm">Cota Máxima de Usuários Atingida</p>
+            <p className="font-bold text-orange-800 text-sm">{t('admin.users.quotaExceededTitle', 'Cota Máxima de Usuários Atingida')}</p>
             <p className="text-xs text-orange-700 mt-1">
-              Seu plano atual ({currentPlan?.name || 'Plano Atual'}) permite cadastrar no máximo <span className="font-bold">{maxUsersLimit}</span> colaboradores (incluindo o Administrador). 
-              Para adicionar mais membros à equipe (técnicos, gestores ou administradores), por favor faça um upgrade de plano.
+              {t('admin.users.quotaExceededDesc', {
+                plan: currentPlan?.name || t('admin.subscription.currentPlan', 'Plano Atual'),
+                limit: maxUsersLimit,
+                defaultValue: `Seu plano atual (${currentPlan?.name || 'Plano Atual'}) permite cadastrar no máximo ${maxUsersLimit} colaboradores (incluindo o Administrador). Para adicionar mais membros à equipe, faça um upgrade de plano.`
+              })}
             </p>
           </div>
         </div>
@@ -302,11 +317,11 @@ export const UsersTab = () => {
         <div>
           <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">
             <Users className="text-blue-600" size={22} />
-            Equipe do Laboratório
+            {t('admin.users.teamTitle', 'Equipe do Laboratório')}
           </h3>
           <p className="text-xs text-slate-500 font-medium mt-0.5">
-            {activeTeamUsers.length} colaborador{activeTeamUsers.length !== 1 ? 'es' : ''} cadastrado{activeTeamUsers.length !== 1 ? 's' : ''} (ordem alfabética)
-            {maxUsersLimit !== -1 && ` • Limite do plano: ${maxUsersLimit}`}
+            {t('admin.users.collaboratorsCount', { count: activeTeamUsers.length, defaultValue: `${activeTeamUsers.length} colaboradores cadastrados` })}
+            {maxUsersLimit !== -1 && ` • ${t('admin.users.planLimit', { limit: maxUsersLimit, defaultValue: `Limite do plano: ${maxUsersLimit}` })}`}
           </p>
         </div>
 
@@ -317,17 +332,17 @@ export const UsersTab = () => {
               onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
               disabled={sortedTeamUsers.length === 0}
               className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 font-bold text-sm border border-slate-200 rounded-xl flex items-center gap-2 shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Exportar Quadro de Colaboradores"
+              title={t('admin.users.exportGrid', 'Exportar Quadro')}
             >
               <Download size={17} className="text-slate-500" />
-              <span>Exportar Quadro</span>
+              <span>{t('admin.users.exportGrid', 'Exportar Quadro')}</span>
               <ChevronDown size={15} className={`text-slate-400 transition-transform ${isExportMenuOpen ? 'rotate-180' : ''}`} />
             </button>
 
             {isExportMenuOpen && (
               <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50 animate-in fade-in zoom-in-95 duration-150">
                 <div className="px-3 py-1.5 border-b border-slate-100">
-                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Formato de Exportação</p>
+                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{t('admin.users.exportFormat', 'Formato de Exportação')}</p>
                 </div>
                 <button
                   onClick={handleExportExcel}
@@ -335,8 +350,8 @@ export const UsersTab = () => {
                 >
                   <FileSpreadsheet size={16} className="text-emerald-600" />
                   <div>
-                    <p>Excel (.xlsx)</p>
-                    <p className="text-[10px] font-normal text-slate-400">Planilha formatada</p>
+                    <p>{t('admin.users.excelFormat', 'Excel (.xlsx)')}</p>
+                    <p className="text-[10px] font-normal text-slate-400">{t('admin.users.excelDesc', 'Planilha formatada')}</p>
                   </div>
                 </button>
                 <button
@@ -345,8 +360,8 @@ export const UsersTab = () => {
                 >
                   <FileText size={16} className="text-blue-600" />
                   <div>
-                    <p>CSV (.csv)</p>
-                    <p className="text-[10px] font-normal text-slate-400">Compatível com Excel/Sheets</p>
+                    <p>{t('admin.users.csvFormat', 'CSV (.csv)')}</p>
+                    <p className="text-[10px] font-normal text-slate-400">{t('admin.users.csvDesc', 'Compatível com Excel/Sheets')}</p>
                   </div>
                 </button>
               </div>
@@ -357,7 +372,11 @@ export const UsersTab = () => {
           <button 
             onClick={() => { 
               if (isAtMaxUsers) {
-                alert(`Limite de usuários atingido! Seu plano permite cadastrar no máximo ${maxUsersLimit} colaboradores. Faça um upgrade de plano na aba "Plano" para poder adicionar mais membros.`);
+                alert(t('admin.users.quotaExceededDesc', {
+                  plan: currentPlan?.name || t('admin.subscription.currentPlan', 'Plano Atual'),
+                  limit: maxUsersLimit,
+                  defaultValue: `Limite de usuários atingido! Seu plano permite cadastrar no máximo ${maxUsersLimit} colaboradores.`
+                }));
                 return;
               }
               resetForm(); 
@@ -367,7 +386,7 @@ export const UsersTab = () => {
               isAtMaxUsers ? 'bg-slate-400 cursor-not-allowed shadow-none' : 'bg-blue-600 hover:bg-blue-700'
             }`}
           >
-            <UserPlus size={18}/> Novo Usuário
+            <UserPlus size={18}/> {t('admin.users.newUser', 'Novo Usuário')}
           </button>
         </div>
       </div>
@@ -378,7 +397,7 @@ export const UsersTab = () => {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
           <input
             type="text"
-            placeholder="Buscar por nome, email ou setor..."
+            placeholder={t('admin.users.searchPlaceholder', 'Buscar por nome, email ou setor...')}
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
             className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
@@ -402,7 +421,7 @@ export const UsersTab = () => {
                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
-            Todos ({activeTeamUsers.length})
+            {t('admin.users.all', { count: activeTeamUsers.length, defaultValue: `Todos (${activeTeamUsers.length})` })}
           </button>
           <button
             onClick={() => setRoleFilter(UserRole.COLLABORATOR)}
@@ -412,7 +431,7 @@ export const UsersTab = () => {
                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
-            Técnicos
+            {t('admin.users.technicians', 'Técnicos')}
           </button>
           <button
             onClick={() => setRoleFilter(UserRole.MANAGER)}
@@ -422,7 +441,7 @@ export const UsersTab = () => {
                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
-            Gestores
+            {t('admin.users.managers', 'Gestores')}
           </button>
           <button
             onClick={() => setRoleFilter(UserRole.ADMIN)}
@@ -432,7 +451,7 @@ export const UsersTab = () => {
                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
-            Administradores
+            {t('admin.users.administrators', 'Administradores')}
           </button>
         </div>
       </div>
@@ -441,11 +460,11 @@ export const UsersTab = () => {
         <table className="w-full text-left">
           <thead className="bg-slate-50 text-xs font-bold text-slate-500 uppercase border-b">
             <tr>
-              <th className="p-4">Nome</th>
-              <th className="p-4">Cargo</th>
-              <th className="p-4">Setores Atuantes</th>
-              <th className="p-4 text-center">Permissões</th>
-              <th className="p-4 text-right">Ações</th>
+              <th className="p-4">{t('admin.users.colName', 'Nome')}</th>
+              <th className="p-4">{t('admin.users.colRole', 'Cargo')}</th>
+              <th className="p-4">{t('admin.users.colSectors', 'Setores Atuantes')}</th>
+              <th className="p-4 text-center">{t('admin.users.colPermissions', 'Permissões')}</th>
+              <th className="p-4 text-right">{t('admin.users.colActions', 'Ações')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -470,7 +489,7 @@ export const UsersTab = () => {
                         ? 'bg-indigo-100 text-indigo-700 border border-indigo-200' 
                         : 'bg-blue-100 text-blue-700 border border-blue-200'
                   }`}>
-                    {user.role === UserRole.ADMIN ? 'Administrador' : user.role === UserRole.MANAGER ? 'Gestor' : 'Técnico'}
+                    {getRoleLabel(user.role)}
                   </span>
                 </td>
                 <td className="p-4 text-slate-600 text-xs font-medium">
@@ -483,34 +502,34 @@ export const UsersTab = () => {
                       ))}
                     </div>
                   ) : (
-                    <span className="text-slate-400 italic">{user.sector || 'Geral'}</span>
+                    <span className="text-slate-400 italic">{user.sector || t('admin.users.general', 'Geral')}</span>
                   )}
                 </td>
                 <td className="p-4 text-center">
                   <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-slate-100 text-slate-600 text-xs font-bold rounded-full">
                     <ShieldCheck size={13} className="text-slate-400" />
-                    {user.permissions ? user.permissions.length : 0} ativas
+                    {t('admin.users.activeCount', { count: user.permissions ? user.permissions.length : 0, defaultValue: `${user.permissions ? user.permissions.length : 0} ativas` })}
                   </span>
                 </td>
                 <td className="p-4 text-right">
                   <div className="flex justify-end gap-1.5">
                     <button 
                       onClick={() => openEditUser(user)} 
-                      title="Editar Colaborador" 
+                      title={t('admin.users.editCollaborator', 'Editar Colaborador')} 
                       className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
                     >
                       <Edit size={18}/>
                     </button>
                     <button 
                       onClick={() => { setSelectedUserForPerms(user); setTempPerms(user.permissions || []); }} 
-                      title="Gerenciar Permissões" 
+                      title={t('admin.users.accessControl', 'Gerenciar Permissões')} 
                       className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
                     >
                       <Lock size={18}/>
                     </button>
                     <button 
                       onClick={() => handleDeleteUser(user.id)} 
-                      title="Excluir Colaborador" 
+                      title={t('common.delete', 'Excluir Colaborador')} 
                       className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
                     >
                       <Trash2 size={18}/>
@@ -523,8 +542,8 @@ export const UsersTab = () => {
               <tr>
                 <td colSpan={5} className="py-12 text-center text-slate-400">
                   <Users className="mx-auto mb-2 text-slate-300" size={32} />
-                  <p className="font-semibold text-sm">Nenhum colaborador encontrado</p>
-                  {searchTerm && <p className="text-xs mt-1">Tente remover os filtros de busca.</p>}
+                  <p className="font-semibold text-sm">{t('admin.users.noUsersFound', 'Nenhum colaborador encontrado')}</p>
+                  {searchTerm && <p className="text-xs mt-1">{t('admin.users.tryRemoveFilters', 'Tente remover os filtros de busca.')}</p>}
                 </td>
               </tr>
             )}
@@ -538,26 +557,26 @@ export const UsersTab = () => {
               <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-5 sm:p-6 animate-in zoom-in duration-200 max-h-[92vh] flex flex-col">
                   <div className="flex justify-between items-center mb-4 border-b border-slate-100 pb-3 shrink-0">
                       <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                        {isAddingUser ? <><UserPlus className="text-blue-600" /> Cadastrar Colaborador</> : <><Edit className="text-blue-600" /> Editar Colaborador</>}
+                        {isAddingUser ? <><UserPlus className="text-blue-600" /> {t('admin.users.newCollaborator', 'Cadastrar Colaborador')}</> : <><Edit className="text-blue-600" /> {t('admin.users.editCollaborator', 'Editar Colaborador')}</>}
                       </h3>
                       <button onClick={() => { setIsAddingUser(false); setEditingUser(null); }} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100"><X size={22}/></button>
                   </div>
                   <form onSubmit={isAddingUser ? handleAddUser : handleUpdateUserInfo} className="space-y-4 overflow-y-auto pr-1">
-                      <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nome Completo</label><input required value={userName} onChange={e => setUserName(e.target.value)} className="w-full px-4 py-2 border rounded-xl" /></div>
-                      <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Email</label><input type="email" required disabled={!!editingUser} value={userEmail} onChange={e => setUserEmail(e.target.value)} className="w-full px-4 py-2 border rounded-xl disabled:bg-slate-50 disabled:text-slate-400" /></div>
-                      {isAddingUser && <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Senha</label><input type="password" required value={userPass} onChange={e => setUserPass(e.target.value)} className="w-full px-4 py-2 border rounded-xl" minLength={6} /></div>}
+                      <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('admin.users.fullName', 'Nome Completo')}</label><input required value={userName} onChange={e => setUserName(e.target.value)} className="w-full px-4 py-2 border rounded-xl" /></div>
+                      <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('admin.users.email', 'Email')}</label><input type="email" required disabled={!!editingUser} value={userEmail} onChange={e => setUserEmail(e.target.value)} className="w-full px-4 py-2 border rounded-xl disabled:bg-slate-50 disabled:text-slate-400" /></div>
+                      {isAddingUser && <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('admin.users.password', 'Senha')}</label><input type="password" required value={userPass} onChange={e => setUserPass(e.target.value)} className="w-full px-4 py-2 border rounded-xl" minLength={6} /></div>}
                       <div>
-                          <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Cargo</label>
+                          <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('admin.users.role', 'Cargo')}</label>
                           <select value={userRole} onChange={e => setUserRole(e.target.value as UserRole)} className="w-full px-4 py-2 border border-slate-200 rounded-xl bg-white font-medium text-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
-                              <option value={UserRole.COLLABORATOR}>Técnico</option>
-                              <option value={UserRole.MANAGER}>Gestor</option>
-                              <option value={UserRole.ADMIN}>Administrador</option>
+                              <option value={UserRole.COLLABORATOR}>{t('admin.users.technicians', 'Técnico')}</option>
+                              <option value={UserRole.MANAGER}>{t('admin.users.managers', 'Gestor')}</option>
+                              <option value={UserRole.ADMIN}>{t('admin.users.administrators', 'Administrador')}</option>
                           </select>
                       </div>
                       <div>
                           <div className="flex items-center justify-between mb-1.5">
                               <label className="block text-xs font-bold text-slate-500 uppercase">
-                                  Setores Atuantes {userSectors.length > 0 && <span className="text-blue-600 font-bold">({userSectors.length} selecionado{userSectors.length > 1 ? 's' : ''})</span>}
+                                  {t('admin.users.actingSectors', 'Setores Atuantes')} {userSectors.length > 0 && <span className="text-blue-600 font-bold">{t('admin.users.selectedCount', { count: userSectors.length, defaultValue: `(${userSectors.length} selecionados)` })}</span>}
                               </label>
                               {sectors.length > 0 && (
                                   <div className="flex items-center gap-2">
@@ -566,7 +585,7 @@ export const UsersTab = () => {
                                           onClick={() => setUserSectors(sectors.map(s => s.name))}
                                           className="text-[11px] font-bold text-blue-600 hover:text-blue-800 hover:underline"
                                       >
-                                          Todos
+                                          {t('admin.users.selectAll', 'Todos')}
                                       </button>
                                       <span className="text-slate-300">•</span>
                                       <button 
@@ -574,7 +593,7 @@ export const UsersTab = () => {
                                           onClick={() => setUserSectors([])}
                                           className="text-[11px] font-bold text-slate-500 hover:text-slate-700 hover:underline"
                                       >
-                                          Limpar
+                                          {t('admin.users.clear', 'Limpar')}
                                       </button>
                                   </div>
                               )}
@@ -606,13 +625,13 @@ export const UsersTab = () => {
                               })}
                               {sectors.length === 0 && (
                                   <div className="col-span-2 py-4 text-center text-xs text-slate-400 italic">
-                                      Nenhum setor cadastrado no laboratório
+                                      {t('admin.users.noSectorsRegistered', 'Nenhum setor cadastrado no laboratório')}
                                   </div>
                               )}
                           </div>
                       </div>
                       <button type="submit" disabled={isSubmitting} className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 flex items-center justify-center gap-2">
-                          {isSubmitting ? <Loader2 className="animate-spin" /> : 'Confirmar'}
+                          {isSubmitting ? <Loader2 className="animate-spin" /> : t('admin.users.confirm', 'Confirmar')}
                       </button>
                   </form>
               </div>
@@ -630,8 +649,8 @@ export const UsersTab = () => {
                               <ShieldCheck size={22} />
                           </div>
                           <div className="min-w-0 flex-1">
-                              <h3 className="text-base sm:text-xl font-black text-slate-800 leading-tight truncate">Controle de Acesso</h3>
-                              <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-0.5 truncate">Permissões para {selectedUserForPerms.name}</p>
+                              <h3 className="text-base sm:text-xl font-black text-slate-800 leading-tight truncate">{t('admin.users.accessControl', 'Controle de Acesso')}</h3>
+                              <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-0.5 truncate">{t('admin.users.permissionsFor', { name: selectedUserForPerms.name, defaultValue: `Permissões para ${selectedUserForPerms.name}` })}</p>
                           </div>
                       </div>
                       <button 
@@ -647,7 +666,9 @@ export const UsersTab = () => {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           {Array.from(new Set(AVAILABLE_PERMISSIONS.map(p => p.category))).map(cat => (
                               <div key={cat} className="space-y-3 bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
-                                  <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest pb-2 border-b border-slate-200/80">{cat}</h4>
+                                  <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest pb-2 border-b border-slate-200/80">
+                                      {t(`admin.users.permissionCategories.${cat}`, cat)}
+                                  </h4>
                                   <div className="space-y-2">
                                       {AVAILABLE_PERMISSIONS.filter(p => p.category === cat).map(perm => {
                                           const isChecked = tempPerms.includes(perm.key);
@@ -659,7 +680,9 @@ export const UsersTab = () => {
                                                       {isChecked && <Check size={13} className="text-white stroke-[3]" />}
                                                   </div>
                                                   <input type="checkbox" className="hidden" checked={isChecked} onChange={() => togglePermission(perm.key)} />
-                                                  <span className="text-xs sm:text-sm font-bold leading-tight">{perm.label}</span>
+                                                  <span className="text-xs sm:text-sm font-bold leading-tight">
+                                                      {t(`admin.users.permissionLabels.${perm.key}`, perm.label)}
+                                                  </span>
                                               </label>
                                           );
                                       })}
@@ -676,7 +699,7 @@ export const UsersTab = () => {
                           onClick={() => setSelectedUserForPerms(null)} 
                           className="w-full sm:w-auto px-6 py-2.5 font-bold text-slate-600 hover:bg-slate-200/70 rounded-xl transition-all text-sm text-center"
                       >
-                          Cancelar
+                          {t('common.cancel', 'Cancelar')}
                       </button>
                       <button 
                           type="button"
@@ -684,7 +707,7 @@ export const UsersTab = () => {
                           disabled={isSubmitting} 
                           className="w-full sm:w-auto px-8 py-2.5 bg-slate-900 text-white font-black rounded-xl shadow-lg shadow-slate-900/10 hover:bg-slate-800 transition-all flex items-center justify-center gap-2 disabled:opacity-50 text-sm"
                       >
-                        {isSubmitting ? <Loader2 className="animate-spin" size={16} /> : <><Save size={16} /> SALVAR</>}
+                        {isSubmitting ? <Loader2 className="animate-spin" size={16} /> : <><Save size={16} /> {t('common.save', 'SALVAR')}</>}
                       </button>
                   </div>
               </div>

@@ -1,11 +1,12 @@
-
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useApp } from '../../context/AppContext';
 import { Plus, Edit, Trash2, MapPin, Layers, X } from 'lucide-react';
 import * as api from '../../services/firebaseService';
 import { Sector } from '../../types';
 
 export const SectorsTab = () => {
+  const { t } = useTranslation();
   const { sectors, addSector, updateSector, deleteSector, currentOrg } = useApp();
   const [newSectorName, setNewSectorName] = useState('');
   const [editingSector, setEditingSector] = useState<Sector | null>(null);
@@ -29,7 +30,7 @@ export const SectorsTab = () => {
     const stageName = (newStageInputs[sectorId] || '').trim();
     if (!stageName) return;
     if (currentStages.includes(stageName)) {
-      alert('Esta etapa já está cadastrada para este setor.');
+      alert(t('admin.sectors.stageAlreadyExists', 'Esta etapa já está cadastrada para este setor.'));
       return;
     }
     const updatedStages = [...currentStages, stageName];
@@ -53,15 +54,15 @@ export const SectorsTab = () => {
   return (
     <div className="space-y-6 animate-in slide-in-from-left-4">
       <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-100">
-        <h3 className="font-bold text-slate-800 mb-4">Novo Setor de Produção</h3>
+        <h3 className="font-bold text-slate-800 mb-4">{t('admin.sectors.newSectorTitle', 'Novo Setor de Produção')}</h3>
         <form onSubmit={handleAddSector} className="flex gap-2">
           <input 
             value={newSectorName} 
             onChange={e => setNewSectorName(e.target.value)} 
-            placeholder="Ex: Cerâmica, Gesso, Aplicação..." 
+            placeholder={t('admin.sectors.sectorNamePlaceholder', 'Ex: Cerâmica, Gesso, Aplicação...')} 
             className="flex-1 px-4 py-2 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500" 
           />
-          <button type="submit" className="px-6 py-2 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700">
+          <button type="submit" className="px-6 py-2 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 cursor-pointer">
             <Plus size={20}/>
           </button>
         </form>
@@ -90,10 +91,10 @@ export const SectorsTab = () => {
                     )}
                   </div>
                   <div className="flex gap-1">
-                    <button onClick={() => setEditingSector(s)} title="Editar nome do setor" className="p-1.5 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors">
+                    <button onClick={() => setEditingSector(s)} title={t('admin.sectors.editSectorTitle', 'Editar nome do setor')} className="p-1.5 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors cursor-pointer">
                       <Edit size={16}/>
                     </button>
-                    <button onClick={() => deleteSector(s.id)} title="Excluir setor" className="p-1.5 text-slate-300 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors">
+                    <button onClick={() => deleteSector(s.id)} title={t('admin.sectors.deleteSectorTitle', 'Excluir setor')} className="p-1.5 text-slate-300 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors cursor-pointer">
                       <Trash2 size={16}/>
                     </button>
                   </div>
@@ -104,13 +105,13 @@ export const SectorsTab = () => {
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider flex items-center gap-1.5">
                       <Layers size={13} className="text-blue-500" />
-                      Etapas ({stages.length})
+                      {t('admin.sectors.stagesLabel', 'Etapas ({{count}})', { count: stages.length })}
                     </span>
                   </div>
 
                   <div className="flex flex-wrap gap-1.5 mb-3">
                     {stages.length === 0 ? (
-                      <span className="text-xs text-slate-400 italic">Nenhuma etapa cadastrada</span>
+                      <span className="text-xs text-slate-400 italic">{t('admin.sectors.noStages', 'Nenhuma etapa cadastrada')}</span>
                     ) : (
                       stages.map((st, idx) => (
                         <span key={idx} className="inline-flex items-center gap-1 text-xs font-bold bg-blue-50 text-blue-700 px-2.5 py-1 rounded-lg border border-blue-100">
@@ -118,7 +119,7 @@ export const SectorsTab = () => {
                           <button 
                             type="button" 
                             onClick={() => handleRemoveStage(s.id, st, stages)}
-                            className="text-blue-400 hover:text-red-500 transition-colors ml-0.5"
+                            className="text-blue-400 hover:text-red-500 transition-colors ml-0.5 cursor-pointer"
                           >
                             <X size={12} />
                           </button>
@@ -131,7 +132,7 @@ export const SectorsTab = () => {
                   <div className="flex gap-1.5 mt-2">
                     <input 
                       type="text" 
-                      placeholder="+ Nova etapa..."
+                      placeholder={t('admin.sectors.newStagePlaceholder', '+ Nova etapa...')}
                       value={newStageInputs[s.id] || ''}
                       onChange={e => setNewStageInputs({ ...newStageInputs, [s.id]: e.target.value })}
                       onKeyDown={e => {
@@ -145,7 +146,7 @@ export const SectorsTab = () => {
                     <button 
                       type="button" 
                       onClick={() => handleAddStage(s.id, stages)}
-                      className="px-2.5 py-1.5 bg-slate-100 text-slate-600 hover:bg-blue-600 hover:text-white rounded-lg font-bold text-xs transition-colors flex items-center"
+                      className="px-2.5 py-1.5 bg-slate-100 text-slate-600 hover:bg-blue-600 hover:text-white rounded-lg font-bold text-xs transition-colors flex items-center cursor-pointer"
                     >
                       <Plus size={14} />
                     </button>

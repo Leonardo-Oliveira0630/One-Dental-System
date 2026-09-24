@@ -234,10 +234,10 @@ export const SupplierStoreChatModal: React.FC<SupplierStoreChatModalProps> = ({
               </div>
               <div className="truncate">
                 <h3 className="font-black text-sm text-zinc-950 dark:text-white truncate">
-                  {isSupplierOrg ? 'Mensagens de Clientes' : t('store.supplierChatTitle', 'Chat com Fornecedores')}
+                  {isSupplierOrg ? t('store.clientMessages', 'Mensagens de Clientes') : t('store.supplierChatTitle', 'Chat com Fornecedores')}
                 </h3>
                 <p className="text-[11px] text-zinc-500 dark:text-slate-400 font-medium truncate">
-                  {isSupplierOrg ? 'Atendimento a Labs & Clínicas' : 'Dúvidas, Pedidos & Pós-Venda'}
+                  {isSupplierOrg ? t('store.supportLabsClinics', 'Atendimento a Labs & Clínicas') : t('store.supportQuestionsOrders', 'Dúvidas, Pedidos & Pós-Venda')}
                 </p>
               </div>
             </div>
@@ -275,11 +275,11 @@ export const SupplierStoreChatModal: React.FC<SupplierStoreChatModalProps> = ({
                 <div className="w-12 h-12 rounded-full bg-zinc-100 dark:bg-slate-800 text-zinc-400 dark:text-slate-500 flex items-center justify-center mx-auto">
                   <MessageSquare size={20} />
                 </div>
-                <p className="text-xs font-bold text-zinc-800 dark:text-slate-200">Nenhuma conversa ativa</p>
+                <p className="text-xs font-bold text-zinc-800 dark:text-slate-200">{t('store.noActiveConversations', 'Nenhuma conversa ativa')}</p>
                 <p className="text-[11px] text-zinc-500 dark:text-slate-400">
                   {isSupplierOrg
-                    ? 'As dúvidas e contatos de clientes aparecerão aqui assim que iniciados na loja.'
-                    : 'Inicie uma conversa clicando em "Falar com Fornecedor" nos produtos ou em seus pedidos.'}
+                    ? t('store.supplierChatEmptySupplierMsg', 'As dúvidas e contatos de clientes aparecerão aqui assim que iniciados na loja.')
+                    : t('store.supplierChatEmptyBuyerMsg', 'Inicie uma conversa clicando em "Falar com Fornecedor" nos produtos ou em seus pedidos.')}
                 </p>
               </div>
             ) : (
@@ -320,7 +320,7 @@ export const SupplierStoreChatModal: React.FC<SupplierStoreChatModalProps> = ({
                       {conv.orderId && (
                         <div className="flex items-center gap-1 text-[10px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 px-1.5 py-0.5 rounded mt-0.5 w-fit border border-indigo-100 dark:border-indigo-900/40">
                           <Package size={10} />
-                          <span>Pedido #{conv.orderId.substring(0, 8).toUpperCase()}</span>
+                          <span>{t('store.orderNumberLabel', 'Pedido')} #{conv.orderId.substring(0, 8).toUpperCase()}</span>
                         </div>
                       )}
                       {conv.productName && !conv.orderId && (
@@ -332,7 +332,7 @@ export const SupplierStoreChatModal: React.FC<SupplierStoreChatModalProps> = ({
 
                       {/* Last Message Snippet */}
                       <p className="text-[11px] text-zinc-500 dark:text-slate-400 truncate mt-1">
-                        {conv.lastMessageText || 'Conversa iniciada'}
+                        {conv.lastMessageText || t('store.conversationStarted', 'Conversa iniciada')}
                       </p>
                     </div>
 
@@ -362,7 +362,7 @@ export const SupplierStoreChatModal: React.FC<SupplierStoreChatModalProps> = ({
                     type="button"
                     onClick={() => setMobileView('LIST')}
                     className="md:hidden p-2 text-zinc-600 dark:text-slate-400 hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-200/70 dark:hover:bg-slate-800 rounded-xl transition-all"
-                    title="Voltar para conversas"
+                    title={t('store.backToConversations', 'Voltar para conversas')}
                   >
                     <ChevronRight size={18} className="rotate-180" />
                   </button>
@@ -381,14 +381,14 @@ export const SupplierStoreChatModal: React.FC<SupplierStoreChatModalProps> = ({
                       </h4>
                       <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 rounded-md text-[10px] font-bold flex items-center gap-1 shrink-0">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                        Online
+                        {t('common.online', 'Online')}
                       </span>
                     </div>
                     <p className="text-[11px] text-zinc-500 dark:text-slate-400 font-medium truncate">
                       {isSupplierOrg ? (
                         <>Contato: {activeConv.buyerUserName} • {activeConv.buyerRole === 'CLINIC' ? 'Clínica / Dentista' : 'Laboratório'}</>
                       ) : (
-                        <>Loja Oficial • SLA de resposta: {supportPolicy?.maxResponseTimeHours ? `${supportPolicy.maxResponseTimeHours}h úteis` : '24h úteis'}</>
+                        <>Loja Oficial • SLA: {supportPolicy?.maxResponseTimeHours ? `${supportPolicy.maxResponseTimeHours}h` : '24h'}</>
                       )}
                     </p>
                   </div>
@@ -400,10 +400,10 @@ export const SupplierStoreChatModal: React.FC<SupplierStoreChatModalProps> = ({
                     type="button"
                     onClick={onClose}
                     className="flex items-center gap-1.5 px-3.5 py-2 bg-red-50 dark:bg-red-950/40 hover:bg-red-100 dark:hover:bg-red-900/60 text-red-700 dark:text-red-300 hover:text-red-800 border border-red-200 dark:border-red-800/80 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs"
-                    title="Sair do Chat"
+                    title={t('store.exitChat', 'Sair do Chat')}
                   >
                     <X size={16} />
-                    <span>Sair do Chat</span>
+                    <span>{t('store.exitChat', 'Sair do Chat')}</span>
                   </button>
                 </div>
               </div>
@@ -415,17 +415,17 @@ export const SupplierStoreChatModal: React.FC<SupplierStoreChatModalProps> = ({
                     {activeConv.orderId ? (
                       <>
                         <Package size={14} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
-                        <span className="truncate">Conversando sobre o <strong>Pedido #{activeConv.orderId.substring(0, 8).toUpperCase()}</strong></span>
+                        <span className="truncate">{t('store.chattingAboutOrder', 'Conversando sobre o')} <strong>{t('store.orderNumberLabel', 'Pedido')} #{activeConv.orderId.substring(0, 8).toUpperCase()}</strong></span>
                       </>
                     ) : (
                       <>
                         <ShoppingBag size={14} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
-                        <span className="truncate">Produto de Referência: <strong>{activeConv.productName}</strong></span>
+                        <span className="truncate">{t('store.referenceProduct', 'Produto de Referência:')} <strong>{activeConv.productName}</strong></span>
                       </>
                     )}
                   </div>
                   <span className="text-[10px] font-bold text-zinc-500 dark:text-indigo-300 bg-white dark:bg-[#0B0F17] px-2 py-0.5 rounded-md border border-zinc-200 dark:border-indigo-900/50 shrink-0 ml-2">
-                    Contexto Anexado
+                    {t('store.contextAttached', 'Contexto Anexado')}
                   </span>
                 </div>
               )}
@@ -436,15 +436,15 @@ export const SupplierStoreChatModal: React.FC<SupplierStoreChatModalProps> = ({
                 <div className="text-center">
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-zinc-100 dark:bg-[#0E1626] text-zinc-600 dark:text-slate-400 rounded-full text-[11px] font-medium border border-zinc-200/80 dark:border-slate-800 shadow-2xs">
                     <ShieldCheck size={13} className="text-emerald-600 dark:text-emerald-400" />
-                    Atendimento protegido pelas Diretrizes Oficiais do Marketplace LabProx
+                    {t('store.protectedChatGuideline', 'Atendimento protegido pelas Diretrizes Oficiais do Marketplace Labprox')}
                   </span>
                 </div>
 
                 {messages.length === 0 ? (
                   <div className="text-center py-12 space-y-2">
-                    <p className="text-xs font-bold text-zinc-600 dark:text-slate-300">Nenhuma mensagem ainda.</p>
+                    <p className="text-xs font-bold text-zinc-600 dark:text-slate-300">{t('store.noMessagesYet', 'Nenhuma mensagem ainda.')}</p>
                     <p className="text-[11px] text-zinc-400 dark:text-slate-500 max-w-sm mx-auto">
-                      Envie uma mensagem abaixo para tirar dúvidas técnicas sobre materiais, solicitar orçamento especial ou acompanhar pedidos.
+                      {t('store.sendFirstMessageDesc', 'Envie uma mensagem abaixo para tirar dúvidas técnicas sobre materiais, solicitar orçamento especial ou acompanhar pedidos.')}
                     </p>
                   </div>
                 ) : (
@@ -494,7 +494,7 @@ export const SupplierStoreChatModal: React.FC<SupplierStoreChatModalProps> = ({
                   <div className="mb-3 p-2 bg-zinc-50 dark:bg-[#0E1626] rounded-xl border border-zinc-200 dark:border-slate-800 flex gap-2 animate-in fade-in">
                     <input
                       type="url"
-                      placeholder="Cole a URL da imagem/anexo..."
+                      placeholder={t('store.imageAttachmentPlaceholder', 'Cole a URL da imagem/anexo...')}
                       value={imageUrlInput}
                       onChange={(e) => setImageUrlInput(e.target.value)}
                       className="flex-1 bg-white dark:bg-[#070A10] border border-zinc-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs text-zinc-900 dark:text-white outline-none focus:border-indigo-600"
@@ -504,7 +504,7 @@ export const SupplierStoreChatModal: React.FC<SupplierStoreChatModalProps> = ({
                       onClick={() => setShowImageInput(false)}
                       className="px-2 text-zinc-400 hover:text-zinc-900 dark:hover:text-white text-xs font-bold cursor-pointer"
                     >
-                      ✕ Fechar
+                      ✕ {t('common.close', 'Fechar')}
                     </button>
                   </div>
                 )}
@@ -518,7 +518,7 @@ export const SupplierStoreChatModal: React.FC<SupplierStoreChatModalProps> = ({
                         ? 'bg-zinc-900 dark:bg-indigo-600 text-white border-zinc-900 dark:border-indigo-600'
                         : 'bg-zinc-50 dark:bg-[#0E1626] text-zinc-600 dark:text-slate-300 hover:bg-zinc-100 dark:hover:bg-slate-800 border-zinc-200 dark:border-slate-700'
                     }`}
-                    title="Anexar Imagem"
+                    title={t('store.attachImage', 'Anexar Imagem')}
                   >
                     <Paperclip size={16} />
                   </button>
@@ -548,25 +548,25 @@ export const SupplierStoreChatModal: React.FC<SupplierStoreChatModalProps> = ({
                   type="button"
                   onClick={onClose}
                   className="flex items-center gap-1.5 px-3.5 py-2 bg-red-50 dark:bg-red-950/40 hover:bg-red-100 dark:hover:bg-red-900/60 text-red-700 dark:text-red-300 hover:text-red-800 border border-red-200 dark:border-red-800/80 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs"
-                  title="Sair do Chat"
+                  title={t('store.exitChat', 'Sair do Chat')}
                 >
                   <X size={16} />
-                  <span>Sair do Chat</span>
+                  <span>{t('store.exitChat', 'Sair do Chat')}</span>
                 </button>
               </div>
               <div className="w-16 h-16 rounded-full bg-zinc-100 dark:bg-slate-800 text-zinc-400 dark:text-slate-500 flex items-center justify-center">
                 <MessageSquare size={28} />
               </div>
-              <h4 className="font-bold text-zinc-900 dark:text-white text-sm">Selecione uma conversa ao lado</h4>
+              <h4 className="font-bold text-zinc-900 dark:text-white text-sm">{t('store.selectConversationPrompt', 'Selecione uma conversa ao lado')}</h4>
               <p className="text-xs text-zinc-500 dark:text-slate-400 max-w-sm">
-                Acompanhe o histórico de mensagens, tire dúvidas com os fornecedores e resolva solicitações rapidamente.
+                {t('store.selectConversationDesc', 'Acompanhe o histórico de mensagens, tire dúvidas com os fornecedores e resolva solicitações rapidamente.')}
               </p>
               <button
                 type="button"
                 onClick={onClose}
                 className="px-5 py-2.5 bg-zinc-900 dark:bg-indigo-600 hover:bg-zinc-800 dark:hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
               >
-                Fechar e Sair do Chat
+                {t('store.closeAndExitChat', 'Fechar e Sair do Chat')}
               </button>
             </div>
           )}

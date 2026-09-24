@@ -1,5 +1,6 @@
 
 import React, { useState, useRef, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useApp } from '../../context/AppContext';
 import { ManualDentist, UserRole, PermissionKey } from '../../types';
 import { 
@@ -83,6 +84,7 @@ export const checkDentistCompleteness = (dentist: any): DentistCompletenessResul
 };
 
 export const DentistsTab = () => {
+  const { t } = useTranslation();
   const { manualDentists, addManualDentist, updateManualDentist, deleteManualDentist, priceTables, currentUser, jobTypes } = useApp();
   const [isAddingDentist, setIsAddingDentist] = useState(false);
   const [editingDentistId, setEditingDentistId] = useState<string | null>(null);
@@ -562,18 +564,18 @@ export const DentistsTab = () => {
     <div className="space-y-6 animate-in fade-in slide-in-from-left-4">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
-                <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">Clientes Internos (Offline)</h3>
-                <p className="text-xs text-slate-500 font-medium">Cadastre e monitore a completude cadastral dos dentistas e clínicas do laboratório.</p>
+                <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">{t('admin.dentists.title', 'Clientes Internos (Offline)')}</h3>
+                <p className="text-xs text-slate-500 font-medium">{t('admin.dentists.subtitle', 'Cadastre e monitore a completude cadastral dos dentistas e clínicas do laboratório.')}</p>
             </div>
             <div className="flex gap-2 w-full md:w-auto">
                 {canCreate && (
                     <button onClick={() => setIsImportModalOpen(true)} className="flex-1 md:flex-none px-4 py-2 bg-indigo-50 text-indigo-700 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-indigo-100 transition-all border border-indigo-200 cursor-pointer">
-                        <FileSpreadsheet size={18}/> Importar Planilha
+                        <FileSpreadsheet size={18}/> {t('admin.dentists.importSpreadsheet', 'Importar Planilha')}
                     </button>
                 )}
                 {canCreate && (
                     <button onClick={() => { resetForm(); setIsAddingDentist(true); }} className="flex-1 md:flex-none px-4 py-2 bg-blue-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg hover:bg-blue-700 transition-all cursor-pointer">
-                        <Plus size={20}/> Novo Cadastro
+                        <Plus size={20}/> {t('admin.dentists.newRegistration', 'Novo Cadastro')}
                     </button>
                 )}
             </div>
@@ -591,7 +593,7 @@ export const DentistsTab = () => {
                 }`}
             >
                 <div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Total de Clientes</p>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">{t('admin.dentists.totalClients', 'Total de Clientes')}</p>
                     <p className="text-2xl font-black text-slate-800 mt-0.5">{completenessStats.total}</p>
                 </div>
                 <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600">
@@ -610,7 +612,7 @@ export const DentistsTab = () => {
             >
                 <div>
                     <p className="text-[10px] font-black text-emerald-600 uppercase tracking-wider flex items-center gap-1">
-                        <CheckCircle2 size={12} /> Cadastros Completos
+                        <CheckCircle2 size={12} /> {t('admin.dentists.completeRegistrations', 'Cadastros Completos')}
                     </p>
                     <p className="text-2xl font-black text-emerald-700 mt-0.5">{completenessStats.completeCount}</p>
                 </div>
@@ -630,7 +632,7 @@ export const DentistsTab = () => {
             >
                 <div>
                     <p className="text-[10px] font-black text-amber-600 uppercase tracking-wider flex items-center gap-1">
-                        <AlertTriangle size={12} /> Cadastros Incompletos
+                        <AlertTriangle size={12} /> {t('admin.dentists.incompleteRegistrations', 'Cadastros Incompletos')}
                     </p>
                     <p className="text-2xl font-black text-amber-700 mt-0.5">{completenessStats.incompleteCount}</p>
                 </div>
@@ -646,7 +648,7 @@ export const DentistsTab = () => {
                 <div className="relative md:col-span-3">
                     <Search className="absolute left-3.5 top-3 text-slate-400" size={18} />
                     <input 
-                        placeholder="Filtrar por nome, CRO, CPF/CNPJ, clínica, e-mail..." 
+                        placeholder={t('admin.dentists.searchPlaceholder', 'Filtrar por nome, CRO, CPF/CNPJ, clínica, e-mail...')} 
                         className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-xs font-bold transition-all placeholder:text-slate-400" 
                         value={dentistSearch} 
                         onChange={e => setSearchTerm(e.target.value)}
@@ -663,12 +665,12 @@ export const DentistsTab = () => {
                                 ? 'bg-blue-50 border-blue-300 text-blue-900 font-black' 
                                 : 'bg-white border-slate-200 text-slate-700'
                         }`}
-                        title="Tabela de Preços Base"
+                        title={t('admin.dentists.priceTableBaseAll', 'Tabela de Preços Base')}
                     >
-                        <option value="ALL">Tabela Base: Todas</option>
-                        <option value="GENERIC">🏛️ Tabela Genérica</option>
+                        <option value="ALL">{t('admin.dentists.priceTableBaseAll', 'Tabela Base: Todas')}</option>
+                        <option value="GENERIC">{t('admin.dentists.genericTable', '🏛️ Tabela Genérica')}</option>
                         {priceTables.length > 0 && (
-                            <optgroup label="Tabelas Cadastradas">
+                            <optgroup label={t('admin.dentists.registeredTables', 'Tabelas Cadastradas')}>
                                 {priceTables.map(t => (
                                     <option key={t.id} value={t.id}>{t.name}</option>
                                 ))}
@@ -689,9 +691,9 @@ export const DentistsTab = () => {
                         }`}
                         title="Personalização em cima da tabela base"
                     >
-                        <option value="ALL">Personalização: Todas</option>
-                        <option value="CUSTOM">🏷️ Preço Personalizado</option>
-                        <option value="NOT_CUSTOM">📋 Sem Personalização</option>
+                        <option value="ALL">{t('admin.dentists.customizationAll', 'Personalização: Todas')}</option>
+                        <option value="CUSTOM">{t('admin.dentists.customPrice', '🏷️ Preço Personalizado')}</option>
+                        <option value="NOT_CUSTOM">{t('admin.dentists.noCustomPrice', '📋 Sem Personalização')}</option>
                     </select>
                 </div>
 
@@ -705,14 +707,14 @@ export const DentistsTab = () => {
                                 : 'bg-white border-slate-200 text-slate-700'
                         }`}
                     >
-                        <option value="ALL">Status de Cadastro: Todos ({completenessStats.total})</option>
-                        <option value="INCOMPLETE">⚠️ Cadastros Incompletos ({completenessStats.incompleteCount})</option>
-                        <option value="COMPLETE">✅ Cadastros 100% Completos ({completenessStats.completeCount})</option>
-                        <option value="MISSING_CPF">Falta CPF/CNPJ ({completenessStats.missingCpfCount})</option>
-                        <option value="MISSING_CRO">Falta CRO ({completenessStats.missingCroCount})</option>
-                        <option value="MISSING_ADDRESS">Falta Endereço ({completenessStats.missingAddressCount})</option>
-                        <option value="MISSING_EMAIL">Falta E-mail ({completenessStats.missingEmailCount})</option>
-                        <option value="MISSING_PHONE">Falta Telefone ({completenessStats.missingPhoneCount})</option>
+                        <option value="ALL">{t('admin.dentists.allRegistrationStatus', { count: completenessStats.total, defaultValue: `Status de Cadastro: Todos (${completenessStats.total})` })}</option>
+                        <option value="INCOMPLETE">{t('admin.dentists.incompleteRegistrationsStatus', { count: completenessStats.incompleteCount, defaultValue: `⚠️ Cadastros Incompletos (${completenessStats.incompleteCount})` })}</option>
+                        <option value="COMPLETE">{t('admin.dentists.completeRegistrationsStatus', { count: completenessStats.completeCount, defaultValue: `✅ Cadastros 100% Completos (${completenessStats.completeCount})` })}</option>
+                        <option value="MISSING_CPF">{t('admin.dentists.missingCpf', { count: completenessStats.missingCpfCount, defaultValue: `Falta CPF/CNPJ (${completenessStats.missingCpfCount})` })}</option>
+                        <option value="MISSING_CRO">{t('admin.dentists.missingCro', { count: completenessStats.missingCroCount, defaultValue: `Falta CRO (${completenessStats.missingCroCount})` })}</option>
+                        <option value="MISSING_ADDRESS">{t('admin.dentists.missingAddress', { count: completenessStats.missingAddressCount, defaultValue: `Falta Endereço (${completenessStats.missingAddressCount})` })}</option>
+                        <option value="MISSING_EMAIL">{t('admin.dentists.missingEmail', { count: completenessStats.missingEmailCount, defaultValue: `Falta E-mail (${completenessStats.missingEmailCount})` })}</option>
+                        <option value="MISSING_PHONE">{t('admin.dentists.missingPhone', { count: completenessStats.missingPhoneCount, defaultValue: `Falta Telefone (${completenessStats.missingPhoneCount})` })}</option>
                     </select>
                 </div>
 
@@ -722,11 +724,11 @@ export const DentistsTab = () => {
                         onChange={e => setStatusFilter(e.target.value as any)}
                         className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-xs font-bold bg-white text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
                     >
-                        <option value="ALL">Status: Todos</option>
-                        <option value="ACTIVE">Clientes Ativos</option>
-                        <option value="BLOCKED">Todos Bloqueados</option>
-                        <option value="DEBT">Inadimplência</option>
-                        <option value="FINANCIAL_APPROVAL">Em Análise</option>
+                        <option value="ALL">{t('admin.dentists.statusAll', 'Status: Todos')}</option>
+                        <option value="ACTIVE">{t('admin.dentists.activeClients', 'Clientes Ativos')}</option>
+                        <option value="BLOCKED">{t('admin.dentists.allBlocked', 'Todos Bloqueados')}</option>
+                        <option value="DEBT">{t('admin.dentists.debt', 'Inadimplência')}</option>
+                        <option value="FINANCIAL_APPROVAL">{t('admin.dentists.inAnalysis', 'Em Análise')}</option>
                     </select>
                 </div>
             </div>
@@ -735,22 +737,22 @@ export const DentistsTab = () => {
                 <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs flex-wrap gap-2">
                     <div className="flex items-center gap-2 text-slate-700 font-bold flex-wrap">
                         <Filter size={14} className="text-blue-600 shrink-0" />
-                        <span>Filtros ativos:</span>
+                        <span>{t('admin.dentists.activeFilters', 'Filtros ativos:')}</span>
                         {priceTableFilter !== 'ALL' && (
                             <span className="bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-lg text-[11px] font-extrabold">
-                                Base: {priceTableFilter === 'GENERIC' ? 'Tabela Genérica' : (priceTables.find(t => t.id === priceTableFilter)?.name || priceTableFilter)}
+                                Base: {priceTableFilter === 'GENERIC' ? t('admin.dentists.genericTable', 'Tabela Genérica') : (priceTables.find(t => t.id === priceTableFilter)?.name || priceTableFilter)}
                             </span>
                         )}
                         {customPricingFilter !== 'ALL' && (
                             <span className="bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded-lg text-[11px] font-extrabold">
-                                {customPricingFilter === 'CUSTOM' ? 'Preços Personalizados' : 'Sem Personalização'}
+                                {customPricingFilter === 'CUSTOM' ? t('admin.dentists.customPrice', 'Preços Personalizados') : t('admin.dentists.noCustomPrice', 'Sem Personalização')}
                             </span>
                         )}
                         {completenessFilter !== 'ALL' && (
                             <span className="bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 rounded-lg text-[11px] font-extrabold">
                                 Cadastro: {
-                                    completenessFilter === 'INCOMPLETE' ? 'Incompletos' :
-                                    completenessFilter === 'COMPLETE' ? 'Completos' :
+                                    completenessFilter === 'INCOMPLETE' ? t('admin.dentists.incompleteRegistrations', 'Incompletos') :
+                                    completenessFilter === 'COMPLETE' ? t('admin.dentists.completeRegistrations', 'Completos') :
                                     completenessFilter === 'MISSING_CPF' ? 'Falta CPF/CNPJ' :
                                     completenessFilter === 'MISSING_CRO' ? 'Falta CRO' :
                                     completenessFilter === 'MISSING_ADDRESS' ? 'Falta Endereço' :
@@ -761,13 +763,13 @@ export const DentistsTab = () => {
                         {statusFilter !== 'ALL' && (
                             <span className="bg-slate-100 text-slate-700 border border-slate-200 px-2 py-0.5 rounded-lg text-[11px] font-extrabold">
                                 Status: {
-                                    statusFilter === 'ACTIVE' ? 'Ativos' :
-                                    statusFilter === 'BLOCKED' ? 'Bloqueados' :
-                                    statusFilter === 'DEBT' ? 'Inadimplência' : 'Análise'
+                                    statusFilter === 'ACTIVE' ? t('admin.dentists.activeClients', 'Ativos') :
+                                    statusFilter === 'BLOCKED' ? t('admin.dentists.allBlocked', 'Bloqueados') :
+                                    statusFilter === 'DEBT' ? t('admin.dentists.debt', 'Inadimplência') : t('admin.dentists.inAnalysis', 'Análise')
                                 }
                             </span>
                         )}
-                        <span className="text-slate-500 font-medium">({filteredDentists.length} clientes encontrados)</span>
+                        <span className="text-slate-500 font-medium">({t('admin.dentists.showingCount', { shown: filteredDentists.length, total: manualDentists.length, defaultValue: `${filteredDentists.length} clientes encontrados` })})</span>
                     </div>
                     <button 
                         type="button" 
@@ -780,7 +782,7 @@ export const DentistsTab = () => {
                         }}
                         className="text-blue-600 hover:text-blue-800 font-black uppercase text-[10px] cursor-pointer"
                     >
-                        Limpar Filtros
+                        {t('admin.dentists.clearFilters', 'Limpar Filtros')}
                     </button>
                 </div>
             )}
@@ -788,10 +790,10 @@ export const DentistsTab = () => {
 
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
             <div className="px-6 py-3 border-b border-slate-100 flex items-center justify-between text-xs text-slate-400 font-bold">
-                <span>Mostrando {filteredDentists.length} de {manualDentists.length} cliente(s)</span>
+                <span>{t('admin.dentists.showingCount', { shown: filteredDentists.length, total: manualDentists.length, defaultValue: `Mostrando ${filteredDentists.length} de ${manualDentists.length} cliente(s)` })}</span>
                 {completenessStats.incompleteCount > 0 && (
                     <span className="text-amber-600 flex items-center gap-1 font-black text-[11px]">
-                        <AlertTriangle size={13} /> {completenessStats.incompleteCount} cliente(s) precisam de complemento cadastral
+                        <AlertTriangle size={13} /> {t('admin.dentists.needCompletionWarning', { count: completenessStats.incompleteCount, defaultValue: `${completenessStats.incompleteCount} cliente(s) precisam de complemento cadastral` })}
                     </span>
                 )}
             </div>
@@ -799,18 +801,18 @@ export const DentistsTab = () => {
               <table className="w-full text-left">
                 <thead className="bg-slate-50 text-xs font-bold text-slate-500 uppercase border-b">
                   <tr>
-                    <th className="p-4">Nome / Clínica & Cadastro</th>
-                    <th className="p-4">Documento / CRO</th>
-                    <th className="p-4">Logística / Endereço</th>
-                    <th className="p-4">Contato</th>
-                    <th className="p-4 text-right">Ações</th>
+                    <th className="p-4">{t('admin.dentists.colNameClinic', 'Nome / Clínica & Cadastro')}</th>
+                    <th className="p-4">{t('admin.dentists.colDocCro', 'Documento / CRO')}</th>
+                    <th className="p-4">{t('admin.dentists.colLogisticsAddress', 'Logística / Endereço')}</th>
+                    <th className="p-4">{t('admin.dentists.colContact', 'Contato')}</th>
+                    <th className="p-4 text-right">{t('admin.dentists.colActions', 'Ações')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {filteredDentists.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="p-12 text-center text-slate-400 italic">
-                        Nenhum cliente encontrado para os filtros selecionados.
+                        {t('admin.dentists.noClientsFound', 'Nenhum cliente encontrado para os filtros selecionados.')}
                       </td>
                     </tr>
                   ) : (
@@ -824,11 +826,11 @@ export const DentistsTab = () => {
                               <span className="text-[10px] text-slate-400 font-extrabold uppercase">{dentist.clinicName || '---'}</span>
                               {(dentist as any).userId ? (
                                 <span className="bg-emerald-100 text-emerald-800 text-[8px] font-black px-1.5 py-0.5 rounded uppercase">
-                                  Ativo Online
+                                  {t('admin.dentists.activeOnline', 'Ativo Online')}
                                 </span>
                               ) : (
                                 <span className="bg-amber-100 text-amber-800 text-[8px] font-black px-1.5 py-0.5 rounded uppercase">
-                                  Convidar Online
+                                  {t('admin.dentists.inviteOnline', 'Convidar Online')}
                                 </span>
                               )}
                             </div>
@@ -842,12 +844,12 @@ export const DentistsTab = () => {
                                     title={`Preenchido ${comp.completedCount} de 5. Pendente: ${comp.missingLabels.join(', ')}`}
                                   >
                                     <AlertTriangle size={11} className="text-amber-600 shrink-0" />
-                                    Cadastro Incompleto ({comp.completedCount}/5)
+                                    {t('admin.dentists.incompleteWithCount', { count: comp.completedCount, defaultValue: `Cadastro Incompleto (${comp.completedCount}/5)` })}
                                   </span>
                                   <div className="flex items-center gap-1 flex-wrap">
                                     {comp.missingLabels.map((lbl, idx) => (
                                       <span key={idx} className="bg-rose-50 text-rose-700 text-[8px] font-black px-1.5 py-0.5 rounded border border-rose-100">
-                                        Falta {lbl}
+                                        {t('admin.dentists.missingField', { field: lbl, defaultValue: `Falta ${lbl}` })}
                                       </span>
                                     ))}
                                   </div>
@@ -855,7 +857,7 @@ export const DentistsTab = () => {
                               ) : (
                                 <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[9px] font-black px-2 py-0.5 rounded-md inline-flex items-center gap-1">
                                   <CheckCircle2 size={10} className="text-emerald-600 shrink-0" />
-                                  Cadastro 100% Completo
+                                  {t('admin.dentists.complete100', 'Cadastro 100% Completo')}
                                 </span>
                               )}
                             </div>
@@ -867,7 +869,7 @@ export const DentistsTab = () => {
                                 <div className="font-bold text-slate-700">{dentist.cpfCnpj}</div>
                               ) : (
                                 <span className="text-rose-500 font-bold italic text-[10px] flex items-center gap-1">
-                                  <AlertCircle size={11} /> CPF/CNPJ pendente
+                                  <AlertCircle size={11} /> {t('admin.dentists.cpfCnpjPending', 'CPF/CNPJ pendente')}
                                 </span>
                               )}
                             </div>
@@ -876,7 +878,7 @@ export const DentistsTab = () => {
                                 <div className="text-[10px] text-blue-600 font-black uppercase">CRO: {dentist.cro}</div>
                               ) : (
                                 <span className="text-amber-600 font-bold text-[10px] flex items-center gap-1">
-                                  <AlertCircle size={11} /> CRO pendente
+                                  <AlertCircle size={11} /> {t('admin.dentists.croPending', 'CRO pendente')}
                                 </span>
                               )}
                             </div>
@@ -890,7 +892,7 @@ export const DentistsTab = () => {
                                 </span>
                               ) : (
                                 <span className="text-amber-600 font-bold text-[10px] flex items-center gap-1">
-                                  <AlertCircle size={11} /> Endereço pendente
+                                  <AlertCircle size={11} /> {t('admin.dentists.addressPending', 'Endereço pendente')}
                                 </span>
                               )}
 
@@ -902,7 +904,7 @@ export const DentistsTab = () => {
                                 )}
                                 {dentist.deliveryViaPost && (
                                   <span className="bg-orange-100 text-orange-700 text-[8px] font-black px-1.5 py-0.5 rounded flex items-center gap-1 w-fit uppercase">
-                                    <Package size={10} /> VIA CORREIOS
+                                    <Package size={10} /> {t('admin.dentists.viaPost', 'VIA CORREIOS')}
                                   </span>
                                 )}
                               </div>
@@ -918,7 +920,7 @@ export const DentistsTab = () => {
                                   </div>
                                 ) : (
                                   <span className="text-rose-500 font-bold text-[10px] flex items-center gap-1">
-                                    <Mail size={11} className="shrink-0" /> E-mail pendente
+                                    <Mail size={11} className="shrink-0" /> {t('admin.dentists.emailPending', 'E-mail pendente')}
                                   </span>
                                 )}
                               </div>
@@ -930,7 +932,7 @@ export const DentistsTab = () => {
                                   </div>
                                 ) : (
                                   <span className="text-rose-500 font-bold text-[10px] flex items-center gap-1">
-                                    <Phone size={11} className="shrink-0" /> Telefone pendente
+                                    <Phone size={11} className="shrink-0" /> {t('admin.dentists.phonePending', 'Telefone pendente')}
                                   </span>
                                 )}
                               </div>
@@ -946,7 +948,7 @@ export const DentistsTab = () => {
                                       }
                                       const inviteUrl = `${window.location.origin}/#/requisition-invite?orgId=${currentUser?.organizationId || ''}&dentistId=${dentist.id}`;
                                       navigator.clipboard.writeText(inviteUrl);
-                                      alert(`Link de requisição online para Dr(a). ${dentist.name} copiado!\n\nLink: ${inviteUrl}`);
+                                      alert(t('admin.dentists.inviteCopied', 'Link de convite copiado!'));
                                   }} title="Copiar Link para Requisição Online" className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg cursor-pointer">
                                       <Link2 size={18}/>
                                   </button>
@@ -956,14 +958,14 @@ export const DentistsTab = () => {
                                           setFormData({ ...dentist } as any);
                                           setHasBillingLimit((dentist.billingLimit || 0) > 0);
                                           setIsAddingDentist(true);
-                                      }} title="Editar Cadastro" className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg cursor-pointer"><Edit size={18}/></button>
+                                      }} title={t('admin.dentists.editClient', 'Editar Cliente')} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg cursor-pointer"><Edit size={18}/></button>
                                   )}
                                   {canDelete && (
                                       <button onClick={() => {
-                                          if (window.confirm(`Tem certeza que deseja excluir o cliente "${dentist.name}"? Esta ação não pode ser desfeita.`)) {
+                                          if (window.confirm(t('admin.dentists.deleteConfirm', 'Tem certeza que deseja excluir este cliente?'))) {
                                               deleteManualDentist(dentist.id);
                                           }
-                                      }} title="Excluir Cadastro" className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg cursor-pointer"><Trash2 size={18}/></button>
+                                      }} title={t('admin.dentists.deleteClient', 'Excluir Cliente')} className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg cursor-pointer"><Trash2 size={18}/></button>
                                   )}
                               </div>
                           </td>

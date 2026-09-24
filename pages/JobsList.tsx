@@ -21,14 +21,14 @@ export const getJobOriginInfo = (job: any) => {
 
   switch(origin) {
     case 'ONLINE_ORDER':
-      return { label: i18n.t('orders.origin.ONLINE_ORDER', 'Loja Online'), color: 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300' }
+      return { label: i18n.t('orders.origins.ONLINE_ORDER', 'Loja Online'), color: 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300' }
     case 'ONLINE_REQUISITION':
-      return { label: i18n.t('orders.origin.ONLINE_REQUISITION', 'Requisição Online'), color: 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300' }
+      return { label: i18n.t('orders.origins.ONLINE_REQUISITION', 'Requisição Online'), color: 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300' }
     case 'OUTSOURCING':
-      return { label: i18n.t('orders.origin.OUTSOURCING', 'Terceirização'), color: 'bg-purple-50 dark:bg-purple-950/40 border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300' }
+      return { label: i18n.t('orders.origins.OUTSOURCING', 'Terceirização'), color: 'bg-purple-50 dark:bg-purple-950/40 border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300' }
     case 'MANUAL':
     default:
-      return { label: i18n.t('orders.origin.MANUAL', 'Manual'), color: 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300' }
+      return { label: i18n.t('orders.origins.MANUAL', 'Manual'), color: 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300' }
   }
 
 }
@@ -918,7 +918,7 @@ const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
                 />
                 <select value={filterUrgency} onChange={e => setFilterUrgency(e.target.value)} className="px-3 py-2 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-bold outline-none bg-slate-50 dark:bg-[#0B0F17] text-slate-800 dark:text-slate-100">
                     <option value="">{t('orders.allPriorities', 'Todas Prioridades')}</option>
-                    {Object.values(UrgencyLevel).map(u => <option key={u} value={u}>{u}</option>)}
+                    {Object.values(UrgencyLevel).map(u => <option key={u} value={u}>{t(`urgency.${u}`, u)}</option>)}
                 </select>
 
                 {!isClient && (
@@ -948,11 +948,11 @@ const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
                 <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="px-3 py-2 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-bold bg-slate-50 dark:bg-[#0B0F17] text-slate-800 dark:text-slate-100" title={t('common.startDate', 'Data Inicial')} />
                 <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="px-3 py-2 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-bold bg-slate-50 dark:bg-[#0B0F17] text-slate-800 dark:text-slate-100" title={t('common.endDate', 'Data Final')} />
                 <select value={filterOrigin} onChange={e => setFilterOrigin(e.target.value)} className="px-3 py-2 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-bold outline-none bg-slate-50 dark:bg-[#0B0F17] text-slate-800 dark:text-slate-100">
-                    <option value="ALL">{t('orders.origin.ALL', 'Todas as Origens')}</option>
-                    <option value="MANUAL">{t('orders.origin.MANUAL', 'Cadastrado Manual')}</option>
-                    <option value="ONLINE_ORDER">{t('orders.origin.ONLINE_ORDER', 'Pedido Online')}</option>
-                    <option value="ONLINE_REQUISITION">{t('orders.origin.ONLINE_REQUISITION', 'Requisição Online')}</option>
-                    <option value="OUTSOURCING">{t('orders.origin.OUTSOURCING', 'Terceirização')}</option>
+                    <option value="ALL">{t('orders.origins.ALL', 'Todas as Origens')}</option>
+                    <option value="MANUAL">{t('orders.origins.MANUAL', 'Cadastrado Manual')}</option>
+                    <option value="ONLINE_ORDER">{t('orders.origins.ONLINE_ORDER', 'Pedido Online')}</option>
+                    <option value="ONLINE_REQUISITION">{t('orders.origins.ONLINE_REQUISITION', 'Requisição Online')}</option>
+                    <option value="OUTSOURCING">{t('orders.origins.OUTSOURCING', 'Terceirização')}</option>
                 </select>
                 <label className="flex items-center gap-2 px-3 py-2 border border-slate-200 dark:border-slate-800 rounded-lg bg-slate-50 dark:bg-[#0B0F17] cursor-pointer">
                     <input type="checkbox" checked={filterAttention} onChange={e => setFilterAttention(e.target.checked)} className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500" />

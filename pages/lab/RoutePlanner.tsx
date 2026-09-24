@@ -11,7 +11,7 @@ import * as api from '../../services/firebaseService';
 import { notifyJobLogistics } from '../../services/ycloudService';
 
 export const RoutePlanner = () => {
-  const { t } = useTranslation();
+    const { t } = useTranslation();
     const { 
         currentOrg, manualDentists, allUsers, triggerRoutePrint, currentUser,
         couriers, addCourier, updateCourier, deleteCourier, jobs, updateJob
@@ -138,7 +138,7 @@ export const RoutePlanner = () => {
     };
 
     const formatDentistAddress = (d: any) => {
-        if (!d) return 'Endereço não cadastrado';
+        if (!d) return t('routes.addressNotRegistered', 'Endereço não cadastrado');
         const parts: string[] = [];
         if (d.address) {
             let line = d.address;
@@ -148,7 +148,7 @@ export const RoutePlanner = () => {
         }
         if (d.neighborhood) parts.push(d.neighborhood);
         if (d.city || d.state) parts.push(`${d.city || ''}${d.city && d.state ? '/' : ''}${d.state || ''}`);
-        return parts.length > 0 ? parts.join(' - ') : (typeof d.address === 'string' && d.address.trim() ? d.address : 'Endereço não cadastrado');
+        return parts.length > 0 ? parts.join(' - ') : (typeof d.address === 'string' && d.address.trim() ? d.address : t('routes.addressNotRegistered', 'Endereço não cadastrado'));
     };
 
     const handleAddPickup = async (dentist: any) => {
@@ -250,7 +250,7 @@ export const RoutePlanner = () => {
 
     const handleDeleteCourier = async (courierId: string) => {
         if (!canDelete) return;
-        if (window.confirm("Deseja realmente remover este motoboy?")) {
+        if (window.confirm(t('routes.confirmDeleteCourier', 'Deseja realmente remover este motoboy?'))) {
             await deleteCourier(courierId);
         }
     };
@@ -271,7 +271,7 @@ export const RoutePlanner = () => {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h1 className="text-2xl font-black text-slate-900 flex items-center gap-2" id="route-planner-title">
-                        <Truck className="text-blue-600 animate-pulse" /> Roteiros de Entrega
+                        <Truck className="text-blue-600 animate-pulse" /> {t('routes.title', 'Roteiros de Entrega')}
                     </h1>
                     <p className="text-slate-500">{t("routes.subtitle", "Organize as saídas de motoboy e coletas externas em tempo real.")}</p>
                 </div>
@@ -281,7 +281,7 @@ export const RoutePlanner = () => {
                         onClick={() => triggerRoutePrint(routeItems, activeRoute.driverName, activeRoute.shift, selectedDate)}
                         className="px-6 py-2.5 bg-slate-900 text-white font-black text-xs rounded-xl shadow-lg flex items-center gap-2 hover:bg-slate-800 transition-all uppercase tracking-widest"
                     >
-                        <Printer size={16} /> IMPRIMIR ROTEIRO
+                        <Printer size={16} /> {t('routes.printRoute', 'IMPRIMIR ROTEIRO')}
                     </button>
                 )}
             </div>
@@ -298,8 +298,8 @@ export const RoutePlanner = () => {
                 <div className="flex-1">
                     <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">{t("routes.routeShift", "Turno da Rota")}</label>
                     <div className="flex bg-slate-100 p-1 rounded-xl" id="route-shift-tabs">
-                        <button id="shift-morning-btn" onClick={() => setSelectedShift('MORNING')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${selectedShift === 'MORNING' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Manhã</button>
-                        <button id="shift-afternoon-btn" onClick={() => setSelectedShift('AFTERNOON')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${selectedShift === 'AFTERNOON' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Tarde</button>
+                        <button id="shift-morning-btn" onClick={() => setSelectedShift('MORNING')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${selectedShift === 'MORNING' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>{t('routes.morning', 'Manhã')}</button>
+                        <button id="shift-afternoon-btn" onClick={() => setSelectedShift('AFTERNOON')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${selectedShift === 'AFTERNOON' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>{t('routes.afternoon', 'Tarde')}</button>
                     </div>
                 </div>
             </div>
@@ -321,7 +321,7 @@ export const RoutePlanner = () => {
                                 disabled={!canCreate && !canEdit}
                                 className={`px-8 py-3.5 font-black text-xs rounded-xl shadow-lg uppercase tracking-wider transition-all transform active:scale-95 ${canCreate || canEdit ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-100' : 'bg-slate-300 text-slate-500 cursor-not-allowed'}`}
                             >
-                                INICIAR ROTEIRO
+                                {t('routes.startRoute', 'INICIAR ROTEIRO')}
                             </button>
                         </div>
                     ) : (
@@ -346,9 +346,9 @@ export const RoutePlanner = () => {
                                         activeRoute.status === 'IN_TRANSIT' ? 'bg-amber-50 text-amber-700 border-amber-200 animate-pulse' : 'bg-blue-50 text-blue-700 border-blue-100'
                                     }`}
                                 >
-                                    <option value="OPEN">📦 Aguardando Saída</option>
-                                    <option value="IN_TRANSIT">🛵 Em Trânsito / Rua</option>
-                                    <option value="COMPLETED">✅ Rota Concluída</option>
+                                    <option value="OPEN">{t('routes.statusWaitingDeparture', '📦 Aguardando Saída')}</option>
+                                    <option value="IN_TRANSIT">{t('routes.statusInTransit', '🛵 Em Trânsito / Rua')}</option>
+                                    <option value="COMPLETED">{t('routes.statusCompleted', '✅ Rota Concluída')}</option>
                                 </select>
                             </div>
 
@@ -387,7 +387,7 @@ export const RoutePlanner = () => {
                                                 <div className="flex items-center gap-1 shrink-0">
                                                     <div 
                                                         className="p-1 text-slate-300 hover:text-slate-500 cursor-grab active:cursor-grabbing transition-colors"
-                                                        title="Arrastar para reordenar"
+                                                        title={t('routes.dragToReorder', 'Arrastar para reordenar')}
                                                     >
                                                         <GripVertical size={16} />
                                                     </div>
@@ -396,7 +396,7 @@ export const RoutePlanner = () => {
                                                             onClick={() => handleMoveGroup(idx, idx - 1)}
                                                             disabled={idx === 0}
                                                             className={`p-0.5 rounded hover:bg-slate-100 transition-colors ${idx === 0 ? 'text-slate-200 cursor-not-allowed' : 'text-slate-400 hover:text-blue-600'}`}
-                                                            title="Mover para cima"
+                                                            title={t('routes.moveUp', 'Mover para cima')}
                                                         >
                                                             <ChevronUp size={14} />
                                                         </button>
@@ -404,7 +404,7 @@ export const RoutePlanner = () => {
                                                             onClick={() => handleMoveGroup(idx, idx + 1)}
                                                             disabled={idx === groupedStops.length - 1}
                                                             className={`p-0.5 rounded hover:bg-slate-100 transition-colors ${idx === groupedStops.length - 1 ? 'text-slate-200 cursor-not-allowed' : 'text-slate-400 hover:text-blue-600'}`}
-                                                            title="Mover para baixo"
+                                                            title={t('routes.moveDown', 'Mover para baixo')}
                                                         >
                                                             <ChevronDown size={14} />
                                                         </button>
@@ -426,7 +426,7 @@ export const RoutePlanner = () => {
                                                 <button 
                                                     onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(group[0].address)}`, '_blank')}
                                                     className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
-                                                    title="Ver no Mapa"
+                                                    title={t('routes.viewOnMap', 'Ver no Mapa')}
                                                 >
                                                     <Navigation size={18} />
                                                 </button>
@@ -440,11 +440,11 @@ export const RoutePlanner = () => {
                                                     <div className="flex justify-between items-start gap-2">
                                                         <div>
                                                             <span className={`text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider ${item.type === 'DELIVERY' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
-                                                                {item.type === 'DELIVERY' ? 'Entrega' : 'Coleta'}
+                                                                {item.type === 'DELIVERY' ? t('routes.deliveryBadge', 'Entrega') : t('routes.pickupBadge', 'Coleta')}
                                                             </span>
                                                             {item.patientName && (
                                                                 <div className="mt-1.5 flex items-center gap-1.5 text-xs font-bold text-slate-600">
-                                                                    <UserIcon size={12} /> Paciente: {item.patientName}
+                                                                    <UserIcon size={12} /> {t('routes.patientLabel', 'Paciente:')} {item.patientName}
                                                                 </div>
                                                             )}
                                                         </div>
@@ -452,7 +452,7 @@ export const RoutePlanner = () => {
                                                             <button 
                                                                 onClick={() => handleDeleteItem(item.id)}
                                                                 className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all shrink-0"
-                                                                title="Remover Serviço"
+                                                                title={t('routes.removeService', 'Remover Serviço')}
                                                             >
                                                                 <Trash2 size={16} />
                                                             </button>
@@ -466,18 +466,18 @@ export const RoutePlanner = () => {
                                                                 <textarea
                                                                     value={observationsText}
                                                                     onChange={(e) => setObservationsText(e.target.value)}
-                                                                    placeholder="Observações de entrega..."
+                                                                    placeholder={t('routes.deliveryNotesPlaceholder', 'Observações de entrega...')}
                                                                     className="w-full text-xs p-2 border rounded-lg resize-none h-16 font-medium text-slate-700 focus:border-indigo-400 outline-none"
                                                                 />
                                                                 <div className="flex justify-end gap-2">
-                                                                    <button onClick={() => setEditingObservationsId(null)} className="text-xs font-bold text-slate-500 hover:text-slate-700">Cancelar</button>
-                                                                    <button onClick={() => handleSaveObservations(item)} className="text-xs font-bold text-indigo-600 hover:text-indigo-800">Salvar</button>
+                                                                    <button onClick={() => setEditingObservationsId(null)} className="text-xs font-bold text-slate-500 hover:text-slate-700">{t('common.cancel', 'Cancelar')}</button>
+                                                                    <button onClick={() => handleSaveObservations(item)} className="text-xs font-bold text-indigo-600 hover:text-indigo-800">{t('common.save', 'Salvar')}</button>
                                                                 </div>
                                                             </div>
                                                         ) : (
                                                             <div className="flex items-start justify-between gap-2 group/obs cursor-pointer" onClick={() => { setEditingObservationsId(item.id); setObservationsText(item.observations || ''); }}>
                                                                 <p className={`text-xs font-medium ${item.observations ? 'text-slate-600' : 'text-slate-400 italic'}`}>
-                                                                    {item.observations || 'Adicionar observações de entrega...'}
+                                                                    {item.observations || t('routes.addDeliveryNotes', 'Adicionar observações de entrega...')}
                                                                 </p>
                                                                 <span className="opacity-0 group-hover/obs:opacity-100 text-xs text-indigo-500 font-bold whitespace-nowrap">{t("common.edit", "Editar")}</span>
                                                             </div>
@@ -491,7 +491,7 @@ export const RoutePlanner = () => {
 
                                 {routeItems.length === 0 && (
                                     <div className="py-12 text-center text-slate-400 italic text-sm" id="empty-stops-placeholder">
-                                        Nenhum serviço incluído nesta rota. Adicione através da lista de trabalhos finalizados ou use o botão de coleta avulsa abaixo.
+                                        {t('routes.emptyStops', 'Nenhum serviço incluído nesta rota. Adicione através da lista de trabalhos finalizados ou use o botão de coleta avulsa abaixo.')}
                                     </div>
                                 )}
                             </div>
@@ -503,7 +503,7 @@ export const RoutePlanner = () => {
                                         onClick={() => setIsAddingPickup(true)}
                                         className="w-full py-3.5 bg-white border-2 border-dashed border-slate-200 rounded-2xl text-slate-500 font-extrabold text-xs hover:border-blue-400 hover:text-blue-600 transition-all flex items-center justify-center gap-2 uppercase tracking-widest shadow-sm"
                                     >
-                                        <Plus size={18}/> PARADA AVULSA (SOLICITAR COLETA)
+                                        <Plus size={18}/> {t('routes.singleStopBtn', 'PARADA AVULSA (SOLICITAR COLETA)')}
                                     </button>
                                 </div>
                             )}
@@ -530,7 +530,7 @@ export const RoutePlanner = () => {
                                     id="add-new-courier-trigger"
                                     onClick={() => setShowCourierForm(!showCourierForm)}
                                     className="p-1.5 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-all flex items-center justify-center"
-                                    title="Cadastrar Entregador"
+                                    title={t('routes.newRegistration', 'Cadastrar Entregador')}
                                 >
                                     {showCourierForm ? <X size={16} /> : <UserPlus size={16} />}
                                 </button>
@@ -542,12 +542,12 @@ export const RoutePlanner = () => {
                             <form id="new-courier-form" onSubmit={handleAddCourierSubmit} className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3 animate-in slide-in-from-top-2 duration-300">
                                 <h4 className="text-xs font-black text-slate-600 uppercase tracking-widest">{t("routes.newRegistration", "Novo Cadastro")}</h4>
                                 <div>
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Nome completo *</label>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">{t('routes.fullNameRequired', 'Nome completo *')}</label>
                                     <input 
                                         id="courier-name-input"
                                         type="text" 
                                         required
-                                        placeholder="Ex: Carlos Silva"
+                                        placeholder={t('routes.fullNamePlaceholder', 'Ex: Carlos Silva')}
                                         value={courierName}
                                         onChange={e => setCourierName(e.target.value)}
                                         className="w-full text-xs font-bold px-3 py-2 bg-white border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
@@ -555,22 +555,22 @@ export const RoutePlanner = () => {
                                 </div>
                                 <div className="grid grid-cols-2 gap-2">
                                     <div>
-                                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Celular / WhatsApp</label>
+                                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">{t('routes.phoneWhatsapp', 'Celular / WhatsApp')}</label>
                                         <input 
                                             id="courier-phone-input"
                                             type="text" 
-                                            placeholder="(11) 99999-9999"
+                                            placeholder={t('routes.phonePlaceholder', '(11) 99999-9999')}
                                             value={courierPhone}
                                             onChange={e => setCourierPhone(e.target.value)}
                                             className="w-full text-xs font-bold px-3 py-2 bg-white border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Moto / Placa</label>
+                                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">{t('routes.vehiclePlate', 'Moto / Placa')}</label>
                                         <input 
                                             id="courier-vehicle-input"
                                             type="text" 
-                                            placeholder="Titan 160 / ABC1234"
+                                            placeholder={t('routes.vehiclePlaceholder', 'Titan 160 / ABC1234')}
                                             value={courierVehicle}
                                             onChange={e => setCourierVehicle(e.target.value)}
                                             className="w-full text-xs font-bold px-3 py-2 bg-white border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
@@ -584,7 +584,7 @@ export const RoutePlanner = () => {
                                     className="w-full py-2 bg-blue-600 text-white font-black text-xs rounded-xl hover:bg-blue-700 flex items-center justify-center gap-1 tracking-wider uppercase shadow shadow-blue-200"
                                 >
                                     {isSavingCourier ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
-                                    SALVAR CADASTRADO
+                                    {t('routes.saveRegistration', 'SALVAR CADASTRADO')}
                                 </button>
                             </form>
                         )}
@@ -597,7 +597,7 @@ export const RoutePlanner = () => {
                                         <div className="flex items-center gap-2">
                                             <p className="font-extrabold text-slate-800 text-xs sm:text-sm truncate">{courier.name}</p>
                                             <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider ${courier.active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                                {courier.active ? 'Ativo' : 'Inativo'}
+                                                {courier.active ? t('routes.active', 'Ativo') : t('routes.inactive', 'Inativo')}
                                             </span>
                                         </div>
                                         <div className="flex flex-wrap gap-x-2 gap-y-1 mt-1 text-[11px] text-slate-500 font-bold">
@@ -619,7 +619,7 @@ export const RoutePlanner = () => {
                                                 id={`toggle-courier-btn-${courier.id}`}
                                                 onClick={() => handleToggleCourierActive(courier)}
                                                 className={`p-1.5 rounded-lg transition-all ${courier.active ? 'text-green-600 hover:bg-green-50' : 'text-slate-400 hover:bg-slate-100'}`}
-                                                title={courier.active ? "Desativar entrega" : "Ativar entrega"}
+                                                title={courier.active ? t('routes.deactivateDelivery', 'Desativar entrega') : t('routes.activateDelivery', 'Ativar entrega')}
                                             >
                                                 {courier.active ? <ToggleRight size={22} className="text-blue-600" /> : <ToggleLeft size={22} className="text-slate-400" />}
                                             </button>
@@ -629,7 +629,7 @@ export const RoutePlanner = () => {
                                                 id={`delete-courier-btn-${courier.id}`}
                                                 onClick={() => handleDeleteCourier(courier.id)}
                                                 className="p-1 px-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                                                title="Remover entregador"
+                                                title={t('routes.removeCourier', 'Remover entregador')}
                                             >
                                                 <Trash2 size={14} />
                                             </button>
@@ -640,7 +640,7 @@ export const RoutePlanner = () => {
 
                             {couriers.length === 0 && (
                                 <div className="text-center py-8 text-slate-400 italic text-xs" id="empty-couriers-display">
-                                    Nenhum entregador cadastrado para este laboratório.
+                                    {t('routes.noRegisteredCouriers', 'Nenhum entregador cadastrado para este laboratório.')}
                                 </div>
                             )}
                         </div>
@@ -650,7 +650,7 @@ export const RoutePlanner = () => {
                         <Truck size={80} className="absolute -bottom-4 -right-4 opacity-10" />
                         <h3 className="font-black text-lg mb-4 flex items-center gap-2"><Navigation size={20}/> {t('routes.logisticsTip', 'Dica de Logística')}</h3>
                         <p className="text-sm text-indigo-100 leading-relaxed font-bold">
-                            Ordene as paradas para otimizar os custos de transporte do seu laboratório. Cada parada pode ser facilmente visualizada no Waze ou Google Maps correspondente pelo entregador.
+                            {t('routes.logisticsTipDesc', 'Ordene as paradas para otimizar os custos de transporte do seu laboratório. Cada parada pode ser facilmente visualizada no Waze ou Google Maps correspondente pelo entregador.')}
                         </p>
                     </div>
                 </div>
@@ -662,7 +662,7 @@ export const RoutePlanner = () => {
                     <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-4 sm:p-6 animate-in zoom-in-95 duration-200">
                         <div className="flex justify-between items-center mb-5 border-b pb-4">
                             <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
-                                <Truck size={18} className="text-blue-600"/> Iniciar Novo Roteiro
+                                <Truck size={18} className="text-blue-600"/> {t('routes.startNewRoute', 'Iniciar Novo Roteiro')}
                             </h3>
                             <button id="close-start-route-modal" onClick={() => setShowStartRouteModal(false)} className="text-slate-400 hover:text-slate-600"><X size={20}/></button>
                         </div>
@@ -690,7 +690,7 @@ export const RoutePlanner = () => {
                                     </div>
                                 ) : (
                                     <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 p-3 rounded-xl font-bold" id="no-active-couriers-warning">
-                                        ⚠️ Nenhum motoboy ativo cadastrado. Cadastre um entregador no painel lateral à direita ou digite um nome abaixo para uso esporádico.
+                                        {t('routes.noActiveCouriersWarning', '⚠️ Nenhum motoboy ativo cadastrado. Cadastre um entregador no painel lateral à direita ou digite um nome abaixo para uso esporádico.')}
                                     </p>
                                 )}
                             </div>
@@ -707,7 +707,7 @@ export const RoutePlanner = () => {
                                     <input 
                                         id="manual-courier-name-input"
                                         type="text" 
-                                        placeholder="Ex: Carlos Temporário"
+                                        placeholder={t('routes.sporadicCourierPlaceholder', 'Ex: Carlos Temporário')}
                                         value={manualCourierName}
                                         onChange={e => {
                                             setManualCourierName(e.target.value);
@@ -723,7 +723,7 @@ export const RoutePlanner = () => {
                                         disabled={!manualCourierName.trim()}
                                         className="px-4 bg-slate-900 text-white font-black text-xs rounded-xl hover:bg-slate-800 tracking-wider disabled:opacity-40 uppercase"
                                     >
-                                        INICIAR
+                                        {t('routes.startBtn', 'INICIAR')}
                                     </button>
                                 </div>
                             </div>
@@ -738,7 +738,7 @@ export const RoutePlanner = () => {
                     <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-4 sm:p-6 animate-in zoom-in-95 duration-200">
                         <div className="flex justify-between items-center mb-6 border-b pb-4">
                             <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight flex items-center gap-1.5">
-                                <Building size={18} className="text-blue-600"/> Parada Avulsa (Coleta)
+                                <Building size={18} className="text-blue-600"/> {t('routes.singleStopPickup', 'Parada Avulsa (Coleta)')}
                             </h3>
                             <button id="close-pickup-modal-btn" onClick={() => setIsAddingPickup(false)} className="text-slate-400 hover:text-slate-600"><X size={20}/></button>
                         </div>
@@ -748,7 +748,7 @@ export const RoutePlanner = () => {
                                 <Search className="absolute left-3 top-3 text-slate-400" size={18} />
                                 <input 
                                     id="pickup-dentist-search-input"
-                                    placeholder="Buscar dentista por nome..." 
+                                    placeholder={t('routes.searchDentistByName', 'Buscar dentista por nome...')} 
                                     value={dentistSearch}
                                     onChange={e => setDentistSearch(e.target.value)}
                                     className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold bg-slate-50" 
@@ -765,7 +765,7 @@ export const RoutePlanner = () => {
                                     >
                                         <div>
                                             <p className="font-extrabold text-slate-800 text-sm">{d.name}</p>
-                                            <p className="text-[10px] text-slate-400 uppercase font-black tracking-tight">{d.clinicName || 'Clínica não informada'} • {d.city || '---'}</p>
+                                            <p className="text-[10px] text-slate-400 uppercase font-black tracking-tight">{d.clinicName || t('routes.clinicNotSpecified', 'Clínica não informada')} • {d.city || '---'}</p>
                                         </div>
                                         <ChevronRight size={18} className="text-slate-300 group-hover:text-blue-600" />
                                     </button>

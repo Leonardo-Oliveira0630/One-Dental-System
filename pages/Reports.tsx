@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useApp } from '../context/AppContext';
 import { 
   FileText, Download, Filter, Calendar, Users, Building2, Package, Search, X, 
@@ -10,18 +11,6 @@ import { jsPDF } from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { JobStatus, Job } from '../types';
-
-const STATUS_TRANSLATION: Record<string, string> = {
-  PENDING: 'Pendente',
-  IN_PROGRESS: 'Em Produção',
-  WAITING_APPROVAL: 'Aguardando Aprovação',
-  COMPLETED: 'Finalizado',
-  DELIVERED: 'Entregue',
-  REJECTED: 'Rejeitado',
-  CANCELED: 'Cancelado',
-  RETURNED: 'Devolvido',
-  SECTOR_TRANSITION: 'Em Transição'
-};
 
 export interface ClientSummaryStat {
   clientId: string;
@@ -45,8 +34,25 @@ export interface ClientSummaryStat {
 }
 
 export default function Reports() {
+  const { t } = useTranslation();
   const { jobs, allUsers, manualDentists, sectors, jobTypes, currentOrg } = useApp();
   
+  // Status translation helper
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'PENDING': return t('status.pending', 'Pendente');
+      case 'IN_PROGRESS': return t('status.inProgress', 'Em Produção');
+      case 'WAITING_APPROVAL': return t('status.waitingApproval', 'Aguardando Aprovação');
+      case 'COMPLETED': return t('status.completed', 'Finalizado');
+      case 'DELIVERED': return t('status.delivered', 'Entregue');
+      case 'REJECTED': return t('status.rejected', 'Rejeitado');
+      case 'CANCELED': return t('status.canceled', 'Cancelado');
+      case 'RETURNED': return t('status.returned', 'Devolvido');
+      case 'SECTOR_TRANSITION': return t('status.sectorTransition', 'Em Transição');
+      default: return status;
+    }
+  };
+
   // Date and filter states
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -200,7 +206,7 @@ export default function Reports() {
       const dentistInfo = manualDentists.find(d => d.id === job.dentistId || d.name === job.dentistName) || 
                           allUsers.find(u => u.id === job.dentistId || u.name === job.dentistName);
       
-      const clientName = job.dentistName || dentistInfo?.name || 'Cliente sem nome';
+      const clientName = job.dentistName || dentistInfo?.name || 'Cliente';
       const clinicName = job.clinicName || (dentistInfo as any)?.clinicName || (dentistInfo as any)?.address || 'Geral';
       const email = (dentistInfo as any)?.email;
       const phone = (dentistInfo as any)?.phone || (dentistInfo as any)?.whatsapp;
@@ -278,7 +284,7 @@ export default function Reports() {
       if (clientSortBy === 'BILLING_ASC') return a.totalBilling - b.totalBilling;
       if (clientSortBy === 'JOBS_DESC') return b.totalJobs - a.totalJobs;
       if (clientSortBy === 'TICKET_DESC') return b.averageTicket - a.averageTicket;
-      if (clientSortBy === 'NAME_ASC') return a.clientName.localeCompare(b.clientName, 'pt-BR');
+      if (clientSortBy === 'NAME_ASC') return a.clientName.localeCompare(b.clientName);
       return 0;
     });
   }, [clientSummaryData.clients, clientSearch, clientSortBy]);
@@ -297,7 +303,7 @@ export default function Reports() {
         }
 
         if (targetCollabIds.length === 0) {
-          const key = 'Sem Colaborador';
+          const key = t('reports.withoutCollaborator', 'Sem Colaborador');
           if (!groups[key]) groups[key] = [];
           groups[key].push(job);
         } else {
@@ -308,7 +314,7 @@ export default function Reports() {
               if (!groups[key]) groups[key] = [];
               groups[key].push(job);
             } else if (!collab) {
-              const key = 'Sem Colaborador';
+              const key = t('reports.withoutCollaborator', 'Sem Colaborador');
               if (!groups[key]) groups[key] = [];
               if (!groups[key].some(j => j.id === job.id)) {
                 groups[key].push(job);
@@ -319,15 +325,15 @@ export default function Reports() {
       } else {
         let key = '';
         if (groupBy === 'DATE') {
-          key = new Date(dateType === 'CREATED' ? job.createdAt : job.dueDate).toLocaleDateString('pt-BR');
+          key = new Date(dateType === 'CREATED' ? job.createdAt : job.dueDate).toLocaleDateString();
         } else if (groupBy === 'JOB_TYPE') {
           if (jobTypeId && selectedJobType) {
             key = selectedJobType.name;
           } else {
-            key = job.items.length > 0 ? job.items[0].name : 'Sem tipo';
+            key = job.items.length > 0 ? job.items[0].name : t('reports.withoutType', 'Sem tipo');
           }
         } else if (groupBy === 'LIST') {
-          key = 'Lista Geral';
+          key = t('reports.generalList', 'Lista Geral');
         }
         
         if (!groups[key]) groups[key] = [];
@@ -350,21 +356,13 @@ export default function Reports() {
 
     const sortedGroups: Record<string, typeof jobs> = {};
     Object.keys(groups).sort((a, b) => {
-      if (groupBy === 'DATE') {
-        const [dayA, monthA, yearA] = a.split('/').map(Number);
-        const [dayB, monthB, yearB] = b.split('/').map(Number);
-        const dateA = new Date(yearA, monthA - 1, dayA).getTime();
-        const dateB = new Date(yearB, monthB - 1, dayB).getTime();
-        return dateA - dateB;
-      } else {
-        return a.localeCompare(b);
-      }
+      return a.localeCompare(b);
     }).forEach(key => {
       sortedGroups[key] = groups[key];
     });
 
     return sortedGroups;
-  }, [filteredJobs, groupBy, dateType, allUsers, collaboratorId, jobTypeId, selectedJobType]);
+  }, [filteredJobs, groupBy, dateType, allUsers, collaboratorId, jobTypeId, selectedJobType, t]);
 
   const serviceStats = useMemo(() => {
     if (reportType !== 'SERVICE_TYPES') return null;
@@ -372,7 +370,7 @@ export default function Reports() {
     filteredJobs.forEach(job => {
       job.items.forEach((item: any) => {
         const typeId = item.jobTypeId || item.name;
-        const typeName = jobTypes.find(t => t.id === typeId)?.name || item.name;
+        const typeName = jobTypes.find(tj => tj.id === typeId)?.name || item.name;
         if (!stats[typeName]) {
           stats[typeName] = { quantity: 0, totalValue: 0 };
         }
@@ -390,25 +388,31 @@ export default function Reports() {
     const orgName = currentOrg?.name || 'Laboratório';
     
     doc.setFontSize(18);
-    let title = `Relatório de Produção - ${orgName}`;
-    if (reportType === 'CLIENT_SUMMARY') title = `Relatório de Faturamento e Casos por Cliente - ${orgName}`;
-    if (reportType === 'DETAILED_ORDERS') title = `Relatório Detalhado de Pedidos - ${orgName}`;
-    if (reportType === 'SERVICE_TYPES') title = `Relatório de Tipos de Serviço - ${orgName}`;
+    let title = t('reports.pdfReportTitleProduction', 'Relatório de Produção - {{org}}', { org: orgName });
+    if (reportType === 'CLIENT_SUMMARY') title = t('reports.pdfReportTitleClientSummary', 'Relatório de Faturamento e Casos por Cliente - {{org}}', { org: orgName });
+    if (reportType === 'DETAILED_ORDERS') title = t('reports.pdfReportTitleDetailedOrders', 'Relatório Detalhado de Pedidos - {{org}}', { org: orgName });
+    if (reportType === 'SERVICE_TYPES') title = t('reports.pdfReportTitleServiceTypes', 'Relatório de Tipos de Serviço - {{org}}', { org: orgName });
     doc.text(title, 14, 20);
     
     doc.setFontSize(10);
     doc.setTextColor(100);
     const dateRangeStr = startDate || endDate 
-      ? `Período: ${startDate ? new Date(startDate).toLocaleDateString('pt-BR') : 'Início'} até ${endDate ? new Date(endDate).toLocaleDateString('pt-BR') : 'Hoje'} (${dateType === 'CREATED' ? 'Data de Entrada' : 'Data de Entrega'})`
-      : `Período: Todo o histórico (${dateType === 'CREATED' ? 'Data de Entrada' : 'Data de Entrega'})`;
-    doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}  |  ${dateRangeStr}`, 14, 27);
+      ? t('reports.pdfPeriod', 'Período: {{start}} até {{end}} ({{type}})', {
+          start: startDate ? new Date(startDate).toLocaleDateString() : '-',
+          end: endDate ? new Date(endDate).toLocaleDateString() : '-',
+          type: dateType === 'CREATED' ? t('reports.entryDateCreation', 'Data de Entrada') : t('reports.dueDateExpiration', 'Data de Entrega')
+        })
+      : t('reports.pdfAllHistory', 'Período: Todo o histórico ({{type}})', {
+          type: dateType === 'CREATED' ? t('reports.entryDateCreation', 'Data de Entrada') : t('reports.dueDateExpiration', 'Data de Entrega')
+        });
+    doc.text(t('reports.pdfGeneratedAt', 'Gerado em: {{date}}', { date: new Date().toLocaleString() }) + `  |  ${dateRangeStr}`, 14, 27);
     
     // --- PDF: CLIENT_SUMMARY ---
     if (reportType === 'CLIENT_SUMMARY') {
       doc.setFontSize(11);
       doc.setTextColor(30, 41, 59);
       doc.text(
-        `Total Faturado: R$ ${clientSummaryData.grandTotalBilling.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}  |  Total de Casos: ${clientSummaryData.grandTotalJobs}  |  Ticket Médio Geral: R$ ${clientSummaryData.averageTicketGlobal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}  |  Clientes: ${clientSummaryData.grandTotalClients}`, 
+        `${t('reports.totalBillingHeader', 'Total Faturado')}: R$ ${clientSummaryData.grandTotalBilling.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}  |  ${t('reports.totalOpenCases', 'Total de Casos')}: ${clientSummaryData.grandTotalJobs}  |  ${t('reports.averageTicketHeader', 'Ticket Médio Geral')}: R$ ${clientSummaryData.averageTicketGlobal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}  |  ${t('reports.clientsWithMovement', 'Clientes')}: ${clientSummaryData.grandTotalClients}`, 
         14, 34
       );
 
@@ -424,7 +428,7 @@ export default function Reports() {
 
       // Add Total Row
       tableData.push([
-        'TOTAL GERAL',
+        t('reports.totalGeneral', 'TOTAL GERAL'),
         '-',
         clientSummaryData.grandTotalJobs.toString(),
         clientSummaryData.grandTotalItems.toString(),
@@ -435,7 +439,15 @@ export default function Reports() {
 
       autoTable(doc, {
         startY: 40,
-        head: [['Cliente / Dentista', 'Clínica', 'Qtd Casos', 'Qtd Itens', 'Faturamento Total', 'Ticket Médio', '% Part.']],
+        head: [[
+          t('reports.clientDentistHeader', 'Cliente / Dentista'),
+          t('reports.clinicHeader', 'Clínica'),
+          t('reports.jobsCountHeader', 'Qtd Casos'),
+          t('reports.elementsHeader', 'Qtd Itens'),
+          t('reports.totalBillingHeader', 'Faturamento Total'),
+          t('reports.averageTicketHeader', 'Ticket Médio'),
+          t('reports.percentageHeader', '% Part.')
+        ]],
         body: tableData,
         theme: 'grid',
         headStyles: { fillColor: [13, 148, 136] }, // Teal 600
@@ -461,7 +473,7 @@ export default function Reports() {
 
     // --- PDF: SERVICE_TYPES ---
     if (reportType === 'SERVICE_TYPES' && serviceStats) {
-      doc.text(`Total de trabalhos: ${filteredJobs.length}`, 14, 36);
+      doc.text(`${t('reports.totalOpenCases', 'Total de trabalhos')}: ${filteredJobs.length}`, 14, 36);
       
       const tableData = Object.entries(serviceStats)
         .sort((a, b) => b[1].quantity - a[1].quantity)
@@ -473,7 +485,11 @@ export default function Reports() {
 
       autoTable(doc, {
         startY: 45,
-        head: [['Tipo de Serviço', 'Quantidade Produzida', 'Valor Total Produzido']],
+        head: [[
+          t('reports.serviceTypeHeader', 'Tipo de Serviço'),
+          t('reports.quantityProducedHeader', 'Quantidade Produzida'),
+          t('reports.totalValueProducedHeader', 'Valor Total Produzido')
+        ]],
         body: tableData,
         theme: 'grid',
         headStyles: { fillColor: [79, 70, 229] },
@@ -497,8 +513,8 @@ export default function Reports() {
       if (reportType === 'DETAILED_ORDERS') {
         const tableData: any[] = [];
         groupJobs.forEach(job => {
-          let entryDate = new Date(job.createdAt).toLocaleDateString('pt-BR');
-          let finishDate = job.status === JobStatus.COMPLETED && job.history ? new Date(job.history.slice().reverse().find((h: any) => h.action === 'COMPLETED' || h.statusTo === JobStatus.COMPLETED)?.timestamp || new Date()).toLocaleDateString('pt-BR') : '-';
+          let entryDate = new Date(job.createdAt).toLocaleDateString();
+          let finishDate = job.status === JobStatus.COMPLETED && job.history ? new Date(job.history.slice().reverse().find((h: any) => h.action === 'COMPLETED' || h.statusTo === JobStatus.COMPLETED)?.timestamp || new Date()).toLocaleDateString() : '-';
           
           let itemsText = (job.items || []).map(item => {
             const jt = jobTypes.find(t => t.id === item.jobTypeId);
@@ -524,7 +540,17 @@ export default function Reports() {
 
         autoTable(doc, {
           startY: yPos,
-          head: [['OS', 'Caixa', 'Dentista', 'Paciente', 'Serviços', 'Valor Serviço', 'Valor Total', 'Entrada', 'Finalização']],
+          head: [[
+            t('reports.osNumber', 'OS'),
+            t('reports.box', 'Caixa'),
+            t('reports.clientDentist', 'Dentista'),
+            t('reports.patient', 'Paciente'),
+            t('reports.services', 'Serviços'),
+            t('reports.serviceValue', 'Valor Serviço'),
+            t('reports.total', 'Valor Total'),
+            t('reports.entryDate', 'Entrada'),
+            t('reports.completion', 'Finalização')
+          ]],
           body: tableData,
           theme: 'grid',
           headStyles: { fillColor: [245, 158, 11] }, // Amber 500
@@ -540,14 +566,21 @@ export default function Reports() {
           job.osNumber || '-',
           job.patientName,
           job.dentistName,
-          new Date(dateType === 'CREATED' ? job.createdAt : job.dueDate).toLocaleDateString('pt-BR'),
+          new Date(dateType === 'CREATED' ? job.createdAt : job.dueDate).toLocaleDateString(),
           job.currentSector || 'Recepção',
-          STATUS_TRANSLATION[job.status] || job.status
+          getStatusLabel(job.status)
         ]);
 
         autoTable(doc, {
           startY: yPos,
-          head: [['OS', 'Paciente', 'Dentista', dateType === 'CREATED' ? 'Entrada' : 'Entrega', 'Setor', 'Status']],
+          head: [[
+            t('reports.osNumber', 'OS'),
+            t('reports.patient', 'Paciente'),
+            t('reports.clientDentist', 'Dentista'),
+            dateType === 'CREATED' ? t('reports.entryDate', 'Entrada') : t('reports.deliveryDate', 'Entrega'),
+            t('reports.sector', 'Setor'),
+            t('reports.status', 'Status')
+          ]],
           body: tableData,
           theme: 'grid',
           headStyles: { fillColor: [79, 70, 229] },
@@ -572,66 +605,66 @@ export default function Reports() {
     if (reportType === 'CLIENT_SUMMARY') {
       const rows = sortedClients.map((c, index) => ({
         '#': index + 1,
-        'Cliente / Dentista': c.clientName,
-        'Clínica': c.clinicName || '-',
-        'Telefone': c.phone || '-',
-        'Qtd de Casos': c.totalJobs,
-        'Qtd de Elementos/Itens': c.totalItems,
-        'Faturamento Total (R$)': Number(c.totalBilling.toFixed(2)),
-        'Ticket Médio (R$)': Number(c.averageTicket.toFixed(2)),
-        '% Participação': `${c.percentage.toFixed(1)}%`
+        [t('reports.clientDentistHeader', 'Cliente / Dentista')]: c.clientName,
+        [t('reports.clinicHeader', 'Clínica')]: c.clinicName || '-',
+        [t('profile.phoneLabel', 'Telefone')]: c.phone || '-',
+        [t('reports.jobsCountHeader', 'Qtd de Casos')]: c.totalJobs,
+        [t('reports.elementsHeader', 'Qtd de Elementos/Itens')]: c.totalItems,
+        [`${t('reports.totalBillingHeader', 'Faturamento Total')} (R$)`]: Number(c.totalBilling.toFixed(2)),
+        [`${t('reports.averageTicketHeader', 'Ticket Médio')} (R$)`]: Number(c.averageTicket.toFixed(2)),
+        [t('reports.percentageHeader', '% Participação')]: `${c.percentage.toFixed(1)}%`
       }));
 
       // Total row
       rows.push({
         '#': 0,
-        'Cliente / Dentista': 'TOTAL GERAL',
-        'Clínica': '-',
-        'Telefone': '-',
-        'Qtd de Casos': clientSummaryData.grandTotalJobs,
-        'Qtd de Elementos/Itens': clientSummaryData.grandTotalItems,
-        'Faturamento Total (R$)': Number(clientSummaryData.grandTotalBilling.toFixed(2)),
-        'Ticket Médio (R$)': Number(clientSummaryData.averageTicketGlobal.toFixed(2)),
-        '% Participação': '100.0%'
+        [t('reports.clientDentistHeader', 'Cliente / Dentista')]: t('reports.totalGeneral', 'TOTAL GERAL'),
+        [t('reports.clinicHeader', 'Clínica')]: '-',
+        [t('profile.phoneLabel', 'Telefone')]: '-',
+        [t('reports.jobsCountHeader', 'Qtd de Casos')]: clientSummaryData.grandTotalJobs,
+        [t('reports.elementsHeader', 'Qtd de Elementos/Itens')]: clientSummaryData.grandTotalItems,
+        [`${t('reports.totalBillingHeader', 'Faturamento Total')} (R$)`]: Number(clientSummaryData.grandTotalBilling.toFixed(2)),
+        [`${t('reports.averageTicketHeader', 'Ticket Médio')} (R$)`]: Number(clientSummaryData.averageTicketGlobal.toFixed(2)),
+        [t('reports.percentageHeader', '% Participação')]: '100.0%'
       });
 
       const ws = XLSX.utils.json_to_sheet(rows);
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Faturamento por Cliente');
+      XLSX.utils.book_append_sheet(wb, ws, t('reports.excelClientBillingSheet', 'Faturamento por Cliente'));
 
       // Also add detailed orders sheet
       const detailedRows = filteredJobs.map(job => ({
-        'OS': job.osNumber || '-',
-        'Caixa': job.boxNumber || '-',
-        'Dentista': job.dentistName,
-        'Clínica': job.clinicName || '-',
-        'Paciente': job.patientName,
-        'Valor Total (R$)': Number((job.totalValue || 0).toFixed(2)),
-        'Data Entrada': new Date(job.createdAt).toLocaleDateString('pt-BR'),
-        'Data Entrega': new Date(job.dueDate).toLocaleDateString('pt-BR'),
-        'Status': STATUS_TRANSLATION[job.status] || job.status,
-        'Setor': job.currentSector || 'Recepção'
+        [t('reports.osNumber', 'OS')]: job.osNumber || '-',
+        [t('reports.box', 'Caixa')]: job.boxNumber || '-',
+        [t('reports.clientDentist', 'Dentista')]: job.dentistName,
+        [t('reports.clinicHeader', 'Clínica')]: job.clinicName || '-',
+        [t('reports.patient', 'Paciente')]: job.patientName,
+        [`${t('reports.total', 'Valor Total')} (R$)`]: Number((job.totalValue || 0).toFixed(2)),
+        [t('reports.entryDate', 'Data Entrada')]: new Date(job.createdAt).toLocaleDateString(),
+        [t('reports.deliveryDate', 'Data Entrega')]: new Date(job.dueDate).toLocaleDateString(),
+        [t('reports.status', 'Status')]: getStatusLabel(job.status),
+        [t('reports.sector', 'Setor')]: job.currentSector || 'Recepção'
       }));
       const wsDetail = XLSX.utils.json_to_sheet(detailedRows);
-      XLSX.utils.book_append_sheet(wb, wsDetail, 'Casos do Período');
+      XLSX.utils.book_append_sheet(wb, wsDetail, t('reports.excelPeriodCasesSheet', 'Casos do Período'));
 
       XLSX.writeFile(wb, `faturamento_clientes_${currentOrg?.name || 'labprox'}_${new Date().toISOString().split('T')[0]}.xlsx`);
     } else {
       const rows = filteredJobs.map(job => ({
-        'OS': job.osNumber || '-',
-        'Caixa': job.boxNumber || '-',
-        'Dentista': job.dentistName,
-        'Paciente': job.patientName,
-        'Valor Total (R$)': Number((job.totalValue || 0).toFixed(2)),
-        'Data Entrada': new Date(job.createdAt).toLocaleDateString('pt-BR'),
-        'Data Entrega': new Date(job.dueDate).toLocaleDateString('pt-BR'),
-        'Status': STATUS_TRANSLATION[job.status] || job.status,
-        'Setor': job.currentSector || 'Recepção'
+        [t('reports.osNumber', 'OS')]: job.osNumber || '-',
+        [t('reports.box', 'Caixa')]: job.boxNumber || '-',
+        [t('reports.clientDentist', 'Dentista')]: job.dentistName,
+        [t('reports.patient', 'Paciente')]: job.patientName,
+        [`${t('reports.total', 'Valor Total')} (R$)`]: Number((job.totalValue || 0).toFixed(2)),
+        [t('reports.entryDate', 'Data Entrada')]: new Date(job.createdAt).toLocaleDateString(),
+        [t('reports.deliveryDate', 'Data Entrega')]: new Date(job.dueDate).toLocaleDateString(),
+        [t('reports.status', 'Status')]: getStatusLabel(job.status),
+        [t('reports.sector', 'Setor')]: job.currentSector || 'Recepção'
       }));
 
       const ws = XLSX.utils.json_to_sheet(rows);
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Relatório');
+      XLSX.utils.book_append_sheet(wb, ws, t('reports.excelProductionSheet', 'Relatório'));
       XLSX.writeFile(wb, `relatorio_producao_${new Date().toISOString().split('T')[0]}.xlsx`);
     }
   };
@@ -660,10 +693,10 @@ export default function Reports() {
             </div>
             <div>
               <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-                Relatórios & Faturamento
+                {t('reports.title', 'Relatórios & Faturamento')}
               </h1>
               <p className="text-slate-500 text-sm font-medium">
-                Consulte o faturamento por cliente, volume de casos e acompanhe a produção.
+                {t('reports.subtitle', 'Consulte o faturamento por cliente, volume de casos e acompanhe a produção.')}
               </p>
             </div>
           </div>
@@ -673,19 +706,19 @@ export default function Reports() {
           <button 
             onClick={exportToExcel}
             disabled={filteredJobs.length === 0}
-            className="px-4 py-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold rounded-xl transition-all flex items-center gap-2 text-xs uppercase tracking-wider border border-emerald-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold rounded-xl transition-all flex items-center gap-2 text-xs uppercase tracking-wider border border-emerald-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
             <FileSpreadsheet size={18} className="text-emerald-600" />
-            <span>Exportar Excel</span>
+            <span>{t('reports.exportExcel', 'Exportar Excel')}</span>
           </button>
           
           <button 
             onClick={generatePDF}
             disabled={filteredJobs.length === 0}
-            className="px-5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-all flex items-center gap-2 text-xs uppercase tracking-wider shadow-lg shadow-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-all flex items-center gap-2 text-xs uppercase tracking-wider shadow-lg shadow-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
             <Download size={18} />
-            <span>Exportar PDF</span>
+            <span>{t('reports.exportPdf', 'Exportar PDF')}</span>
           </button>
         </div>
       </div>
@@ -694,50 +727,50 @@ export default function Reports() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2 bg-slate-100 p-1.5 rounded-2xl">
         <button
           onClick={() => setReportType('CLIENT_SUMMARY')}
-          className={`px-4 py-3 rounded-xl font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
+          className={`px-4 py-3 rounded-xl font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer ${
             reportType === 'CLIENT_SUMMARY'
               ? 'bg-white text-teal-700 shadow-sm border border-slate-200/60'
               : 'text-slate-600 hover:text-slate-900'
           }`}
         >
           <Users size={16} className={reportType === 'CLIENT_SUMMARY' ? 'text-teal-600' : 'text-slate-400'} />
-          <span>Resumo por Cliente</span>
+          <span>{t('reports.clientSummary', 'Resumo por Cliente')}</span>
         </button>
 
         <button
           onClick={() => setReportType('PRODUCTION')}
-          className={`px-4 py-3 rounded-xl font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
+          className={`px-4 py-3 rounded-xl font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer ${
             reportType === 'PRODUCTION'
               ? 'bg-white text-indigo-700 shadow-sm border border-slate-200/60'
               : 'text-slate-600 hover:text-slate-900'
           }`}
         >
           <BarChart3 size={16} className={reportType === 'PRODUCTION' ? 'text-indigo-600' : 'text-slate-400'} />
-          <span>Produção Básica</span>
+          <span>{t('reports.basicProduction', 'Produção Básica')}</span>
         </button>
 
         <button
           onClick={() => setReportType('DETAILED_ORDERS')}
-          className={`px-4 py-3 rounded-xl font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
+          className={`px-4 py-3 rounded-xl font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer ${
             reportType === 'DETAILED_ORDERS'
               ? 'bg-white text-amber-700 shadow-sm border border-slate-200/60'
               : 'text-slate-600 hover:text-slate-900'
           }`}
         >
           <FileText size={16} className={reportType === 'DETAILED_ORDERS' ? 'text-amber-600' : 'text-slate-400'} />
-          <span>Pedidos Detalhado</span>
+          <span>{t('reports.detailedOrders', 'Pedidos Detalhado')}</span>
         </button>
 
         <button
           onClick={() => setReportType('SERVICE_TYPES')}
-          className={`px-4 py-3 rounded-xl font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
+          className={`px-4 py-3 rounded-xl font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer ${
             reportType === 'SERVICE_TYPES'
               ? 'bg-white text-purple-700 shadow-sm border border-slate-200/60'
               : 'text-slate-600 hover:text-slate-900'
           }`}
         >
           <Package size={16} className={reportType === 'SERVICE_TYPES' ? 'text-purple-600' : 'text-slate-400'} />
-          <span>Tipos de Serviço</span>
+          <span>{t('reports.serviceTypes', 'Tipos de Serviço')}</span>
         </button>
       </div>
 
@@ -749,11 +782,11 @@ export default function Reports() {
               <Wallet size={24} />
             </div>
             <div className="min-w-0">
-              <span className="text-[10px] font-black uppercase tracking-widest text-teal-700">Faturamento no Período</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-teal-700">{t('reports.billingInPeriod', 'Faturamento no Período')}</span>
               <p className="text-xl font-black text-slate-900 truncate">
                 R$ {clientSummaryData.grandTotalBilling.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
-              <span className="text-xs text-slate-400 font-medium">Soma de todos os casos</span>
+              <span className="text-xs text-slate-400 font-medium">{t('reports.sumOfAllCases', 'Soma de todos os casos')}</span>
             </div>
           </div>
 
@@ -762,11 +795,11 @@ export default function Reports() {
               <FileText size={24} />
             </div>
             <div className="min-w-0">
-              <span className="text-[10px] font-black uppercase tracking-widest text-indigo-700">Total de Casos Abertos</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-indigo-700">{t('reports.totalOpenCases', 'Total de Casos Abertos')}</span>
               <p className="text-xl font-black text-slate-900 truncate">
-                {clientSummaryData.grandTotalJobs} <span className="text-sm font-bold text-slate-400">pedidos</span>
+                {clientSummaryData.grandTotalJobs} <span className="text-sm font-bold text-slate-400">{t('reports.ordersCount', 'pedidos')}</span>
               </p>
-              <span className="text-xs text-slate-400 font-medium">{clientSummaryData.grandTotalItems} elementos produzidos</span>
+              <span className="text-xs text-slate-400 font-medium">{clientSummaryData.grandTotalItems} {t('reports.elementsProduced', 'elementos produzidos')}</span>
             </div>
           </div>
 
@@ -775,11 +808,11 @@ export default function Reports() {
               <TrendingUp size={24} />
             </div>
             <div className="min-w-0">
-              <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700">Ticket Médio por Caso</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700">{t('reports.averageTicketPerCase', 'Ticket Médio por Caso')}</span>
               <p className="text-xl font-black text-slate-900 truncate">
                 R$ {clientSummaryData.averageTicketGlobal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
-              <span className="text-xs text-slate-400 font-medium">Média por pedido</span>
+              <span className="text-xs text-slate-400 font-medium">{t('reports.averagePerOrder', 'Média por pedido')}</span>
             </div>
           </div>
 
@@ -788,11 +821,11 @@ export default function Reports() {
               <Users size={24} />
             </div>
             <div className="min-w-0">
-              <span className="text-[10px] font-black uppercase tracking-widest text-purple-700">Clientes com Movimento</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-purple-700">{t('reports.clientsWithMovement', 'Clientes com Movimento')}</span>
               <p className="text-xl font-black text-slate-900 truncate">
-                {clientSummaryData.grandTotalClients} <span className="text-sm font-bold text-slate-400">clientes</span>
+                {clientSummaryData.grandTotalClients} <span className="text-sm font-bold text-slate-400">{t('reports.clientsWithMovement', 'clientes')}</span>
               </p>
-              <span className="text-xs text-slate-400 font-medium">Dentistas / Clínicas no filtro</span>
+              <span className="text-xs text-slate-400 font-medium">{t('reports.dentistsClinicsInFilter', 'Dentistas / Clínicas no filtro')}</span>
             </div>
           </div>
         </div>
@@ -804,41 +837,41 @@ export default function Reports() {
           <div className="flex items-center gap-2">
             <Filter size={18} className="text-teal-600" />
             <h2 className="text-base font-black text-slate-800 uppercase tracking-wide">
-              Filtros do Período & Parâmetros
+              {t('reports.filtersAndParams', 'Filtros do Período & Parâmetros')}
             </h2>
           </div>
           
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-1">Atalhos:</span>
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-1">{t('reports.shortcuts', 'Atalhos:')}</span>
             <button 
               onClick={() => applyDatePreset('THIS_MONTH')} 
-              className="px-2.5 py-1 bg-slate-100 hover:bg-teal-50 hover:text-teal-700 text-slate-600 text-xs font-bold rounded-lg transition-colors"
+              className="px-2.5 py-1 bg-slate-100 hover:bg-teal-50 hover:text-teal-700 text-slate-600 text-xs font-bold rounded-lg transition-colors cursor-pointer"
             >
-              Este Mês
+              {t('reports.thisMonth', 'Este Mês')}
             </button>
             <button 
               onClick={() => applyDatePreset('LAST_MONTH')} 
-              className="px-2.5 py-1 bg-slate-100 hover:bg-teal-50 hover:text-teal-700 text-slate-600 text-xs font-bold rounded-lg transition-colors"
+              className="px-2.5 py-1 bg-slate-100 hover:bg-teal-50 hover:text-teal-700 text-slate-600 text-xs font-bold rounded-lg transition-colors cursor-pointer"
             >
-              Mês Passado
+              {t('reports.lastMonth', 'Mês Passado')}
             </button>
             <button 
               onClick={() => applyDatePreset('LAST_30')} 
-              className="px-2.5 py-1 bg-slate-100 hover:bg-teal-50 hover:text-teal-700 text-slate-600 text-xs font-bold rounded-lg transition-colors"
+              className="px-2.5 py-1 bg-slate-100 hover:bg-teal-50 hover:text-teal-700 text-slate-600 text-xs font-bold rounded-lg transition-colors cursor-pointer"
             >
-              Últimos 30 Dias
+              {t('reports.last30Days', 'Últimos 30 Dias')}
             </button>
             <button 
               onClick={() => applyDatePreset('THIS_YEAR')} 
-              className="px-2.5 py-1 bg-slate-100 hover:bg-teal-50 hover:text-teal-700 text-slate-600 text-xs font-bold rounded-lg transition-colors"
+              className="px-2.5 py-1 bg-slate-100 hover:bg-teal-50 hover:text-teal-700 text-slate-600 text-xs font-bold rounded-lg transition-colors cursor-pointer"
             >
-              Este Ano
+              {t('reports.thisYear', 'Este Ano')}
             </button>
             <button 
               onClick={clearFilters} 
-              className="px-2.5 py-1 text-rose-600 hover:bg-rose-50 text-xs font-bold rounded-lg transition-colors flex items-center gap-1"
+              className="px-2.5 py-1 text-rose-600 hover:bg-rose-50 text-xs font-bold rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
             >
-              <X size={14} /> Limpar
+              <X size={14} /> {t('reports.clear', 'Limpar')}
             </button>
           </div>
         </div>
@@ -846,20 +879,20 @@ export default function Reports() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1.5">
-              <Calendar size={13} className="text-teal-600" /> Data Base
+              <Calendar size={13} className="text-teal-600" /> {t('reports.baseDate', 'Data Base')}
             </label>
             <select 
               value={dateType} 
               onChange={(e) => setDateType(e.target.value as any)} 
               className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 focus:ring-2 focus:ring-teal-500 outline-none text-sm"
             >
-              <option value="CREATED">Data de Entrada (Criação do Caso)</option>
-              <option value="DUE">Data de Entrega (Vencimento)</option>
+              <option value="CREATED">{t('reports.entryDateCreation', 'Data de Entrada (Criação do Caso)')}</option>
+              <option value="DUE">{t('reports.dueDateExpiration', 'Data de Entrega (Vencimento)')}</option>
             </select>
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-500 uppercase">Data Inicial</label>
+            <label className="text-xs font-bold text-slate-500 uppercase">{t('reports.startDate', 'Data Inicial')}</label>
             <input 
               type="date" 
               value={startDate} 
@@ -869,7 +902,7 @@ export default function Reports() {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-500 uppercase">Data Final</label>
+            <label className="text-xs font-bold text-slate-500 uppercase">{t('reports.endDate', 'Data Final')}</label>
             <input 
               type="date" 
               value={endDate} 
@@ -880,14 +913,14 @@ export default function Reports() {
 
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1.5">
-              <Stethoscope size={13} className="text-teal-600" /> Cliente / Dentista
+              <Stethoscope size={13} className="text-teal-600" /> {t('reports.clientDentist', 'Cliente / Dentista')}
             </label>
             <select 
               value={dentistId} 
               onChange={(e) => setDentistId(e.target.value)} 
               className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 focus:ring-2 focus:ring-teal-500 outline-none text-sm"
             >
-              <option value="">Todos os Clientes / Dentistas</option>
+              <option value="">{t('reports.allClientsDentists', 'Todos os Clientes / Dentistas')}</option>
               {manualDentists.map(d => <option key={d.id} value={d.id}>{d.name} {d.clinicName ? `(${d.clinicName})` : ''}</option>)}
             </select>
           </div>
@@ -895,44 +928,44 @@ export default function Reports() {
           {reportType !== 'CLIENT_SUMMARY' && (
             <>
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-500 uppercase">Colaborador</label>
+                <label className="text-xs font-bold text-slate-500 uppercase">{t('reports.collaborator', 'Colaborador')}</label>
                 <select value={collaboratorId} onChange={(e) => setCollaboratorId(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 focus:ring-2 focus:ring-teal-500 outline-none text-sm">
-                  <option value="">Todos os Colaboradores</option>
+                  <option value="">{t('reports.allCollaborators', 'Todos os Colaboradores')}</option>
                   {allUsers.filter(u => u.role !== 'CLIENT').map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
                 </select>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-500 uppercase">Setor</label>
+                <label className="text-xs font-bold text-slate-500 uppercase">{t('reports.sector', 'Setor')}</label>
                 <select value={sector} onChange={(e) => setSector(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 focus:ring-2 focus:ring-teal-500 outline-none text-sm">
-                  <option value="">Todos os Setores</option>
+                  <option value="">{t('reports.allSectors', 'Todos os Setores')}</option>
                   {sectors.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
                 </select>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-500 uppercase">Status do Pedido</label>
+                <label className="text-xs font-bold text-slate-500 uppercase">{t('reports.orderStatus', 'Status do Pedido')}</label>
                 <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 focus:ring-2 focus:ring-teal-500 outline-none text-sm">
-                  <option value="">Todos os Status</option>
-                  <option value="PENDING">Pendente</option>
-                  <option value="IN_PROGRESS">Em Produção</option>
-                  <option value="DELAYED">Atrasado</option>
+                  <option value="">{t('reports.allStatuses', 'Todos os Status')}</option>
+                  <option value="PENDING">{t('reports.pending', 'Pendente')}</option>
+                  <option value="IN_PROGRESS">{t('reports.inProgress', 'Em Produção')}</option>
+                  <option value="DELAYED">{t('reports.delayed', 'Atrasado')}</option>
                 </select>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-500 uppercase">Prioridade</label>
+                <label className="text-xs font-bold text-slate-500 uppercase">{t('reports.priority', 'Prioridade')}</label>
                 <select value={urgencyFilter} onChange={(e) => setUrgencyFilter(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 focus:ring-2 focus:ring-teal-500 outline-none text-sm">
-                  <option value="">Todas as Prioridades</option>
-                  <option value="NORMAL">Normal / Baixa</option>
-                  <option value="URGENT">Urgente / VIP</option>
+                  <option value="">{t('reports.allPriorities', 'Todas as Prioridades')}</option>
+                  <option value="NORMAL">{t('reports.normalLow', 'Normal / Baixa')}</option>
+                  <option value="URGENT">{t('reports.urgentVip', 'Urgente / VIP')}</option>
                 </select>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-500 uppercase">Tipo de Trabalho</label>
+                <label className="text-xs font-bold text-slate-500 uppercase">{t('reports.jobType', 'Tipo de Trabalho')}</label>
                 <select value={jobTypeId} onChange={(e) => { setJobTypeId(e.target.value); setVariationFilters({}); }} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 focus:ring-2 focus:ring-teal-500 outline-none text-sm">
-                  <option value="">Todos os Tipos</option>
+                  <option value="">{t('reports.allTypes', 'Todos os Tipos')}</option>
                   {jobTypes.map(jt => <option key={jt.id} value={jt.id}>{jt.name}</option>)}
                 </select>
               </div>
@@ -945,7 +978,7 @@ export default function Reports() {
                     onChange={(e) => setVariationFilters(prev => ({...prev, [group.id]: e.target.value}))} 
                     className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 focus:ring-2 focus:ring-teal-500 outline-none text-sm"
                   >
-                    <option value="">Qualquer</option>
+                    <option value="">{t('reports.anyVariation', 'Qualquer')}</option>
                     {group.options.map(opt => <option key={opt.id} value={opt.id}>{opt.name}</option>)}
                   </select>
                 </div>
@@ -953,12 +986,12 @@ export default function Reports() {
 
               {reportType !== 'SERVICE_TYPES' && (
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-500 uppercase">Agrupar Por</label>
+                  <label className="text-xs font-bold text-slate-500 uppercase">{t('reports.groupBy', 'Agrupar Por')}</label>
                   <select value={groupBy} onChange={(e) => setGroupBy(e.target.value as any)} className="w-full p-3 bg-indigo-50 border border-indigo-200 rounded-xl font-bold text-indigo-700 focus:ring-2 focus:ring-indigo-500 outline-none text-sm">
-                    <option value="DATE">Data</option>
-                    <option value="JOB_TYPE">Tipo de Trabalho</option>
-                    <option value="COLLABORATOR">Colaborador</option>
-                    <option value="LIST">Lista Contínua</option>
+                    <option value="DATE">{t('reports.groupByDate', 'Data')}</option>
+                    <option value="JOB_TYPE">{t('reports.groupByJobType', 'Tipo de Trabalho')}</option>
+                    <option value="COLLABORATOR">{t('reports.groupByCollaborator', 'Colaborador')}</option>
+                    <option value="LIST">{t('reports.groupByList', 'Lista Contínua')}</option>
                   </select>
                 </div>
               )}
@@ -976,10 +1009,10 @@ export default function Reports() {
               <div>
                 <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
                   <Users className="text-teal-600" size={20} />
-                  Resumo de Faturamento e Casos por Cliente
+                  {t('reports.clientSummaryTitle', 'Resumo de Faturamento e Casos por Cliente')}
                 </h3>
                 <p className="text-slate-500 text-xs font-medium mt-0.5">
-                  Exibindo {sortedClients.length} de {clientSummaryData.grandTotalClients} clientes com movimentação no período
+                  {t('reports.showingClientsCount', 'Exibindo {{count}} de {{total}} clientes com movimentação no período', { count: sortedClients.length, total: clientSummaryData.grandTotalClients })}
                 </p>
               </div>
 
@@ -990,11 +1023,11 @@ export default function Reports() {
                     type="text"
                     value={clientSearch}
                     onChange={(e) => setClientSearch(e.target.value)}
-                    placeholder="Buscar cliente ou clínica..."
+                    placeholder={t('reports.searchClientPlaceholder', 'Buscar cliente ou clínica...')}
                     className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:ring-2 focus:ring-teal-500 outline-none shadow-sm"
                   />
                   {clientSearch && (
-                    <button onClick={() => setClientSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                    <button onClick={() => setClientSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer">
                       <X size={14} />
                     </button>
                   )}
@@ -1007,11 +1040,11 @@ export default function Reports() {
                     onChange={(e) => setClientSortBy(e.target.value as any)}
                     className="py-2 px-3 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:ring-2 focus:ring-teal-500 outline-none shadow-sm"
                   >
-                    <option value="BILLING_DESC">Maior Faturamento</option>
-                    <option value="BILLING_ASC">Menor Faturamento</option>
-                    <option value="JOBS_DESC">Mais Casos</option>
-                    <option value="TICKET_DESC">Maior Ticket Médio</option>
-                    <option value="NAME_ASC">Nome (A - Z)</option>
+                    <option value="BILLING_DESC">{t('reports.billingDesc', 'Maior Faturamento')}</option>
+                    <option value="BILLING_ASC">{t('reports.billingAsc', 'Menor Faturamento')}</option>
+                    <option value="JOBS_DESC">{t('reports.jobsDesc', 'Mais Casos')}</option>
+                    <option value="TICKET_DESC">{t('reports.ticketDesc', 'Maior Ticket Médio')}</option>
+                    <option value="NAME_ASC">{t('reports.nameAsc', 'Nome (A - Z)')}</option>
                   </select>
                 </div>
               </div>
@@ -1020,22 +1053,22 @@ export default function Reports() {
             {sortedClients.length === 0 ? (
               <div className="text-center py-16 text-slate-400">
                 <Search size={48} className="mx-auto mb-4 opacity-20" />
-                <p className="font-bold text-base text-slate-600">Nenhum cliente encontrado com os filtros selecionados.</p>
-                <p className="text-xs text-slate-400 mt-1">Experimente ajustar o período de datas ou limpar a busca.</p>
+                <p className="font-bold text-base text-slate-600">{t('reports.noClientsFound', 'Nenhum cliente encontrado com os filtros selecionados.')}</p>
+                <p className="text-xs text-slate-400 mt-1">{t('reports.noClientsFoundDesc', 'Experimente ajustar o período de datas ou limpar a busca.')}</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-slate-50 text-slate-500 text-[10px] uppercase tracking-widest font-black border-b border-slate-100">
-                      <th className="p-4 pl-6">Cliente / Dentista</th>
-                      <th className="p-4">Clínica</th>
-                      <th className="p-4 text-center">Qtd de Casos</th>
-                      <th className="p-4 text-center">Elementos</th>
-                      <th className="p-4 text-right">Faturamento Total</th>
-                      <th className="p-4 text-right">Ticket Médio</th>
-                      <th className="p-4 text-center">% Part.</th>
-                      <th className="p-4 pr-6 text-center">Detalhes</th>
+                      <th className="p-4 pl-6">{t('reports.clientDentistHeader', 'Cliente / Dentista')}</th>
+                      <th className="p-4">{t('reports.clinicHeader', 'Clínica')}</th>
+                      <th className="p-4 text-center">{t('reports.jobsCountHeader', 'Qtd de Casos')}</th>
+                      <th className="p-4 text-center">{t('reports.elementsHeader', 'Elementos')}</th>
+                      <th className="p-4 text-right">{t('reports.totalBillingHeader', 'Faturamento Total')}</th>
+                      <th className="p-4 text-right">{t('reports.averageTicketHeader', 'Ticket Médio')}</th>
+                      <th className="p-4 text-center">{t('reports.percentageHeader', '% Part.')}</th>
+                      <th className="p-4 pr-6 text-center">{t('reports.detailsHeader', 'Detalhes')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -1068,7 +1101,7 @@ export default function Reports() {
 
                             <td className="p-4 text-center">
                               <span className="inline-flex items-center justify-center px-3 py-1 bg-indigo-50 text-indigo-700 font-black text-xs rounded-xl border border-indigo-100">
-                                {client.totalJobs} {client.totalJobs === 1 ? 'caso' : 'casos'}
+                                {client.totalJobs} {client.totalJobs === 1 ? t('reports.case', 'caso') : t('reports.cases', 'casos')}
                               </span>
                             </td>
 
@@ -1101,15 +1134,15 @@ export default function Reports() {
                             <td className="p-4 pr-6 text-center">
                               <button
                                 onClick={() => setExpandedClientId(isExpanded ? null : client.clientId)}
-                                className={`p-1.5 rounded-lg text-xs font-bold transition-all inline-flex items-center gap-1 ${
+                                className={`p-1.5 rounded-lg text-xs font-bold transition-all inline-flex items-center gap-1 cursor-pointer ${
                                   isExpanded 
                                     ? 'bg-teal-600 text-white' 
                                     : 'bg-slate-100 hover:bg-teal-50 text-slate-600 hover:text-teal-700'
                                 }`}
-                                title="Ver pedidos desse cliente"
+                                title={t('reports.seeOrders', 'Ver OSs')}
                               >
                                 {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                                <span className="text-[11px] hidden sm:inline">{isExpanded ? 'Ocultar' : 'Ver OSs'}</span>
+                                <span className="text-[11px] hidden sm:inline">{isExpanded ? t('reports.hideOrders', 'Ocultar') : t('reports.seeOrders', 'Ver OSs')}</span>
                               </button>
                             </td>
                           </tr>
@@ -1122,10 +1155,10 @@ export default function Reports() {
                                   <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
                                     <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
                                       <FileText size={15} className="text-teal-600" />
-                                      Casos de {client.clientName} no período ({client.jobs.length})
+                                      {t('reports.clientCasesInPeriod', 'Casos de {{name}} no período ({{count}})', { name: client.clientName, count: client.jobs.length })}
                                     </h4>
                                     <div className="flex items-center gap-3 text-xs font-bold text-slate-500">
-                                      <span>Total do Cliente: <strong className="text-teal-700">R$ {client.totalBilling.toFixed(2)}</strong></span>
+                                      <span>{t('reports.clientTotal', 'Total do Cliente:')} <strong className="text-teal-700">R$ {client.totalBilling.toFixed(2)}</strong></span>
                                     </div>
                                   </div>
 
@@ -1133,13 +1166,13 @@ export default function Reports() {
                                     <table className="w-full text-left text-xs">
                                       <thead>
                                         <tr className="text-[10px] uppercase font-black text-slate-400 border-b border-slate-100">
-                                          <th className="py-2 px-3">OS #</th>
-                                          <th className="py-2 px-3">Paciente</th>
-                                          <th className="py-2 px-3">Serviços Inclusos</th>
-                                          <th className="py-2 px-3">Entrada</th>
-                                          <th className="py-2 px-3">Entrega</th>
-                                          <th className="py-2 px-3">Status</th>
-                                          <th className="py-2 px-3 text-right">Valor</th>
+                                          <th className="py-2 px-3">{t('reports.osNumber', 'OS #')}</th>
+                                          <th className="py-2 px-3">{t('reports.patient', 'Paciente')}</th>
+                                          <th className="py-2 px-3">{t('reports.includedServices', 'Serviços Inclusos')}</th>
+                                          <th className="py-2 px-3">{t('reports.entryDate', 'Entrada')}</th>
+                                          <th className="py-2 px-3">{t('reports.deliveryDate', 'Entrega')}</th>
+                                          <th className="py-2 px-3">{t('reports.status', 'Status')}</th>
+                                          <th className="py-2 px-3 text-right">{t('reports.value', 'Valor')}</th>
                                         </tr>
                                       </thead>
                                       <tbody className="divide-y divide-slate-100">
@@ -1152,11 +1185,11 @@ export default function Reports() {
                                                 <div key={idx} className="truncate max-w-xs">{it.quantity}x {it.name}</div>
                                               ))}
                                             </td>
-                                            <td className="py-2.5 px-3 text-slate-500">{new Date(job.createdAt).toLocaleDateString('pt-BR')}</td>
-                                            <td className="py-2.5 px-3 text-slate-500">{new Date(job.dueDate).toLocaleDateString('pt-BR')}</td>
+                                            <td className="py-2.5 px-3 text-slate-500">{new Date(job.createdAt).toLocaleDateString()}</td>
+                                            <td className="py-2.5 px-3 text-slate-500">{new Date(job.dueDate).toLocaleDateString()}</td>
                                             <td className="py-2.5 px-3">
                                               <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-slate-100 text-slate-700">
-                                                {STATUS_TRANSLATION[job.status] || job.status}
+                                                {getStatusLabel(job.status)}
                                               </span>
                                             </td>
                                             <td className="py-2.5 px-3 text-right font-black text-teal-700">
@@ -1179,14 +1212,14 @@ export default function Reports() {
                   <tfoot>
                     <tr className="bg-teal-50/70 border-t-2 border-teal-200 font-black text-xs text-slate-900">
                       <td className="p-4 pl-6 uppercase tracking-wider text-teal-900">
-                        TOTAL GERAL ({clientSummaryData.grandTotalClients} clientes)
+                        {t('reports.totalGeneralCount', 'TOTAL GERAL ({{count}} clientes)', { count: clientSummaryData.grandTotalClients })}
                       </td>
                       <td className="p-4">-</td>
                       <td className="p-4 text-center text-teal-900">
-                        {clientSummaryData.grandTotalJobs} casos
+                        {clientSummaryData.grandTotalJobs} {t('reports.cases', 'casos')}
                       </td>
                       <td className="p-4 text-center text-teal-900">
-                        {clientSummaryData.grandTotalItems} itens
+                        {clientSummaryData.grandTotalItems} {t('reports.items', 'itens')}
                       </td>
                       <td className="p-4 text-right text-sm text-teal-900">
                         R$ {clientSummaryData.grandTotalBilling.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -1207,14 +1240,14 @@ export default function Reports() {
         ) : reportType === 'SERVICE_TYPES' && serviceStats ? (
           /* --- VIEW 2: SERVICE_TYPES --- */
           <div className="p-5 sm:p-6 space-y-4">
-            <h3 className="font-bold text-slate-800 text-lg">Tipos de Serviço Detalhado</h3>
+            <h3 className="font-bold text-slate-800 text-lg">{t('reports.detailedServiceTypes', 'Tipos de Serviço Detalhado')}</h3>
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-indigo-50 text-indigo-700 text-[10px] uppercase tracking-widest font-black">
-                    <th className="p-3 rounded-l-lg">Tipo de Serviço</th>
-                    <th className="p-3 text-center">Quantidade Produzida</th>
-                    <th className="p-3 rounded-r-lg text-right">Valor Total Produzido</th>
+                    <th className="p-3 rounded-l-lg">{t('reports.serviceTypeHeader', 'Tipo de Serviço')}</th>
+                    <th className="p-3 text-center">{t('reports.quantityProducedHeader', 'Quantidade Produzida')}</th>
+                    <th className="p-3 rounded-r-lg text-right">{t('reports.totalValueProducedHeader', 'Valor Total Produzido')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -1233,12 +1266,12 @@ export default function Reports() {
           /* --- VIEW 3: PRODUCTION / DETAILED_ORDERS --- */
           <div className="p-5 sm:p-6 space-y-8">
             <div className="border-b border-slate-100 pb-3 flex justify-between items-center">
-              <h3 className="font-bold text-slate-800">Resultados ({filteredJobs.length} trabalhos)</h3>
+              <h3 className="font-bold text-slate-800">{t('reports.resultsCount', 'Resultados ({{count}} trabalhos)', { count: filteredJobs.length })}</h3>
             </div>
             {Object.entries(groupedJobs).length === 0 ? (
               <div className="text-center py-12 text-slate-500">
                 <Search size={48} className="mx-auto mb-4 opacity-20" />
-                <p className="font-bold">Nenhum trabalho encontrado com os filtros atuais.</p>
+                <p className="font-bold">{t('reports.noJobsFound', 'Nenhum trabalho encontrado com os filtros atuais.')}</p>
               </div>
             ) : (
               Object.entries(groupedJobs).map(([groupName, groupJobs]) => (
@@ -1246,7 +1279,7 @@ export default function Reports() {
                   <h4 className="font-black text-lg text-slate-800 border-b border-slate-200 pb-2 flex items-center justify-between">
                     <span>{groupName}</span>
                     <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2.5 py-1 rounded-lg">
-                      {groupJobs.length} {groupJobs.length === 1 ? 'caso' : 'casos'}
+                      {groupJobs.length} {groupJobs.length === 1 ? t('reports.case', 'caso') : t('reports.cases', 'casos')}
                     </span>
                   </h4>
                   <div className="overflow-x-auto">
@@ -1254,31 +1287,31 @@ export default function Reports() {
                       <thead>
                         {reportType === 'DETAILED_ORDERS' ? (
                           <tr className="bg-amber-50 text-amber-700 text-[10px] uppercase tracking-widest font-black">
-                            <th className="p-3 rounded-l-lg">OS #</th>
-                            <th className="p-3">Caixa</th>
-                            <th className="p-3">Dentista</th>
-                            <th className="p-3">Paciente</th>
-                            <th className="p-3">Serviços</th>
-                            <th className="p-3">Valor Serviço</th>
-                            <th className="p-3">Total</th>
-                            <th className="p-3">Entrada</th>
-                            <th className="p-3 rounded-r-lg">Finalização</th>
+                            <th className="p-3 rounded-l-lg">{t('reports.osNumber', 'OS #')}</th>
+                            <th className="p-3">{t('reports.box', 'Caixa')}</th>
+                            <th className="p-3">{t('reports.clientDentist', 'Dentista')}</th>
+                            <th className="p-3">{t('reports.patient', 'Paciente')}</th>
+                            <th className="p-3">{t('reports.services', 'Serviços')}</th>
+                            <th className="p-3">{t('reports.serviceValue', 'Valor Serviço')}</th>
+                            <th className="p-3">{t('reports.total', 'Total')}</th>
+                            <th className="p-3">{t('reports.entryDate', 'Entrada')}</th>
+                            <th className="p-3 rounded-r-lg">{t('reports.completion', 'Finalização')}</th>
                           </tr>
                         ) : (
                           <tr className="bg-slate-50 text-slate-500 text-[10px] uppercase tracking-widest font-black">
-                            <th className="p-3 rounded-l-lg">OS #</th>
-                            <th className="p-3">Paciente</th>
-                            <th className="p-3">Dentista</th>
-                            <th className="p-3">Data</th>
-                            <th className="p-3">Setor</th>
-                            <th className="p-3 rounded-r-lg">Status</th>
+                            <th className="p-3 rounded-l-lg">{t('reports.osNumber', 'OS #')}</th>
+                            <th className="p-3">{t('reports.patient', 'Paciente')}</th>
+                            <th className="p-3">{t('reports.clientDentist', 'Dentista')}</th>
+                            <th className="p-3">{t('reports.date', 'Data')}</th>
+                            <th className="p-3">{t('reports.sector', 'Setor')}</th>
+                            <th className="p-3 rounded-r-lg">{t('reports.status', 'Status')}</th>
                           </tr>
                         )}
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {groupJobs.map(job => {
                           if (reportType === 'DETAILED_ORDERS') {
-                            const finishDate = job.status === JobStatus.COMPLETED && job.history ? new Date(job.history.slice().reverse().find((h: any) => h.action === 'COMPLETED' || h.statusTo === JobStatus.COMPLETED)?.timestamp || new Date()).toLocaleDateString('pt-BR') : '-';
+                            const finishDate = job.status === JobStatus.COMPLETED && job.history ? new Date(job.history.slice().reverse().find((h: any) => h.action === 'COMPLETED' || h.statusTo === JobStatus.COMPLETED)?.timestamp || new Date()).toLocaleDateString() : '-';
                             return (
                               <tr key={job.id} className="hover:bg-slate-50">
                                 <td className="p-3 font-mono font-bold text-slate-700 text-xs">{job.osNumber || '-'}</td>
@@ -1287,7 +1320,7 @@ export default function Reports() {
                                 <td className="p-3 font-bold text-slate-900 text-sm">{job.patientName}</td>
                                 <td className="p-3 text-xs text-slate-600">
                                   {(job.items || []).map((item: any, i: number) => {
-                                    const jt = jobTypes.find(t => t.id === item.jobTypeId);
+                                    const jt = jobTypes.find(tj => tj.id === item.jobTypeId);
                                     return (
                                       <div key={i}>{item.quantity}x {jt ? jt.name : item.name}</div>
                                     );
@@ -1299,7 +1332,7 @@ export default function Reports() {
                                   ))}
                                 </td>
                                 <td className="p-3 font-black text-teal-700 text-sm">R$ {job.totalValue.toFixed(2)}</td>
-                                <td className="p-3 text-sm text-slate-600">{new Date(job.createdAt).toLocaleDateString('pt-BR')}</td>
+                                <td className="p-3 text-sm text-slate-600">{new Date(job.createdAt).toLocaleDateString()}</td>
                                 <td className="p-3 text-sm text-slate-600">{finishDate}</td>
                               </tr>
                             );
@@ -1309,9 +1342,9 @@ export default function Reports() {
                                 <td className="p-3 font-mono font-bold text-slate-700 text-xs">{job.osNumber || '-'}</td>
                                 <td className="p-3 font-bold text-slate-900 text-sm">{job.patientName}</td>
                                 <td className="p-3 text-sm text-slate-600">{job.dentistName}</td>
-                                <td className="p-3 text-sm text-slate-600">{new Date(dateType === 'CREATED' ? job.createdAt : job.dueDate).toLocaleDateString('pt-BR')}</td>
+                                <td className="p-3 text-sm text-slate-600">{new Date(dateType === 'CREATED' ? job.createdAt : job.dueDate).toLocaleDateString()}</td>
                                 <td className="p-3 text-sm text-slate-600">{job.currentSector || 'Recepção'}</td>
-                                <td className="p-3 text-xs font-bold text-slate-500">{STATUS_TRANSLATION[job.status] || job.status}</td>
+                                <td className="p-3 text-xs font-bold text-slate-500">{getStatusLabel(job.status)}</td>
                               </tr>
                             );
                           }

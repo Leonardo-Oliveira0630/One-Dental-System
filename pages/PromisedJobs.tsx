@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useApp } from '../context/AppContext';
 import { Job, UrgencyLevel, JobStatus } from '../types';
 import { AlertTriangle, Calendar, Clock, Edit2, Save } from 'lucide-react';
@@ -6,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { getContrastColor } from '../services/mockData';
 
 export const PromisedJobs = () => {
+  const { t } = useTranslation();
   const { jobs, updateJob } = useApp();
   const navigate = useNavigate();
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
@@ -77,7 +79,7 @@ export const PromisedJobs = () => {
         
         <div className="text-right mb-2">
             <span className="text-[10px] font-bold bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-600 dark:text-slate-300 uppercase">
-                {job.currentSector || 'Recepção'}
+                {job.currentSector || t('sectors.reception', 'Recepção')}
             </span>
         </div>
 
@@ -94,24 +96,25 @@ export const PromisedJobs = () => {
                         value={noteContent}
                         onChange={e => setNoteContent(e.target.value)}
                         className="w-full text-xs p-2 bg-white dark:bg-[#0B0F17] text-slate-900 dark:text-slate-100 border border-blue-300 dark:border-blue-500 rounded focus:ring-1 focus:ring-blue-500 outline-none"
-                        placeholder="Lembrete para produção..."
+                        placeholder={t('promised.productionReminderPlaceholder', 'Lembrete para produção...')}
                         autoFocus
                     />
                     <button 
                         onClick={() => handleSaveNote(job.id)}
                         className="self-end px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded flex items-center gap-1 transition-colors"
                     >
-                        <Save size={12} /> Salvar
+                        <Save size={12} /> {t('common.save', 'Salvar')}
                     </button>
                 </div>
             ) : (
                 <div className="flex justify-between items-start group">
                      <p className={`text-xs italic ${job.managerNotes ? 'text-blue-800 dark:text-blue-400 font-medium' : 'text-slate-400 dark:text-slate-500'}`}>
-                        {job.managerNotes || 'Adicionar lembrete de produção...'}
+                        {job.managerNotes || t('promised.addProductionReminder', 'Adicionar lembrete de produção...')}
                      </p>
                      <button 
                         onClick={() => handleEditNote(job)}
                         className="text-slate-300 dark:text-slate-500 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                        title={t('common.edit', 'Editar')}
                     >
                         <Edit2 size={12} />
                      </button>
@@ -126,9 +129,9 @@ export const PromisedJobs = () => {
        <div className="flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                <AlertTriangle className="text-orange-500" /> Casos Prometidos (VIP)
+                <AlertTriangle className="text-orange-500" /> {t('promised.title', 'Casos Prometidos (VIP)')}
             </h1>
-            <p className="text-slate-500 dark:text-slate-400">Monitoramento intensivo de prazos e fiscalização.</p>
+            <p className="text-slate-500 dark:text-slate-400">{t('promised.subtitle', 'Monitoramento intensivo de prazos e fiscalização.')}</p>
           </div>
        </div>
 
@@ -137,13 +140,13 @@ export const PromisedJobs = () => {
            <div className="flex-1 min-w-[280px]">
                 <div className="bg-red-50 dark:bg-red-950/40 p-3 rounded-t-xl border-b-2 border-red-200 dark:border-red-900/50 flex justify-between items-center">
                     <h3 className="font-bold text-red-800 dark:text-red-300 flex items-center gap-2">
-                        <AlertTriangle size={16} /> Atrasados
+                        <AlertTriangle size={16} /> {t('promised.delayed', 'Atrasados')}
                     </h3>
                     <span className="bg-red-200 dark:bg-red-900/60 text-red-800 dark:text-red-200 text-xs font-bold px-2 py-0.5 rounded-full">{grouped.delayed.length}</span>
                 </div>
                 <div className="bg-slate-100/50 dark:bg-[#0B0F17] p-3 min-h-[500px] rounded-b-xl border border-t-0 border-slate-200 dark:border-slate-800">
                     {grouped.delayed.map(j => renderJobCard(j, 'border-red-500'))}
-                    {grouped.delayed.length === 0 && <p className="text-center text-slate-400 dark:text-slate-500 text-sm py-4">Nenhum atraso.</p>}
+                    {grouped.delayed.length === 0 && <p className="text-center text-slate-400 dark:text-slate-500 text-sm py-4">{t('promised.noDelays', 'Nenhum atraso.')}</p>}
                 </div>
            </div>
 
@@ -151,13 +154,13 @@ export const PromisedJobs = () => {
            <div className="flex-1 min-w-[280px]">
                 <div className="bg-yellow-50 dark:bg-amber-950/40 p-3 rounded-t-xl border-b-2 border-yellow-200 dark:border-amber-900/50 flex justify-between items-center">
                     <h3 className="font-bold text-yellow-800 dark:text-amber-300 flex items-center gap-2">
-                        <Clock size={16} /> Para Hoje
+                        <Clock size={16} /> {t('promised.today', 'Para Hoje')}
                     </h3>
                     <span className="bg-yellow-200 dark:bg-amber-900/60 text-yellow-800 dark:text-amber-200 text-xs font-bold px-2 py-0.5 rounded-full">{grouped.today.length}</span>
                 </div>
                 <div className="bg-slate-100/50 dark:bg-[#0B0F17] p-3 min-h-[500px] rounded-b-xl border border-t-0 border-slate-200 dark:border-slate-800">
                     {grouped.today.map(j => renderJobCard(j, 'border-yellow-500'))}
-                    {grouped.today.length === 0 && <p className="text-center text-slate-400 dark:text-slate-500 text-sm py-4">Tudo entregue hoje.</p>}
+                    {grouped.today.length === 0 && <p className="text-center text-slate-400 dark:text-slate-500 text-sm py-4">{t('promised.allDeliveredToday', 'Tudo entregue hoje.')}</p>}
                 </div>
            </div>
 
@@ -165,13 +168,13 @@ export const PromisedJobs = () => {
            <div className="flex-1 min-w-[280px]">
                 <div className="bg-blue-50 dark:bg-blue-950/40 p-3 rounded-t-xl border-b-2 border-blue-200 dark:border-blue-900/50 flex justify-between items-center">
                     <h3 className="font-bold text-blue-800 dark:text-blue-300 flex items-center gap-2">
-                        <Calendar size={16} /> Amanhã
+                        <Calendar size={16} /> {t('promised.tomorrow', 'Amanhã')}
                     </h3>
                     <span className="bg-blue-200 dark:bg-blue-900/60 text-blue-800 dark:text-blue-200 text-xs font-bold px-2 py-0.5 rounded-full">{grouped.tomorrow.length}</span>
                 </div>
                 <div className="bg-slate-100/50 dark:bg-[#0B0F17] p-3 min-h-[500px] rounded-b-xl border border-t-0 border-slate-200 dark:border-slate-800">
                      {grouped.tomorrow.map(j => renderJobCard(j, 'border-blue-500'))}
-                     {grouped.tomorrow.length === 0 && <p className="text-center text-slate-400 dark:text-slate-500 text-sm py-4">Nada para amanhã.</p>}
+                     {grouped.tomorrow.length === 0 && <p className="text-center text-slate-400 dark:text-slate-500 text-sm py-4">{t('promised.nothingForTomorrow', 'Nada para amanhã.')}</p>}
                 </div>
            </div>
 
@@ -179,7 +182,7 @@ export const PromisedJobs = () => {
             <div className="flex-1 min-w-[280px]">
                 <div className="bg-slate-50 dark:bg-slate-900/60 p-3 rounded-t-xl border-b-2 border-slate-200 dark:border-slate-800 flex justify-between items-center">
                     <h3 className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                        <Calendar size={16} /> Próximos
+                        <Calendar size={16} /> {t('promised.future', 'Próximos')}
                     </h3>
                     <span className="bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold px-2 py-0.5 rounded-full">{grouped.future.length}</span>
                 </div>

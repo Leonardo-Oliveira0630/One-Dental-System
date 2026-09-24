@@ -666,7 +666,7 @@ function OrderDetailModal({
               {order.invoiceNumber && (
                 <div className="space-y-1">
                   <span className="text-[11px] font-bold text-zinc-400 dark:text-slate-500 uppercase flex items-center gap-1">
-                    <FileText size={12} /> Nota Fiscal (DANFE)
+                    <FileText size={12} /> {t('store.invoiceDanfe', 'Nota Fiscal (DANFE)')}
                   </span>
                   <p className="font-mono font-bold text-zinc-900 dark:text-slate-200">
                     {order.invoiceNumber}
@@ -677,10 +677,10 @@ function OrderDetailModal({
               {order.estimatedDeliveryDate && (
                 <div className="space-y-1">
                   <span className="text-[11px] font-bold text-zinc-400 dark:text-slate-500 uppercase flex items-center gap-1">
-                    <Calendar size={12} /> Previsão de Entrega
+                    <Calendar size={12} /> {t('store.estimatedDelivery', 'Previsão de Entrega')}
                   </span>
                   <p className="font-bold text-zinc-900 dark:text-slate-200">
-                    {new Date(order.estimatedDeliveryDate).toLocaleDateString('pt-BR')}
+                    {format(new Date(order.estimatedDeliveryDate), 'dd/MM/yyyy')}
                   </p>
                 </div>
               )}
@@ -714,7 +714,7 @@ function OrderDetailModal({
                       rel="noreferrer"
                       className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
                     >
-                      <span>Acompanhar na Transportadora</span>
+                      <span>{t('store.trackOnCarrier', 'Acompanhar na Transportadora')}</span>
                       <ExternalLink size={13} />
                     </a>
                   </div>
@@ -724,7 +724,7 @@ function OrderDetailModal({
                 {order.trackingEvents && order.trackingEvents.length > 0 && (
                   <div className="pt-3 border-t border-blue-200 dark:border-blue-800/60 space-y-2">
                     <span className="text-[10px] font-bold text-blue-800 dark:text-blue-300 uppercase tracking-wider block">
-                      Movimentações de Rastreio (Frenet / Transportadora):
+                      {t('store.trackingMovements', 'Movimentações de Rastreio (Frenet / Transportadora):')}
                     </span>
                     <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                       {order.trackingEvents.map((evt, eIdx) => (
@@ -733,8 +733,8 @@ function OrderDetailModal({
                           <div className="flex-1 space-y-0.5">
                             <p className="font-bold text-zinc-900 dark:text-white text-xs">{evt.description}</p>
                             <div className="flex items-center justify-between text-[10px] text-zinc-500 dark:text-slate-400">
-                              <span>{evt.location || 'Em trânsito'}</span>
-                              <span>{evt.date ? new Date(evt.date).toLocaleString('pt-BR') : ''}</span>
+                              <span>{evt.location || t('store.inTransit', 'Em trânsito')}</span>
+                              <span>{evt.date ? format(new Date(evt.date), "dd/MM/yyyy HH:mm") : ''}</span>
                             </div>
                           </div>
                         </div>
