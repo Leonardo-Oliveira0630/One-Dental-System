@@ -17,6 +17,7 @@ import { AlertPopup } from './AlertSystem';
 import { PWAInstallPrompt } from './PWAInstallPrompt';
 import { JobSearch } from './JobSearch';
 import { NotificationCenter } from './NotificationCenter';
+import { LanguageSelector } from './LanguageSelector';
 import * as firestorePkg from 'firebase/firestore';
 import { db } from '../services/firebaseConfig';
 import { getOrganizationBySlug, subscribeSupplierConversations } from '../services/firebaseService';
@@ -516,6 +517,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                    </button>
                  )}
                  <NotificationCenter />
+                 <LanguageSelector variant="compact" />
                  {currentUser ? (
                    <button 
                      onClick={toggleTheme}
@@ -554,6 +556,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                
                <div className="flex items-center gap-2 shrink-0 md:hidden">
                    <NotificationCenter />
+                   <LanguageSelector variant="compact" />
                    <button 
                      onClick={toggleTheme}
                      className="w-9 h-9 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-200 transition-colors shadow-sm"
@@ -578,6 +581,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
            
            <div className="hidden md:flex items-center gap-3 shrink-0 px-2 lg:px-4">
                <NotificationCenter />
+               <LanguageSelector />
                <button 
                  onClick={toggleTheme}
                  className="w-9 h-9 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-200 transition-colors shadow-sm"
@@ -677,6 +681,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
 
           <div className="flex items-center gap-3 lg:gap-4 shrink-0">
               <NotificationCenter />
+              <LanguageSelector />
               <button 
                 onClick={toggleTheme}
                 className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-200 transition-colors shadow-sm"

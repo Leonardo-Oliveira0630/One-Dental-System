@@ -17,8 +17,8 @@ export const getDetailedPlanFeatures = (
   customT?: (key: string, defaultVal: string, opts?: any) => string
 ): PlanFeatureItem[] => {
   const tr = (key: string, defVal: string, opts?: any): string => {
-    if (customT) return customT(key, defVal, opts);
-    return i18n.t(key, { defaultValue: defVal, ...opts });
+    if (customT) return String(customT(key, defVal, opts));
+    return String(i18n.t(key, { defaultValue: defVal, ...opts }));
   };
 
   const audience = regType || plan.targetAudience || 'LAB';

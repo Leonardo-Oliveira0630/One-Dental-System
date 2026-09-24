@@ -188,11 +188,13 @@ export const Profile = () => {
 
             <div className="px-4 pb-4 sm:px-6 sm:pb-6 space-y-6 pt-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:p-6">
-                <div>
+                <div className="md:col-span-2 min-w-0">
                   <label className="text-[10px] font-black text-slate-400 uppercase block mb-1 tracking-widest">{t('profile.emailLabel', 'Email')}</label>
-                  <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-slate-900/60 p-3 rounded-xl border border-slate-200 dark:border-slate-700 font-medium">
-                    <Mail size={18} className="text-slate-400" />
-                    {currentUser.email}
+                  <div className="flex items-center gap-2.5 text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-slate-900/60 p-3 rounded-xl border border-slate-200 dark:border-slate-700 font-medium min-w-0 overflow-hidden">
+                    <Mail size={18} className="text-slate-400 dark:text-slate-500 shrink-0" />
+                    <span className="truncate min-w-0 flex-1 select-all text-sm" title={currentUser.email}>
+                      {currentUser.email}
+                    </span>
                   </div>
                 </div>
                 <div className="md:col-span-2">
@@ -539,9 +541,11 @@ export const Profile = () => {
                   <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider block">
                     {t('profile.confirmationEmailLabel', 'Endereço de E-mail de Confirmação')}
                   </label>
-                  <div className="flex items-center gap-2 p-3 bg-slate-100 dark:bg-slate-900 rounded-2xl text-sm font-bold text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
-                    <Mail size={18} className="text-slate-500" />
-                    {currentUser.email}
+                  <div className="flex items-center gap-2.5 p-3 bg-slate-100 dark:bg-slate-900 rounded-2xl text-sm font-bold text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 min-w-0 overflow-hidden">
+                    <Mail size={18} className="text-slate-500 shrink-0" />
+                    <span className="truncate min-w-0 flex-1 select-all" title={currentUser.email}>
+                      {currentUser.email}
+                    </span>
                   </div>
                   <p className="text-[11px] text-slate-400 font-medium mt-1">
                     {t('profile.verificationCodeHint', 'Enviaremos um código de verificação de 6 dígitos para este endereço de e-mail.')}

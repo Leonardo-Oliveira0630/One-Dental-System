@@ -142,7 +142,7 @@ export default function PricingSection({ plans, selectedPlanId, onSelectPlan, ti
       <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 max-w-7xl gap-4 py-6 px-4 mx-auto relative z-10`}>
         {sortedPlans.map((plan, index) => {
           const isSelected = selectedPlanId === plan.id;
-          const features = getDetailedPlanFeatures(plan, regType, (key, defVal, opts) => t(key, { defaultValue: defVal, ...opts }));
+          const features = getDetailedPlanFeatures(plan, regType, (key, defVal, opts) => String(t(key, { defaultValue: defVal, ...opts })));
           const isExclusive = isPlanPrivate(plan);
           
           let displayPrice = plan.price;

@@ -405,6 +405,7 @@ export const Inventory = () => {
             }
         });
 
+        list.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' }));
         return list;
     }, [productCatalogItems, inventoryItems]);
 
@@ -440,9 +441,13 @@ export const Inventory = () => {
         return labDatabaseProducts.slice(0, 10);
     }, [itemForm.code, itemForm.name, labDatabaseProducts]);
 
-    const filteredCategories = inventoryCategories.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    const filteredCategories = React.useMemo(() => {
+        return [...inventoryCategories]
+            .filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()))
+            .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' }));
+    }, [inventoryCategories, searchQuery]);
     
-    // Group all items by owner
+    // Group all items by owner and sort items alphabetically within each stock
     const itemGroups = React.useMemo(() => {
         const groups: Record<string, InventoryItem[]> = { 'LAB': [] };
         inventoryItems.forEach(item => {
@@ -450,18 +455,26 @@ export const Inventory = () => {
             if (!groups[owner]) groups[owner] = [];
             groups[owner].push(item);
         });
+
+        // Ordenar itens de cada estoque em ordem alfabética por nome
+        Object.keys(groups).forEach(key => {
+            groups[key].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' }));
+        });
+
         return groups;
     }, [inventoryItems]);
 
     const filteredItems = React.useMemo(() => {
         if (!activeOwnerGroup) return [];
         const items = itemGroups[activeOwnerGroup] || [];
-        return items.filter(i => 
-            i.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-            (i.code && i.code.toLowerCase().includes(searchQuery.toLowerCase())) ||
-            (i.description && i.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
-            (inventoryCategories.find(c => c.id === i.categoryId)?.name || '').toLowerCase().includes(searchQuery.toLowerCase())
-        );
+        return items
+            .filter(i => 
+                i.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                (i.code && i.code.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                (i.description && i.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                (inventoryCategories.find(c => c.id === i.categoryId)?.name || '').toLowerCase().includes(searchQuery.toLowerCase())
+            )
+            .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' }));
     }, [activeOwnerGroup, itemGroups, searchQuery, inventoryCategories]);
 
     const getDentistName = (id?: string | null) => {
@@ -474,13 +487,19 @@ export const Inventory = () => {
         const keys = Array.from(new Set([...Object.keys(itemGroups), ...emptyStocks]));
         if (!keys.includes('LAB')) keys.unshift('LAB');
         
-        return keys.map(key => {
+        const list = keys.map(key => {
             return {
                 id: key,
                 name: getDentistName(key === 'LAB' ? null : key),
                 itemCount: itemGroups[key]?.length || 0
             };
         }).filter(opt => opt.name.toLowerCase().includes(searchQuery.toLowerCase()));
+
+        return list.sort((a, b) => {
+            if (a.id === 'LAB') return -1;
+            if (b.id === 'LAB') return 1;
+            return a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' });
+        });
     }, [itemGroups, emptyStocks, searchQuery, clients]);
 
     // Catalog Item Modal
@@ -490,11 +509,15 @@ export const Inventory = () => {
         name: '', description: '', code: '', type: 'MATERIAL', categoryId: '', costPrice: 0, sellPrice: 0
     });
 
-    const filteredCatalogItems = productCatalogItems?.filter(i => 
-        i.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        (i.code && i.code.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (i.description && i.description.toLowerCase().includes(searchQuery.toLowerCase()))
-    ) || [];
+    const filteredCatalogItems = React.useMemo(() => {
+        return (productCatalogItems || [])
+            .filter(i => 
+                i.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                (i.code && i.code.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                (i.description && i.description.toLowerCase().includes(searchQuery.toLowerCase()))
+            )
+            .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' }));
+    }, [productCatalogItems, searchQuery]);
 
     const openCatalogModal = (item?: import('../../types').ProductCatalogItem) => {
         if (item) {

@@ -32,7 +32,11 @@ export const ClinicInventory = () => {
         name: '', description: '', type: 'MATERIAL', categoryId: '', currentStock: 0, minStock: 0, costPrice: 0, sellPrice: 0, dentistOwnerId: ''
     });
 
-    const filteredCategories = inventoryCategories.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    const filteredCategories = React.useMemo(() => {
+        return [...inventoryCategories]
+            .filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()))
+            .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' }));
+    }, [inventoryCategories, searchQuery]);
     
     // Group all items by owner (dentist in clinic or CLINIC general)
     const itemGroups = React.useMemo(() => {
@@ -42,18 +46,23 @@ export const ClinicInventory = () => {
             if (!groups[owner]) groups[owner] = [];
             groups[owner].push(item);
         });
+        Object.keys(groups).forEach(key => {
+            groups[key].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' }));
+        });
         return groups;
     }, [inventoryItems]);
 
     const filteredItems = React.useMemo(() => {
         if (!activeOwnerGroup) return [];
         const items = itemGroups[activeOwnerGroup] || [];
-        return items.filter(i => 
-            i.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-            (i.code && i.code.toLowerCase().includes(searchQuery.toLowerCase())) ||
-            (i.description && i.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
-            (inventoryCategories.find(c => c.id === i.categoryId)?.name || '').toLowerCase().includes(searchQuery.toLowerCase())
-        );
+        return items
+            .filter(i => 
+                i.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                (i.code && i.code.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                (i.description && i.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                (inventoryCategories.find(c => c.id === i.categoryId)?.name || '').toLowerCase().includes(searchQuery.toLowerCase())
+            )
+            .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' }));
     }, [activeOwnerGroup, itemGroups, searchQuery, inventoryCategories]);
 
     const getDentistName = (id?: string | null) => {
@@ -62,13 +71,21 @@ export const ClinicInventory = () => {
         return d ? d.name : 'Desconhecido';
     };
 
-    const ownerOptions = Object.keys(itemGroups).map(key => {
-        return {
-            id: key,
-            name: getDentistName(key === 'CLINIC' ? null : key),
-            itemCount: itemGroups[key].length
-        };
-    }).filter(opt => opt.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    const ownerOptions = React.useMemo(() => {
+        return Object.keys(itemGroups).map(key => {
+            return {
+                id: key,
+                name: getDentistName(key === 'CLINIC' ? null : key),
+                itemCount: itemGroups[key].length
+            };
+        })
+        .filter(opt => opt.name.toLowerCase().includes(searchQuery.toLowerCase()))
+        .sort((a, b) => {
+            if (a.id === 'CLINIC') return -1;
+            if (b.id === 'CLINIC') return 1;
+            return a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' });
+        });
+    }, [itemGroups, clinicDentists, searchQuery]);
 
     const openCatModal = (cat?: InventoryCategory) => {
         if (cat) {
