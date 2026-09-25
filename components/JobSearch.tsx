@@ -100,6 +100,8 @@ export const JobSearch = () => {
       let newSectorMovements = [...(job.sectorMovements || []).filter(Boolean)];
       const currentOpenMovements = newSectorMovements.filter(m => !m.exitTime);
 
+      let newExecutions = [...(job.itemExecutions || [])];
+
       if (actionType === 'ENTRY') {
           currentOpenMovements.forEach(m => {
               const idx = newSectorMovements.findIndex(sm => sm.id === m.id);
@@ -119,6 +121,44 @@ export const JobSearch = () => {
               entryTime: new Date(),
               entryUserId: currentUser.id,
               entryUserName: currentUser.name
+          });
+
+          // Also update or add itemExecutions with entryTime
+          (job.items || []).forEach(item => {
+              const jt = jobTypes.find(t => t.id === item.jobTypeId);
+              if (jt?.allowedSectors && jt.allowedSectors.length > 0 && !jt.allowedSectors.includes(sector)) {
+                  return;
+              }
+              const execIdx = newExecutions.findIndex(e => e.itemId === item.id && e.sector === sector);
+              if (execIdx === -1) {
+                  newExecutions.push({
+                      itemId: item.id,
+                      jobTypeId: item.jobTypeId,
+                      jobTypeName: jt?.name || '',
+                      sector: sector,
+                      userId: currentUser.id,
+                      userName: currentUser.name,
+                      entryTime: new Date(),
+                      timestamp: new Date(),
+                      stageTimes: {
+                          BASE: {
+                              entryTime: new Date(),
+                              entryUserId: currentUser.id
+                          }
+                      }
+                  });
+              } else {
+                  const exec = { ...newExecutions[execIdx] };
+                  exec.stageTimes = exec.stageTimes ? { ...exec.stageTimes } : {};
+                  const curBase = exec.stageTimes['BASE'] || {};
+                  exec.stageTimes['BASE'] = {
+                      ...curBase,
+                      entryTime: curBase.entryTime || new Date(),
+                      entryUserId: curBase.entryUserId || currentUser.id
+                  };
+                  if (!exec.entryTime) exec.entryTime = new Date();
+                  newExecutions[execIdx] = exec;
+              }
           });
       } else if (actionType === 'EXIT') {
           const openMovementIndex = newSectorMovements.findIndex(m => m.sector === sector && !m.exitTime);
@@ -141,12 +181,31 @@ export const JobSearch = () => {
                   };
               }
           }
+
+          // Mark exitTime on itemExecutions for this sector
+          (job.items || []).forEach(item => {
+              const execIdx = newExecutions.findIndex(e => e.itemId === item.id && e.sector === sector);
+              if (execIdx !== -1) {
+                  const exec = { ...newExecutions[execIdx] };
+                  exec.stageTimes = exec.stageTimes ? { ...exec.stageTimes } : {};
+                  const curBase = exec.stageTimes['BASE'] || {};
+                  exec.stageTimes['BASE'] = {
+                      ...curBase,
+                      exitTime: new Date(),
+                      exitUserId: currentUser.id
+                  };
+                  exec.timestamp = new Date();
+                  exec.isBaseChecked = true;
+                  newExecutions[execIdx] = exec;
+              }
+          });
       }
 
       await updateJob(job.id, {
         currentSector: sector,
         status: newStatus,
         sectorMovements: newSectorMovements,
+        itemExecutions: newExecutions,
         history: [...(job.history || []).filter(Boolean), {
           id: Math.random().toString(),
           timestamp: new Date(),

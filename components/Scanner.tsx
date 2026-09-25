@@ -67,6 +67,21 @@ export const GlobalScanner: React.FC = () => {
 
   const activeanySectorRef = useRef(activeanySector);
 
+  // Initialize activeanySector when user is available or changes
+  useEffect(() => {
+    if (!activeanySector && currentUser) {
+      const defaultSec = currentUser.sector || (currentUser.sectors && currentUser.sectors.length > 0 ? currentUser.sectors[0] : '');
+      if (defaultSec) {
+        setActiveanySector(defaultSec);
+        activeanySectorRef.current = defaultSec;
+      }
+    }
+  }, [currentUser, activeanySector]);
+
+  useEffect(() => {
+    activeanySectorRef.current = activeanySector;
+  }, [activeanySector]);
+
   
   const [commissionEarned, setCommissionEarned] = useState<number>(0);
   const [eligibleItems, setEligibleItems] = useState<{item: JobItem, jobType?: JobType}[]>([]);
@@ -143,7 +158,8 @@ export const GlobalScanner: React.FC = () => {
     scanActionRef.current = scanAction;
     nextSectorRef.current = nextSector;
     nfcBoxesRef.current = nfcBoxes;
-  }, [currentUser, isCameraActive, jobs, jobMap, commissions, jobTypes, scannedJob, scanAction, nextSector, nfcBoxes]);
+    activeanySectorRef.current = activeanySector;
+  }, [currentUser, isCameraActive, jobs, jobMap, commissions, jobTypes, scannedJob, scanAction, nextSector, nfcBoxes, activeanySector]);
 
   
   // Web NFC API integration
@@ -498,6 +514,9 @@ export const GlobalScanner: React.FC = () => {
               setSelectedItemIds([]);
               setScanAction('ENTRY');
           }
+          const defaultSector = activeanySector || currentUser?.sector || (currentUser?.sectors && currentUser.sectors.length > 0 ? currentUser.sectors[0] : (job.currentSector || 'Gestão'));
+          setActiveanySector(defaultSector);
+          activeanySectorRef.current = defaultSector;
           setScannedJob(job);
         } else {
             console.warn(`[Scanner] Trabalho não encontrado para o código: ${cleanedCode}`);
@@ -534,7 +553,7 @@ export const GlobalScanner: React.FC = () => {
 
     setIsUploading(true);
     try {
-        let sector = activeanySectorRef.current || user.sector || currentJob.currentSector || 'Gestão';
+        let sector = activeanySector || activeanySectorRef.current || user.sector || (user.sectors && user.sectors[0]) || currentJob.currentSector || 'Gestão';
         
         let newExecutions = [...(currentJob.itemExecutions || [])];
         let executionIndex = newExecutions.findIndex(e => e.itemId === item.id && e.sector === sector);
@@ -547,6 +566,7 @@ export const GlobalScanner: React.FC = () => {
                 sector: sector,
                 userId: user.id,
                 userName: user.name,
+                entryTime: new Date(),
                 timestamp: new Date(),
                 stageTimes: {}
             });
@@ -562,11 +582,23 @@ export const GlobalScanner: React.FC = () => {
         let commissionEarned = 0;
 
         if (isEntering) {
-            exec.stageTimes[stageKey] = { ...currentStageTime, entryTime: new Date(), entryUserId: user.id };
-            // Optional: also update the execution's timestamp so the PRODUCTION tab knows there's activity
+            exec.stageTimes[stageKey] = { 
+                ...currentStageTime, 
+                entryTime: new Date(), 
+                entryUserId: user.id 
+            };
+            exec.userId = user.id;
+            exec.userName = user.name;
+            exec.entryTime = new Date();
             exec.timestamp = new Date();
         } else if (isExiting) {
-            exec.stageTimes[stageKey] = { ...currentStageTime, exitTime: new Date(), exitUserId: user.id };
+            exec.stageTimes[stageKey] = { 
+                ...currentStageTime, 
+                exitTime: new Date(), 
+                exitUserId: user.id 
+            };
+            exec.userId = user.id;
+            exec.userName = user.name;
             exec.timestamp = new Date();
             
             if (stageName) {
@@ -594,19 +626,12 @@ export const GlobalScanner: React.FC = () => {
             action: `${actionText} - ${targetName} no setor ${sector}`,
             userId: user.id,
             userName: user.name,
-            sector: sector,
-                    amount: commissionEarned,
-                    status: 'PENDING' as CommissionStatus,
-                    createdAt: new Date(),
-                    patientName: currentJob.patientName
-                }];
+            sector: sector
+        }];
 
-        // We DO NOT update sectorMovements here anymore, to avoid treating the whole job as started
-        // Actually, we can update sectorMovements so the OS appears in this sector overall.
-        // Let's keep it but NOT rely on it in JobDetails for the individual items!
         let newSectorMovements = [...(currentJob.sectorMovements || []).filter(Boolean)];
         let openMovementIndex = newSectorMovements.findIndex(m => m.sector === sector && !m.exitTime);
-        if (openMovementIndex === -1) {
+        if (openMovementIndex === -1 && isEntering) {
             newSectorMovements.push({
                 id: Math.random().toString(),
                 sector: sector,
@@ -614,20 +639,33 @@ export const GlobalScanner: React.FC = () => {
                 entryUserId: user.id,
                 entryUserName: user.name
             });
+        } else if (openMovementIndex !== -1 && isExiting) {
+            // Check if all items in this sector are done
+            const allItemsDone = (currentJob.items || []).every(i => {
+                const ex = newExecutions.find(e => e.itemId === i.id && e.sector === sector);
+                return ex && ex.stageTimes && (ex.stageTimes['BASE']?.exitTime || (ex.executedStages && ex.executedStages.length > 0));
+            });
+            if (allItemsDone) {
+                newSectorMovements[openMovementIndex] = {
+                    ...newSectorMovements[openMovementIndex],
+                    exitTime: new Date(),
+                    exitUserId: user.id,
+                    exitUserName: user.name
+                };
+            }
         }
 
         const newStatus = (currentJob.status === JobStatus.PENDING || currentJob.status === JobStatus.WAITING_APPROVAL) 
             ? JobStatus.IN_PROGRESS 
             : currentJob.status;
 
-        const updatedJob = {
+        const updatedJob: Job = {
             ...currentJob,
             status: newStatus,
             currentSector: sector,
             history: newHistory,
             sectorMovements: newSectorMovements,
-            itemExecutions: newExecutions,
-            updatedAt: new Date()
+            itemExecutions: newExecutions
         };
 
         await updateJob(currentJob.id, updatedJob);
@@ -665,10 +703,11 @@ export const GlobalScanner: React.FC = () => {
 
   
   const handleStageAction = (item: JobItem, stageName: string | undefined, currentStatus: 'NOT_STARTED' | 'IN_PROGRESS' | 'DONE') => {
+      const user = currentUserRef.current;
+      let sector = activeanySector || activeanySectorRef.current || user?.sector || (user?.sectors && user.sectors[0]) || 'Gestão';
+
       // 1. Check if it's the BASE service and the sector is not allowed
       if (!stageName) {
-          const user = currentUserRef.current;
-          let sector = activeanySectorRef.current || user?.sector || 'Gestão';
           const jt = jobTypesRef.current.find(t => t.id === item.jobTypeId);
           
           if (jt?.allowedSectors && jt.allowedSectors.length > 0 && !jt.allowedSectors.includes(sector)) {
@@ -893,7 +932,7 @@ export const GlobalScanner: React.FC = () => {
             <div className="space-y-2 max-h-64 overflow-y-auto pr-2 rounded-xl border border-slate-100 p-2 bg-slate-50">
                 {(scannedJob.items || []).map((item) => {
                     const jt = jobTypes.find(t => t.id === item.jobTypeId);
-                    const sector = activeanySector || 'Gestão';
+                    const sector = activeanySector || currentUser?.sector || (currentUser?.sectors && currentUser.sectors[0]) || 'Gestão';
                     const itemSectorStages = item.sectorStages?.[sector] || jt?.sectorStages?.[sector] || [];
                     
                     const execution = scannedJob.itemExecutions?.find(e => e.itemId === item.id && e.sector === sector);
@@ -907,20 +946,23 @@ export const GlobalScanner: React.FC = () => {
                                     <p className="text-xs text-slate-500">Qtd: {
                                         (currentUser?.sector && item.sectorQuantities && item.sectorQuantities[currentUser.sector]) 
                                             ? item.sectorQuantities[currentUser.sector] 
-                                            : item.quantity
+                                             : item.quantity
                                     }</p>
                                 </div>
                                 {(() => {
                                     const baseTimes = stageTimes['BASE'] || {};
                                     let status: 'NOT_STARTED' | 'IN_PROGRESS' | 'DONE' = 'NOT_STARTED';
-                                    if (baseTimes.exitTime) status = 'DONE';
-                                    else if (baseTimes.entryTime) status = 'IN_PROGRESS';
+                                    if (baseTimes.exitTime || (execution?.isBaseChecked && execution?.timestamp)) {
+                                        status = 'DONE';
+                                    } else if (baseTimes.entryTime || execution?.entryTime) {
+                                        status = 'IN_PROGRESS';
+                                    }
 
                                     return (
                                         <button
                                             disabled={status === 'DONE' || isUploading}
                                             onClick={() => handleStageAction(item, undefined, status)}
-                                            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
+                                            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
                                                 status === 'DONE' ? 'bg-green-100 text-green-700' :
                                                 status === 'IN_PROGRESS' ? 'bg-orange-500 text-white hover:bg-orange-600 shadow-md' :
                                                 'bg-blue-600 text-white hover:bg-blue-700 shadow-md'
@@ -937,8 +979,11 @@ export const GlobalScanner: React.FC = () => {
                                     {itemSectorStages.map((stageName: string) => {
                                         const sTime = stageTimes[stageName] || {};
                                         let status: 'NOT_STARTED' | 'IN_PROGRESS' | 'DONE' = 'NOT_STARTED';
-                                        if (sTime.exitTime) status = 'DONE';
-                                        else if (sTime.entryTime) status = 'IN_PROGRESS';
+                                        if (sTime.exitTime || (execution?.executedStages && execution.executedStages.includes(stageName))) {
+                                            status = 'DONE';
+                                        } else if (sTime.entryTime) {
+                                            status = 'IN_PROGRESS';
+                                        }
 
                                         return (
                                             <div key={stageName} className="flex items-center justify-between p-2 hover:bg-slate-50 rounded-lg">
@@ -946,7 +991,7 @@ export const GlobalScanner: React.FC = () => {
                                                 <button
                                                     disabled={status === 'DONE' || isUploading}
                                                     onClick={() => handleStageAction(item, stageName, status)}
-                                                    className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
+                                                    className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
                                                         status === 'DONE' ? 'bg-green-100 text-green-700' :
                                                         status === 'IN_PROGRESS' ? 'bg-orange-500 text-white hover:bg-orange-600 shadow-sm' :
                                                         'bg-blue-600 text-white hover:bg-blue-700 shadow-sm'

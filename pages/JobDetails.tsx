@@ -1311,29 +1311,44 @@ export const JobDetails = () => {
 
           // Prepare new itemExecutions
           let newExecutions = [...(job.itemExecutions || [])];
-          if (editingExecution.originalExecution) {
-              const idx = newExecutions.findIndex(e => e.itemId === editingExecution.item.id && e.sector === editingExecution.sector);
-              if (idx !== -1 && editingExecution.exitTime) {
-                  newExecutions[idx] = {
-                      ...newExecutions[idx],
-                      userId: editingExecution.userId,
-                      userName: labUsers.find(u => u.id === editingExecution.userId)?.name || '',
-                      timestamp: new Date(editingExecution.exitTime)
-                  };
-              } else if (idx !== -1 && !editingExecution.exitTime) {
-                  newExecutions.splice(idx, 1);
-              }
-          } else if (editingExecution.exitTime) {
-              const jt = jobTypes.find(t => t.id === editingExecution.item.jobTypeId);
-              newExecutions.push({
+          const idx = newExecutions.findIndex(e => e.itemId === editingExecution.item.id && e.sector === editingExecution.sector);
+
+          const entryDate = editingExecution.entryTime ? new Date(editingExecution.entryTime) : undefined;
+          const exitDate = editingExecution.exitTime ? new Date(editingExecution.exitTime) : undefined;
+
+          if (entryDate || exitDate) {
+              const existingExec = idx !== -1 ? newExecutions[idx] : null;
+              const stageTimes = existingExec?.stageTimes ? { ...existingExec.stageTimes } : {};
+              const currentBase = stageTimes['BASE'] || {};
+              stageTimes['BASE'] = {
+                  ...currentBase,
+                  entryTime: entryDate || currentBase.entryTime,
+                  entryUserId: entryDate ? editingExecution.userId : currentBase.entryUserId,
+                  exitTime: exitDate || currentBase.exitTime,
+                  exitUserId: exitDate ? editingExecution.userId : currentBase.exitUserId
+              };
+
+              const updatedExec: any = {
                   itemId: editingExecution.item.id,
                   jobTypeId: editingExecution.item.jobTypeId,
-                  jobTypeName: jt?.name || '',
+                  jobTypeName: jobTypes.find(t => t.id === editingExecution.item.jobTypeId)?.name || '',
                   sector: editingExecution.sector,
                   userId: editingExecution.userId,
                   userName: labUsers.find(u => u.id === editingExecution.userId)?.name || '',
-                  timestamp: new Date(editingExecution.exitTime)
-              });
+                  entryTime: entryDate || existingExec?.entryTime,
+                  timestamp: exitDate || existingExec?.timestamp || entryDate,
+                  stageTimes: stageTimes,
+                  isBaseChecked: !!exitDate || existingExec?.isBaseChecked,
+                  executedStages: existingExec?.executedStages || []
+              };
+
+              if (idx !== -1) {
+                  newExecutions[idx] = updatedExec;
+              } else {
+                  newExecutions.push(updatedExec);
+              }
+          } else if (idx !== -1) {
+              newExecutions.splice(idx, 1);
           }
 
           const selectedUser = labUsers.find(u => u.id === editingExecution.userId);
@@ -1349,7 +1364,13 @@ export const JobDetails = () => {
                                 `- DE: ${oldUserName} | Ent: ${oldEntry} | Sai: ${oldExit}\n` +
                                 `- PARA: ${userName} | Ent: ${entryTimeStr} | Sai: ${exitTimeStr}`;
 
+          const newJobStatus = (entryDate && (job.status === JobStatus.PENDING || job.status === JobStatus.WAITING_APPROVAL)) 
+              ? JobStatus.IN_PROGRESS 
+              : job.status;
+
           await updateJob(job.id, {
+              status: newJobStatus,
+              currentSector: editingExecution.sector,
               sectorMovements: newMovements,
               itemExecutions: newExecutions,
               history: [...(job.history || []).filter(Boolean), {
