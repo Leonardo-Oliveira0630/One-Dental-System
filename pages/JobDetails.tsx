@@ -307,7 +307,9 @@ export const JobDetails = () => {
               price: basePrice,
               nature: 'NORMAL',
               selectedVariationIds: reqItem.selectedVariationIds || [],
-              selectedTeeth: reqItem.selectedTeeth || []
+              selectedTeeth: reqItem.selectedTeeth || [],
+              sectorStages: service?.sectorStages ? JSON.parse(JSON.stringify(service.sectorStages)) : undefined,
+              stageQuantities: service?.stageQuantities ? JSON.parse(JSON.stringify(service.stageQuantities)) : undefined
             };
         });
     } else {
@@ -321,7 +323,9 @@ export const JobDetails = () => {
           price: basePrice,
           nature: 'NORMAL',
           selectedVariationIds: req.selectedVariationIds || [],
-          selectedTeeth: req.selectedTeeth || []
+          selectedTeeth: req.selectedTeeth || [],
+          sectorStages: service?.sectorStages ? JSON.parse(JSON.stringify(service.sectorStages)) : undefined,
+          stageQuantities: service?.stageQuantities ? JSON.parse(JSON.stringify(service.stageQuantities)) : undefined
         }];
     }
 
@@ -872,7 +876,9 @@ export const JobDetails = () => {
           selectedVariationIds: newItemVariationIds,
           nature: newItemNature,
           selectedTeeth: newItemTeeth.length > 0 ? newItemTeeth : undefined,
-          color: newItemColor || undefined
+          color: newItemColor || undefined,
+          sectorStages: type.sectorStages ? JSON.parse(JSON.stringify(type.sectorStages)) : undefined,
+          stageQuantities: type.stageQuantities ? JSON.parse(JSON.stringify(type.stageQuantities)) : undefined
       };
       const newItems = [...editItems, newItem];
       setEditItems(newItems);
@@ -902,6 +908,8 @@ export const JobDetails = () => {
                   if (type) {
                       updated.name = type.name;
                       updated.selectedVariationIds = [];
+                      updated.sectorStages = type.sectorStages ? JSON.parse(JSON.stringify(type.sectorStages)) : undefined;
+                      updated.stageQuantities = type.stageQuantities ? JSON.parse(JSON.stringify(type.stageQuantities)) : undefined;
                   }
               }
 

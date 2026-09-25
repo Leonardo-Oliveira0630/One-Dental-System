@@ -392,7 +392,9 @@ export const Cart = ({ onBackToStore }: CartProps = {}) => {
                     promoVariationOptionId: c.jobType.promoVariationOptionId || '',
                     promoVariationOptionIds: c.jobType.promoVariationOptionIds || [],
                     promoVariationOptionName: c.jobType.promoVariationOptionName || '',
-                    promoVariationGroupName: c.jobType.promoVariationGroupName || ''
+                    promoVariationGroupName: c.jobType.promoVariationGroupName || '',
+                    sectorStages: c.jobType.sectorStages ? JSON.parse(JSON.stringify(c.jobType.sectorStages)) : undefined,
+                    stageQuantities: c.jobType.stageQuantities ? JSON.parse(JSON.stringify(c.jobType.stageQuantities)) : undefined
                 };
             }),
             history: [{ id: `hist_${Date.now()}`, timestamp: new Date(), action: 'Criado via Loja Virtual', userId: currentUser.id, userName: currentUser.name }],

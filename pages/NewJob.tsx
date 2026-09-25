@@ -779,7 +779,11 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
         appliedPriceTable: appliedTableName,
         selectedVariationIds: allSelectedOptionIds, 
         variationValues: variationTextValues, 
-        commissionDisabled: commissionDisabled, selectedTeeth: itemSelectedTeeth && itemSelectedTeeth.length > 0 ? itemSelectedTeeth : (manualTeethText.trim() ? [manualTeethText.trim()] : undefined), color: itemColor || undefined 
+        commissionDisabled: commissionDisabled, 
+        selectedTeeth: itemSelectedTeeth && itemSelectedTeeth.length > 0 ? itemSelectedTeeth : (manualTeethText.trim() ? [manualTeethText.trim()] : undefined), 
+        color: itemColor || undefined,
+        sectorStages: activeJobType.sectorStages ? JSON.parse(JSON.stringify(activeJobType.sectorStages)) : undefined,
+        stageQuantities: activeJobType.stageQuantities ? JSON.parse(JSON.stringify(activeJobType.stageQuantities)) : undefined
     };
     setAddedItems([...addedItems, newItem]);
     setSelectedTypeId('');

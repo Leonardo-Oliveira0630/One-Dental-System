@@ -3,11 +3,11 @@ import { useTranslation } from 'react-i18next';
 import * as XLSX from 'xlsx';
 import { useApp } from '../context/AppContext';
 import { JobType, VariationGroup, VariationOption } from '../types';
-import { Plus, Edit2, Trash2, X, Save, Layers, Package, Tag, AlertCircle, Folder, ToggleLeft, ToggleRight, List, Type, Image as ImageIcon, UploadCloud, Store, Eye, EyeOff, PercentCircle, Briefcase, Share2, Check, Search, Settings, ChevronDown, ChevronRight, Download, FileCode, Clock } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Save, Layers, Package, Tag, AlertCircle, Folder, ToggleLeft, ToggleRight, List, Type, Image as ImageIcon, UploadCloud, Store, Eye, EyeOff, PercentCircle, Briefcase, Share2, Check, Search, Settings, ChevronDown, ChevronRight, Download, FileCode, Clock, CheckSquare } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
 
-type Tab = 'BASIC' | 'VARIATIONS';
+type Tab = 'BASIC' | 'VARIATIONS' | 'STAGES';
 
 // Helper to generate Firestore-compatible IDs (alphanumeric)
 const generateFirestoreId = (prefix: string) => {
@@ -296,6 +296,51 @@ export const JobTypes = () => {
   const [tempSectorStages, setTempSectorStages] = useState<Record<string, string[]>>({});
   const [expandedSectors, setExpandedSectors] = useState<Record<string, boolean>>({});
 
+  // Inline Form Stage Configuration State
+  const [formSectorStages, setFormSectorStages] = useState<Record<string, string[]>>({});
+  const [expandedFormSectors, setExpandedFormSectors] = useState<Record<string, boolean>>({});
+
+  const toggleFormSectorExpand = (sectorName: string) => {
+    setExpandedFormSectors(prev => ({ ...prev, [sectorName]: !prev[sectorName] }));
+  };
+
+  const toggleFormStageForSector = (sectorName: string, stageName: string) => {
+    setFormSectorStages(prev => {
+      const currentStages = prev[sectorName] || [];
+      const exists = currentStages.includes(stageName);
+      const updatedStages = exists
+        ? currentStages.filter(st => st !== stageName)
+        : [...currentStages, stageName];
+      return { ...prev, [sectorName]: updatedStages };
+    });
+  };
+
+  const selectAllFormStagesForSector = (sectorName: string, allStages: string[]) => {
+    setFormSectorStages(prev => ({
+      ...prev,
+      [sectorName]: [...allStages]
+    }));
+  };
+
+  const clearAllFormStagesForSector = (sectorName: string) => {
+    setFormSectorStages(prev => {
+      const next = { ...prev };
+      delete next[sectorName];
+      return next;
+    });
+  };
+
+  const expandAllFormSectors = (expand: boolean) => {
+    const next: Record<string, boolean> = {};
+    sectors.forEach(s => { next[s.name] = expand; });
+    setExpandedFormSectors(next);
+  };
+
+  const totalFormSelectedStages = Object.values(formSectorStages).reduce(
+    (acc, list) => acc + (Array.isArray(list) ? list.length : 0),
+    0
+  );
+
   const openStageConfigModal = (type: JobType) => {
     setSelectedTypeForStages(type);
     setTempSectorStages(type.sectorStages || {});
@@ -324,6 +369,9 @@ export const JobTypes = () => {
     if (!selectedTypeForStages) return;
     try {
       await updateJobType(selectedTypeForStages.id, { sectorStages: tempSectorStages });
+      if (editingId === selectedTypeForStages.id) {
+        setFormSectorStages(tempSectorStages);
+      }
       setShowStageModal(false);
       setSelectedTypeForStages(null);
     } catch (err) {
@@ -346,6 +394,10 @@ export const JobTypes = () => {
     setImageFile(null);
     setPreviewUrl('');
     setAllowedSectors([]);
+    setFormSectorStages({});
+    const initialExpanded: Record<string, boolean> = {};
+    sectors.forEach(s => { initialExpanded[s.name] = true; });
+    setExpandedFormSectors(initialExpanded);
     setPromotionQuantity('');
     setPromotionCallText('');
     setIsVoucherCombo(true);
@@ -374,6 +426,10 @@ export const JobTypes = () => {
     setImageUrl(type.imageUrl || '');
     setPreviewUrl(type.imageUrl || '');
     setAllowedSectors(type.allowedSectors || []);
+    setFormSectorStages(type.sectorStages || {});
+    const initialExpanded: Record<string, boolean> = {};
+    sectors.forEach(s => { initialExpanded[s.name] = true; });
+    setExpandedFormSectors(initialExpanded);
     setIsPromotion(type.isPromotion || false);
     setPromotionQuantity(type.promotionQuantity || '');
     setPromotionCallText(type.promotionCallText || '');
@@ -457,6 +513,7 @@ export const JobTypes = () => {
           isVisibleInternallyLabs,
           imageUrl: finalImageUrl, 
           allowedSectors,
+          sectorStages: formSectorStages,
           isPromotion: isPromoToSave,
       };
 
@@ -752,6 +809,7 @@ export const JobTypes = () => {
                 {/* Header / Tabs */}
                 <div className="bg-slate-50 border-b border-slate-200 flex">
                     <button
+                        type="button"
                         onClick={() => setActiveTab('BASIC')}
                         className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 transition-colors ${
                             activeTab === 'BASIC' ? 'bg-white text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'
@@ -760,6 +818,7 @@ export const JobTypes = () => {
                         <Package size={18} /> {t('jobTypes.generalDataTab', 'Dados Gerais')}
                     </button>
                     <button
+                        type="button"
                         onClick={() => setActiveTab('VARIATIONS')}
                         className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 transition-colors ${
                             activeTab === 'VARIATIONS' ? 'bg-white text-indigo-600 border-b-2 border-indigo-600' : 'text-slate-500 hover:text-slate-700'
@@ -768,6 +827,20 @@ export const JobTypes = () => {
                         <Layers size={18} /> {t('jobTypes.groupsVariationsTab', 'Grupos & Variações')}
                         <span className="bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded-full text-[10px]">
                             {variationGroups.length}
+                        </span>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setActiveTab('STAGES')}
+                        className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 transition-colors ${
+                            activeTab === 'STAGES' ? 'bg-white text-emerald-600 border-b-2 border-emerald-600' : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                    >
+                        <CheckSquare size={18} /> {t('jobTypes.stagesTab', 'Etapas do Serviço')}
+                        <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                            totalFormSelectedStages > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'
+                        }`}>
+                            {totalFormSelectedStages}
                         </span>
                     </button>
                 </div>
@@ -1092,6 +1165,33 @@ export const JobTypes = () => {
                                  </div>
                              </div>
 
+                             {/* Sector Stages Shortcut Banner */}
+                             <div className="bg-emerald-50/60 border border-emerald-200 rounded-xl p-4 mt-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                                 <div className="flex items-center gap-3">
+                                     <div className="p-2.5 bg-emerald-100 text-emerald-700 rounded-xl shrink-0">
+                                         <CheckSquare size={20} />
+                                     </div>
+                                     <div>
+                                         <h4 className="text-xs font-black text-emerald-950 uppercase tracking-wide">
+                                             {t('jobTypes.serviceStagesSummaryTitle', 'Etapas Padrão do Serviço')}
+                                         </h4>
+                                         <p className="text-xs text-emerald-800 font-medium mt-0.5">
+                                             {totalFormSelectedStages > 0
+                                                 ? t('jobTypes.stagesConfiguredCount', { count: totalFormSelectedStages, defaultValue: `${totalFormSelectedStages} etapa(s) configurada(s) para este serviço.` })
+                                                 : t('jobTypes.noStagesConfiguredYet', 'Nenhuma etapa pré-definida. As etapas serão geradas no fluxo base.')}
+                                         </p>
+                                     </div>
+                                 </div>
+                                 <button
+                                     type="button"
+                                     onClick={() => setActiveTab('STAGES')}
+                                     className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-sm transition-all shrink-0 flex items-center gap-1.5"
+                                 >
+                                     <CheckSquare size={14} />
+                                     {t('jobTypes.customizeStagesBtn', 'Configurar Etapas')}
+                                 </button>
+                             </div>
+
                              {/* Valores em Tabelas */}
                              <div className="bg-white p-4 rounded-xl border border-slate-200 mt-6 shadow-sm">
                                  <h3 className="font-bold text-slate-700 flex items-center gap-2 border-b border-slate-200 pb-2 mb-3">
@@ -1270,6 +1370,142 @@ export const JobTypes = () => {
                                             </div>
                                         </div>
                                     ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* --- ETAPAS POR SETOR TAB --- */}
+                    {activeTab === 'STAGES' && (
+                        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+                                <div>
+                                    <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                                        <CheckSquare className="text-emerald-600" size={22} />
+                                        {t('jobTypes.configureStagesTitle', 'Etapas Padrão do Serviço')}
+                                    </h2>
+                                    <p className="text-xs text-slate-500 mt-0.5">
+                                        {t('jobTypes.configureStagesSubtitle', 'Selecione as etapas que compõem este serviço. Ao adicionar este serviço num caso/OS, estas etapas já virão automaticamente incluídas.')}
+                                    </p>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                    <button 
+                                        type="button" 
+                                        onClick={() => expandAllFormSectors(true)} 
+                                        className="text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg transition-colors"
+                                    >
+                                        {t('jobTypes.expandAll', 'Expandir Todos')}
+                                    </button>
+                                    <button 
+                                        type="button" 
+                                        onClick={() => expandAllFormSectors(false)} 
+                                        className="text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg transition-colors"
+                                    >
+                                        {t('jobTypes.collapseAll', 'Recolher')}
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="bg-emerald-50/70 border border-emerald-100 rounded-2xl p-4 flex items-start gap-3">
+                                <div className="p-2 bg-emerald-100 text-emerald-700 rounded-xl shrink-0 mt-0.5">
+                                    <CheckSquare size={18} />
+                                </div>
+                                <div className="text-xs text-emerald-900 leading-relaxed">
+                                    <p className="font-bold mb-1">{t('jobTypes.stagesHelpTitle', 'Automação na criação de Casos:')}</p>
+                                    <p>{t('jobTypes.stagesHelpDesc', 'As etapas marcadas abaixo serão vinculadas automaticamente ao serviço quando ele for adicionado a uma nova OS ou trabalho, prontas para apontamento na catraca e cálculo de comissões por colaborador.')}</p>
+                                </div>
+                            </div>
+
+                            {sectors.length === 0 ? (
+                                <div className="text-center py-10 text-slate-400 bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl p-6">
+                                    <Settings className="mx-auto mb-2 text-slate-300" size={32} />
+                                    <p className="font-bold text-sm text-slate-600">{t('jobTypes.noSectorsFound', 'Nenhum setor cadastrado no laboratório.')}</p>
+                                    <p className="text-xs text-slate-400 mt-1">{t('jobTypes.noSectorsFoundHelp', 'Cadastre seus setores e etapas em Configurações > Setores para vincular ao serviço.')}</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    {sectors.map(sector => {
+                                        const isExpanded = expandedFormSectors[sector.name] ?? true;
+                                        const sectorStagesList = sector.stages || [];
+                                        const selectedStagesForSector = formSectorStages[sector.name] || [];
+                                        const hasAllSelected = sectorStagesList.length > 0 && sectorStagesList.every(st => selectedStagesForSector.includes(st));
+
+                                        return (
+                                            <div key={sector.id} className="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-xs transition-all hover:border-slate-300">
+                                                {/* Sector Header / Dropdown toggle */}
+                                                <div className="w-full px-4 py-3 bg-slate-50/90 flex items-center justify-between border-b border-slate-100 gap-2">
+                                                    <button 
+                                                        type="button" 
+                                                        onClick={() => toggleFormSectorExpand(sector.name)}
+                                                        className="flex items-center gap-2.5 flex-1 text-left"
+                                                    >
+                                                        <div className="text-slate-400">
+                                                            {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                                                        </div>
+                                                        <span className="font-black text-xs uppercase tracking-wider text-slate-700">{sector.name}</span>
+                                                        {selectedStagesForSector.length > 0 && (
+                                                            <span className="bg-emerald-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full">
+                                                                {selectedStagesForSector.length} {selectedStagesForSector.length === 1 ? 'etapa' : 'etapas'}
+                                                            </span>
+                                                        )}
+                                                    </button>
+
+                                                    {sectorStagesList.length > 0 && (
+                                                        <div className="flex items-center gap-1.5 shrink-0">
+                                                            <button 
+                                                                type="button" 
+                                                                onClick={() => {
+                                                                    if (hasAllSelected) {
+                                                                        clearAllFormStagesForSector(sector.name);
+                                                                    } else {
+                                                                        selectAllFormStagesForSector(sector.name, sectorStagesList);
+                                                                    }
+                                                                }}
+                                                                className="text-[11px] font-bold text-slate-500 hover:text-emerald-700 bg-white border border-slate-200 hover:border-emerald-300 px-2.5 py-1 rounded-lg transition-colors"
+                                                            >
+                                                                {hasAllSelected ? t('jobTypes.unselectAll', 'Desmarcar Todas') : t('jobTypes.selectAll', 'Marcar Todas')}
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Stages List */}
+                                                {isExpanded && (
+                                                    <div className="p-4 bg-white space-y-2">
+                                                        {sectorStagesList.length === 0 ? (
+                                                            <p className="text-xs text-slate-400 italic py-2">
+                                                                {t('jobTypes.noStagesInSector', 'Nenhuma etapa cadastrada neste setor. Cadastre etapas na aba Admin > Setores.')}
+                                                            </p>
+                                                        ) : (
+                                                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+                                                                {sectorStagesList.map((stageName, sIdx) => {
+                                                                    const isChecked = selectedStagesForSector.includes(stageName);
+                                                                    return (
+                                                                        <label 
+                                                                            key={sIdx} 
+                                                                            className={`flex items-center gap-2.5 p-3 rounded-xl border cursor-pointer transition-all select-none ${
+                                                                                isChecked 
+                                                                                    ? 'bg-emerald-50/80 border-emerald-300 text-emerald-950 font-bold shadow-xs' 
+                                                                                    : 'bg-slate-50/50 border-slate-200 text-slate-600 hover:bg-slate-100 hover:border-slate-300'
+                                                                            }`}
+                                                                        >
+                                                                            <input 
+                                                                                type="checkbox" 
+                                                                                checked={isChecked} 
+                                                                                onChange={() => toggleFormStageForSector(sector.name, stageName)}
+                                                                                className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" 
+                                                                            />
+                                                                            <span className="text-xs tracking-tight">{stageName}</span>
+                                                                        </label>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             )}
                         </div>

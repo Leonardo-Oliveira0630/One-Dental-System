@@ -113,7 +113,9 @@ export const IncomingRequisitions = () => {
               price: basePrice,
               nature: 'NORMAL',
               selectedVariationIds: reqItem.selectedVariationIds || [],
-              selectedTeeth: reqItem.selectedTeeth || []
+              selectedTeeth: reqItem.selectedTeeth || [],
+              sectorStages: service?.sectorStages ? JSON.parse(JSON.stringify(service.sectorStages)) : undefined,
+              stageQuantities: service?.stageQuantities ? JSON.parse(JSON.stringify(service.stageQuantities)) : undefined
             };
         });
     } else {
@@ -128,7 +130,9 @@ export const IncomingRequisitions = () => {
           price: basePrice,
           nature: 'NORMAL',
           selectedVariationIds: req.selectedVariationIds || [],
-          selectedTeeth: req.selectedTeeth || []
+          selectedTeeth: req.selectedTeeth || [],
+          sectorStages: service?.sectorStages ? JSON.parse(JSON.stringify(service.sectorStages)) : undefined,
+          stageQuantities: service?.stageQuantities ? JSON.parse(JSON.stringify(service.stageQuantities)) : undefined
         }];
     }
 
