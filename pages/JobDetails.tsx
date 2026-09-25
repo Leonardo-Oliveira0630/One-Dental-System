@@ -528,8 +528,8 @@ export const JobDetails = () => {
   const isAdmin = currentUser?.role === UserRole.ADMIN;
   const isManager = currentUser?.role === UserRole.MANAGER;
   const isTech = currentUser?.role === UserRole.COLLABORATOR;
-  const isClient = currentUser?.role === UserRole.CLIENT;
-  const isLabStaff = isAdmin || isManager || isTech;
+  const isClient = currentUser?.role === UserRole.CLIENT || currentUser?.role === UserRole.DENTIST || (currentUser as any)?.role === 'DENTIST' || currentOrg?.orgType === 'CLINIC';
+  const isLabStaff = !isClient && (isAdmin || isManager || isTech);
   const targetLabOrg = isClient ? activeOrganization : currentOrg;
   const revealJobStatus = !isClient || (targetLabOrg?.revealJobStatusToDentist ?? false);
   const canEdit = isAdmin || isManager || (isTech && currentUser?.permissions?.includes('jobs:edit'));
@@ -2707,7 +2707,9 @@ export const JobDetails = () => {
                       {!job.isBudget && (
                         <>
                           <button onClick={() => triggerPrint(job, 'SHEET')} className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 font-bold flex items-center gap-1.5 text-[9px] uppercase tracking-widest shadow-sm"><Printer size={12} /> Ficha Interna</button>
-                          <button onClick={() => triggerPrint(job, 'INVOICE_SHEET')} className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 font-bold flex items-center gap-1.5 text-[9px] uppercase tracking-widest shadow-sm"><Printer size={12} /> Ficha de Entrega</button>
+                          {isFinished && (
+                            <button onClick={() => triggerPrint(job, 'INVOICE_SHEET')} className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 font-bold flex items-center gap-1.5 text-[9px] uppercase tracking-widest shadow-sm"><Printer size={12} /> Ficha de Entrega</button>
+                          )}
                         </>
                       )}
                       {job.isBudget && (
@@ -2716,7 +2718,9 @@ export const JobDetails = () => {
                       {!job.isBudget && (
                       <>
                         <button onClick={() => triggerPrint(job, 'LABEL')} className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 font-bold flex items-center gap-1.5 text-[9px] uppercase tracking-widest shadow-sm"><Printer size={12} /> Etiquetas</button>
-                        <button onClick={() => triggerPrint(job, 'ADDRESS_LABEL')} className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 font-bold flex items-center gap-1.5 text-[9px] uppercase tracking-widest shadow-sm"><MapPin size={12} /> Endereço</button>
+                        {isFinished && (
+                          <button onClick={() => triggerPrint(job, 'ADDRESS_LABEL')} className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 font-bold flex items-center gap-1.5 text-[9px] uppercase tracking-widest shadow-sm"><MapPin size={12} /> Endereço</button>
+                        )}
                       </>
                       )}
                   </>
@@ -3067,8 +3071,8 @@ export const JobDetails = () => {
                         </div>
                     )}
 
-                    {/* Card de Entrega e Avaliação do Serviço (Modelo Shopee/Shein) */}
-                    {(isDelivered || isBuyer) && !job.isBudget && (
+                    {/* Card de Entrega e Avaliação do Serviço (Exclusivo para o Cliente/Comprador da Loja Online / Dentista) */}
+                    {isBuyer && !job.isBudget && (
                         <div className="bg-gradient-to-r from-amber-500/10 via-orange-500/5 to-transparent rounded-[32px] border border-amber-200/80 p-5 md:p-6 shadow-sm overflow-hidden animate-in slide-in-from-top-3">
                             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                                 <div className="flex items-center gap-3.5">
@@ -3100,7 +3104,7 @@ export const JobDetails = () => {
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2 w-full sm:w-auto">
-                                    {!isDelivered && isBuyer && (
+                                    {!isDelivered && (
                                         <button
                                             onClick={handleConfirmDeliveryByClient}
                                             disabled={isUpdatingStatus}
@@ -3110,13 +3114,15 @@ export const JobDetails = () => {
                                             Confirmar Entrega
                                         </button>
                                     )}
-                                    <button
-                                        onClick={() => setShowReviewModal(true)}
-                                        className="w-full sm:w-auto px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-black text-xs rounded-xl shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
-                                    >
-                                        <Star size={14} className="fill-white" />
-                                        {userRating ? 'Editar / Ver Avaliação' : 'Avaliar Serviço'}
-                                    </button>
+                                    {isDelivered && (
+                                        <button
+                                            onClick={() => setShowReviewModal(true)}
+                                            className="w-full sm:w-auto px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-black text-xs rounded-xl shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                                        >
+                                            <Star size={14} className="fill-white" />
+                                            {userRating ? 'Editar / Ver Avaliação' : 'Avaliar Serviço'}
+                                        </button>
+                                    )}
                                 </div>
                             </div>
 
@@ -3131,6 +3137,29 @@ export const JobDetails = () => {
                                     ))}
                                 </div>
                             )}
+                        </div>
+                    )}
+
+                    {/* Exibição Read-Only da Avaliação do Cliente para o Laboratório (caso exista) */}
+                    {!isBuyer && userRating && !job.isBudget && (
+                        <div className="bg-slate-50 rounded-[32px] border border-slate-200/80 p-5 md:p-6 shadow-sm overflow-hidden">
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                                <div className="flex items-center gap-3.5">
+                                    <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-md">
+                                        <Star size={20} className="fill-white" />
+                                    </div>
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700 bg-emerald-100 px-2.5 py-0.5 rounded-full">
+                                                Avaliação Recebida do Cliente ({userRating.score} ★)
+                                            </span>
+                                        </div>
+                                        <h4 className="font-extrabold text-slate-800 text-sm mt-1">
+                                            "{userRating.comment || 'Sem comentário por escrito.'}"
+                                        </h4>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     )}
 

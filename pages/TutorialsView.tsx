@@ -11,7 +11,7 @@ import { Tutorial, UserRole } from '../types';
 
 export const TutorialsView = () => {
   const { t } = useTranslation();
-  const { currentUser } = useApp();
+  const { currentUser, currentOrg } = useApp();
   const [tutorials, setTutorials] = useState<Tutorial[]>([]);
   const [selectedTutorial, setSelectedTutorial] = useState<Tutorial | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -21,9 +21,21 @@ export const TutorialsView = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
 
-  // Detect context type
-  const isClient = currentUser?.role === UserRole.CLIENT;
-  const targetAudience = isClient ? 'CLINIC' : 'LAB';
+  // Detect context type accurately (Dentist / Clinic vs Lab)
+  const isSuperAdmin = currentUser?.role === UserRole.SUPER_ADMIN;
+  const isClinicOrDentist = Boolean(
+    currentUser?.role === UserRole.CLIENT || 
+    currentUser?.role === UserRole.DENTIST ||
+    (currentUser as any)?.role === 'CLIENT' ||
+    (currentUser as any)?.role === 'DENTIST' ||
+    currentOrg?.orgType === 'CLINIC' ||
+    (currentUser as any)?.regType === 'DENTIST' ||
+    (currentUser as any)?.clinicId
+  );
+
+  const [adminAudienceFilter, setAdminAudienceFilter] = useState<'LAB' | 'CLINIC' | null>(null);
+  const targetAudience: 'LAB' | 'CLINIC' = adminAudienceFilter || (isClinicOrDentist ? 'CLINIC' : 'LAB');
+  const isClient = targetAudience === 'CLINIC';
 
   // Helper inside component to parse YouTube Video ID
   const getYouTubeId = (url: string): string | null => {
@@ -46,11 +58,22 @@ export const TutorialsView = () => {
     return () => unsub();
   }, []);
 
+  // Reset category if not available in current audience
+  useEffect(() => {
+    setSelectedCategory('all');
+  }, [targetAudience]);
+
   // Filter tutorials based on user audience (LAB or CLINIC)
-  const audienceTutorials = tutorials.filter(tut => tut.targetAudience === targetAudience);
+  const audienceTutorials = tutorials.filter(tut => {
+    const tutAud = (tut.targetAudience || 'LAB').toUpperCase();
+    if (targetAudience === 'CLINIC') {
+      return tutAud === 'CLINIC' || tutAud === 'DENTIST';
+    }
+    return tutAud === 'LAB' || tutAud === 'LABORATORY';
+  });
 
   // Get unique categories list
-  const categories = ['all', ...Array.from(new Set(audienceTutorials.map(tut => tut.category)))];
+  const categories = ['all', ...Array.from(new Set(audienceTutorials.map(tut => tut.category).filter(Boolean)))];
 
   // Apply search query and category filters
   const filteredTutorials = audienceTutorials.filter(tut => {
@@ -69,6 +92,38 @@ export const TutorialsView = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 max-w-7xl mx-auto">
+      {/* Super Admin Audience Toggle */}
+      {isSuperAdmin && (
+        <div className="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-black text-slate-500 uppercase tracking-wider">Visualizando como:</span>
+            <span className="text-xs font-bold px-2 py-0.5 bg-slate-100 text-slate-700 rounded-md">Super Admin</span>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setAdminAudienceFilter('LAB')}
+              className={`px-4 py-2 rounded-xl text-xs font-black uppercase transition-all ${
+                targetAudience === 'LAB' 
+                  ? 'bg-indigo-600 text-white shadow-md' 
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              Sistema de Laboratório
+            </button>
+            <button
+              onClick={() => setAdminAudienceFilter('CLINIC')}
+              className={`px-4 py-2 rounded-xl text-xs font-black uppercase transition-all ${
+                targetAudience === 'CLINIC' 
+                  ? 'bg-teal-600 text-white shadow-md' 
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              Sistema de Clínica / Dentista
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header section */}
       {!selectedTutorial ? (
         <>

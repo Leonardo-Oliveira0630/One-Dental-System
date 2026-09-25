@@ -255,11 +255,13 @@ export function findMatchingNfcBox(scannedCode: string, boxes: NfcBox[]): NfcBox
     }
   }
 
-  // 3. Busca por número de caixa (ex: "001", "1", ou número direto)
+  // 3. Busca por número de caixa (ex: "25L", "*509", "001", "1", ou número direto)
   const cleanNumInput = cleanInput.replace(/^0+/, '');
   for (const box of boxes) {
-    const cleanBoxNum = String(box.numeroCaixa || '').trim().toUpperCase().replace(/^0+/, '');
-    if (cleanBoxNum && cleanBoxNum === cleanNumInput) {
+    const boxNumStr = String(box.numeroCaixa || '').trim().toUpperCase();
+    const cleanBoxNum = boxNumStr.replace(/[:\s-]/g, '');
+    const cleanBoxNoZeros = cleanBoxNum.replace(/^0+/, '');
+    if (boxNumStr === rawUpper || cleanBoxNum === cleanInput || (cleanNumInput && cleanBoxNoZeros === cleanNumInput)) {
       return box;
     }
     
@@ -269,10 +271,10 @@ export function findMatchingNfcBox(scannedCode: string, boxes: NfcBox[]): NfcBox
       return box;
     }
     
-    // Tratamento para digitar apenas o prefixo BOX
+    // Tratamento para prefixo BOX
     if (cleanText.startsWith('BOX')) {
       const bNum = cleanText.replace('BOX', '').replace(/^0+/, '');
-      if (bNum === cleanNumInput) {
+      if (bNum && (bNum === cleanNumInput || bNum === cleanInput)) {
          return box;
       }
     }
@@ -436,9 +438,33 @@ export const KitService = {
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as NfcKit[];
   },
 
-  createKit: async (data: { nome: string; descricao?: string; caixaInicial: number; caixaFinal: number }): Promise<NfcKit> => {
-    const totalCaixas = (data.caixaFinal - data.caixaInicial) + 1;
-    
+  createKit: async (data: { 
+    nome: string; 
+    descricao?: string; 
+    caixaInicial?: number | string; 
+    caixaFinal?: number | string;
+    customBoxes?: string[];
+    prefixo?: string;
+    sufixo?: string;
+  }): Promise<NfcKit> => {
+    // Determinar lista de caixas a serem geradas
+    let boxList: string[] = [];
+    if (data.customBoxes && data.customBoxes.length > 0) {
+      boxList = data.customBoxes.map(b => String(b).trim()).filter(Boolean);
+    } else {
+      const ini = typeof data.caixaInicial === 'number' ? data.caixaInicial : parseInt(String(data.caixaInicial || 1), 10) || 1;
+      const fim = typeof data.caixaFinal === 'number' ? data.caixaFinal : parseInt(String(data.caixaFinal || 50), 10) || 50;
+      const pref = data.prefixo || '';
+      const suf = data.sufixo || '';
+      for (let i = ini; i <= fim; i++) {
+        boxList.push(`${pref}${i}${suf}`);
+      }
+    }
+
+    if (boxList.length === 0) {
+      boxList = ['001'];
+    }
+
     // Gerar código único de 6 caracteres (letras e números)
     const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let codigoKit = '';
@@ -449,9 +475,9 @@ export const KitService = {
     const newKit: Partial<NfcKit> = {
       nome: data.nome,
       descricao: data.descricao || '',
-      caixaInicial: data.caixaInicial,
-      caixaFinal: data.caixaFinal,
-      // removed: any,
+      caixaInicial: (data.caixaInicial !== undefined ? data.caixaInicial : boxList[0]) as any,
+      caixaFinal: (data.caixaFinal !== undefined ? data.caixaFinal : boxList[boxList.length - 1]) as any,
+      quantidadeCaixas: boxList.length,
       status: 'Disponível',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -463,14 +489,16 @@ export const KitService = {
     
     // Criar as subcoleções (as caixas)
     const batch = writeBatch(db);
-    for (let i = data.caixaInicial; i <= data.caixaFinal; i++) {
-      const boxRef = doc(db, 'nfc_kits', docRef.id, 'boxes', String(i));
+    for (const boxId of boxList) {
+      const safeDocId = String(boxId).trim().replace(/\//g, '_');
+      const boxRef = doc(db, 'nfc_kits', docRef.id, 'boxes', safeDocId);
       batch.set(boxRef, {
-        numeroCaixa: i,
+        id: safeDocId,
+        numeroCaixa: String(boxId).trim(),
         uid: '',
         uidHex: '',
         uidDecimal: '',
-        textoGravado: `BOX-${i}`,
+        textoGravado: `BOX-${boxId}`,
         status: 'Pendente',
         updatedAt: new Date().toISOString()
       });
@@ -485,18 +513,29 @@ export const KitService = {
   },
 
   getKitBoxes: async (kitId: string): Promise<NfcBox[]> => {
-    const q = query(collection(db, 'nfc_kits', kitId, 'boxes'), orderBy('numeroCaixa', 'asc'));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({
+    const snapshot = await getDocs(collection(db, 'nfc_kits', kitId, 'boxes'));
+    const boxes = snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
     })) as NfcBox[];
+
+    // Ordenação natural alfanumérica (ex: 1, 2, 10, 25L, *509)
+    return boxes.sort((a, b) => {
+      const aNum = parseInt(String(a.numeroCaixa).replace(/\D/g, ''), 10);
+      const bNum = parseInt(String(b.numeroCaixa).replace(/\D/g, ''), 10);
+      if (!isNaN(aNum) && !isNaN(bNum) && aNum !== bNum) {
+        return aNum - bNum;
+      }
+      return String(a.numeroCaixa).localeCompare(String(b.numeroCaixa), 'pt-BR', { numeric: true, sensitivity: 'base' });
+    });
   },
 
   saveKitBox: async (kitId: string, box: NfcBox): Promise<void> => {
     const formats = getNfcUidFormats(box.uid || '');
     const canonicalUid = formats.uidHex || box.uid;
-    const boxRef = doc(db, 'nfc_kits', kitId, 'boxes', String(box.numeroCaixa));
+    const boxNumStr = String(box.numeroCaixa).trim();
+    const safeDocId = boxNumStr.replace(/\//g, '_');
+    const boxRef = doc(db, 'nfc_kits', kitId, 'boxes', safeDocId);
 
     const kitRef = doc(db, 'nfc_kits', kitId);
     const kitSnap = await getDoc(kitRef);
@@ -510,10 +549,14 @@ export const KitService = {
 
     const boxData = {
       ...box,
+      id: safeDocId,
+      numeroCaixa: boxNumStr,
       uid: canonicalUid,
       uidHex: canonicalUid,
       uidDecimal: formats.uidDecimal || box.uidDecimal || '',
       uid4ByteHex: formats.uid4ByteHex || '',
+      textoGravado: box.textoGravado || `BOX-${boxNumStr}`,
+      status: canonicalUid ? 'Associada' : 'Pendente',
       updatedAt: new Date().toISOString()
     };
     
@@ -539,8 +582,8 @@ export const KitService = {
               uidHex: canonicalUid,
               uidDecimal: formats.uidDecimal || box.uidDecimal || '',
               uid4ByteHex: formats.uid4ByteHex || '',
-              numeroCaixa: box.numeroCaixa,
-              textoGravado: box.textoGravado || `BOX-${box.numeroCaixa}`,
+              numeroCaixa: boxNumStr,
+              textoGravado: box.textoGravado || `BOX-${boxNumStr}`,
               status: 'Associada',
               activatedAt: new Date().toISOString(),
               kitCodigo: kitData.codigoKit || '',
@@ -553,7 +596,8 @@ export const KitService = {
   },
 
   clearKitBox: async (kitId: string, boxNumber: string | number): Promise<void> => {
-    const boxRef = doc(db, 'nfc_kits', kitId, 'boxes', String(boxNumber));
+    const safeDocId = String(boxNumber).trim().replace(/\//g, '_');
+    const boxRef = doc(db, 'nfc_kits', kitId, 'boxes', safeDocId);
     const kitRef = doc(db, 'nfc_kits', kitId);
     
     const kitSnap = await getDoc(kitRef);

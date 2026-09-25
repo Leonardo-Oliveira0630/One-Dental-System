@@ -1790,8 +1790,8 @@ export interface NfcKit {
   nome: string;
   descricao?: string;
   quantidadeCaixas: number;
-  caixaInicial: number;
-  caixaFinal: number;
+  caixaInicial: number | string;
+  caixaFinal: number | string;
   status: 'Disponível' | 'Vendido' | 'Ativado';
   empresaDestino?: string | null;
   createdAt: any;
@@ -1809,7 +1809,7 @@ export interface NfcBox {
   uidDecimal?: string;
   uid4ByteHex?: string;
   textoGravado?: string;
-  status: 'Disponível' | 'Associada';
+  status: 'Disponível' | 'Associada' | 'Pendente';
   updatedAt?: any;
   kitCodigo?: string;
   kitId?: string;

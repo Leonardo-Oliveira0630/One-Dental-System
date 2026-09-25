@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { 
   Cpu, Plus, Search, RotateCcw, Copy, Trash2, ArrowRight, Play, Eye, X, CheckCircle, 
-  AlertTriangle, ArrowLeft, Loader2, RefreshCw, Layers, Shield, Check, HelpCircle
+  AlertTriangle, ArrowLeft, Loader2, RefreshCw, Layers, Shield, Check, HelpCircle, Zap, Tag
 } from 'lucide-react';
 import { KitService, NfcReaderService, UidMappingService, getNfcUidFormats } from '../../services/nfcServices';
 import { NfcKit, NfcBox } from '../../types';
@@ -9,6 +10,7 @@ import { useApp } from '../../context/AppContext';
 
 export const NfcKitsAdmin: React.FC = () => {
   const { currentUser } = useApp();
+  const { t } = useTranslation();
   const [kits, setKits] = useState<NfcKit[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedKit, setSelectedKit] = useState<NfcKit | null>(null);
@@ -21,20 +23,34 @@ export const NfcKitsAdmin: React.FC = () => {
 
   // New Kit Form state
   const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
+  const [kitFormType, setKitFormType] = useState<'RANGE' | 'CUSTOM'>('RANGE');
   const [kitForm, setKitForm] = useState({
     nome: '',
     descricao: '',
     caixaInicial: 1,
-    caixaFinal: 50
+    caixaFinal: 50,
+    prefixo: '',
+    sufixo: '',
+    customBoxesText: ''
   });
   const [isSubmittingKit, setIsSubmittingKit] = useState<boolean>(false);
+
+  // Add custom box to selected kit
+  const [newCustomBoxName, setNewCustomBoxName] = useState<string>('');
+  const [isAddingCustomBox, setIsAddingCustomBox] = useState<boolean>(false);
 
   // Scan Mode state
   const [scanModeActive, setScanModeActive] = useState<boolean>(false);
   const [activeScanKit, setActiveScanKit] = useState<NfcKit | null>(null);
-  const [scanMethod, setScanMethod] = useState<'SEQUENTIAL' | 'MANUAL'>('SEQUENTIAL');
+  const [scanMethod, setScanMethod] = useState<'MANUAL_SEQUENTIAL' | 'SEQUENTIAL' | 'MANUAL'>('MANUAL_SEQUENTIAL');
   const [currentScanBox, setCurrentScanBox] = useState<number>(1);
   const [manualBoxInput, setManualBoxInput] = useState<string>('');
+
+  // Manual Sequential specific state
+  const [manualSeqBoxInput, setManualSeqBoxInput] = useState<string>('');
+  const [manualSeqTargetBox, setManualSeqTargetBox] = useState<string | null>(null);
+  const manualSeqInputRef = useRef<HTMLInputElement>(null);
+
   const [webNfcActive, setWebNfcActive] = useState<boolean>(false);
   const [webNfcSupported, setWebNfcSupported] = useState<boolean>('NDEFReader' in window);
   
@@ -63,6 +79,8 @@ export const NfcKitsAdmin: React.FC = () => {
   const scanMethodRef = useRef(scanMethod);
   const currentScanBoxRef = useRef(currentScanBox);
   const manualBoxInputRef = useRef(manualBoxInput);
+  const manualSeqBoxInputRef = useRef(manualSeqBoxInput);
+  const manualSeqTargetBoxRef = useRef(manualSeqTargetBox);
   const activeScanKitRef = useRef(activeScanKit);
   const selectedKitBoxesRef = useRef(selectedKitBoxes);
 
@@ -70,19 +88,29 @@ export const NfcKitsAdmin: React.FC = () => {
     scanMethodRef.current = scanMethod;
     currentScanBoxRef.current = currentScanBox;
     manualBoxInputRef.current = manualBoxInput;
+    manualSeqBoxInputRef.current = manualSeqBoxInput;
+    manualSeqTargetBoxRef.current = manualSeqTargetBox;
     activeScanKitRef.current = activeScanKit;
     selectedKitBoxesRef.current = selectedKitBoxes;
-  }, [scanMethod, currentScanBox, manualBoxInput, activeScanKit, selectedKitBoxes]);
+  }, [scanMethod, currentScanBox, manualBoxInput, manualSeqBoxInput, manualSeqTargetBox, activeScanKit, selectedKitBoxes]);
 
-  // Auto-focus the instant tag reader input when scan mode is active
+  // Auto-focus the input depending on mode
   useEffect(() => {
     if (scanModeActive) {
       const timer = setTimeout(() => {
-        instantInputRef.current?.focus();
-      }, 200);
+        if (scanMethod === 'MANUAL_SEQUENTIAL') {
+          if (!manualSeqTargetBox) {
+            manualSeqInputRef.current?.focus();
+          } else {
+            instantInputRef.current?.focus();
+          }
+        } else {
+          instantInputRef.current?.focus();
+        }
+      }, 150);
       return () => clearTimeout(timer);
     }
-  }, [scanModeActive, currentScanBox, scanMethod]);
+  }, [scanModeActive, currentScanBox, scanMethod, manualSeqTargetBox]);
 
   // Load all kits
   const loadKits = async () => {
@@ -118,26 +146,99 @@ export const NfcKitsAdmin: React.FC = () => {
   // Create Kit
   const handleCreateKit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (kitForm.caixaFinal < kitForm.caixaInicial) {
-      alert("A caixa final não pode ser menor que a inicial.");
+    if (!kitForm.nome.trim()) {
+      alert("Informe o nome do kit.");
       return;
     }
+
     try {
       setIsSubmittingKit(true);
-      const newKit = await KitService.createKit({
-        nome: kitForm.nome,
-        descricao: kitForm.descricao,
-        caixaInicial: Number(kitForm.caixaInicial),
-        caixaFinal: Number(kitForm.caixaFinal)
-      });
+      let newKit: NfcKit;
+
+      if (kitFormType === 'CUSTOM') {
+        const customBoxes = kitForm.customBoxesText
+          .split(/[\n,;]+/)
+          .map(b => b.trim())
+          .filter(Boolean);
+
+        if (customBoxes.length === 0) {
+          alert("Digite ao menos uma caixa personalizada para o kit.");
+          setIsSubmittingKit(false);
+          return;
+        }
+
+        newKit = await KitService.createKit({
+          nome: kitForm.nome.trim(),
+          descricao: kitForm.descricao.trim(),
+          customBoxes
+        });
+      } else {
+        if (Number(kitForm.caixaFinal) < Number(kitForm.caixaInicial)) {
+          alert("A caixa final não pode ser menor que a inicial.");
+          setIsSubmittingKit(false);
+          return;
+        }
+
+        newKit = await KitService.createKit({
+          nome: kitForm.nome.trim(),
+          descricao: kitForm.descricao.trim(),
+          caixaInicial: Number(kitForm.caixaInicial),
+          caixaFinal: Number(kitForm.caixaFinal),
+          prefixo: kitForm.prefixo.trim(),
+          sufixo: kitForm.sufixo.trim()
+        });
+      }
+
       await loadKits();
       setShowCreateModal(false);
-      setKitForm({ nome: '', descricao: '', caixaInicial: 1, caixaFinal: 50 });
+      setKitForm({
+        nome: '',
+        descricao: '',
+        caixaInicial: 1,
+        caixaFinal: 50,
+        prefixo: '',
+        sufixo: '',
+        customBoxesText: ''
+      });
       handleSelectKit(newKit);
     } catch (err: any) {
       alert("Erro ao criar kit: " + err.message);
     } finally {
       setIsSubmittingKit(false);
+    }
+  };
+
+  // Add individual custom box to selected kit
+  const handleAddCustomBox = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedKit || !newCustomBoxName.trim()) return;
+
+    const boxName = newCustomBoxName.trim().toUpperCase();
+    const existing = selectedKitBoxes.find(b => String(b.numeroCaixa).toUpperCase() === boxName);
+    if (existing) {
+      alert(`A caixa ${boxName} já existe neste kit.`);
+      return;
+    }
+
+    try {
+      setIsAddingCustomBox(true);
+      const newBox: NfcBox = {
+        id: boxName.replace(/\//g, '_'),
+        numeroCaixa: boxName,
+        uid: '',
+        textoGravado: `BOX-${boxName}`,
+        status: 'Pendente'
+      };
+
+      await KitService.saveKitBox(selectedKit.id, newBox);
+      const updatedBoxes = await KitService.getKitBoxes(selectedKit.id);
+      setSelectedKitBoxes(updatedBoxes);
+      setNewCustomBoxName('');
+      alert(`Caixa ${boxName} adicionada com sucesso ao kit!`);
+    } catch (err: any) {
+      alert("Erro ao adicionar caixa: " + err.message);
+    } finally {
+      setIsAddingCustomBox(false);
     }
   };
 
@@ -232,22 +333,31 @@ export const NfcKitsAdmin: React.FC = () => {
         return;
       }
 
-      // 2. Determinar o número da caixa que estamos gravando
+      // 2. Determinar o número da caixa que estamos gravando (suporta letras e caracteres especiais: 25L, *509, etc.)
       let targetBoxNumber = '';
       if (scanMethodRef.current === 'SEQUENTIAL') {
         targetBoxNumber = String(currentScanBoxRef.current).padStart(3, '0');
+      } else if (scanMethodRef.current === 'MANUAL_SEQUENTIAL') {
+        const rawTarget = (manualSeqTargetBoxRef.current || manualSeqBoxInputRef.current || '').trim().toUpperCase();
+        if (!rawTarget) {
+          setScanMessage({ text: 'Digite o número da caixa (ex: 25L, *509) e pressione ENTER antes de aproximar a tag.', type: 'error' });
+          playBeep(false);
+          manualSeqInputRef.current?.focus();
+          return;
+        }
+        targetBoxNumber = rawTarget;
       } else {
-        const manualNum = Number(manualBoxInputRef.current);
-        if (isNaN(manualNum) || manualNum < kit.caixaInicial || manualNum > kit.caixaFinal) {
-          setScanMessage({ text: `Número de caixa inválido. Deve estar entre ${kit.caixaInicial} e ${kit.caixaFinal}.`, type: 'error' });
+        const rawManual = (manualBoxInputRef.current || '').trim().toUpperCase();
+        if (!rawManual) {
+          setScanMessage({ text: 'Informe o número da caixa a ser gravada.', type: 'error' });
           playBeep(false);
           return;
         }
-        targetBoxNumber = String(manualNum).padStart(3, '0');
+        targetBoxNumber = rawManual;
       }
 
       // 3. Verificar se o mesmo número de caixa já existe com outro UID nesse kit
-      const existingBox = selectedKitBoxesRef.current.find(b => b.numeroCaixa === targetBoxNumber);
+      const existingBox = selectedKitBoxesRef.current.find(b => String(b.numeroCaixa).toUpperCase() === targetBoxNumber);
       if (existingBox && existingBox.uid && existingBox.uid !== cleanUid) {
         if (!window.confirm(`A caixa ${targetBoxNumber} já possui o UID ${existingBox.uid}. Deseja substituí-lo?`)) {
           setScanMessage({ text: 'Operação cancelada pelo operador.', type: 'info' });
@@ -259,7 +369,7 @@ export const NfcKitsAdmin: React.FC = () => {
       const formats = getNfcUidFormats(cleanUid);
       const canonicalUid = formats.uidHex || cleanUid;
       const updatedBox: NfcBox = {
-        id: targetBoxNumber,
+        id: targetBoxNumber.replace(/\//g, '_'),
         numeroCaixa: targetBoxNumber,
         uid: canonicalUid,
         uidHex: canonicalUid,
@@ -272,9 +382,20 @@ export const NfcKitsAdmin: React.FC = () => {
       await KitService.saveKitBox(kit.id, updatedBox);
 
       // 5. Atualizar estado local de boxes do kit selecionado
-      const newBoxesList = selectedKitBoxesRef.current.map(b => 
-        b.numeroCaixa === targetBoxNumber ? updatedBox : b
-      );
+      const existsInList = selectedKitBoxesRef.current.some(b => String(b.numeroCaixa).toUpperCase() === targetBoxNumber);
+      let newBoxesList: NfcBox[] = [];
+      if (existsInList) {
+        newBoxesList = selectedKitBoxesRef.current.map(b => 
+          String(b.numeroCaixa).toUpperCase() === targetBoxNumber ? updatedBox : b
+        );
+      } else {
+        newBoxesList = [...selectedKitBoxesRef.current, updatedBox].sort((a, b) => {
+          const aNum = parseInt(String(a.numeroCaixa).replace(/\D/g, ''), 10);
+          const bNum = parseInt(String(b.numeroCaixa).replace(/\D/g, ''), 10);
+          if (!isNaN(aNum) && !isNaN(bNum) && aNum !== bNum) return aNum - bNum;
+          return String(a.numeroCaixa).localeCompare(String(b.numeroCaixa), 'pt-BR', { numeric: true });
+        });
+      }
       setSelectedKitBoxes(newBoxesList);
 
       const isOldDec = formats.isOldReaderFormat || (/^\d+$/.test(cleanUid) && cleanUid.length >= 6);
@@ -308,23 +429,31 @@ export const NfcKitsAdmin: React.FC = () => {
       });
       playBeep(true);
 
-      // 6. Avançar automaticamente se for Leitura Sequencial
+      // 6. Fluxo de Avanço Automático
       if (scanMethodRef.current === 'SEQUENTIAL') {
         const nextBox = currentScanBoxRef.current + 1;
-        if (nextBox <= kit.caixaFinal) {
+        if (typeof kit.caixaFinal === 'number' && nextBox <= kit.caixaFinal) {
           setCurrentScanBox(nextBox);
         } else {
           setScanMessage({ text: '🎉 Parabéns! Todas as caixas deste kit foram associadas com sucesso!', type: 'success' });
         }
+        setTimeout(() => {
+          instantInputRef.current?.focus();
+        }, 100);
+      } else if (scanMethodRef.current === 'MANUAL_SEQUENTIAL') {
+        // Limpa o alvo atual e o input de digitação para a próxima caixa pronta para digitação rápida
+        setManualSeqBoxInput('');
+        setManualSeqTargetBox(null);
+        setTimeout(() => {
+          manualSeqInputRef.current?.focus();
+        }, 120);
       } else {
-        // Se for leitura manual, limpa o campo
+        // Se for leitura manual avulsa, limpa o campo
         setManualBoxInput('');
+        setTimeout(() => {
+          instantInputRef.current?.focus();
+        }, 100);
       }
-
-      // Re-foca o input do leitor
-      setTimeout(() => {
-        instantInputRef.current?.focus();
-      }, 100);
 
     } catch (err: any) {
       console.error(err);
@@ -393,8 +522,11 @@ export const NfcKitsAdmin: React.FC = () => {
   // Navigation handlers inside Sequencial screen
   const handleSkipBox = () => {
     if (!activeScanKit) return;
+    const finalBox = typeof activeScanKit.caixaFinal === 'number' 
+      ? activeScanKit.caixaFinal 
+      : parseInt(String(activeScanKit.caixaFinal), 10) || 50;
     const nextBox = currentScanBox + 1;
-    if (nextBox <= activeScanKit.caixaFinal) {
+    if (nextBox <= finalBox) {
       setCurrentScanBox(nextBox);
       setScanMessage({ text: `Caixa ${String(currentScanBox).padStart(3, '0')} pulada.`, type: 'info' });
     } else {
@@ -404,8 +536,11 @@ export const NfcKitsAdmin: React.FC = () => {
 
   const handleBackBox = () => {
     if (!activeScanKit) return;
+    const initBox = typeof activeScanKit.caixaInicial === 'number' 
+      ? activeScanKit.caixaInicial 
+      : parseInt(String(activeScanKit.caixaInicial), 10) || 1;
     const prevBox = currentScanBox - 1;
-    if (prevBox >= activeScanKit.caixaInicial) {
+    if (prevBox >= initBox) {
       setCurrentScanBox(prevBox);
       setScanMessage({ text: `Voltando para Caixa ${String(prevBox).padStart(3, '0')}.`, type: 'info' });
     } else {
@@ -420,7 +555,10 @@ export const NfcKitsAdmin: React.FC = () => {
   // Launch Scanning Dashboard
   const handleOpenScanDashboard = (kit: NfcKit) => {
     setActiveScanKit(kit);
-    setCurrentScanBox(kit.caixaInicial);
+    const initBox = typeof kit.caixaInicial === 'number' 
+      ? kit.caixaInicial 
+      : parseInt(String(kit.caixaInicial), 10) || 1;
+    setCurrentScanBox(initBox);
     setScanModeActive(true);
     setScanMessage({ text: 'Sistema pronto para leitura contínua de tags.', type: 'info' });
     if (webNfcSupported) {
@@ -515,36 +653,194 @@ export const NfcKitsAdmin: React.FC = () => {
               </div>
 
               {/* Mode Selectors */}
-              <div className="flex border-b border-slate-200 bg-slate-50 p-2 gap-2">
+              <div className="flex flex-wrap border-b border-slate-200 bg-slate-50 p-2 gap-2">
                 <button
-                  id="btn-mode-seq"
-                  onClick={() => setScanMethod('SEQUENTIAL')}
-                  className={`flex-1 py-3 px-4 font-bold text-xs uppercase tracking-wider rounded-lg transition-all flex items-center justify-center gap-2 ${
-                    scanMethod === 'SEQUENTIAL' 
-                      ? 'bg-white text-indigo-600 shadow-sm border border-slate-200' 
+                  id="btn-mode-manual-seq"
+                  onClick={() => {
+                    setScanMethod('MANUAL_SEQUENTIAL');
+                    setManualSeqTargetBox(null);
+                    setManualSeqBoxInput('');
+                  }}
+                  className={`flex-1 min-w-[170px] py-3 px-4 font-black text-xs uppercase tracking-wider rounded-lg transition-all flex items-center justify-center gap-2 ${
+                    scanMethod === 'MANUAL_SEQUENTIAL' 
+                      ? 'bg-white text-indigo-600 shadow-sm border border-slate-200 ring-1 ring-indigo-500/20' 
                       : 'text-slate-500 hover:bg-slate-100'
                   }`}
                 >
-                  <Layers size={14} />
-                  Leitura Sequencial
+                  <Zap size={15} className="text-amber-500" />
+                  Gravação Sequencial Manual
+                </button>
+                <button
+                  id="btn-mode-seq"
+                  onClick={() => setScanMethod('SEQUENTIAL')}
+                  className={`flex-1 min-w-[150px] py-3 px-4 font-black text-xs uppercase tracking-wider rounded-lg transition-all flex items-center justify-center gap-2 ${
+                    scanMethod === 'SEQUENTIAL' 
+                      ? 'bg-white text-indigo-600 shadow-sm border border-slate-200 ring-1 ring-indigo-500/20' 
+                      : 'text-slate-500 hover:bg-slate-100'
+                  }`}
+                >
+                  <Layers size={15} />
+                  Sequencial Numérica (#001...)
                 </button>
                 <button
                   id="btn-mode-manual"
                   onClick={() => setScanMethod('MANUAL')}
-                  className={`flex-1 py-3 px-4 font-bold text-xs uppercase tracking-wider rounded-lg transition-all flex items-center justify-center gap-2 ${
+                  className={`flex-1 min-w-[130px] py-3 px-4 font-black text-xs uppercase tracking-wider rounded-lg transition-all flex items-center justify-center gap-2 ${
                     scanMethod === 'MANUAL' 
-                      ? 'bg-white text-indigo-600 shadow-sm border border-slate-200' 
+                      ? 'bg-white text-indigo-600 shadow-sm border border-slate-200 ring-1 ring-indigo-500/20' 
                       : 'text-slate-500 hover:bg-slate-100'
                   }`}
                 >
-                  <Cpu size={14} />
-                  Leitura Manual
+                  <Cpu size={15} />
+                  Gravação Avulsa
                 </button>
               </div>
 
               {/* Central Dynamic Screen */}
               <div className="p-4 sm:p-8 flex flex-col items-center justify-center min-h-[350px] text-center border-b border-slate-100">
-                {scanMethod === 'SEQUENTIAL' ? (
+                {scanMethod === 'MANUAL_SEQUENTIAL' ? (
+                  /* MODO GRAVAÇÃO SEQUENCIAL MANUAL (DIGITAÇÃO RÁPIDA DE CAIXA + SCAN DE TAG) */
+                  <div className="space-y-6 w-full max-w-md animate-in fade-in duration-150">
+                    {!manualSeqTargetBox ? (
+                      /* ETAPA 1: DIGITAR NÚMERO DA CAIXA */
+                      <div className="space-y-5">
+                        <div>
+                          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-[11px] font-black uppercase tracking-wider mb-2 border border-amber-200/60">
+                            <Zap size={13} className="text-amber-500" /> Etapa 1: Defina a Caixa
+                          </div>
+                          <h3 className="text-2xl font-black text-slate-800">
+                            Número da Caixa
+                          </h3>
+                          <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+                            Aceita <strong>letras e caracteres especiais</strong> (ex: <span className="font-mono font-bold text-indigo-600 bg-slate-100 px-1.5 py-0.5 rounded">25L</span>, <span className="font-mono font-bold text-indigo-600 bg-slate-100 px-1.5 py-0.5 rounded">*509</span>, <span className="font-mono font-bold text-indigo-600 bg-slate-100 px-1.5 py-0.5 rounded">CX-01</span>).
+                          </p>
+                        </div>
+
+                        <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 space-y-4 shadow-2xs">
+                          <div className="relative">
+                            <input 
+                              id="input-manual-seq-box"
+                              ref={manualSeqInputRef}
+                              type="text"
+                              value={manualSeqBoxInput}
+                              onChange={(e) => setManualSeqBoxInput(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  const trimmed = manualSeqBoxInput.trim().toUpperCase();
+                                  if (trimmed) {
+                                    setManualSeqTargetBox(trimmed);
+                                    setScanMessage({ text: `Caixa "${trimmed}" selecionada. Aproxime a tag NFC para gravar...`, type: 'info' });
+                                    setTimeout(() => {
+                                      instantInputRef.current?.focus();
+                                    }, 80);
+                                  }
+                                }
+                              }}
+                              placeholder="Ex: 25L ou *509"
+                              autoFocus
+                              className="w-full p-4 rounded-xl border-2 border-indigo-200 bg-white focus:border-indigo-600 focus:ring-4 focus:ring-indigo-500/10 font-black text-3xl text-center outline-none uppercase font-mono tracking-wider text-slate-800 transition-all shadow-sm"
+                            />
+                          </div>
+
+                          <button
+                            type="button"
+                            id="btn-confirm-seq-box-number"
+                            disabled={!manualSeqBoxInput.trim()}
+                            onClick={() => {
+                              const trimmed = manualSeqBoxInput.trim().toUpperCase();
+                              if (trimmed) {
+                                setManualSeqTargetBox(trimmed);
+                                setScanMessage({ text: `Caixa "${trimmed}" selecionada. Aproxime a tag NFC para gravar...`, type: 'info' });
+                                setTimeout(() => {
+                                  instantInputRef.current?.focus();
+                                }, 80);
+                              }
+                            }}
+                            className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-sm rounded-xl transition-all shadow-md shadow-indigo-600/10 flex items-center justify-center gap-2 disabled:opacity-40 cursor-pointer active:scale-98"
+                          >
+                            <span>Gravar Tag para esta Caixa</span>
+                            <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded font-mono">ENTER ➔</span>
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      /* ETAPA 2: AGUARDANDO APROXIMAR A TAG NFC */
+                      <div className="space-y-5 animate-in zoom-in-95 duration-150">
+                        <div>
+                          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-[11px] font-black uppercase tracking-wider mb-2 border border-emerald-200/60">
+                            <Check size={13} /> Etapa 2: Aproxime a Tag NFC
+                          </div>
+                          <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Caixa Selecionada</p>
+                          <div className="inline-block bg-indigo-50 border-2 border-indigo-500 text-indigo-900 font-mono font-black text-4xl px-6 py-2 rounded-2xl mt-1 shadow-sm">
+                            BOX-{manualSeqTargetBox}
+                          </div>
+                        </div>
+
+                        <div className="bg-gradient-to-b from-indigo-50/80 to-white border-2 border-dashed border-indigo-300 rounded-2xl p-6 relative overflow-hidden flex flex-col items-center justify-center shadow-sm">
+                          <div className="w-14 h-14 rounded-full bg-indigo-600 text-white flex items-center justify-center mb-3 shadow-lg shadow-indigo-600/30 animate-pulse">
+                            <Cpu size={28} />
+                          </div>
+                          <h4 className="text-base font-black text-slate-800">Aproxime a Tag NFC no Leitor</h4>
+                          <p className="text-xs text-slate-500 mt-1 max-w-xs">
+                            Ao aproximar a tag, a caixa será gravada e o sistema avançará <strong>automaticamente</strong> para a digitação da próxima caixa!
+                          </p>
+
+                          {/* Instant input field for USB HID reader or manual typing */}
+                          <div className="mt-5 w-full max-w-sm flex items-center gap-2">
+                            <div className="relative flex-1">
+                              <input 
+                                id="input-tag-reader-manual-seq"
+                                ref={instantInputRef}
+                                type="text"
+                                value={directTagInput}
+                                onChange={e => setDirectTagInput(e.target.value)}
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter' && directTagInput.trim()) {
+                                    e.preventDefault();
+                                    processTagScanned(directTagInput);
+                                  } else if (e.key === 'Escape') {
+                                    e.preventDefault();
+                                    setManualSeqTargetBox(null);
+                                    setTimeout(() => manualSeqInputRef.current?.focus(), 80);
+                                  }
+                                }}
+                                placeholder="Aproxime no leitor USB ou digite..."
+                                className="w-full px-3.5 py-2.5 bg-white border border-indigo-300 rounded-xl text-xs font-mono font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
+                              />
+                            </div>
+                            <button 
+                              id="btn-confirm-tag-manual-seq"
+                              type="button"
+                              disabled={!directTagInput.trim()}
+                              onClick={() => {
+                                if (directTagInput.trim()) processTagScanned(directTagInput);
+                              }}
+                              className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl disabled:opacity-40 transition-all shrink-0 flex items-center gap-1 cursor-pointer"
+                            >
+                              <Check size={14} /> Gravar
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Controls */}
+                        <div className="flex justify-center">
+                          <button
+                            type="button"
+                            id="btn-cancel-target-box"
+                            onClick={() => {
+                              setManualSeqTargetBox(null);
+                              setTimeout(() => manualSeqInputRef.current?.focus(), 80);
+                            }}
+                            className="px-4 py-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <ArrowLeft size={14} /> Trocar / Corrigir Número da Caixa (ESC)
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : scanMethod === 'SEQUENTIAL' ? (
                   <div className="space-y-6 w-full max-w-md">
                     <div>
                       <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Próxima Caixa</p>
@@ -600,7 +896,7 @@ export const NfcKitsAdmin: React.FC = () => {
                       <button
                         id="btn-back-box"
                         onClick={handleBackBox}
-                        disabled={currentScanBox <= activeScanKit.caixaInicial}
+                        disabled={typeof activeScanKit.caixaInicial === 'number' && currentScanBox <= activeScanKit.caixaInicial}
                         className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl active:scale-95 transition-all disabled:opacity-50 disabled:pointer-events-none flex items-center gap-1.5"
                       >
                         <ArrowLeft size={14} /> Voltar
@@ -608,7 +904,7 @@ export const NfcKitsAdmin: React.FC = () => {
                       <button
                         id="btn-skip-box"
                         onClick={handleSkipBox}
-                        disabled={currentScanBox >= activeScanKit.caixaFinal}
+                        disabled={typeof activeScanKit.caixaFinal === 'number' && currentScanBox >= activeScanKit.caixaFinal}
                         className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl active:scale-95 transition-all disabled:opacity-50 disabled:pointer-events-none flex items-center gap-1.5"
                       >
                         Pular Caixa <ArrowRight size={14} />
@@ -629,16 +925,14 @@ export const NfcKitsAdmin: React.FC = () => {
                       <p className="text-xs text-slate-400 mb-4">Escolha a caixa e aproxime o leitor.</p>
                       <input 
                         id="input-manual-box"
-                        type="number"
-                        min={activeScanKit.caixaInicial}
-                        max={activeScanKit.caixaFinal}
+                        type="text"
                         value={manualBoxInput}
                         onChange={(e) => setManualBoxInput(e.target.value)}
-                        placeholder="Ex: 175"
-                        className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 font-black text-2xl text-center outline-none"
+                        placeholder="Ex: 25L ou *509"
+                        className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 font-black text-2xl text-center outline-none uppercase font-mono"
                       />
                       <p className="text-[10px] text-slate-400 mt-2">
-                        Faixa numérica do kit: {activeScanKit.caixaInicial} até {activeScanKit.caixaFinal}
+                        Digite qualquer identificador (letras, números ou caracteres especiais).
                       </p>
                     </div>
 
@@ -978,7 +1272,36 @@ export const NfcKitsAdmin: React.FC = () => {
 
                 {/* Box list in the kit */}
                 <div className="space-y-3">
-                  <h4 className="font-black text-slate-800 text-sm">Relação de Caixas</h4>
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-black text-slate-800 text-sm">Relação de Caixas</h4>
+                    <span className="text-[10px] font-bold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
+                      {selectedKitBoxes.length} {selectedKitBoxes.length === 1 ? 'caixa' : 'caixas'}
+                    </span>
+                  </div>
+
+                  {/* Add Custom Alphanumeric Box Form */}
+                  <form onSubmit={handleAddCustomBox} className="p-3 bg-indigo-50/60 rounded-xl border border-indigo-100/80 space-y-2">
+                    <label className="block text-[10px] font-black text-indigo-900 uppercase tracking-wider">
+                      Adicionar Caixa Avulsa (Letras / Caracteres Especiais)
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={newCustomBoxName}
+                        onChange={(e) => setNewCustomBoxName(e.target.value)}
+                        placeholder="Ex: 25L ou *509"
+                        className="flex-1 px-3 py-2 bg-white border border-indigo-200 rounded-lg text-xs font-mono font-bold uppercase outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                      <button
+                        type="submit"
+                        disabled={isAddingCustomBox || !newCustomBoxName.trim()}
+                        className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-lg transition-all shadow-xs flex items-center gap-1 shrink-0 disabled:opacity-40 cursor-pointer"
+                      >
+                        {isAddingCustomBox ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
+                        <span>Adicionar</span>
+                      </button>
+                    </div>
+                  </form>
                   
                   {/* Search inside box table */}
                   <div className="relative">
@@ -1038,14 +1361,14 @@ export const NfcKitsAdmin: React.FC = () => {
                                   <button
                                     onClick={() => handleClearBox(box.numeroCaixa)}
                                     title="Limpar Tag desta Caixa"
-                                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors"
+                                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors cursor-pointer"
                                   >
                                     <Trash2 size={14} />
                                   </button>
                                 </div>
                               );
                             })() : (
-                              <span className="text-[10px] text-slate-400 italic">Pendente</span>
+                              <span className="text-[10px] font-medium text-slate-400 italic">Pendente</span>
                             )}
                           </div>
                         </div>
@@ -1070,14 +1393,46 @@ export const NfcKitsAdmin: React.FC = () => {
       {/* CREATE KIT MODAL */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-[100] p-4" id="create-kit-modal">
-          <div className="bg-white rounded-2xl max-w-md w-full overflow-hidden shadow-2xl border border-slate-100">
-            <div className="px-4 pb-4 sm:px-6 sm:pb-6 bg-slate-900 text-white flex justify-between items-center">
-              <h3 className="font-black text-lg">Criar Novo Kit Comercial</h3>
-              <button onClick={() => setShowCreateModal(false)} className="text-slate-400 hover:text-white transition-all">
+          <div className="bg-white rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl border border-slate-100 max-h-[90vh] flex flex-col">
+            <div className="px-6 py-5 bg-slate-900 text-white flex justify-between items-center shrink-0">
+              <div>
+                <h3 className="font-black text-lg">Criar Novo Kit Comercial</h3>
+                <p className="text-xs text-slate-400">Gere caixas sequenciais ou com caracteres especiais</p>
+              </div>
+              <button onClick={() => setShowCreateModal(false)} className="text-slate-400 hover:text-white transition-all cursor-pointer">
                 <X size={20} />
               </button>
             </div>
-            <form onSubmit={handleCreateKit} className="px-4 pb-4 sm:px-6 sm:pb-6 space-y-4">
+
+            {/* Type selector */}
+            <div className="p-3 bg-slate-50 border-b border-slate-200 flex gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setKitFormType('RANGE')}
+                className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  kitFormType === 'RANGE' 
+                    ? 'bg-white text-indigo-600 shadow-xs border border-slate-200' 
+                    : 'text-slate-500 hover:bg-slate-100'
+                }`}
+              >
+                <Layers size={14} />
+                Faixa Numérica
+              </button>
+              <button
+                type="button"
+                onClick={() => setKitFormType('CUSTOM')}
+                className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  kitFormType === 'CUSTOM' 
+                    ? 'bg-white text-indigo-600 shadow-xs border border-slate-200' 
+                    : 'text-slate-500 hover:bg-slate-100'
+                }`}
+              >
+                <Tag size={14} />
+                Lista Personalizada (Letras / Caracteres Especiais)
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateKit} className="p-6 space-y-4 overflow-y-auto">
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Nome do Kit</label>
                 <input
@@ -1085,8 +1440,8 @@ export const NfcKitsAdmin: React.FC = () => {
                   type="text"
                   value={kitForm.nome}
                   onChange={(e) => setKitForm({ ...kitForm, nome: e.target.value })}
-                  placeholder="Ex: Kit NFC Comercial #10"
-                  className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 text-sm outline-none"
+                  placeholder="Ex: Kit Especial Laboratório #10"
+                  className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 text-sm outline-none font-medium"
                 />
               </div>
 
@@ -1095,65 +1450,140 @@ export const NfcKitsAdmin: React.FC = () => {
                 <textarea
                   value={kitForm.descricao}
                   onChange={(e) => setKitForm({ ...kitForm, descricao: e.target.value })}
-                  placeholder="Ex: Lote fabricado em Julho com tags NTAG213."
+                  placeholder="Ex: Caixas especiais com identificação mista (25L, *509, etc.)."
                   rows={2}
-                  className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 text-sm outline-none resize-none"
+                  className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 text-sm outline-none resize-none font-medium"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Caixa Inicial</label>
-                  <input
-                    required
-                    type="number"
-                    min={1}
-                    value={kitForm.caixaInicial}
-                    onChange={(e) => setKitForm({ ...kitForm, caixaInicial: Number(e.target.value) })}
-                    className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 text-sm outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Caixa Final</label>
-                  <input
-                    required
-                    type="number"
-                    min={kitForm.caixaInicial}
-                    value={kitForm.caixaFinal}
-                    onChange={(e) => setKitForm({ ...kitForm, caixaFinal: Number(e.target.value) })}
-                    className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 text-sm outline-none"
-                  />
-                </div>
-              </div>
+              {kitFormType === 'RANGE' ? (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Caixa Inicial</label>
+                      <input
+                        required
+                        type="number"
+                        min={1}
+                        value={kitForm.caixaInicial}
+                        onChange={(e) => setKitForm({ ...kitForm, caixaInicial: Number(e.target.value) })}
+                        className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 text-sm outline-none font-mono font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Caixa Final</label>
+                      <input
+                        required
+                        type="number"
+                        min={kitForm.caixaInicial}
+                        value={kitForm.caixaFinal}
+                        onChange={(e) => setKitForm({ ...kitForm, caixaFinal: Number(e.target.value) })}
+                        className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 text-sm outline-none font-mono font-bold"
+                      />
+                    </div>
+                  </div>
 
-              {/* Automatic quantity prediction banner */}
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex justify-between items-center">
-                <span className="text-xs text-slate-500">Quantidade de caixas estimadas:</span>
-                <span className="font-mono text-sm font-black text-slate-800">
-                  {kitForm.caixaFinal >= kitForm.caixaInicial ? kitForm.caixaFinal - kitForm.caixaInicial + 1 : 0}
-                </span>
-              </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Prefixo Opcional</label>
+                      <input
+                        type="text"
+                        value={kitForm.prefixo}
+                        onChange={(e) => setKitForm({ ...kitForm, prefixo: e.target.value })}
+                        placeholder="Ex: * ou CX-"
+                        className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 text-sm outline-none font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Sufixo Opcional</label>
+                      <input
+                        type="text"
+                        value={kitForm.sufixo}
+                        onChange={(e) => setKitForm({ ...kitForm, sufixo: e.target.value })}
+                        placeholder="Ex: L ou -A"
+                        className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 text-sm outline-none font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Prediction banner */}
+                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex justify-between items-center text-xs">
+                    <span className="text-slate-500">Quantidade de caixas:</span>
+                    <span className="font-mono text-sm font-black text-slate-800">
+                      {kitForm.caixaFinal >= kitForm.caixaInicial ? kitForm.caixaFinal - kitForm.caixaInicial + 1 : 0}
+                    </span>
+                  </div>
+                </>
+              ) : (
+                /* CUSTOM BOXES LIST (LETRAS E CARACTERES ESPECIAIS) */
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                      Lista de Caixas (Alfanuméricas & Caracteres Especiais)
+                    </label>
+                    <p className="text-xs text-slate-400 mb-2">
+                      Digite ou cole os números das caixas separados por <strong>vírgula</strong>, <strong>espaço</strong> ou <strong>linhas</strong>.
+                    </p>
+                    <textarea
+                      required
+                      value={kitForm.customBoxesText}
+                      onChange={(e) => setKitForm({ ...kitForm, customBoxesText: e.target.value })}
+                      placeholder="Ex: 25L, *509, A-01, BOX-99, #300, 100, 101"
+                      rows={4}
+                      className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 text-sm outline-none font-mono"
+                    />
+                  </div>
+
+                  {/* Parsed boxes chips preview */}
+                  {(() => {
+                    const parsed = kitForm.customBoxesText
+                      .split(/[\n,;]+/)
+                      .map(b => b.trim())
+                      .filter(Boolean);
+
+                    return (
+                      <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-2">
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="font-bold text-slate-600">Caixas identificadas:</span>
+                          <span className="font-mono font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">
+                            {parsed.length} caixas
+                          </span>
+                        </div>
+                        {parsed.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                            {parsed.map((bx, idx) => (
+                              <span key={idx} className="font-mono font-bold text-[11px] bg-white border border-slate-200 text-slate-700 px-2 py-0.5 rounded shadow-2xs">
+                                {bx}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
 
               <div className="flex gap-3 pt-4 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm rounded-xl transition-all"
+                  className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm rounded-xl transition-all cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmittingKit}
-                  className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm rounded-xl transition-all shadow-md shadow-indigo-600/10 flex items-center justify-center gap-1.5"
+                  className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm rounded-xl transition-all shadow-md shadow-indigo-600/10 flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   {isSubmittingKit ? (
                     <>
                       <Loader2 size={16} className="animate-spin" />
-                      Criando...
+                      Criando Kit...
                     </>
                   ) : (
-                    'Confirmar'
+                    'Confirmar e Criar Kit'
                   )}
                 </button>
               </div>
