@@ -566,7 +566,7 @@ export const GlobalScanner: React.FC = () => {
                 sector: sector,
                 userId: user.id,
                 userName: user.name,
-                entryTime: new Date(),
+                entryTime: stageName ? undefined : new Date(),
                 timestamp: new Date(),
                 stageTimes: {}
             });
@@ -589,7 +589,9 @@ export const GlobalScanner: React.FC = () => {
             };
             exec.userId = user.id;
             exec.userName = user.name;
-            exec.entryTime = new Date();
+            if (!stageName) {
+                exec.entryTime = new Date();
+            }
             exec.timestamp = new Date();
         } else if (isExiting) {
             exec.stageTimes[stageKey] = { 
@@ -949,29 +951,63 @@ export const GlobalScanner: React.FC = () => {
                                              : item.quantity
                                     }</p>
                                 </div>
-                                {(() => {
-                                    const baseTimes = stageTimes['BASE'] || {};
-                                    let status: 'NOT_STARTED' | 'IN_PROGRESS' | 'DONE' = 'NOT_STARTED';
-                                    if (baseTimes.exitTime || (execution?.isBaseChecked && execution?.timestamp)) {
-                                        status = 'DONE';
-                                    } else if (baseTimes.entryTime || execution?.entryTime) {
-                                        status = 'IN_PROGRESS';
-                                    }
+                                {itemSectorStages.length === 0 ? (
+                                    (() => {
+                                        const baseTimes = stageTimes['BASE'] || {};
+                                        let status: 'NOT_STARTED' | 'IN_PROGRESS' | 'DONE' = 'NOT_STARTED';
+                                        if (baseTimes.exitTime || (execution?.isBaseChecked && execution?.timestamp)) {
+                                            status = 'DONE';
+                                        } else if (baseTimes.entryTime || (!execution?.stageTimes && execution?.entryTime)) {
+                                            status = 'IN_PROGRESS';
+                                        }
 
-                                    return (
-                                        <button
-                                            disabled={status === 'DONE' || isUploading}
-                                            onClick={() => handleStageAction(item, undefined, status)}
-                                            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
-                                                status === 'DONE' ? 'bg-green-100 text-green-700' :
-                                                status === 'IN_PROGRESS' ? 'bg-orange-500 text-white hover:bg-orange-600 shadow-md' :
-                                                'bg-blue-600 text-white hover:bg-blue-700 shadow-md'
-                                            }`}
-                                        >
-                                            {status === 'DONE' ? 'Concluído' : status === 'IN_PROGRESS' ? 'Saída' : 'Entrada'}
-                                        </button>
-                                    );
-                                })()}
+                                        return (
+                                            <button
+                                                disabled={status === 'DONE' || isUploading}
+                                                onClick={() => handleStageAction(item, undefined, status)}
+                                                className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                                                    status === 'DONE' ? 'bg-green-100 text-green-700' :
+                                                    status === 'IN_PROGRESS' ? 'bg-orange-500 text-white hover:bg-orange-600 shadow-md' :
+                                                    'bg-blue-600 text-white hover:bg-blue-700 shadow-md'
+                                                }`}
+                                            >
+                                                {status === 'DONE' ? 'Concluído' : status === 'IN_PROGRESS' ? 'Saída' : 'Entrada'}
+                                            </button>
+                                        );
+                                    })()
+                                ) : (
+                                    (() => {
+                                        const completedStages = itemSectorStages.filter((st: string) => {
+                                            const stTime = stageTimes[st] || {};
+                                            return !!stTime.exitTime || (execution?.executedStages && execution.executedStages.includes(st));
+                                        }).length;
+                                        const inProgressStages = itemSectorStages.filter((st: string) => {
+                                            const stTime = stageTimes[st] || {};
+                                            const isDone = !!stTime.exitTime || (execution?.executedStages && execution.executedStages.includes(st));
+                                            return !isDone && !!stTime.entryTime;
+                                        }).length;
+
+                                        const allDone = completedStages === itemSectorStages.length && itemSectorStages.length > 0;
+
+                                        return (
+                                            <div className="flex items-center gap-1.5">
+                                                {allDone ? (
+                                                    <span className="px-3 py-1 rounded-xl text-xs font-black bg-green-100 text-green-700 uppercase">
+                                                        Concluído
+                                                    </span>
+                                                ) : inProgressStages > 0 ? (
+                                                    <span className="px-2.5 py-1 rounded-xl text-[10px] font-black bg-blue-100 text-blue-700 uppercase">
+                                                        {inProgressStages} em andamento
+                                                    </span>
+                                                ) : (
+                                                    <span className="px-2.5 py-1 rounded-xl text-[10px] font-bold bg-slate-100 text-slate-500 uppercase">
+                                                        {completedStages}/{itemSectorStages.length} etapas
+                                                    </span>
+                                                )}
+                                            </div>
+                                        );
+                                    })()
+                                )}
                             </div>
 
                             {itemSectorStages.length > 0 && (

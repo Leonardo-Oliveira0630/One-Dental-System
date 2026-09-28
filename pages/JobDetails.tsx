@@ -102,6 +102,7 @@ export const JobDetails = () => {
   const [editingExecution, setEditingExecution] = useState<{
       item: JobItem,
       sector: string,
+      stageName?: string,
       userId: string,
       entryTime: string,
       exitTime: string,
@@ -1272,13 +1273,45 @@ export const JobDetails = () => {
       } finally { setIsUpdatingStatus(false); }
   };
 
-  const handleOpenEditExecution = (item: JobItem, sector: string, execution?: JobItemExecution | null, latestMov?: SectorMovement | null) => {
+  const handleOpenEditExecution = (item: JobItem, sector: string, execution?: JobItemExecution | null, latestMov?: SectorMovement | null, stageName?: string) => {
+      const targetStage = stageName || 'BASE';
+      const stageData = execution?.stageTimes?.[targetStage];
+
+      let initialEntryTime = '';
+      let initialExitTime = '';
+      let initialUserId = '';
+
+      if (stageData) {
+          if (stageData.entryTime) {
+              const d = parseSafeDate(stageData.entryTime);
+              if (d) initialEntryTime = new Date(d.getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+          }
+          if (stageData.exitTime) {
+              const d = parseSafeDate(stageData.exitTime);
+              if (d) initialExitTime = new Date(d.getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+          }
+          initialUserId = stageData.exitUserId || stageData.entryUserId || execution?.userId || '';
+      } else if (targetStage === 'BASE') {
+          if (latestMov?.entryTime) {
+              initialEntryTime = new Date(latestMov.entryTime.getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+          } else if (execution?.entryTime) {
+              const d = parseSafeDate(execution.entryTime);
+              if (d) initialEntryTime = new Date(d.getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+          }
+          if (execution?.timestamp) {
+              const d = parseSafeDate(execution.timestamp);
+              if (d) initialExitTime = new Date(d.getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+          }
+          initialUserId = execution?.userId || '';
+      }
+
       setEditingExecution({
           item,
           sector,
-          userId: execution ? execution.userId : '',
-          entryTime: latestMov ? new Date(latestMov.entryTime.getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : '',
-          exitTime: execution ? new Date(execution.timestamp.getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : '',
+          stageName: targetStage,
+          userId: initialUserId,
+          entryTime: initialEntryTime,
+          exitTime: initialExitTime,
           originalExecution: execution,
           originalMovement: latestMov
       });
@@ -1291,30 +1324,35 @@ export const JobDetails = () => {
 
       setIsUpdatingStatus(true);
       try {
-          // Prepare new sectorMovements
+          const targetStageKey = editingExecution.stageName || 'BASE';
+          const isBaseStage = targetStageKey === 'BASE';
+
+          // Prepare new sectorMovements if BASE stage
           let newMovements = [...(job.sectorMovements || [])];
-          if (editingExecution.originalMovement) {
-              const idx = newMovements.findIndex(m => m.id === editingExecution.originalMovement!.id);
-              if (idx !== -1) {
-                  newMovements[idx] = {
-                      ...newMovements[idx],
+          if (isBaseStage) {
+              if (editingExecution.originalMovement) {
+                  const idx = newMovements.findIndex(m => m.id === editingExecution.originalMovement!.id);
+                  if (idx !== -1) {
+                      newMovements[idx] = {
+                          ...newMovements[idx],
+                          entryTime: new Date(editingExecution.entryTime),
+                          exitTime: editingExecution.exitTime ? new Date(editingExecution.exitTime) : undefined,
+                          exitUserId: editingExecution.exitTime ? editingExecution.userId : undefined,
+                          exitUserName: editingExecution.exitTime ? (labUsers.find(u => u.id === editingExecution.userId)?.name || '') : undefined
+                      };
+                  }
+              } else if (editingExecution.entryTime) {
+                  newMovements.push({
+                      id: Math.random().toString(),
+                      sector: editingExecution.sector,
                       entryTime: new Date(editingExecution.entryTime),
+                      entryUserId: editingExecution.userId,
+                      entryUserName: labUsers.find(u => u.id === editingExecution.userId)?.name || '',
                       exitTime: editingExecution.exitTime ? new Date(editingExecution.exitTime) : undefined,
                       exitUserId: editingExecution.exitTime ? editingExecution.userId : undefined,
                       exitUserName: editingExecution.exitTime ? (labUsers.find(u => u.id === editingExecution.userId)?.name || '') : undefined
-                  };
+                  });
               }
-          } else if (editingExecution.entryTime) {
-              newMovements.push({
-                  id: Math.random().toString(),
-                  sector: editingExecution.sector,
-                  entryTime: new Date(editingExecution.entryTime),
-                  entryUserId: editingExecution.userId,
-                  entryUserName: labUsers.find(u => u.id === editingExecution.userId)?.name || '',
-                  exitTime: editingExecution.exitTime ? new Date(editingExecution.exitTime) : undefined,
-                  exitUserId: editingExecution.exitTime ? editingExecution.userId : undefined,
-                  exitUserName: editingExecution.exitTime ? (labUsers.find(u => u.id === editingExecution.userId)?.name || '') : undefined
-              });
           }
 
           // Prepare new itemExecutions
@@ -1327,27 +1365,36 @@ export const JobDetails = () => {
           if (entryDate || exitDate) {
               const existingExec = idx !== -1 ? newExecutions[idx] : null;
               const stageTimes = existingExec?.stageTimes ? { ...existingExec.stageTimes } : {};
-              const currentBase = stageTimes['BASE'] || {};
-              stageTimes['BASE'] = {
-                  ...currentBase,
-                  entryTime: entryDate || currentBase.entryTime,
-                  entryUserId: entryDate ? editingExecution.userId : currentBase.entryUserId,
-                  exitTime: exitDate || currentBase.exitTime,
-                  exitUserId: exitDate ? editingExecution.userId : currentBase.exitUserId
+              const curStage = stageTimes[targetStageKey] || {};
+              stageTimes[targetStageKey] = {
+                  ...curStage,
+                  entryTime: entryDate || curStage.entryTime,
+                  entryUserId: entryDate ? editingExecution.userId : curStage.entryUserId,
+                  exitTime: exitDate || curStage.exitTime,
+                  exitUserId: exitDate ? editingExecution.userId : curStage.exitUserId
               };
+
+              let executedStages = [...(existingExec?.executedStages || [])];
+              if (!isBaseStage) {
+                  if (exitDate && !executedStages.includes(targetStageKey)) {
+                      executedStages.push(targetStageKey);
+                  } else if (!exitDate && executedStages.includes(targetStageKey)) {
+                      executedStages = executedStages.filter(s => s !== targetStageKey);
+                  }
+              }
 
               const updatedExec: any = {
                   itemId: editingExecution.item.id,
                   jobTypeId: editingExecution.item.jobTypeId,
                   jobTypeName: jobTypes.find(t => t.id === editingExecution.item.jobTypeId)?.name || '',
                   sector: editingExecution.sector,
-                  userId: editingExecution.userId,
-                  userName: labUsers.find(u => u.id === editingExecution.userId)?.name || '',
-                  entryTime: entryDate || existingExec?.entryTime,
-                  timestamp: exitDate || existingExec?.timestamp || entryDate,
+                  userId: isBaseStage ? editingExecution.userId : (existingExec?.userId || editingExecution.userId),
+                  userName: isBaseStage ? (labUsers.find(u => u.id === editingExecution.userId)?.name || '') : (existingExec?.userName || labUsers.find(u => u.id === editingExecution.userId)?.name || ''),
+                  entryTime: isBaseStage ? (entryDate || existingExec?.entryTime) : existingExec?.entryTime,
+                  timestamp: isBaseStage ? (exitDate || existingExec?.timestamp || entryDate) : (existingExec?.timestamp || exitDate || entryDate),
                   stageTimes: stageTimes,
-                  isBaseChecked: !!exitDate || existingExec?.isBaseChecked,
-                  executedStages: existingExec?.executedStages || []
+                  isBaseChecked: isBaseStage ? (!!exitDate || existingExec?.isBaseChecked) : existingExec?.isBaseChecked,
+                  executedStages: executedStages
               };
 
               if (idx !== -1) {
@@ -1356,7 +1403,21 @@ export const JobDetails = () => {
                   newExecutions.push(updatedExec);
               }
           } else if (idx !== -1) {
-              newExecutions.splice(idx, 1);
+              const existingExec = newExecutions[idx];
+              if (existingExec?.stageTimes && existingExec.stageTimes[targetStageKey]) {
+                  const stageTimes = { ...existingExec.stageTimes };
+                  delete stageTimes[targetStageKey];
+                  const remainingKeys = Object.keys(stageTimes);
+                  if (remainingKeys.length === 0 && !existingExec.entryTime && !existingExec.timestamp) {
+                      newExecutions.splice(idx, 1);
+                  } else {
+                      newExecutions[idx] = {
+                          ...existingExec,
+                          stageTimes,
+                          executedStages: (existingExec.executedStages || []).filter(s => s !== targetStageKey)
+                      };
+                  }
+              }
           }
 
           const selectedUser = labUsers.find(u => u.id === editingExecution.userId);
@@ -2168,10 +2229,15 @@ export const JobDetails = () => {
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
               <div className="bg-white rounded-3xl shadow-2xl p-4 sm:p-6 w-full max-w-md animate-in zoom-in duration-200">
                   <div className="flex justify-between items-center mb-6">
-                      <h3 className="text-xl font-black text-slate-800 tracking-tight flex items-center gap-2">
-                          <Settings className="text-slate-400" />
-                          Registro
-                      </h3>
+                      <div>
+                          <h3 className="text-xl font-black text-slate-800 tracking-tight flex items-center gap-2">
+                              <Settings className="text-slate-400" />
+                              {editingExecution.stageName && editingExecution.stageName !== 'BASE' 
+                                  ? `Etapa: ${editingExecution.stageName}` 
+                                  : t("job.editSectorRecords", "Registro de Produção")}
+                          </h3>
+                          <p className="text-xs font-bold text-slate-400 mt-0.5">{editingExecution.item.name}</p>
+                      </div>
                       <button onClick={() => setShowExecutionModal(false)} className="text-slate-400 hover:text-slate-600"><X size={24}/></button>
                   </div>
                   
@@ -4045,7 +4111,7 @@ export const JobDetails = () => {
                         <td className="px-5 py-3 text-right">
                             <div className="flex items-center justify-end gap-2">
                                 <button
-                                    onClick={() => handleOpenEditExecution(item, sector, execution, null)}
+                                    onClick={() => handleOpenEditExecution(item, sector, execution, null, stageName)}
                                     title="Editar ou registrar manualmente no setor"
                                     className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                                 >
