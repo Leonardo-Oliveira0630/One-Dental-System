@@ -1,4 +1,18 @@
-import { JobItem, JobType } from '../types';
+import { JobItem, JobType, CommissionGroup, UserCommissionSetting } from '../types';
+
+export const getUserEffectiveCommissionSettings = (
+    user: any,
+    commissionGroups?: CommissionGroup[]
+): UserCommissionSetting[] => {
+    if (!user) return [];
+    if (user.commissionGroupId && commissionGroups && commissionGroups.length > 0) {
+        const group = commissionGroups.find(g => g.id === user.commissionGroupId);
+        if (group && group.settings) {
+            return group.settings;
+        }
+    }
+    return user.commissionSettings || [];
+};
 
 export const calculateItemCommission = (
     item: JobItem,
@@ -7,17 +21,20 @@ export const calculateItemCommission = (
     secQty: number,
     sectorName?: string,
     executedStages?: string[],
-    includeBaseCommission: boolean = true
+    includeBaseCommission: boolean = true,
+    commissionGroups?: CommissionGroup[]
 ): number => {
     if (!jobType) return 0;
 
-    const setting = user?.commissionSettings?.find((s: any) => s.jobTypeId === item.jobTypeId);
+    const settings = getUserEffectiveCommissionSettings(user, commissionGroups);
+    const setting = settings.find((s: any) => s.jobTypeId === item.jobTypeId);
 
     // 1. Check if executed stages have specific commission settings for this user
     let stageCommissionTotal = 0;
     let hasStageCommission = false;
+    const stageSettings = setting?.stageSettings;
 
-    if (setting?.stageSettings && sectorName) {
+    if (stageSettings && sectorName) {
         // If executedStages is defined, use it. If not defined but sector has stages, fallback to checking all stages or executedStages
         const stagesToCheck = executedStages !== undefined
             ? executedStages
@@ -26,7 +43,7 @@ export const calculateItemCommission = (
         if (stagesToCheck.length > 0) {
             stagesToCheck.forEach((stageName: string) => {
                 const stageKey = `${sectorName}:${stageName}`;
-                const stSetting = setting.stageSettings[stageKey];
+                const stSetting = stageSettings[stageKey];
                 
                 // Get stage quantity if defined, otherwise use sector quantity
                 let stageQty = secQty;
@@ -58,10 +75,11 @@ export const calculateItemCommission = (
     // 2. Check if any selected variation has a user-specific setting
     let variationOverrideValue = 0;
     let hasVariationOverride = false;
+    const variationSettings = setting?.variationSettings;
 
-    if (setting?.variationSettings && item.selectedVariationIds) {
+    if (variationSettings && item.selectedVariationIds) {
         item.selectedVariationIds.forEach(vid => {
-            const vSetting = setting.variationSettings[vid];
+            const vSetting = variationSettings[vid];
             if (vSetting) {
                 hasVariationOverride = true;
                 if (vSetting.type === 'FIXED') {

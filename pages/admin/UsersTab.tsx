@@ -18,14 +18,15 @@ import {
   FileText, 
   Search, 
   ChevronDown,
-  Users
+  Users,
+  FolderPlus
 } from 'lucide-react';
 import * as api from '../../services/firebaseService';
 import * as XLSX from 'xlsx';
 
 const AVAILABLE_PERMISSIONS: { key: PermissionKey, label: string, category: string }[] = [
-    { key: 'jobs:view', label: 'Ver Lista e Detalhes', category: 'Produção' },
-    { key: 'jobs:create', label: 'Criar Novos Trabalhos', category: 'Produção' },
+    { key: 'jobs:view', label: 'Ver Lista e Detalhes de Casos', category: 'Produção' },
+    { key: 'jobs:create', label: 'Criar Novos Casos (OS)', category: 'Produção' },
     { key: 'jobs:edit', label: 'Editar Dados de Trabalhos', category: 'Produção' },
     { key: 'jobs:delete', label: 'Excluir Trabalhos', category: 'Produção' },
     { key: 'jobs:return', label: 'Devolver Trabalho', category: 'Produção' },
@@ -35,6 +36,10 @@ const AVAILABLE_PERMISSIONS: { key: PermissionKey, label: string, category: stri
     { key: 'jobs:chat_toggle', label: 'Habilitar/Desabilitar Chat', category: 'Produção' },
     { key: 'jobs:approval', label: 'Gerenciar Aprovação', category: 'Produção' },
     { key: 'jobs:change_status', label: 'Mudar Status', category: 'Produção' },
+    { key: 'budgets:view', label: 'Ver Lista e Detalhes de Orçamentos', category: 'Orçamentos' },
+    { key: 'budgets:create', label: 'Criar Novos Orçamentos', category: 'Orçamentos' },
+    { key: 'budgets:edit', label: 'Editar Dados de Orçamentos', category: 'Orçamentos' },
+    { key: 'budgets:delete', label: 'Excluir Orçamentos', category: 'Orçamentos' },
     { key: 'vip:view', label: 'Acessar Produção VIP', category: 'Produção' },
     { key: 'calendar:view', label: 'Acessar Calendário', category: 'Produção' },
     { key: 'finance:view', label: 'Ver Dashboard Financeiro', category: 'Financeiro' },
@@ -90,7 +95,7 @@ const AVAILABLE_PERMISSIONS: { key: PermissionKey, label: string, category: stri
 
 export const UsersTab = () => {
   const { t, i18n } = useTranslation();
-  const { allUsers, deleteUser, updateUser, sectors, currentOrg, currentPlan } = useApp();
+  const { allUsers, deleteUser, updateUser, sectors, currentOrg, currentPlan, commissionGroups } = useApp();
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAddingUser, setIsAddingUser] = useState(false);
@@ -119,6 +124,7 @@ export const UsersTab = () => {
   const [userRole, setUserRole] = useState<UserRole>(UserRole.COLLABORATOR);
   const [userSector, setUserSector] = useState('');
   const [userSectors, setUserSectors] = useState<string[]>([]);
+  const [userCommissionGroupId, setUserCommissionGroupId] = useState<string>('');
   const [tempPerms, setTempPerms] = useState<PermissionKey[]>([]);
 
   const maxUsersLimit = currentPlan?.features?.maxUsers ?? -1;
@@ -219,6 +225,7 @@ export const UsersTab = () => {
     setUserRole(UserRole.COLLABORATOR);
     setUserSectors([]);
     setUserSector('');
+    setUserCommissionGroupId('');
     setEditingUser(null);
   };
 
@@ -268,6 +275,7 @@ export const UsersTab = () => {
       setUserRole(user.role);
       setUserSector(user.sector || '');
       setUserSectors(user.sectors || (user.sector ? [user.sector] : []));
+      setUserCommissionGroupId(user.commissionGroupId || '');
   };
 
   const handleUpdateUserInfo = async (e: React.FormEvent) => {
@@ -276,7 +284,20 @@ export const UsersTab = () => {
       setIsSubmitting(true);
       try {
           const primarySector = userSectors.length > 0 ? userSectors[0] : '';
-          await updateUser(editingUser.id, { name: userName, role: userRole, sector: primarySector, sectors: userSectors });
+          const updates: Partial<User> = { 
+            name: userName, 
+            role: userRole, 
+            sector: primarySector, 
+            sectors: userSectors,
+            commissionGroupId: userCommissionGroupId || null
+          };
+          if (userCommissionGroupId) {
+            const grp = commissionGroups.find(g => g.id === userCommissionGroupId);
+            if (grp && grp.settings) {
+              updates.commissionSettings = grp.settings;
+            }
+          }
+          await updateUser(editingUser.id, updates);
           setEditingUser(null);
           alert(t('admin.users.userUpdatedSuccess', "Dados atualizados!"));
       } catch (err: any) { alert(t('admin.users.saveError', "Erro ao atualizar.")); } finally { setIsSubmitting(false); }
@@ -482,15 +503,23 @@ export const UsersTab = () => {
                   </div>
                 </td>
                 <td className="p-4">
-                  <span className={`px-2.5 py-1 text-[11px] font-bold rounded-lg uppercase tracking-wider ${
-                    user.role === UserRole.ADMIN 
-                      ? 'bg-purple-100 text-purple-700 border border-purple-200' 
-                      : user.role === UserRole.MANAGER 
-                        ? 'bg-indigo-100 text-indigo-700 border border-indigo-200' 
-                        : 'bg-blue-100 text-blue-700 border border-blue-200'
-                  }`}>
-                    {getRoleLabel(user.role)}
-                  </span>
+                  <div className="flex flex-col items-start gap-1">
+                    <span className={`px-2.5 py-1 text-[11px] font-bold rounded-lg uppercase tracking-wider ${
+                      user.role === UserRole.ADMIN 
+                        ? 'bg-purple-100 text-purple-700 border border-purple-200' 
+                        : user.role === UserRole.MANAGER 
+                          ? 'bg-indigo-100 text-indigo-700 border border-indigo-200' 
+                          : 'bg-blue-100 text-blue-700 border border-blue-200'
+                    }`}>
+                      {getRoleLabel(user.role)}
+                    </span>
+                    {user.commissionGroupId && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md">
+                        <FolderPlus size={10} />
+                        {commissionGroups.find(g => g.id === user.commissionGroupId)?.name || 'Grupo'}
+                      </span>
+                    )}
+                  </div>
                 </td>
                 <td className="p-4 text-slate-600 text-xs font-medium">
                   {user.sectors && user.sectors.length > 0 ? (
@@ -573,6 +602,27 @@ export const UsersTab = () => {
                               <option value={UserRole.ADMIN}>{t('admin.users.administrators', 'Administrador')}</option>
                           </select>
                       </div>
+
+                      {userRole === UserRole.COLLABORATOR && (
+                          <div>
+                              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+                                  Grupo de Ganhos / Comissões
+                              </label>
+                              <select 
+                                  value={userCommissionGroupId} 
+                                  onChange={e => setUserCommissionGroupId(e.target.value)} 
+                                  className="w-full px-4 py-2 border border-slate-200 rounded-xl bg-white font-medium text-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm"
+                              >
+                                  <option value="">Nenhum (Comissão manual / sem grupo)</option>
+                                  {commissionGroups.map(g => (
+                                      <option key={g.id} value={g.id}>Grupo: {g.name}</option>
+                                  ))}
+                              </select>
+                              <p className="text-[11px] text-slate-400 mt-1">
+                                  Permite que este colaborador herde automaticamente a tabela de ganhos do grupo.
+                              </p>
+                          </div>
+                      )}
                       <div>
                           <div className="flex items-center justify-between mb-1.5">
                               <label className="block text-xs font-bold text-slate-500 uppercase">

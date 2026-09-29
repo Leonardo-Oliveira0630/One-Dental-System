@@ -110,7 +110,7 @@ export const JobDetails = () => {
       originalMovement?: SectorMovement | null
   } | null>(null);
 
-  const { commissions, addCommissionRecord, deleteCommissionRecord, updateCommissionRecord } = useApp();
+  const { commissions, addCommissionRecord, deleteCommissionRecord, updateCommissionRecord, commissionGroups } = useApp();
   const labUsers = useMemo(() => allUsers.filter(u => u.role !== UserRole.CLIENT), [allUsers]);
 
   const [showRouteModal, setShowRouteModal] = useState(false);
@@ -530,14 +530,15 @@ export const JobDetails = () => {
     }
   }, [job]);
 
-  const isAdmin = currentUser?.role === UserRole.ADMIN;
+  const isAdmin = currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.SUPER_ADMIN;
   const isManager = currentUser?.role === UserRole.MANAGER;
   const isTech = currentUser?.role === UserRole.COLLABORATOR;
   const isClient = currentUser?.role === UserRole.CLIENT || currentUser?.role === UserRole.DENTIST || (currentUser as any)?.role === 'DENTIST' || currentOrg?.orgType === 'CLINIC';
   const isLabStaff = !isClient && (isAdmin || isManager || isTech);
   const targetLabOrg = isClient ? activeOrganization : currentOrg;
   const revealJobStatus = !isClient || (targetLabOrg?.revealJobStatusToDentist ?? false);
-  const canEdit = isAdmin || isManager || (isTech && currentUser?.permissions?.includes('jobs:edit'));
+  const canEdit = isAdmin || isManager || (isTech && (job?.isBudget ? currentUser?.permissions?.includes('budgets:edit') : currentUser?.permissions?.includes('jobs:edit')));
+  const canDelete = isAdmin || isManager || (isTech && (job?.isBudget ? currentUser?.permissions?.includes('budgets:delete') : currentUser?.permissions?.includes('jobs:delete')));
   const canManageCommissions = isAdmin || isManager || (isTech && currentUser?.permissions?.includes('commissions:edit'));
   const canReturn = isAdmin || isManager || (isTech && currentUser?.permissions?.includes('jobs:return'));
   const canFinish = isAdmin || isManager || (isTech && currentUser?.permissions?.includes('jobs:finish'));
@@ -701,6 +702,28 @@ export const JobDetails = () => {
   }, [job, jobTypes]);
 
   if (!job) return <div className="flex flex-col items-center justify-center h-[60vh] text-center p-4 sm:p-6"><h2 className="text-xl font-bold text-slate-800">Trabalho não encontrado</h2><button onClick={() => navigate('/jobs')} className="mt-4 text-blue-600 font-bold hover:underline">Voltar para lista</button></div>;
+
+  const hasViewPerm = isAdmin || isManager || isBuyer || (job.isBudget 
+    ? currentUser?.permissions?.includes('budgets:view') 
+    : currentUser?.permissions?.includes('jobs:view'));
+
+  if (!hasViewPerm) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[60vh] text-center p-4 sm:p-6">
+        <h2 className="text-xl font-bold text-slate-800">
+          {job.isBudget 
+            ? 'Você não tem permissão para visualizar este orçamento.' 
+            : 'Você não tem permissão para visualizar este caso.'}
+        </h2>
+        <button 
+          onClick={() => navigate(job.isBudget ? '/budgets' : '/jobs')} 
+          className="mt-4 px-4 py-2 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700"
+        >
+          Voltar para lista
+        </button>
+      </div>
+    );
+  }
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
       if (e.target.files) {
@@ -1234,7 +1257,7 @@ export const JobDetails = () => {
   const isFinished = job.status === JobStatus.COMPLETED || job.status === JobStatus.DELIVERED;
   const canFinalize = canFinish && !isFinished && job.status !== JobStatus.REJECTED && job.status !== JobStatus.CANCELED && job.status !== JobStatus.RETURNED;
   const canShowReturn = canReturn && job.status !== JobStatus.CANCELED && job.status !== JobStatus.RETURNED && job.status !== JobStatus.DELIVERED;
-  const canShowCancel = (isAdmin || isManager) && job.status !== JobStatus.CANCELED && job.status !== JobStatus.RETURNED && job.status !== JobStatus.DELIVERED;
+  const canShowCancel = (isAdmin || isManager || canDelete) && job.status !== JobStatus.CANCELED && job.status !== JobStatus.RETURNED && job.status !== JobStatus.DELIVERED;
   const canReopen = isLabStaff && (job.status === JobStatus.COMPLETED || job.status === JobStatus.DELIVERED || job.status === JobStatus.RETURNED);
 
   const handleCancelJob = async () => {
@@ -1414,7 +1437,7 @@ export const JobDetails = () => {
                       newExecutions[idx] = {
                           ...existingExec,
                           stageTimes,
-                          executedStages: (existingExec.executedStages || []).filter(s => s !== targetStageKey)
+                          executedStages: (existingExec.executedStages || []).filter((s: string) => s !== targetStageKey)
                       };
                   }
               }
@@ -1461,7 +1484,7 @@ export const JobDetails = () => {
                   const secQty = (item.sectorQuantities && item.sectorQuantities[editingExecution.sector]) ? item.sectorQuantities[editingExecution.sector] : item.quantity;
                   const jt = jobTypes.find(t => t.id === item.jobTypeId);
                   const exec = newExecutions.find((e: any) => e.itemId === item.id && e.sector === editingExecution.sector && e.userId === editingExecution.userId);
-                  totalUserComm += calculateItemCommission(item, jt, selectedUser, secQty, editingExecution.sector, exec?.executedStages, exec?.isBaseChecked !== false);
+                  totalUserComm += calculateItemCommission(item, jt, selectedUser, secQty, editingExecution.sector, exec?.executedStages, exec?.isBaseChecked !== false, commissionGroups);
               }
           });
 
@@ -1533,7 +1556,7 @@ export const JobDetails = () => {
                       const secQty = (i.sectorQuantities && i.sectorQuantities[sector]) ? i.sectorQuantities[sector] : i.quantity;
                       const jt = jobTypes.find(t => t.id === i.jobTypeId);
                       const exec = newExecutions.find((e: any) => e.itemId === i.id && e.sector === sector && e.userId === executionToDelete.userId);
-                      totalUserComm += calculateItemCommission(i, jt, selectedUser, secQty, sector, exec?.executedStages, exec?.isBaseChecked !== false);
+                      totalUserComm += calculateItemCommission(i, jt, selectedUser, secQty, sector, exec?.executedStages, exec?.isBaseChecked !== false, commissionGroups);
                   }
               });
 
@@ -1577,7 +1600,7 @@ export const JobDetails = () => {
                           : item.quantity;
                       const jt = jobTypes.find(t => t.id === item.jobTypeId);
                       const exec = (executionsToUse || []).find((e: any) => e.itemId === item.id && e.sector === sector && e.userId === userId);
-                      totalUserComm += calculateItemCommission(item, jt, selectedUser, secQty, sector, exec?.executedStages, exec?.isBaseChecked !== false);
+                      totalUserComm += calculateItemCommission(item, jt, selectedUser, secQty, sector, exec?.executedStages, exec?.isBaseChecked !== false, commissionGroups);
                   }
               }
           });
@@ -2780,9 +2803,9 @@ export const JobDetails = () => {
 
       {/* HEADER PRINCIPAL */}
       <div className="flex flex-col xs:flex-row justify-between items-start xs:items-center gap-3 shrink-0">
-          <button onClick={() => navigate('/jobs')} className="flex items-center gap-2 text-slate-400 hover:text-slate-800 font-black text-[10px] uppercase tracking-widest transition-colors"><ArrowLeft size={16} /> {t('common.back', 'Voltar')}</button>
+          <button onClick={() => navigate(job.isBudget ? '/budgets' : '/jobs')} className="flex items-center gap-2 text-slate-400 hover:text-slate-800 font-black text-[10px] uppercase tracking-widest transition-colors"><ArrowLeft size={16} /> {t('common.back', 'Voltar')}</button>
           <div className="flex flex-wrap gap-2 w-full xs:w-auto">
-              {job.isBudget && job.status === 'PENDING' && (
+              {job.isBudget && job.status === 'PENDING' && (isAdmin || isManager || currentUser?.permissions?.includes('jobs:create') || currentUser?.permissions?.includes('budgets:edit')) && (
                   <button onClick={() => handleReturnAction('PROSSEGUIMENTO')} disabled={isUpdatingStatus} className="px-3 py-1.5 bg-green-50 border border-green-100 text-green-600 rounded-lg hover:bg-green-100 font-bold flex items-center gap-1.5 text-[9px] uppercase tracking-widest transition-all">
                       <CheckCircle2 size={12} /> {t('jobDetails.approveAndGenerateOs', 'Aprovar e Gerar OS')}
                   </button>

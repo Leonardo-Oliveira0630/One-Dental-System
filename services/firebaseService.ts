@@ -26,7 +26,7 @@ import {
   Appointment, Organization, SubscriptionPlan, OrganizationConnection, 
   Coupon, LabCoupon, CommissionRecord, ManualDentist, Expense, BillingBatch, GlobalSettings, LabRating, DeliveryRoute, RouteItem, BoxColor, ChatMessage, ClinicService, ClinicRoom, ClinicDentist, PatientHistoryRecord, PaymentRecord, PriceTable, DentistPayment, CardMachine, BankAccount,
   Tutorial, Courier, ClinicBudget, ClinicPrescription, ClinicClinicalCard, ClinicAnamnesis, ClinicPatientFinance, ClinicTreatmentPlan, OnlineRequisition, SupplierOrder, CaseApprovalItem, CaseApprovalReply, CaseApprovalFile, Budget,
-  OrderReturnRequest, SupplierChatMessage, SupplierConversation
+  OrderReturnRequest, SupplierChatMessage, SupplierConversation, CommissionGroup
 } from '../types';
 
 // Helper ultra-seguro para datas
@@ -596,6 +596,22 @@ export const subscribePriceTables = (orgId: string, cb: (tables: PriceTable[]) =
 export const apiAddPriceTable = (orgId: string, table: PriceTable) => setDoc(doc(db, `organizations/${orgId}/priceTables`, table.id), table);
 export const apiUpdatePriceTable = (orgId: string, id: string, updates: Partial<PriceTable>) => updateDoc(doc(db, `organizations/${orgId}/priceTables`, id), { ...updates, updatedAt: new Date() });
 export const apiDeletePriceTable = (orgId: string, id: string) => deleteDoc(doc(db, `organizations/${orgId}/priceTables`, id));
+
+// --- COMMISSION GROUPS ---
+export const subscribeCommissionGroups = (orgId: string, cb: (groups: CommissionGroup[]) => void) => {
+    if (!orgId) return () => {};
+    return onSnapshot(collection(db, `organizations/${orgId}/commissionGroups`), (snap: any) => {
+        cb(snap.docs.map((d: any) => ({
+            id: d.id,
+            ...d.data(),
+            createdAt: toDate(d.data().createdAt),
+            updatedAt: toDate(d.data().updatedAt)
+        } as CommissionGroup)));
+    }, (error: any) => logger.warn(`[Firestore] Erro em subscribeCommissionGroups: ${error.code}`));
+};
+export const apiAddCommissionGroup = (orgId: string, group: CommissionGroup) => setDoc(doc(db, `organizations/${orgId}/commissionGroups`, group.id), group);
+export const apiUpdateCommissionGroup = (orgId: string, id: string, updates: Partial<CommissionGroup>) => updateDoc(doc(db, `organizations/${orgId}/commissionGroups`, id), { ...updates, updatedAt: new Date() });
+export const apiDeleteCommissionGroup = (orgId: string, id: string) => deleteDoc(doc(db, `organizations/${orgId}/commissionGroups`, id));
 
 export const subscribeSectors = (orgId: string, cb: (sectors: Sector[]) => void) => {
     if (!orgId) return () => {};

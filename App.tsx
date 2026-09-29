@@ -79,8 +79,9 @@ import { OrganizationTab } from './pages/admin/OrganizationTab';
 import { BoxColorsTab } from './pages/admin/BoxColorsTab';
 import { CouponsTab } from './pages/admin/CouponsTab';
 import { TermsPopup } from './components/TermsPopup';
+import { PermissionKey, UserRole } from './types';
 
-const ProtectedRoute = ({ children }: { children?: React.ReactNode }) => {
+const ProtectedRoute = ({ children, requiredPermission }: { children?: React.ReactNode; requiredPermission?: PermissionKey }) => {
   const { currentUser, isLoadingAuth, currentOrg, currentPlan } = useApp();
   const location = useLocation();
   if (isLoadingAuth) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="h-12 w-12 text-blue-600 animate-spin" /></div>;
@@ -101,10 +102,24 @@ const ProtectedRoute = ({ children }: { children?: React.ReactNode }) => {
       '/admin/comissoes',
       '/admin/clientes',
       '/calendar',
-      '/lab/price-tables'
+      '/lab/price-tables',
+      '/new-budget',
+      '/budgets'
     ];
     if (forbiddenPaths.includes(location.pathname)) {
       return <Navigate to="/lab/finance" replace />;
+    }
+  }
+
+  const isAdmin = currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.SUPER_ADMIN;
+  const isManager = currentUser.role === UserRole.MANAGER;
+  const isClient = currentUser.role === UserRole.CLIENT || currentUser.role === UserRole.DENTIST || (currentUser as any)?.role === 'DENTIST';
+
+  if (requiredPermission && !isAdmin && !isManager) {
+    const isClientAllowed = isClient && (requiredPermission === 'jobs:view' || requiredPermission === 'budgets:view');
+    const hasPermission = currentUser.permissions?.includes(requiredPermission);
+    if (!isClientAllowed && !hasPermission) {
+      return <Navigate to={isClient ? "/jobs" : "/dashboard"} replace />;
     }
   }
 
@@ -162,10 +177,10 @@ const AppContent = () => {
       <Route path="/requisition-invite" element={<RequisitionInvite />} />
       
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-      <Route path="/new-job" element={<ProtectedRoute><NewJob /></ProtectedRoute>} />
-      <Route path="/budgets" element={<ProtectedRoute><JobsList key="budgets" isBudgetMode={true} /></ProtectedRoute>} />
-      <Route path="/new-budget" element={<ProtectedRoute><NewJob isBudget={true} /></ProtectedRoute>} />
-      <Route path="/jobs" element={<ProtectedRoute><JobsList key="jobs" /></ProtectedRoute>} />
+      <Route path="/new-job" element={<ProtectedRoute requiredPermission="jobs:create"><NewJob /></ProtectedRoute>} />
+      <Route path="/budgets" element={<ProtectedRoute requiredPermission="budgets:view"><JobsList key="budgets" isBudgetMode={true} /></ProtectedRoute>} />
+      <Route path="/new-budget" element={<ProtectedRoute requiredPermission="budgets:create"><NewJob isBudget={true} /></ProtectedRoute>} />
+      <Route path="/jobs" element={<ProtectedRoute requiredPermission="jobs:view"><JobsList key="jobs" /></ProtectedRoute>} />
       <Route path="/jobs/:id" element={<ProtectedRoute><JobDetails /></ProtectedRoute>} />
       <Route path="/nfc" element={<ProtectedRoute><NFCReader /></ProtectedRoute>} />
       <Route path="/commissions" element={<ProtectedRoute><Commissions /></ProtectedRoute>} />

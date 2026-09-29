@@ -7,7 +7,7 @@ import { Job, JobStatus, UserRole } from '../types';
 import { calculateItemCommission } from '../utils/commissionUtils';
 
 export const JobSearch = () => {
-  const { jobs, jobTypes, currentUser, updateJob, addCommissionRecord, commissions } = useApp();
+  const { jobs, jobTypes, currentUser, updateJob, addCommissionRecord, commissions, commissionGroups } = useApp();
   const userSectors = currentUser?.sectors || (currentUser?.sector ? [currentUser.sector] : []);
   const hasSector = userSectors.length > 0;
   const navigate = useNavigate();
@@ -78,7 +78,7 @@ export const JobSearch = () => {
                 : item.quantity;
                 
             const jobType = jobTypes.find(t => t.id === item.jobTypeId);
-            totalComm += calculateItemCommission(item, jobType, currentUser, secQty);
+            totalComm += calculateItemCommission(item, jobType, currentUser, secQty, undefined, undefined, true, commissionGroups);
           });
 
           if (totalComm > 0) {

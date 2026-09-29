@@ -154,9 +154,10 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
     return false;
   };
   
+  const isManager = currentUser?.role === UserRole.MANAGER;
   const hasPerm = (key: PermissionKey) => {
-      if (isAdmin) return true;
-      if (!currentUser?.permissions || currentUser.permissions.length === 0) return true;
+      if (isAdmin || isManager) return true;
+      if (!currentUser?.permissions) return false;
       return currentUser.permissions.includes(key);
   };
 
@@ -364,8 +365,8 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                             <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-4 mb-1 truncate opacity-100 md:opacity-0 md:group-hover/sidebar:opacity-100 transition-opacity duration-300">{t('navigation.production', 'Produção')}</p>
                             {hasPerm('jobs:create') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/new-job" icon={<PlusCircle size={20} />} label={t('navigation.newJob', 'Novo Caso')} active={location.pathname === '/new-job'} />}
                             {hasPerm('jobs:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/jobs" icon={<List size={20} />} label={t('navigation.jobs', 'Trabalhos')} active={location.pathname === '/jobs'} />}
-                            {hasPerm('jobs:create') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/new-budget" icon={<PlusCircle size={20} />} label={t('navigation.newBudget', 'Novo Orçamento')} active={location.pathname === '/new-budget'} />}
-                            {hasPerm('jobs:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/budgets" icon={<FileText size={20} />} label={t('navigation.budgets', 'Orçamentos')} active={location.pathname === '/budgets'} />}
+                            {hasPerm('budgets:create') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/new-budget" icon={<PlusCircle size={20} />} label={t('navigation.newBudget', 'Novo Orçamento')} active={location.pathname === '/new-budget'} />}
+                            {hasPerm('budgets:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/budgets" icon={<FileText size={20} />} label={t('navigation.budgets', 'Orçamentos')} active={location.pathname === '/budgets'} />}
                             {hasPerm('vip:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/promised" icon={<Crown size={20} />} label={t('navigation.vipProduction', 'Produção VIP')} active={location.pathname === '/promised'} />}
                             {hasPerm('jobs:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/kanban" icon={<Columns size={20} />} label={t('navigation.kanban', 'Kanban')} active={location.pathname === '/lab/kanban'} />}
                             {hasPerm('calendar:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/calendar" icon={<Calendar size={20} />} label={t('navigation.productionCalendar', 'Calendário')} active={location.pathname === '/calendar'} />}

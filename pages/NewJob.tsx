@@ -43,11 +43,33 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
   const { addJob, updateJob, updateBudget, addBudget, jobs, budgets, jobTypes, currentUser, triggerPrint, allUsers, manualDentists, boxColors, priceTables, inventoryItems, updateInventoryItem, updateOnlineRequisition, currentOrg, updateOrganization } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
+
+  const isAdmin = currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.SUPER_ADMIN;
+  const isManager = currentUser?.role === UserRole.MANAGER;
+  const hasCreatePerm = isBudget 
+    ? (isAdmin || isManager || currentUser?.permissions?.includes('budgets:create'))
+    : (isAdmin || isManager || currentUser?.permissions?.includes('jobs:create'));
+
   const dropdownRef = useRef<HTMLDivElement>(null);
-
-
-
   const jobTypeDropdownRef = useRef<HTMLDivElement>(null);
+
+  if (!hasCreatePerm) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[60vh] text-center p-4 sm:p-6">
+        <h2 className="text-xl font-bold text-slate-800">
+          {isBudget 
+            ? 'Você não tem permissão para criar novos orçamentos.' 
+            : 'Você não tem permissão para criar novos casos.'}
+        </h2>
+        <button 
+          onClick={() => navigate(isBudget ? '/budgets' : '/jobs')} 
+          className="mt-4 px-4 py-2 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700"
+        >
+          {t('common.back', 'Voltar')}
+        </button>
+      </div>
+    );
+  }
 
   // --- Global States ---
   const [entryType, setEntryType] = useState<EntryType>((location.state?.entryType as EntryType) || 'NEW');

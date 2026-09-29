@@ -405,8 +405,18 @@ const handleUpdateStatus = async (jobId: string, status: JobStatus) => {
       await updateJob(jobId, { status });
     } catch (e) { alert(t('common.errorUpdateStatus', 'Erro ao atualizar status.')); }
 }
-const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
-  const isLabStaff = currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.MANAGER || currentUser?.role === UserRole.COLLABORATOR;
+  const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
+  const isAdmin = currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.SUPER_ADMIN;
+  const isManager = currentUser?.role === UserRole.MANAGER;
+  const isLabStaff = isAdmin || isManager || currentUser?.role === UserRole.COLLABORATOR;
+
+  const hasViewPerm = isClient || isAdmin || isManager || (isBudgetMode 
+    ? currentUser?.permissions?.includes('budgets:view')
+    : currentUser?.permissions?.includes('jobs:view'));
+
+  const canCreateBudget = !isClient && (isAdmin || isManager || currentUser?.permissions?.includes('budgets:create'));
+  const canCreateJob = !isClient && (isAdmin || isManager || currentUser?.permissions?.includes('jobs:create'));
+
   const revealJobStatus = !isClient || (activeOrganization?.revealJobStatusToDentist ?? false);
 
   const currentOrgId = activeOrganization?.id || currentUser?.organizationId;
@@ -812,6 +822,24 @@ const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
   }
 
 
+  if (!hasViewPerm) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[60vh] text-center p-4 sm:p-6">
+        <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200">
+          {isBudgetMode 
+            ? 'Você não tem permissão para visualizar orçamentos.' 
+            : 'Você não tem permissão para visualizar casos.'}
+        </h2>
+        <button 
+          onClick={() => navigate(isBudgetMode ? '/jobs' : '/dashboard')} 
+          className="mt-4 px-4 py-2 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700"
+        >
+          {t('common.back', 'Voltar')}
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className={`flex flex-col h-full ${isClient && !isStoreContext ? 'bg-slate-50 dark:bg-[#0B0F17]' : ''}`}>
        {isClient && !isStoreContext && <StoreTopMenu />}
@@ -823,12 +851,12 @@ const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
           <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400">{t('orders.showingResults', { count: filteredJobs.length, defaultValue: `Mostrando ${filteredJobs.length} registros encontrados.` })}</p>
         </div>
         <div className="flex items-center gap-2">
-          {!isClient && isBudgetMode && (
+          {isBudgetMode && canCreateBudget && (
              <button onClick={() => navigate('/new-budget')} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-xl font-bold uppercase tracking-tight flex items-center gap-2 active:scale-95 transition-transform text-xs sm:text-sm shadow-sm">
                 <PlusCircle size={18} /> {t('orders.newBudget', 'Novo Orçamento')}
              </button>
           )}
-          {!isClient && !isBudgetMode && (
+          {!isBudgetMode && canCreateJob && (
              <button onClick={() => navigate('/new-job')} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-xl font-bold uppercase tracking-tight flex items-center gap-2 active:scale-95 transition-transform text-xs sm:text-sm shadow-sm">
                 <PlusCircle size={18} /> {t('orders.newCase', 'Novo Caso')}
              </button>

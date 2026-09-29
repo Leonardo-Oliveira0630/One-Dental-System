@@ -53,7 +53,7 @@ const formatItemNameWithVariations = (item: JobItem, jobTypes: JobType[]) => {
 
 export const GlobalScanner: React.FC = () => {
   console.log("GlobalScanner mounted!");
-  const { jobs, updateJob, currentUser, addCommissionRecord, commissions, uploadFile, sectors, jobTypes, nfcBoxes } = useApp();
+  const { jobs, updateJob, currentUser, addCommissionRecord, commissions, uploadFile, sectors, jobTypes, nfcBoxes, commissionGroups } = useApp();
   const navigate = useNavigate();
   const bufferRef = useRef<string>('');
   const lastKeyTimeRef = useRef<number>(0);
@@ -332,7 +332,7 @@ export const GlobalScanner: React.FC = () => {
     if (!job.items) return { eligible, commission };
     for (const item of job.items) {
       const jobType = types.find(t => t.id === item.jobTypeId);
-      const comm = calculateItemCommission(item, jobType, user, item.quantity, sector, []);
+      const comm = calculateItemCommission(item, jobType, user, item.quantity, sector, [], true, commissionGroups);
       if (comm != null) {
         eligible.push(item);
         if (typeof comm === 'number') commission += comm;
@@ -345,7 +345,7 @@ export const GlobalScanner: React.FC = () => {
     let commission = 0;
     for (const item of items) {
       const jobType = types.find(t => t.id === item.jobTypeId);
-      const comm = calculateItemCommission(item, jobType, user, item.quantity, sector, []);
+      const comm = calculateItemCommission(item, jobType, user, item.quantity, sector, [], true, commissionGroups);
       if (typeof comm === 'number') commission += comm;
     }
     return commission;
@@ -616,7 +616,7 @@ export const GlobalScanner: React.FC = () => {
             const jt = jobTypesRef.current.find((t: JobType) => t.id === item.jobTypeId);
             if (jt && !item.commissionDisabled) {
                 const secQty = (item.sectorQuantities && item.sectorQuantities[sector]) ? item.sectorQuantities[sector] : item.quantity;
-                commissionEarned = calculateItemCommission(item, jt, user, secQty, sector, stageName ? [stageName] : [], !stageName);
+                commissionEarned = calculateItemCommission(item, jt, user, secQty, sector, stageName ? [stageName] : [], !stageName, commissionGroups);
             }
         }
         

@@ -121,6 +121,11 @@ service cloud.firestore {
         allow write: if isAuthenticated() && (isSuperAdmin() || (belongsToOrg(orgId) && getUserData().get('role', 'USER') != 'CLIENT'));
       }
 
+      match /commissionGroups/{groupId} {
+        allow read: if isAuthenticated() && (isSuperAdmin() || belongsToOrg(orgId));
+        allow write: if isAuthenticated() && (isSuperAdmin() || (belongsToOrg(orgId) && isAdmin()));
+      }
+
       match /jobTypes/{jobTypeId} {
         allow read: if true;
         allow write: if isAuthenticated() && (
