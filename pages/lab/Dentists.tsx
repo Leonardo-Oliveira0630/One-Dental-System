@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { getDentistJobs, subscribeDentistJobs } from '../../services/firebaseService';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { matchesSearchQuery } from '../../utils/stringUtils';
+import { matchesSearchQuery, filterAndSortClients } from '../../utils/stringUtils';
 
 const translatePaymentMethod = (method: string) => {
     switch (method) {
@@ -345,20 +345,7 @@ export const Dentists = () => {
     };
 
     const filtered = useMemo(() => {
-        return combinedClients.filter(d => {
-            const matchesSearch = matchesSearchQuery(
-                searchTerm,
-                d.name,
-                d.clinicName,
-                d.email,
-                d.phone,
-                d.whatsapp,
-                d.cro,
-                d.cpfCnpj
-            );
-            
-            if (!matchesSearch) return false;
-
+        const base = combinedClients.filter(d => {
             if (clientTypeFilter !== 'ALL' && d.clientType !== clientTypeFilter) return false;
             
             // Filtro por Tabela Base Usada
@@ -385,6 +372,8 @@ export const Dentists = () => {
 
             return true;
         });
+
+        return filterAndSortClients(base, searchTerm, (a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR'));
     }, [combinedClients, searchTerm, statusFilter, clientTypeFilter, priceTableFilter, customPricingFilter]);
 
     // Advanced chronological statement with previous balance

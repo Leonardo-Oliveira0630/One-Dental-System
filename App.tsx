@@ -58,6 +58,7 @@ import { TutorialsView } from './pages/TutorialsView';
 import { HelpdeskWorkspace } from './pages/HelpdeskWorkspace';
 import { TermsOfUse } from './pages/TermsOfUse';
 import { PrivacyPolicy } from './pages/PrivacyPolicy';
+import { MonitoringPage } from './pages/MonitoringPage';
 import { SupplierTermsAndGuidelines } from './pages/SupplierTermsAndGuidelines';
 import { RequisitionInvite } from './pages/RequisitionInvite';
 import { SupplierDashboard } from './pages/supplier/Dashboard';
@@ -187,7 +188,7 @@ const AppContent = () => {
        <Route path="/incoming-orders" element={<ProtectedRoute><IncomingOrders /></ProtectedRoute>} />
       <Route path="/incoming-requisitions" element={<ProtectedRoute><IncomingRequisitions /></ProtectedRoute>} />
       <Route path="/job-types" element={<ProtectedRoute><JobTypes /></ProtectedRoute>} />
-      <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+      <Route path="/reports" element={<ProtectedRoute requiredPermission="reports:view"><Reports /></ProtectedRoute>} />
       
       <Route path="/admin" element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>
         <Route index element={<Navigate to="organizacao" replace />} />
@@ -237,6 +238,8 @@ const AppContent = () => {
       <Route path="/supplier/settings" element={<ProtectedRoute><SupplierSettings /></ProtectedRoute>} />
 
       <Route path="/calendar" element={<ProtectedRoute><ProductionCalendar /></ProtectedRoute>} />
+      <Route path="/monitoring" element={<ProtectedRoute><MonitoringPage /></ProtectedRoute>} />
+      <Route path="/lab/monitoring" element={<ProtectedRoute><MonitoringPage /></ProtectedRoute>} />
       <Route path="/promised" element={<ProtectedRoute><PromisedJobs /></ProtectedRoute>} />
       <Route path="/subscribe" element={<ProtectedRoute><Subscribe /></ProtectedRoute>} />
       <Route path="/tutorials" element={<ProtectedRoute><TutorialsView /></ProtectedRoute>} />

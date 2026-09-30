@@ -8,6 +8,7 @@ import { DollarSign, TrendingUp, TrendingDown, Search, Calendar, Plus, Printer, 
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { SendDebtsEmailModal } from '../../components/SendDebtsEmailModal';
+import { filterAndSortClients } from '../../utils/stringUtils';
 
 const translatePaymentMethod = (method: string, t?: (key: string, def?: string) => string) => {
     switch (method) {
@@ -313,19 +314,14 @@ export const Finance = () => {
         results = results.filter(d => d.emailStatus === reportEmailStatusFilter);
     }
 
-    // Apply search filter
+    // Apply search filter and sorting
     if (reportSearchTerm.trim()) {
-        const s = reportSearchTerm.toLowerCase();
-        results = results.filter(d => 
-            (d.name && d.name.toLowerCase().includes(s)) ||
-            (d.clinicName && d.clinicName.toLowerCase().includes(s)) ||
-            (d.phone && d.phone.toLowerCase().includes(s)) ||
-            (d.cpfCnpj && d.cpfCnpj.toLowerCase().includes(s))
-        );
+        results = filterAndSortClients(results, reportSearchTerm, (a, b) => b.balanceUpToEndDate - a.balanceUpToEndDate);
+    } else {
+        results.sort((a, b) => b.balanceUpToEndDate - a.balanceUpToEndDate);
     }
 
-    // Sort by debt balance descending
-    return results.sort((a, b) => b.balanceUpToEndDate - a.balanceUpToEndDate);
+    return results;
   }, [jobs, manualDentists, allUsers, dentistPayments, reportStartDate, reportEndDate, reportSearchTerm, reportEmailStatusFilter, clientEmailStatuses]);
 
   const reportDebtStats = useMemo(() => {
@@ -1322,11 +1318,11 @@ export const Finance = () => {
         }
     });
 
-    return Array.from(map.values())
+    const pendingList = Array.from(map.values())
         .map(d => ({ ...d, totalPending: Math.max(0, d.totalPending) }))
-        .filter(d => d.name.toLowerCase().includes(searchTerm.toLowerCase()))
-        .filter(d => d.totalPending > 0)
-        .sort((a, b) => b.totalPending - a.totalPending);
+        .filter(d => d.totalPending > 0);
+
+    return filterAndSortClients(pendingList, searchTerm, (a, b) => b.totalPending - a.totalPending);
   }, [jobs, allUsers, manualDentists, dentistPayments, searchTerm]);
 
 

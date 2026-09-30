@@ -10,7 +10,8 @@ import {
 import { jsPDF } from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
-import { JobStatus, Job } from '../types';
+import { useNavigate } from 'react-router-dom';
+import { JobStatus, Job, UserRole } from '../types';
 
 export interface ClientSummaryStat {
   clientId: string;
@@ -35,7 +36,12 @@ export interface ClientSummaryStat {
 
 export default function Reports() {
   const { t } = useTranslation();
-  const { jobs, allUsers, manualDentists, sectors, jobTypes, currentOrg } = useApp();
+  const navigate = useNavigate();
+  const { jobs, allUsers, manualDentists, sectors, jobTypes, currentOrg, currentUser } = useApp();
+  
+  const isAdmin = currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.SUPER_ADMIN;
+  const isManager = currentUser?.role === UserRole.MANAGER;
+  const hasReportsPerm = isAdmin || isManager || (currentUser?.permissions || []).includes('reports:view');
   
   // Status translation helper
   const getStatusLabel = (status: string) => {
@@ -681,6 +687,26 @@ export default function Reports() {
     setUrgencyFilter('');
     setClientSearch('');
   };
+
+  if (!hasReportsPerm) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[60vh] text-center p-4 sm:p-6">
+        <AlertCircle size={48} className="text-amber-500 mb-3" />
+        <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200">
+          Você não tem permissão para visualizar relatórios.
+        </h2>
+        <p className="text-xs text-slate-400 mt-1 max-w-sm">
+          Solicite ao administrador do laboratório para habilitar a permissão "Ver Relatórios de Produção e Faturamento".
+        </p>
+        <button 
+          onClick={() => navigate('/dashboard')} 
+          className="mt-4 px-5 py-2.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors shadow-sm cursor-pointer"
+        >
+          {t('common.back', 'Voltar ao Painel')}
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 md:p-6 sm:p-8 max-w-7xl mx-auto space-y-6 animate-in fade-in duration-300">

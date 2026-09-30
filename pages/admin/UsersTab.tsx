@@ -40,6 +40,7 @@ const AVAILABLE_PERMISSIONS: { key: PermissionKey, label: string, category: stri
     { key: 'budgets:create', label: 'Criar Novos Orçamentos', category: 'Orçamentos' },
     { key: 'budgets:edit', label: 'Editar Dados de Orçamentos', category: 'Orçamentos' },
     { key: 'budgets:delete', label: 'Excluir Orçamentos', category: 'Orçamentos' },
+    { key: 'reports:view', label: 'Ver Relatórios de Produção e Faturamento', category: 'Relatórios' },
     { key: 'vip:view', label: 'Acessar Produção VIP', category: 'Produção' },
     { key: 'calendar:view', label: 'Acessar Calendário', category: 'Produção' },
     { key: 'finance:view', label: 'Ver Dashboard Financeiro', category: 'Financeiro' },
