@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '../../context/AppContext';
 import { UserRole, ManualDentist, Job, JobStatus, DentistPayment, BillingBatch } from '../../types';
-import { Stethoscope, Building, Search, Loader2, ArrowRight, Tag, Percent, Save, X, DollarSign, Globe, HardDrive, UserCheck, Package, Table, FileText, Lock, Unlock, RefreshCw, Check, Calendar, ArrowUpCircle, ArrowDownCircle, Receipt, History, CreditCard, Banknote, Wallet, FileSpreadsheet, Plus, Info, MinusCircle, Printer, Download, ChevronLeft, ChevronRight, Users, Filter, RotateCcw } from 'lucide-react';
+import { Stethoscope, Building, Search, Loader2, ArrowRight, Tag, Percent, Save, X, DollarSign, Globe, HardDrive, UserCheck, Package, Table, FileText, Lock, Unlock, RefreshCw, Check, Calendar, ArrowUpCircle, ArrowDownCircle, Receipt, History, CreditCard, Banknote, Wallet, FileSpreadsheet, Plus, Info, MinusCircle, Printer, Download, ChevronLeft, ChevronRight, Users, Filter, RotateCcw, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getDentistJobs, subscribeDentistJobs } from '../../services/firebaseService';
 import jsPDF from 'jspdf';
@@ -27,7 +27,7 @@ export const Dentists = () => {
     const { t } = useTranslation();
     const { 
         jobTypes, updateUser, manualDentists, updateManualDentist, jobs, priceTables, allUsers, 
-        currentUser, billingBatches, generateBatchBoleto, dentistPayments, addDentistPayment, updateBillingBatchStatus,
+        currentUser, billingBatches, generateBatchBoleto, dentistPayments, addDentistPayment, deleteDentistPayment, updateBillingBatchStatus,
         cardMachines, bankAccounts, currentOrg
     } = useApp();
     const navigate = useNavigate();
@@ -1939,7 +1939,8 @@ export const Dentists = () => {
                                                         <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('common.date', 'Data')}</th>
                                                         <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('common.description', 'Descrição')}</th>
                                                         <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">{t('common.amount', 'Valor')}</th>
-                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">{t('common.balance', 'Saldo')}</th>
+                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-slate-400 uppercase tracking-widest text-right">{t('common.balance', 'Saldo')}</th>
+                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">{t('common.actions', 'Ações')}</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-slate-50">
@@ -1952,10 +1953,11 @@ export const Dentists = () => {
                                                         <td className={`px-4 sm:px-6 py-3 sm:py-4 text-right text-xs font-black ${chronoHistory.previousBalance < 0 ? 'text-red-500' : 'text-green-600'}`}>
                                                             R$ {chronoHistory.previousBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                                         </td>
+                                                        <td className="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs text-slate-300">-</td>
                                                     </tr>
                                                     {chronoHistory.history.length === 0 ? (
                                                         <tr>
-                                                            <td colSpan={4} className="px-4 sm:px-6 py-12 text-center text-slate-400 font-bold italic bg-slate-50/10">
+                                                            <td colSpan={5} className="px-4 sm:px-6 py-12 text-center text-slate-400 font-bold italic bg-slate-50/10">
                                                                 {t('dentists.noRecordsInPeriod', 'Nenhum registro encontrado neste período.')}
                                                             </td>
                                                         </tr>
@@ -1996,6 +1998,33 @@ export const Dentists = () => {
                                                             </td>
                                                             <td className={`px-6 py-4 text-xs font-black text-right ${item.balanceAfter < 0 ? 'text-red-500' : 'text-green-600'}`}>
                                                                 R$ {item.balanceAfter.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                            </td>
+                                                            <td className="px-4 sm:px-6 py-3 sm:py-4 text-center">
+                                                                {(item as any).payment ? (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={async (e) => {
+                                                                            e.stopPropagation();
+                                                                            const pay = (item as any).payment;
+                                                                            const label = pay.type === 'MANUAL_DEBIT' ? 'este débito manual' : pay.type === 'MANUAL_CREDIT' ? 'este crédito manual' : 'este recebimento';
+                                                                            if (window.confirm(`Deseja realmente excluir ${label} (${item.description})?`)) {
+                                                                                try {
+                                                                                    await deleteDentistPayment(pay.id);
+                                                                                    alert("Lançamento excluído com sucesso!");
+                                                                                } catch (err) {
+                                                                                    console.error(err);
+                                                                                    alert("Erro ao excluir lançamento.");
+                                                                                }
+                                                                            }
+                                                                        }}
+                                                                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                                        title={t('common.delete', 'Excluir Lançamento')}
+                                                                    >
+                                                                        <Trash2 size={14} />
+                                                                    </button>
+                                                                ) : (
+                                                                    <span className="text-[10px] text-slate-300 font-bold">OS</span>
+                                                                )}
                                                             </td>
                                                         </tr>
                                                     ))
@@ -2157,15 +2186,16 @@ export const Dentists = () => {
                                                 <thead className="bg-slate-50 border-b border-slate-100">
                                                     <tr>
                                                         <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('common.date', 'Data')}</th>
-                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('common.method', 'Forma')}</th>
+                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('common.method', 'Tipo / Forma')}</th>
                                                         <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('common.notes', 'Observação')}</th>
                                                         <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">{t('common.amount', 'Valor')}</th>
+                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">{t('common.actions', 'Ações')}</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-slate-50">
                                                     {dentistPayments.filter(p => p.dentistId === statementClient.id && new Date(p.paymentDate) >= new Date(`${filterStartDate}T00:00:00`) && new Date(p.paymentDate) <= new Date(`${filterEndDate}T23:59:59`)).length === 0 ? (
                                                         <tr>
-                                                            <td colSpan={4} className="px-4 sm:px-6 py-12 text-center text-slate-400 font-bold italic">{t('dentists.noReceiptsInPeriod', 'Nenhum recebimento registrado neste período.')}</td>
+                                                            <td colSpan={5} className="px-4 sm:px-6 py-12 text-center text-slate-400 font-bold italic">{t('dentists.noReceiptsInPeriod', 'Nenhum lançamento registrado neste período.')}</td>
                                                         </tr>
                                                     ) : (
                                                         dentistPayments.filter(p => p.dentistId === statementClient.id && new Date(p.paymentDate) >= new Date(`${filterStartDate}T00:00:00`) && new Date(p.paymentDate) <= new Date(`${filterEndDate}T23:59:59`)).map((p, idx) => (
@@ -2174,15 +2204,51 @@ export const Dentists = () => {
                                                                     {new Date(p.paymentDate).toLocaleDateString('pt-BR')}
                                                                 </td>
                                                                 <td className="px-4 sm:px-6 py-3 sm:py-4">
-                                                                    <span className="px-2 py-1 bg-slate-100 text-slate-600 text-[9px] font-black uppercase rounded-lg">
-                                                                        {translatePaymentMethod(p.paymentMethod)}
+                                                                    <span className={`px-2 py-1 text-[9px] font-black uppercase rounded-lg ${
+                                                                        p.type === 'MANUAL_DEBIT' 
+                                                                            ? 'bg-orange-50 text-orange-700 border border-orange-200' 
+                                                                            : p.type === 'MANUAL_CREDIT'
+                                                                                ? 'bg-green-50 text-green-700 border border-green-200'
+                                                                                : p.type === 'DISCOUNT'
+                                                                                    ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                                                                    : 'bg-slate-100 text-slate-600'
+                                                                    }`}>
+                                                                        {p.type === 'MANUAL_DEBIT' 
+                                                                            ? t('dentists.manualDebitBadge', 'DÉBITO MANUAL') 
+                                                                            : p.type === 'MANUAL_CREDIT'
+                                                                                ? t('dentists.manualCreditBadge', 'CRÉDITO MANUAL')
+                                                                                : p.type === 'DISCOUNT'
+                                                                                    ? t('dentists.discountBadge', 'DESCONTO')
+                                                                                    : translatePaymentMethod(p.paymentMethod)}
                                                                     </span>
                                                                 </td>
                                                                 <td className="px-4 sm:px-6 py-3 sm:py-4 text-xs font-bold text-slate-600 italic">
                                                                     {p.notes || '-'}
                                                                 </td>
-                                                                <td className="px-4 sm:px-6 py-3 sm:py-4 text-xs font-black text-right text-green-600">
-                                                                    R$ {p.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                                <td className={`px-4 sm:px-6 py-3 sm:py-4 text-xs font-black text-right ${p.type === 'MANUAL_DEBIT' ? 'text-orange-600' : 'text-green-600'}`}>
+                                                                    {p.type === 'MANUAL_DEBIT' ? '-' : '+'} R$ {p.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                                </td>
+                                                                <td className="px-4 sm:px-6 py-3 sm:py-4 text-center">
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={async (e) => {
+                                                                            e.stopPropagation();
+                                                                            const label = p.type === 'MANUAL_DEBIT' ? 'este débito manual' : p.type === 'MANUAL_CREDIT' ? 'este crédito manual' : 'este recebimento';
+                                                                            if (window.confirm(`Deseja realmente excluir ${label} no valor de R$ ${p.amount.toFixed(2)}?`)) {
+                                                                                try {
+                                                                                    await deleteDentistPayment(p.id);
+                                                                                    alert("Lançamento excluído com sucesso!");
+                                                                                } catch (err) {
+                                                                                    console.error(err);
+                                                                                    alert("Erro ao excluir lançamento.");
+                                                                                }
+                                                                            }
+                                                                        }}
+                                                                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                                        title={t('common.delete', 'Excluir Lançamento')}
+                                                                    >
+                                                                        <Trash2 size={14} />
+                                                                    </button>
                                                                 </td>
                                                             </tr>
                                                         ))

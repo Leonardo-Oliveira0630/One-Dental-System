@@ -28,7 +28,7 @@ export const Finance = () => {
   const { t } = useTranslation();
   const { 
     jobs, allUsers, manualDentists, currentOrg, dentistPayments, billingBatches, 
-    addDentistPayment, updateDentistPayment, uploadFile, updateBillingBatchStatus, generateBatchBoleto,
+    addDentistPayment, updateDentistPayment, deleteDentistPayment, uploadFile, updateBillingBatchStatus, generateBatchBoleto,
     cardMachines, bankAccounts, addCardMachine, updateCardMachine, deleteCardMachine,
     addBankAccount, updateBankAccount, deleteBankAccount,
     currentPlan, currentUser
@@ -356,20 +356,44 @@ export const Finance = () => {
       dentistName: '---'
     }));
 
-    // 2. Manual and Asaas Dentist Payments
-    const movementsFromPayments = dentistPayments.map(p => ({
-      id: p.id,
-      date: new Date(p.paymentDate),
-      description: p.notes || `Recebimento - ${p.dentistName}`,
-      type: p.type === 'DISCOUNT' ? 'DESPESA' as const : 'RECEBIMENTO' as const,
-      category: p.type === 'DISCOUNT' ? 'Desconto Concedido' : (p.batchId ? 'Recebimento Asaas' : 'Recebimento Manual'),
-      amount: p.amount,
-      paymentMethod: p.paymentMethod,
-      status: 'PAID', // Payments recorded here are already paid
-      source: 'MANUAL_OR_ASAAS' as const,
-      refId: p.id,
-      dentistName: p.dentistName
-    }));
+    // 2. Manual and Asaas Dentist Payments / Debits
+    const movementsFromPayments = dentistPayments.map(p => {
+      const isDebit = p.type === 'MANUAL_DEBIT';
+      const isDiscount = p.type === 'DISCOUNT';
+      const isCredit = p.type === 'MANUAL_CREDIT';
+
+      let movementType: 'RECEBIMENTO' | 'DESPESA' | 'DEBITO' = 'RECEBIMENTO';
+      let category = p.batchId ? 'Recebimento Asaas' : 'Recebimento Manual';
+      let status: 'PAID' | 'PENDING' = 'PAID';
+
+      if (isDebit) {
+        movementType = 'DEBITO';
+        category = 'Débito Manual (Saldo Devedor)';
+        status = 'PENDING';
+      } else if (isDiscount) {
+        movementType = 'DESPESA';
+        category = 'Desconto Concedido';
+        status = 'PAID';
+      } else if (isCredit) {
+        movementType = 'RECEBIMENTO';
+        category = 'Crédito Manual';
+        status = 'PAID';
+      }
+
+      return {
+        id: p.id,
+        date: new Date(p.paymentDate),
+        description: p.notes || (isDebit ? `Débito Manual - ${p.dentistName}` : `Recebimento - ${p.dentistName}`),
+        type: movementType,
+        category,
+        amount: Number(p.amount || 0),
+        paymentMethod: isDebit ? 'Débito em Conta' : (p.paymentMethod || '---'),
+        status,
+        source: 'MANUAL_OR_ASAAS' as const,
+        refId: p.id,
+        dentistName: p.dentistName || '---'
+      };
+    });
 
     // 3. Online Store Jobs
     const movementsFromOnlineStore = jobs
@@ -448,6 +472,12 @@ export const Finance = () => {
           totalOutflows += m.amount;
         } else {
           pendingOutflows += m.amount;
+        }
+      } else if (m.type === 'DEBITO') {
+        if (m.status === 'PAID') {
+          totalInflows += m.amount;
+        } else {
+          pendingInflows += m.amount;
         }
       }
     });
@@ -628,7 +658,7 @@ export const Finance = () => {
     const tableData = reportMovements.map(m => [
       m.date.toLocaleDateString('pt-BR'),
       m.description,
-      m.type === 'RECEBIMENTO' ? 'Recebimento' : 'Despesa',
+      m.type === 'RECEBIMENTO' ? 'Recebimento' : m.type === 'DEBITO' ? 'Débito Manual' : 'Despesa',
       m.category,
       m.dentistName || '---',
       `R$ ${m.amount.toFixed(2)}`,
@@ -1242,23 +1272,6 @@ export const Finance = () => {
   };
 
   // --- ANALYTICS CALCULATIONS ---
-  const stats = useMemo(() => {
-    const paidFromJobs = jobs.filter(j => j.paymentStatus === 'PAID' || j.paymentStatus === 'VOUCHER').reduce((acc, curr) => acc + curr.totalValue, 0);
-    const paidRevenue = paidFromJobs; 
-
-    const pendingRevenue = jobs.filter(j => 
-        (j.status === JobStatus.COMPLETED || j.status === JobStatus.DELIVERED) && 
-        (j.paymentStatus === 'PENDING' || !j.paymentStatus) &&
-        !j.batchId && !j.asaasPaymentId
-    ).reduce((acc, curr) => acc + curr.totalValue, 0);
-
-    const inBatchesPending = billingBatches.filter(b => b.status === 'PENDING').reduce((acc, curr) => acc + curr.totalAmount, 0);
-
-    const totalExpenses = expenses.filter(e => e.status === 'PAID').reduce((acc, curr) => acc + curr.amount, 0);
-    
-    return { paidRevenue, pendingRevenue, inBatchesPending, totalExpenses, profit: paidRevenue - totalExpenses };
-  }, [jobs, expenses, billingBatches]);
-
   const dentistSummary = useMemo(() => {
     const map = new Map<string, any>();
     
@@ -1295,7 +1308,7 @@ export const Finance = () => {
     jobs.forEach(job => {
         let entry = map.get(job.dentistId);
         if (!entry) {
-            entry = { id: job.dentistId, name: job.dentistName, totalPending: 0, history: [], pendingJobs: [] };
+            entry = { id: job.dentistId, name: job.dentistName || 'Cliente', totalPending: 0, history: [], pendingJobs: [] };
             map.set(job.dentistId, entry);
         }
         
@@ -1309,12 +1322,30 @@ export const Finance = () => {
         }
     });
 
-    // Deduct manual payments/credits from totalPending for each dentist
+    // Deduct manual payments/credits and ADD manual debits to totalPending for each dentist
     dentistPayments.forEach(p => {
-        const entry = map.get(p.dentistId);
+        let entry = map.get(p.dentistId);
+        if (!entry) {
+            entry = { 
+                id: p.dentistId, 
+                name: p.dentistName || 'Cliente', 
+                clinicName: '',
+                phone: '',
+                cpfCnpj: '',
+                email: '',
+                totalPending: 0, 
+                history: [], 
+                pendingJobs: [] 
+            };
+            map.set(p.dentistId, entry);
+        }
         if (entry) {
-            const payAmount = p.type === 'DISCOUNT' ? Number(p.amount || 0) : (Number(p.amount || 0) + Number(p.discount || 0));
-            entry.totalPending -= payAmount;
+            if (p.type === 'MANUAL_DEBIT') {
+                entry.totalPending += Number(p.amount || 0);
+            } else {
+                const payAmount = p.type === 'DISCOUNT' ? Number(p.amount || 0) : (Number(p.amount || 0) + Number(p.discount || 0));
+                entry.totalPending -= payAmount;
+            }
         }
     });
 
@@ -1324,6 +1355,22 @@ export const Finance = () => {
 
     return filterAndSortClients(pendingList, searchTerm, (a, b) => b.totalPending - a.totalPending);
   }, [jobs, allUsers, manualDentists, dentistPayments, searchTerm]);
+
+  const stats = useMemo(() => {
+    const paidFromJobs = jobs.filter(j => j.paymentStatus === 'PAID' || j.paymentStatus === 'VOUCHER').reduce((acc, curr) => acc + curr.totalValue, 0);
+    const paidFromManualPayments = dentistPayments
+        .filter(p => p.type === 'PAYMENT' || !p.type || p.type === 'MANUAL_CREDIT')
+        .reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
+    const paidRevenue = paidFromJobs + paidFromManualPayments;
+
+    const pendingRevenue = dentistSummary.reduce((acc, curr) => acc + Math.max(0, curr.totalPending || 0), 0);
+
+    const inBatchesPending = billingBatches.filter(b => b.status === 'PENDING').reduce((acc, curr) => acc + curr.totalAmount, 0);
+
+    const totalExpenses = expenses.filter(e => e.status === 'PAID').reduce((acc, curr) => acc + curr.amount, 0);
+    
+    return { paidRevenue, pendingRevenue, inBatchesPending, totalExpenses, profit: paidRevenue - totalExpenses };
+  }, [jobs, expenses, billingBatches, dentistPayments, dentistSummary]);
 
 
 
@@ -1810,8 +1857,9 @@ export const Finance = () => {
                           >
                               <option value="ALL">Todos os Tipos</option>
                               <option value="RECEBIMENTO">Recebimentos</option>
+                              <option value="DEBITO">Débitos Manuais</option>
                               <option value="DESPESA">Despesas</option>
-                              <option value="DEBITOS">Débitos (Clientes com Débito)</option>
+                              <option value="DEBITOS">Clientes em Débito (Painel Consolidado)</option>
                           </select>
                       </div>
                       <div>
@@ -2043,12 +2091,13 @@ export const Finance = () => {
                                       <th className="p-4 text-[10px] font-black text-slate-400 uppercase">Cliente</th>
                                       <th className="p-4 text-[10px] font-black text-slate-400 uppercase text-right">Valor</th>
                                       <th className="p-4 text-[10px] font-black text-slate-400 uppercase text-center">Status</th>
+                                      <th className="p-4 text-[10px] font-black text-slate-400 uppercase text-center">Ações</th>
                                   </tr>
                               </thead>
                               <tbody>
                                   {reportMovements.length === 0 ? (
                                       <tr>
-                                          <td colSpan={7} className="p-12 text-center text-slate-400 font-bold">
+                                          <td colSpan={8} className="p-12 text-center text-slate-400 font-bold">
                                               Nenhuma movimentação encontrada para os filtros selecionados.
                                           </td>
                                       </tr>
@@ -2063,9 +2112,13 @@ export const Finance = () => {
                                               </td>
                                               <td className="p-4">
                                                   <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${
-                                                      m.type === 'RECEBIMENTO' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'
+                                                      m.type === 'RECEBIMENTO' 
+                                                          ? 'bg-green-50 text-green-600' 
+                                                          : m.type === 'DEBITO'
+                                                              ? 'bg-orange-50 text-orange-600'
+                                                              : 'bg-red-50 text-red-600'
                                                   }`}>
-                                                      {m.type === 'RECEBIMENTO' ? 'RECEBIMENTO' : 'DESPESA'}
+                                                      {m.type === 'RECEBIMENTO' ? 'RECEBIMENTO' : m.type === 'DEBITO' ? 'DÉBITO' : 'DESPESA'}
                                                   </span>
                                               </td>
                                               <td className="p-4 text-xs font-bold text-slate-600">
@@ -2075,7 +2128,11 @@ export const Finance = () => {
                                                   {m.dentistName}
                                               </td>
                                               <td className={`p-4 text-xs font-black text-right ${
-                                                  m.type === 'RECEBIMENTO' ? 'text-green-600' : 'text-red-600'
+                                                  m.type === 'RECEBIMENTO' 
+                                                      ? 'text-green-600' 
+                                                      : m.type === 'DEBITO' 
+                                                          ? 'text-orange-600' 
+                                                          : 'text-red-600'
                                               }`}>
                                                   {m.type === 'RECEBIMENTO' ? '+' : '-'} R$ {m.amount.toFixed(2)}
                                               </td>
@@ -2085,6 +2142,56 @@ export const Finance = () => {
                                                   }`}>
                                                       {m.status === 'PAID' ? 'PAGO' : 'PENDENTE'}
                                                   </span>
+                                              </td>
+                                              <td className="p-4 text-center">
+                                                  {m.source === 'MANUAL_OR_ASAAS' && (
+                                                      <button 
+                                                          type="button"
+                                                          onClick={async (e) => {
+                                                              e.stopPropagation();
+                                                              const label = m.type === 'DEBITO' ? 'este débito manual' : 'este recebimento/crédito';
+                                                              if (window.confirm(`Deseja realmente excluir ${label} (${m.description} - R$ ${m.amount.toFixed(2)})?`)) {
+                                                                  try {
+                                                                      await deleteDentistPayment(m.refId);
+                                                                      alert("Lançamento excluído com sucesso!");
+                                                                  } catch (err) {
+                                                                      console.error(err);
+                                                                      alert("Erro ao excluir lançamento.");
+                                                                  }
+                                                              }
+                                                          }}
+                                                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                          title="Excluir Lançamento"
+                                                      >
+                                                          <Trash2 size={14} />
+                                                      </button>
+                                                  )}
+                                                  {m.source === 'EXPENSE' && (
+                                                      <button 
+                                                          type="button"
+                                                          onClick={async (e) => {
+                                                              e.stopPropagation();
+                                                              if (window.confirm(`Deseja realmente excluir esta despesa (${m.description} - R$ ${m.amount.toFixed(2)})?`)) {
+                                                                  if (currentOrg) {
+                                                                      try {
+                                                                          await api.apiDeleteExpense(currentOrg.id, m.refId);
+                                                                          alert("Despesa excluída com sucesso!");
+                                                                      } catch (err) {
+                                                                          console.error(err);
+                                                                          alert("Erro ao excluir despesa.");
+                                                                      }
+                                                                  }
+                                                              }
+                                                          }}
+                                                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                          title="Excluir Despesa"
+                                                      >
+                                                          <Trash2 size={14} />
+                                                      </button>
+                                                  )}
+                                                  {m.source === 'ONLINE_STORE' && (
+                                                      <span className="text-[10px] text-slate-300 font-bold">---</span>
+                                                  )}
                                               </td>
                                           </tr>
                                       ))
@@ -2299,6 +2406,7 @@ export const Finance = () => {
                                                         <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Lançamento</th>
                                                         <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Valor</th>
                                                         <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Saldo</th>
+                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Ações</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-slate-50">
@@ -2311,10 +2419,11 @@ export const Finance = () => {
                                                         <td className={`px-4 sm:px-6 py-3 sm:py-4 text-right text-xs font-black ${chronoHistory.previousBalance < 0 ? 'text-red-500' : 'text-green-600'}`}>
                                                             R$ {chronoHistory.previousBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                                         </td>
+                                                        <td className="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs text-slate-300">-</td>
                                                     </tr>
                                                     {chronoHistory.history.length === 0 ? (
                                                         <tr>
-                                                            <td colSpan={4} className="px-6 py-12 text-center text-slate-400 font-bold italic bg-slate-50/10">
+                                                            <td colSpan={5} className="px-6 py-12 text-center text-slate-400 font-bold italic bg-slate-50/10">
                                                                 Nenhum registro encontrado neste período.
                                                             </td>
                                                         </tr>
@@ -2355,6 +2464,58 @@ export const Finance = () => {
                                                                 </td>
                                                                 <td className={`px-4 sm:px-6 py-3 sm:py-4 text-xs font-black text-right ${item.balanceAfter < 0 ? 'text-red-500' : 'text-green-600'}`}>
                                                                     R$ {item.balanceAfter.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                                </td>
+                                                                <td className="px-4 sm:px-6 py-3 sm:py-4 text-center">
+                                                                    {(item as any).payment ? (
+                                                                        <div className="flex items-center justify-center gap-1">
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                    const p = (item as any).payment;
+                                                                                    setSelectedPaymentForDetail(p);
+                                                                                    setIsEditingDetailPayment(false);
+                                                                                    setEditDetailAmount(p.amount);
+                                                                                    setEditDetailInterest(p.interest || 0);
+                                                                                    setEditDetailFees(p.fees || 0);
+                                                                                    setEditDetailDiscount(p.discount || 0);
+                                                                                    setEditDetailMethod(p.paymentMethod);
+                                                                                    setEditDetailCardMachineId(p.cardMachineId || '');
+                                                                                    setEditDetailBankAccountId(p.bankAccountId || '');
+                                                                                    setEditDetailDate(new Date(p.paymentDate).toISOString().split('T')[0]);
+                                                                                    setEditDetailNotes(p.notes || '');
+                                                                                    setEditDetailAttachmentUrl(p.attachmentUrl || '');
+                                                                                    setEditDetailAttachmentName(p.attachmentName || '');
+                                                                                }}
+                                                                                className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                                                title="Ver/Editar Detalhes"
+                                                                            >
+                                                                                <FileText size={14} />
+                                                                            </button>
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={async (e) => {
+                                                                                    e.stopPropagation();
+                                                                                    const pay = (item as any).payment;
+                                                                                    const label = pay.type === 'MANUAL_DEBIT' ? 'este débito manual' : pay.type === 'MANUAL_CREDIT' ? 'este crédito manual' : 'este recebimento';
+                                                                                    if (window.confirm(`Deseja realmente excluir ${label} (${item.description})?`)) {
+                                                                                        try {
+                                                                                            await deleteDentistPayment(pay.id);
+                                                                                            alert("Lançamento excluído com sucesso!");
+                                                                                        } catch (err) {
+                                                                                            console.error(err);
+                                                                                            alert("Erro ao excluir lançamento.");
+                                                                                        }
+                                                                                    }
+                                                                                }}
+                                                                                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                                                title="Excluir Lançamento"
+                                                                            >
+                                                                                <Trash2 size={14} />
+                                                                            </button>
+                                                                        </div>
+                                                                    ) : (
+                                                                        <span className="text-[10px] text-slate-300 font-bold">OS</span>
+                                                                    )}
                                                                 </td>
                                                             </tr>
                                                         ))
@@ -2573,16 +2734,17 @@ export const Finance = () => {
                                                 <thead className="bg-slate-50 border-b border-slate-100">
                                                     <tr>
                                                         <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Data</th>
-                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Forma</th>
+                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Tipo / Forma</th>
                                                         <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Observação</th>
                                                         <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Comprovante</th>
                                                         <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Valor</th>
+                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Ações</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-slate-50">
                                                     {dentistPayments.filter(p => p.dentistId === statementClient.id && new Date(p.paymentDate) >= new Date(`${filterStartDate}T00:00:00`) && new Date(p.paymentDate) <= new Date(`${filterEndDate}T23:59:59`)).length === 0 ? (
                                                         <tr>
-                                                            <td colSpan={5} className="px-4 sm:px-6 py-12 text-center text-slate-400 font-bold italic">Nenhum recebimento registrado neste período.</td>
+                                                            <td colSpan={6} className="px-4 sm:px-6 py-12 text-center text-slate-400 font-bold italic">Nenhum lançamento registrado neste período.</td>
                                                         </tr>
                                                     ) : (
                                                         dentistPayments.filter(p => p.dentistId === statementClient.id && new Date(p.paymentDate) >= new Date(`${filterStartDate}T00:00:00`) && new Date(p.paymentDate) <= new Date(`${filterEndDate}T23:59:59`)).map((p, idx) => (
@@ -2609,8 +2771,22 @@ export const Finance = () => {
                                                                     {new Date(p.paymentDate).toLocaleDateString('pt-BR')}
                                                                 </td>
                                                                 <td className="px-4 sm:px-6 py-3 sm:py-4">
-                                                                    <span className="px-2 py-1 bg-slate-100 text-slate-600 text-[9px] font-black uppercase rounded-lg">
-                                                                        {translatePaymentMethod(p.paymentMethod)}
+                                                                    <span className={`px-2 py-1 text-[9px] font-black uppercase rounded-lg ${
+                                                                        p.type === 'MANUAL_DEBIT' 
+                                                                            ? 'bg-orange-50 text-orange-700 border border-orange-200' 
+                                                                            : p.type === 'MANUAL_CREDIT'
+                                                                                ? 'bg-green-50 text-green-700 border border-green-200'
+                                                                                : p.type === 'DISCOUNT'
+                                                                                    ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                                                                    : 'bg-slate-100 text-slate-600'
+                                                                    }`}>
+                                                                        {p.type === 'MANUAL_DEBIT' 
+                                                                            ? 'DÉBITO MANUAL' 
+                                                                            : p.type === 'MANUAL_CREDIT'
+                                                                                ? 'CRÉDITO MANUAL'
+                                                                                : p.type === 'DISCOUNT'
+                                                                                    ? 'DESCONTO'
+                                                                                    : translatePaymentMethod(p.paymentMethod)}
                                                                     </span>
                                                                 </td>
                                                                 <td className="px-4 sm:px-6 py-3 sm:py-4 text-xs font-bold text-slate-600 italic">
@@ -2625,8 +2801,30 @@ export const Finance = () => {
                                                                         <span className="inline-flex px-2 py-0.5 bg-slate-50 text-slate-400 border border-slate-100 text-[9px] font-mono rounded">Não</span>
                                                                     )}
                                                                 </td>
-                                                                <td className="px-4 sm:px-6 py-3 sm:py-4 text-xs font-black text-right text-green-600">
-                                                                    R$ {p.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                                <td className={`px-4 sm:px-6 py-3 sm:py-4 text-xs font-black text-right ${p.type === 'MANUAL_DEBIT' ? 'text-orange-600' : 'text-green-600'}`}>
+                                                                    {p.type === 'MANUAL_DEBIT' ? '-' : '+'} R$ {p.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                                </td>
+                                                                <td className="px-4 sm:px-6 py-3 sm:py-4 text-center">
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={async (e) => {
+                                                                            e.stopPropagation();
+                                                                            const label = p.type === 'MANUAL_DEBIT' ? 'este débito manual' : p.type === 'MANUAL_CREDIT' ? 'este crédito manual' : 'este recebimento';
+                                                                            if (window.confirm(`Deseja realmente excluir ${label} no valor de R$ ${p.amount.toFixed(2)}?`)) {
+                                                                                try {
+                                                                                    await deleteDentistPayment(p.id);
+                                                                                    alert("Lançamento excluído com sucesso!");
+                                                                                } catch (err) {
+                                                                                    console.error(err);
+                                                                                    alert("Erro ao excluir lançamento.");
+                                                                                }
+                                                                            }
+                                                                        }}
+                                                                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                                        title="Excluir Lançamento"
+                                                                    >
+                                                                        <Trash2 size={14} />
+                                                                    </button>
                                                                 </td>
                                                             </tr>
                                                         ))
@@ -2937,8 +3135,10 @@ export const Finance = () => {
                   <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center justify-between">
                       <div>
                           <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
-                              <FileText size={18} className="text-green-600" />
-                              {isEditingDetailPayment ? 'Editar Recebimento' : 'Detalhes do Recebimento'}
+                              <FileText size={18} className={selectedPaymentForDetail.type === 'MANUAL_DEBIT' ? 'text-orange-600' : 'text-green-600'} />
+                              {isEditingDetailPayment 
+                                  ? (selectedPaymentForDetail.type === 'MANUAL_DEBIT' ? 'Editar Débito Manual' : selectedPaymentForDetail.type === 'MANUAL_CREDIT' ? 'Editar Crédito Manual' : 'Editar Recebimento')
+                                  : (selectedPaymentForDetail.type === 'MANUAL_DEBIT' ? 'Detalhes do Débito Manual' : selectedPaymentForDetail.type === 'MANUAL_CREDIT' ? 'Detalhes do Crédito Manual' : 'Detalhes do Recebimento')}
                           </h3>
                           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Dentista: {selectedPaymentForDetail.dentistName}</p>
                       </div>
@@ -3336,7 +3536,30 @@ export const Finance = () => {
                                       Fechar
                                   </button>
                                   <button 
-                                      type="button"
+                                      type="button" 
+                                      onClick={async () => {
+                                          if (!selectedPaymentForDetail) return;
+                                          const label = selectedPaymentForDetail.type === 'MANUAL_DEBIT' ? 'este débito manual' : selectedPaymentForDetail.type === 'MANUAL_CREDIT' ? 'este crédito manual' : 'este recebimento';
+                                          if (!window.confirm(`Deseja realmente excluir ${label} no valor de R$ ${selectedPaymentForDetail.amount.toFixed(2)}?`)) return;
+                                          setIsSaving(true);
+                                          try {
+                                              await deleteDentistPayment(selectedPaymentForDetail.id);
+                                              setSelectedPaymentForDetail(null);
+                                              setIsEditingDetailPayment(false);
+                                              alert("Lançamento excluído com sucesso!");
+                                          } catch (err) {
+                                              console.error(err);
+                                              alert("Erro ao excluir lançamento.");
+                                          } finally {
+                                              setIsSaving(false);
+                                          }
+                                      }}
+                                      className="px-6 py-3 bg-red-50 hover:bg-red-100 text-red-600 font-black rounded-xl transition-all uppercase text-xs flex items-center justify-center gap-1.5"
+                                  >
+                                      <Trash2 size={14} /> Excluir
+                                  </button>
+                                  <button 
+                                      type="button" 
                                       onClick={() => {
                                           setIsEditingDetailPayment(true);
                                       }}

@@ -128,6 +128,7 @@ export const JobDetails = () => {
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [itemEditForm, setItemEditForm] = useState<{
     quantity: number;
+    nature?: 'NORMAL' | 'REPETITION' | 'ADJUSTMENT';
     price: number;
     appliedDiscount: number;
     appliedDiscountFixed: number;
@@ -140,7 +141,7 @@ export const JobDetails = () => {
     sectorCommissionDisabled: Record<string, boolean>;
     selectedTeeth: string[];
     color: string;
-  }>({ quantity: 1, price: 0, appliedDiscount: 0, appliedDiscountFixed: 0, discountType: 'PERCENTAGE', appliedPriceTable: 'Padrão', commissionDisabled: false, isInternalStep: false, selectedVariationIds: [], variationValues: {}, sectorCommissionDisabled: {}, selectedTeeth: [], color: '' });
+  }>({ quantity: 1, nature: 'NORMAL', price: 0, appliedDiscount: 0, appliedDiscountFixed: 0, discountType: 'PERCENTAGE', appliedPriceTable: 'Padrão', commissionDisabled: false, isInternalStep: false, selectedVariationIds: [], variationValues: {}, sectorCommissionDisabled: {}, selectedTeeth: [], color: '' });
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [isSyncingTracking, setIsSyncingTracking] = useState(false);
   const [trackingSyncMsg, setTrackingSyncMsg] = useState<string | null>(null);
