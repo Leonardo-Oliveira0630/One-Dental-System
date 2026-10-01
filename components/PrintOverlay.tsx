@@ -111,25 +111,41 @@ export const PrintOverlay = () => {
           
           {printData.mode === 'SHEET' && job && (
             <div className="flex flex-col text-sm">
-              <div className="flex justify-between items-start border-b-2 border-black pb-2 mb-3">
-                <div className="flex items-center gap-3">
+              <div className="grid grid-cols-2 gap-4 border-b-2 border-black pb-2 mb-3 items-center">
+                {/* Left Column: Fits 100% on the front side when folded vertically in half */}
+                <div className="flex items-center justify-between gap-2 pr-2.5 min-w-0">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
                     {labLogo ? (
-                        <div className="w-12 h-12 bg-white flex items-center justify-center rounded overflow-hidden border border-black/10">
-                            <img src={labLogo} alt="Lab Logo" className="w-full h-full object-contain" />
-                        </div>
+                      <div className="w-9 h-9 bg-white flex items-center justify-center rounded overflow-hidden border border-black/10 shrink-0">
+                        <img src={labLogo} alt="Lab Logo" className="w-full h-full object-contain" />
+                      </div>
                     ) : (
-                        <div className="w-12 h-12 bg-black text-white flex items-center justify-center font-bold text-xl rounded">
-                            {labName.charAt(0)}
-                        </div>
+                      <div className="w-9 h-9 bg-black text-white flex items-center justify-center font-bold text-sm rounded shrink-0">
+                        {labName.charAt(0)}
+                      </div>
                     )}
-                    <div>
-                        <h1 className="text-xl font-bold uppercase tracking-wide leading-none">{labName}</h1>
-                        <p className="text-xs">Ficha de Produção Interna</p>
+                    <div className="min-w-0">
+                      <h1 className="text-xs sm:text-sm font-extrabold uppercase tracking-tight leading-tight line-clamp-2">{labName}</h1>
                     </div>
+                  </div>
+
+                  {/* Barcode & OS Number: Positioned ~5px to the left of the center fold limit */}
+                  <div className="flex flex-col items-end shrink-0 pl-1 mr-1.5">
+                    <Barcode 
+                      value={String(job.osNumber || job.id.substring(0, 8))} 
+                      width={1.6} 
+                      height={34} 
+                      displayValue={true} 
+                      fontSize={13} 
+                      margin={0} 
+                      format="CODE128" 
+                    />
+                  </div>
                 </div>
-                <div className="flex flex-col items-end">
-                    <Barcode value={String(job.osNumber || job.id.substring(0,8))} width={2} height={40} displayValue={true} fontSize={14} margin={0} format="CODE128" />
-                    <p className="text-[10px] mt-1 text-gray-500">Emissão: {new Date().toLocaleString()}</p>
+
+                {/* Right Column: Folded back */}
+                <div className="flex justify-end items-center pl-2">
+                  <p className="text-[10px] text-gray-500 font-medium">Emissão: {new Date().toLocaleString()}</p>
                 </div>
               </div>
               
@@ -188,21 +204,21 @@ export const PrintOverlay = () => {
                   <table className="w-full text-left text-xs border-collapse border border-gray-400">
                       <thead>
                           <tr className="border-b border-gray-400">
-                              <th className="py-1 px-1 border border-gray-400 w-[4ch] text-center">Qtd</th>
-                              <th className="py-1 px-1 border border-gray-400 w-28 text-center">Dentes</th>
-                              <th className="py-1 px-1 border border-gray-400 w-[6ch] text-center">Cor</th>
-                              <th className="py-1 px-1 border border-gray-400">Descrição</th>
+                              <th className="py-1 px-1.5 border border-gray-400 w-[1%] whitespace-nowrap text-center">Qtd</th>
+                              <th className="py-1 px-2 border border-gray-400 w-[1%] whitespace-nowrap text-center">Dentes</th>
+                              <th className="py-1 px-1.5 border border-gray-400 w-[1%] whitespace-nowrap text-center">Cor</th>
+                              <th className="py-1 px-2 border border-gray-400">Descrição</th>
                           </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-400">
                           {job.items.filter(i => !i.isInternalStep).map((item, idx) => (
                               <tr key={`item-${idx}`}>
-                                  <td className="py-1 px-1 border border-gray-400 font-bold align-top text-sm text-center">{item.quantity}</td>
-                                  <td className="py-1 px-1 border border-gray-400 font-bold align-top text-[10px] text-indigo-600 text-center break-words whitespace-normal leading-relaxed max-w-[120px]">
+                                  <td className="py-1 px-1.5 border border-gray-400 font-bold align-top text-sm text-center whitespace-nowrap">{item.quantity}</td>
+                                  <td className="py-1 px-2 border border-gray-400 font-bold align-top text-[10px] text-indigo-600 text-center whitespace-nowrap leading-relaxed">
                                       {formatTeethRange(item.selectedTeeth) || '-'}
                                   </td>
-                                  <td className="py-1 px-1 border border-gray-400 font-bold align-top text-[11px] text-slate-800 break-words text-center">{item.color || (item as any).cor || '-'}</td>
-                                  <td className="py-1 px-1 border border-gray-400 align-top font-normal text-[10pt] text-gray-900"><div><span className="font-bold">{getNaturePrefix(item.nature)}</span>{formatItemNameWithVariations(item, jobTypes)}</div></td>
+                                  <td className="py-1 px-1.5 border border-gray-400 font-bold align-top text-[11px] text-slate-800 text-center whitespace-nowrap">{item.color || (item as any).cor || '-'}</td>
+                                  <td className="py-1 px-2 border border-gray-400 align-top font-normal text-[10pt] text-gray-900"><div><span className="font-bold">{getNaturePrefix(item.nature)}</span>{formatItemNameWithVariations(item, jobTypes)}</div></td>
                               </tr>
                           ))}
                       </tbody>
