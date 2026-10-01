@@ -788,7 +788,6 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
     }
 
     const initialStageQuantities: Record<string, Record<string, number>> = {};
-<<<<<<< HEAD
     const sanitizedSectorStages: Record<string, string[]> = {};
     if (activeJobType.sectorStages) {
       Object.entries(activeJobType.sectorStages).forEach(([sec, stgs]) => {
@@ -799,13 +798,6 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
           sanitizedSectorStages[sec] = valid;
           initialStageQuantities[sec] = {};
           valid.forEach(stg => {
-=======
-    if (activeJobType.sectorStages) {
-      Object.entries(activeJobType.sectorStages).forEach(([sec, stgs]) => {
-        if (Array.isArray(stgs)) {
-          initialStageQuantities[sec] = {};
-          stgs.forEach(stg => {
->>>>>>> b8afe1068821dd1cd9974b1cecd26fe0c8b335ed
             initialStageQuantities[sec][stg] = quantity;
           });
         }
@@ -829,11 +821,7 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
         commissionDisabled: commissionDisabled, 
         selectedTeeth: itemSelectedTeeth && itemSelectedTeeth.length > 0 ? itemSelectedTeeth : (manualTeethText.trim() ? [manualTeethText.trim()] : undefined), 
         color: itemColor || undefined,
-<<<<<<< HEAD
         sectorStages: Object.keys(sanitizedSectorStages).length > 0 ? sanitizedSectorStages : undefined,
-=======
-        sectorStages: activeJobType.sectorStages ? JSON.parse(JSON.stringify(activeJobType.sectorStages)) : undefined,
->>>>>>> b8afe1068821dd1cd9974b1cecd26fe0c8b335ed
         stageQuantities: Object.keys(initialStageQuantities).length > 0 ? initialStageQuantities : undefined
     };
     setAddedItems([...addedItems, newItem]);

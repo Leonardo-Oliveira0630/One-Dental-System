@@ -191,35 +191,22 @@ export const JobDetails = () => {
   const handleOpenStageConfig = (item: JobItem) => {
     setStageConfigItem(item);
     const jt = jobTypes.find(t => t.id === item.jobTypeId);
-<<<<<<< HEAD
     const rawStages = item.sectorStages || jt?.sectorStages || {};
     const initialStages: Record<string, string[]> = {};
-=======
-    const initialStages = item.sectorStages || jt?.sectorStages || {};
->>>>>>> b8afe1068821dd1cd9974b1cecd26fe0c8b335ed
     const initialQuantities: Record<string, Record<string, number>> = {};
     const itemQty = item.quantity || 1;
 
     sectors.forEach(s => {
-<<<<<<< HEAD
       const activeStages = s.stages || [];
       const list = rawStages[s.name] || [];
       const valid = list.filter(stg => activeStages.includes(stg));
       if (valid.length > 0) {
         initialStages[s.name] = valid;
-=======
-      const stages = initialStages[s.name] || [];
-      if (stages.length > 0) {
->>>>>>> b8afe1068821dd1cd9974b1cecd26fe0c8b335ed
         initialQuantities[s.name] = {};
         const secQty = (item.sectorQuantities && item.sectorQuantities[s.name] !== undefined)
           ? item.sectorQuantities[s.name]
           : itemQty;
-<<<<<<< HEAD
         valid.forEach(stg => {
-=======
-        stages.forEach(stg => {
->>>>>>> b8afe1068821dd1cd9974b1cecd26fe0c8b335ed
           const rawQ = item.stageQuantities?.[s.name]?.[stg];
           if (rawQ !== undefined && rawQ > 1) {
             initialQuantities[s.name][stg] = rawQ;
