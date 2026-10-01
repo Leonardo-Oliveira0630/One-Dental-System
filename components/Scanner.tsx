@@ -53,7 +53,7 @@ const formatItemNameWithVariations = (item: JobItem, jobTypes: JobType[]) => {
 
 export const GlobalScanner: React.FC = () => {
   console.log("GlobalScanner mounted!");
-  const { jobs, updateJob, currentUser, addCommissionRecord, commissions, uploadFile, sectors, jobTypes, nfcBoxes, commissionGroups } = useApp();
+  const { jobs, updateJob, currentUser, addCommissionRecord, updateCommissionRecord, deleteCommissionRecord, commissions, uploadFile, sectors, jobTypes, nfcBoxes, commissionGroups } = useApp();
   const navigate = useNavigate();
   const bufferRef = useRef<string>('');
   const lastKeyTimeRef = useRef<number>(0);
@@ -674,30 +674,60 @@ export const GlobalScanner: React.FC = () => {
 
         if (commissionEarned > 0) {
             try {
-                const secQty = (item.sectorQuantities && item.sectorQuantities[sector]) ? item.sectorQuantities[sector] : item.quantity;
-                let calculatedQty = secQty;
-                if (stageName && item.stageQuantities?.[sector]?.[stageName] !== undefined) {
-                    const cQty = Number(item.stageQuantities[sector][stageName]);
-                    if (!isNaN(cQty) && cQty > 0) {
-                        calculatedQty = (cQty === 1 && secQty > 1) ? secQty : cQty;
-                    }
-                }
+                // Calculate total commission for this user in this sector across all completed executions
+                let totalSectorUserComm = 0;
+                (currentJob.items || []).forEach((itm: JobItem) => {
+                    if (itm.commissionDisabled) return;
+                    const itmSectorDisabled = itm.sectorCommissionDisabled?.[sector];
+                    if (itmSectorDisabled) return;
 
-                await addCommissionRecord({
-                    userId: user.id,
-                    userName: user.name,
-                    jobId: currentJob.id,
-                    osNumber: currentJob.osNumber || 'N/A',
-                    sector: sector,
-                    amount: commissionEarned,
-                    status: 'PENDING' as CommissionStatus,
-                    createdAt: new Date(),
-                    patientName: currentJob.patientName,
-                    itemId: item.id,
-                    itemName: item.name,
-                    stageName: stageName || undefined,
-                    quantity: calculatedQty
+                    const itmExec = newExecutions.find(e => e.itemId === itm.id && e.sector === sector && e.userId === user.id);
+                    if (!itmExec) return;
+
+                    const itmJt = jobTypesRef.current.find((t: JobType) => t.id === itm.jobTypeId);
+                    const itmSecQty = (itm.sectorQuantities && itm.sectorQuantities[sector]) ? itm.sectorQuantities[sector] : itm.quantity;
+                    totalSectorUserComm += calculateItemCommission(
+                        itm,
+                        itmJt,
+                        user,
+                        itmSecQty,
+                        sector,
+                        itmExec.executedStages,
+                        itmExec.isBaseChecked !== false,
+                        commissionGroups
+                    );
                 });
+
+                const finalCommAmount = totalSectorUserComm > 0 ? totalSectorUserComm : commissionEarned;
+
+                const matchingPendingComms = commissions.filter(c => 
+                    c.jobId === currentJob.id && 
+                    c.userId === user.id && 
+                    c.sector === sector && 
+                    c.status === CommissionStatus.PENDING
+                );
+
+                if (matchingPendingComms.length > 0) {
+                    await updateCommissionRecord(matchingPendingComms[0].id, {
+                        amount: finalCommAmount,
+                        createdAt: new Date()
+                    });
+                    for (let i = 1; i < matchingPendingComms.length; i++) {
+                        await deleteCommissionRecord(matchingPendingComms[i].id);
+                    }
+                } else {
+                    await addCommissionRecord({
+                        userId: user.id,
+                        userName: user.name,
+                        jobId: currentJob.id,
+                        osNumber: currentJob.osNumber || 'N/A',
+                        sector: sector,
+                        amount: finalCommAmount,
+                        status: CommissionStatus.PENDING,
+                        createdAt: new Date(),
+                        patientName: currentJob.patientName
+                    });
+                }
             } catch (commErr: any) {
                 console.error("Erro ao registrar comissão:", commErr);
             }

@@ -1543,13 +1543,17 @@ export const JobDetails = () => {
               }
           });
 
-          const existingComm = commissions.find(c => c.jobId === job.id && c.sector === editingExecution.sector && c.userId === editingExecution.userId);
+          const matchingComms = commissions.filter(c => c.jobId === job.id && c.sector === editingExecution.sector && c.userId === editingExecution.userId && c.status === CommissionStatus.PENDING);
+          const existingComm = matchingComms[0];
           if (totalUserComm > 0) {
               if (existingComm) {
                   await updateCommissionRecord(existingComm.id, {
                       amount: totalUserComm,
                       createdAt: editingExecution.exitTime ? new Date(editingExecution.exitTime) : existingComm.createdAt
                   });
+                  for (let i = 1; i < matchingComms.length; i++) {
+                      await deleteCommissionRecord(matchingComms[i].id);
+                  }
               } else {
                   await addCommissionRecord({
                       jobId: job.id,
@@ -1563,8 +1567,10 @@ export const JobDetails = () => {
                       createdAt: editingExecution.exitTime ? new Date(editingExecution.exitTime) : new Date()
                   });
               }
-          } else if (existingComm) {
-              await deleteCommissionRecord(existingComm.id);
+          } else if (matchingComms.length > 0) {
+              for (const comm of matchingComms) {
+                  await deleteCommissionRecord(comm.id);
+              }
           }
 
           setShowExecutionModal(false);
@@ -1660,10 +1666,14 @@ export const JobDetails = () => {
               }
           });
 
-          const existingComm = commissions.find(c => c.jobId === job.id && c.sector === sector && c.userId === userId);
+          const matchingComms = commissions.filter(c => c.jobId === job.id && c.sector === sector && c.userId === userId && c.status === CommissionStatus.PENDING);
+          const existingComm = matchingComms[0];
           if (totalUserComm > 0) {
               if (existingComm) {
                   await updateCommissionRecord(existingComm.id, { amount: totalUserComm });
+                  for (let i = 1; i < matchingComms.length; i++) {
+                      await deleteCommissionRecord(matchingComms[i].id);
+                  }
               } else {
                   await addCommissionRecord({
                       jobId: job.id,
@@ -1677,8 +1687,10 @@ export const JobDetails = () => {
                       createdAt: new Date()
                   });
               }
-          } else if (existingComm) {
-              await deleteCommissionRecord(existingComm.id);
+          } else if (matchingComms.length > 0) {
+              for (const comm of matchingComms) {
+                  await deleteCommissionRecord(comm.id);
+              }
           }
       }
   };

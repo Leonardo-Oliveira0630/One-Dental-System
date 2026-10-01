@@ -1099,7 +1099,9 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       const orgId = activeDataId;
       if(!orgId) return;
       try {
-          await api.apiAddCommission(orgId, { ...rec, id: `comm_${Date.now()}`, organizationId: orgId } as CommissionRecord);
+          const newRec: CommissionRecord = { ...rec, id: `comm_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`, organizationId: orgId } as CommissionRecord;
+          setCommissions(prev => [newRec, ...prev]);
+          await api.apiAddCommission(orgId, newRec);
       } catch (err: any) {
           handleFirestoreError(err, OperationType.CREATE, `organizations/${orgId}/commissions`);
       }
@@ -1107,13 +1109,16 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const updateCommissionStatus = async (id: string, status: CommissionStatus) => {
       const orgId = activeDataId;
       if(!orgId) return;
-      await api.apiUpdateCommission(orgId, id, { status, paidAt: status === CommissionStatus.PAID ? new Date() : undefined });
+      const updates = { status, paidAt: status === CommissionStatus.PAID ? new Date() : undefined };
+      setCommissions(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+      await api.apiUpdateCommission(orgId, id, updates);
   };
 
   const updateCommissionRecord = async (id: string, updates: Partial<CommissionRecord>) => {
       const orgId = activeDataId;
       if(!orgId) return;
       try {
+          setCommissions(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
           await api.apiUpdateCommission(orgId, id, updates);
       } catch (err: any) {
           handleFirestoreError(err, OperationType.UPDATE, `organizations/${orgId}/commissions/${id}`);
@@ -1124,6 +1129,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       const orgId = activeDataId;
       if(!orgId) return;
       try {
+          setCommissions(prev => prev.filter(c => c.id !== id));
           await api.apiDeleteCommission(orgId, id);
       } catch (err: any) {
           handleFirestoreError(err, OperationType.DELETE, `organizations/${orgId}/commissions/${id}`);
