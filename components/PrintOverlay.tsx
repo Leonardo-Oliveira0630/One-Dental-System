@@ -4,7 +4,7 @@ import Barcode from 'react-barcode';
 import { useApp } from '../context/AppContext';
 import { UrgencyLevel } from '../types';
 import { Printer, X, MapPin, User, Package, Truck, Clock, FileText, Calendar } from 'lucide-react';
-import { formatItemNameWithVariations } from '../pages/JobDetails';
+import { formatItemNameWithVariations, getNaturePrefix } from '../pages/JobDetails';
 import { formatTeethRange } from '../utils/toothUtils';
 
 export const PrintOverlay = () => {
@@ -202,7 +202,7 @@ export const PrintOverlay = () => {
                                       {formatTeethRange(item.selectedTeeth) || '-'}
                                   </td>
                                   <td className="py-1 px-1 border border-gray-400 font-bold align-top text-[11px] text-slate-800 break-words text-center">{item.color || (item as any).cor || '-'}</td>
-                                  <td className="py-1 px-1 border border-gray-400 align-top font-normal text-[10pt] text-gray-900"><div>{item.nature === 'REPETITION' ? '(R) ' : item.nature === 'ADJUSTMENT' ? '(A) ' : ''}{formatItemNameWithVariations(item, jobTypes)}</div></td>
+                                  <td className="py-1 px-1 border border-gray-400 align-top font-normal text-[10pt] text-gray-900"><div><span className="font-bold">{getNaturePrefix(item.nature)}</span>{formatItemNameWithVariations(item, jobTypes)}</div></td>
                               </tr>
                           ))}
                       </tbody>
@@ -381,7 +381,7 @@ export const PrintOverlay = () => {
                       <thead><tr className="border-b border-gray-400"><th className="py-1 px-1 border border-gray-400 w-[4ch]">Qtd</th><th className="py-1 px-1 border border-gray-400">Descrição</th><th className="py-1 px-1 border border-gray-400 w-24 text-right">Valor Unit.</th><th className="py-1 px-1 border border-gray-400 w-24 text-right">Total</th></tr></thead>
                       <tbody className="divide-y divide-gray-400">
                           {job.items.filter(i => !i.isInternalStep).map((item, idx) => (
-                              <tr key={`item-${idx}`}><td className="py-1 px-1 border border-gray-400 font-bold align-top text-sm text-center">{item.quantity}</td><td className="py-1 px-1 border border-gray-400 align-top font-normal text-[10pt] text-gray-900"><div>{item.nature === 'REPETITION' ? '(R) ' : item.nature === 'ADJUSTMENT' ? '(A) ' : ''}{formatItemNameWithVariations(item, jobTypes)} {item.selectedTeeth?.length ? ` - Dentes: ${formatTeethRange(item.selectedTeeth)}` : ''}</div></td><td className="py-1 px-1 border border-gray-400 align-top text-right text-gray-700 text-sm">{(item.price || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td><td className="py-1 px-1 border border-gray-400 align-top font-bold text-right text-sm">{((item.price || 0) * item.quantity).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td></tr>
+                              <tr key={`item-${idx}`}><td className="py-1 px-1 border border-gray-400 font-bold align-top text-sm text-center">{item.quantity}</td><td className="py-1 px-1 border border-gray-400 align-top font-normal text-[10pt] text-gray-900"><div><span className="font-bold">{getNaturePrefix(item.nature)}</span>{formatItemNameWithVariations(item, jobTypes)} {item.selectedTeeth?.length ? ` - Dentes: ${formatTeethRange(item.selectedTeeth)}` : ''}</div></td><td className="py-1 px-1 border border-gray-400 align-top text-right text-gray-700 text-sm">{(item.price || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td><td className="py-1 px-1 border border-gray-400 align-top font-bold text-right text-sm">{((item.price || 0) * item.quantity).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td></tr>
                           ))}
                       </tbody>
                   </table>
@@ -501,7 +501,7 @@ export const PrintOverlay = () => {
                          {job.items?.map((item: any) => (
                              <tr key={item.id} className="border-b border-slate-100">
                                  <td className="py-3">
-                                     <div className="font-bold text-slate-800">{item.name}</div>
+                                     <div className="font-bold text-slate-800">{getNaturePrefix(item.nature)}{item.name}</div>
                                      <div className="text-[10px] text-slate-500">{item.selectedTeeth?.join(', ')}</div>
                                  </td>
                                  <td className="py-3 text-center font-bold text-slate-700">{item.selectedTeeth?.length || 1}</td>

@@ -43,6 +43,14 @@ export const parseDateSafely = (val: any): Date | null => {
     return null;
 };
 
+export const getNaturePrefix = (nature?: string) => {
+    if (!nature) return '';
+    const n = String(nature).toUpperCase();
+    if (n === 'REPETITION' || n === 'REPETICAO' || n === 'REPETIÇÃO') return '(R) ';
+    if (n === 'ADJUSTMENT' || n === 'AJUSTE') return '(A) ';
+    return '';
+};
+
 export const formatItemNameWithVariations = (item: JobItem, jobTypes: any[]) => {
     const jt = jobTypes.find(t => t.id === item.jobTypeId);
     if (!jt || ((!jt.variationGroups || jt.variationGroups.length === 0) && (!jt.variations || jt.variations.length === 0))) return item.name;
@@ -1743,6 +1751,7 @@ export const JobDetails = () => {
       setEditingItemId(item.id);
       setItemEditForm({
           quantity: item.quantity,
+          nature: item.nature || 'NORMAL',
           price: item.basePriceBeforeDiscount ?? item.price,
           appliedDiscount: item.appliedDiscount || 0,
           appliedDiscountFixed: item.appliedDiscountFixed || 0,
@@ -1766,13 +1775,18 @@ export const JobDetails = () => {
       const newBasePrice = itemEditForm.price;
       let finalPrice = newBasePrice * (1 - (itemEditForm.appliedDiscount / 100));
       if (itemEditForm.appliedDiscountFixed > 0) finalPrice -= itemEditForm.appliedDiscountFixed;
-      finalPrice = Math.max(0, finalPrice);
+      if (itemEditForm.nature === 'REPETITION' || itemEditForm.nature === 'ADJUSTMENT') {
+          finalPrice = 0;
+      } else {
+          finalPrice = Math.max(0, finalPrice);
+      }
       
       const updatedItems = job.items.map((i: any) => {
           if (i.id === item.id) {
               return {
                   ...i,
                   quantity: itemEditForm.quantity,
+                  nature: itemEditForm.nature || 'NORMAL',
                   price: finalPrice,
                   basePriceBeforeDiscount: newBasePrice,
                   appliedDiscount: itemEditForm.appliedDiscount,
@@ -2654,7 +2668,7 @@ export const JobDetails = () => {
                                   return (
                                       <div key={item.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
                                           <div className="flex flex-col min-w-0 mr-2">
-                                              <div className="text-xs font-bold text-slate-700 truncate">{item.quantity}x {formatItemNameWithVariations(item, jobTypes)}</div>
+                                              <div className="text-xs font-bold text-slate-700 truncate">{item.quantity}x {getNaturePrefix(item.nature)}{formatItemNameWithVariations(item, jobTypes)}</div>
                                               <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">{item.nature === 'REPETITION' ? 'REPETIÇÃO' : item.nature === 'ADJUSTMENT' ? 'AJUSTE' : 'NORMAL'}</div>
                                           </div>
                                           <div className="flex items-center gap-2 shrink-0">
@@ -3394,7 +3408,7 @@ export const JobDetails = () => {
                                       onClick={() => setExpandedItemIdx(isExpanded ? null : idx)}
                                     >
                                         <div className="min-w-0 flex-1">
-                                            <p className="font-black text-slate-800 text-sm md:text-base leading-tight truncate"><span className="text-blue-600 mr-1">{item.quantity}x</span> {formatItemNameWithVariations(item, jobTypes)}</p>
+                                            <p className="font-black text-slate-800 text-sm md:text-base leading-tight truncate"><span className="text-blue-600 mr-1">{item.quantity}x</span> {getNaturePrefix(item.nature)}{formatItemNameWithVariations(item, jobTypes)}</p>
                                             <div className="flex items-center gap-2 mt-1">
                                                 <p className="text-[9px] text-slate-400 uppercase font-black tracking-widest truncate">{item.nature === 'REPETITION' ? 'REPETIÇÃO' : item.nature === 'ADJUSTMENT' ? 'AJUSTE' : 'NORMAL'}</p>
                                                 {(item.nature === 'REPETITION' || item.nature === 'ADJUSTMENT') && canManageCommissions && (
@@ -3448,6 +3462,32 @@ export const JobDetails = () => {
                                                     </div>
                                                     
                                                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                                        <div className="col-span-1 sm:col-span-2 lg:col-span-4">
+                                                            <label className="block text-[10px] uppercase font-black text-slate-500 mb-1">Natureza do Serviço</label>
+                                                            <div className="flex gap-2">
+                                                                <button 
+                                                                    type="button" 
+                                                                    onClick={() => setItemEditForm({...itemEditForm, nature: 'NORMAL'})} 
+                                                                    className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold uppercase transition-all border ${itemEditForm.nature === 'NORMAL' ? 'bg-slate-800 text-white border-slate-800 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'}`}
+                                                                >
+                                                                    Normal
+                                                                </button>
+                                                                <button 
+                                                                    type="button" 
+                                                                    onClick={() => setItemEditForm({...itemEditForm, nature: 'REPETITION', commissionDisabled: true})} 
+                                                                    className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold uppercase transition-all border ${itemEditForm.nature === 'REPETITION' ? 'bg-amber-500 text-white border-amber-500 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'}`}
+                                                                >
+                                                                    (R) Repetição
+                                                                </button>
+                                                                <button 
+                                                                    type="button" 
+                                                                    onClick={() => setItemEditForm({...itemEditForm, nature: 'ADJUSTMENT', commissionDisabled: true})} 
+                                                                    className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold uppercase transition-all border ${itemEditForm.nature === 'ADJUSTMENT' ? 'bg-purple-500 text-white border-purple-500 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'}`}
+                                                                >
+                                                                    (A) Ajuste
+                                                                </button>
+                                                            </div>
+                                                        </div>
                                                         <div>
                                                             <label className="block text-[10px] uppercase font-black text-slate-500 mb-1">Tabela de Preço</label>
                                                             <select 
@@ -4123,7 +4163,7 @@ export const JobDetails = () => {
                         return (
                             <div key={item.id} className="bg-white rounded-[24px] overflow-hidden border border-slate-100 shadow-sm">
                                 <div className="bg-slate-50 px-5 py-3 border-b border-slate-100 flex items-center gap-2">
-                                    <h4 className="font-black text-slate-700 text-xs uppercase tracking-widest">{formatItemNameWithVariations(item, jobTypes)}</h4>
+                                    <h4 className="font-black text-slate-700 text-xs uppercase tracking-widest">{getNaturePrefix(item.nature)}{formatItemNameWithVariations(item, jobTypes)}</h4>
                                     <span className="text-[10px] font-bold text-slate-400 bg-white px-2 py-0.5 rounded border border-slate-200 uppercase">{jt?.category || 'Geral'}</span>
                                 </div>
                                 <table className="w-full text-left">

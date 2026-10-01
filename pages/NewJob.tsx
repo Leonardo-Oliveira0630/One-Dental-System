@@ -1504,7 +1504,7 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
         style={{ backgroundColor: getJobTypeColor(item.jobTypeId, item.name) }} 
         title="Cor no Odontograma"
       />
-      <p className="font-black text-slate-800 text-sm uppercase truncate max-w-[200px] leading-tight">{item.name}</p>
+      <p className="font-black text-slate-800 text-sm uppercase truncate max-w-[200px] leading-tight">{item.nature === 'REPETITION' ? '(R) ' : item.nature === 'ADJUSTMENT' ? '(A) ' : ''}{item.name}</p>
    </div>
                                         
                                         {/* Variations and Teeth */}
