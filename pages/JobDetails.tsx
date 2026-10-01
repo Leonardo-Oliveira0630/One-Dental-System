@@ -17,8 +17,8 @@ import { ChatSystem } from '../components/ChatSystem';
 import { CaseApprovalSystem } from '../components/CaseApprovalSystem';
 import { AttachmentPreviewModal, handleDownloadFile } from '../components/AttachmentPreviewModal';
 import { calculateItemCommission } from '../utils/commissionUtils';
-import { WebcamModal } from '../components/WebcamModal';
-import { capturePhotoWithNativePreference } from '../utils/cameraUtils';
+import { Capacitor } from '@capacitor/core';
+import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { formatTeethRange } from '../utils/toothUtils';
 import { smartCompress } from '../services/compressionService';
 import * as api from '../services/firebaseService';
@@ -387,18 +387,45 @@ export const JobDetails = () => {
   
   const [isUploadingFiles, setIsUploadingFiles] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [isWebcamOpen, setIsWebcamOpen] = useState(false);
   const [uploadProgressMsg, setUploadProgressMsg] = useState('');
+  const nativeCameraInputRef = useRef<HTMLInputElement>(null);
 
   const handleTakePhotoClick = async () => {
-    await capturePhotoWithNativePreference(
-      (file) => {
-        setSelectedFiles(prev => [...prev, file]);
-      },
-      () => {
-        setIsWebcamOpen(true);
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const perm = await Camera.checkPermissions();
+        if (perm.camera !== 'granted') {
+          await Camera.requestPermissions({ permissions: ['camera'] });
+        }
+        const photo = await Camera.getPhoto({
+          quality: 100,
+          allowEditing: false,
+          resultType: CameraResultType.Uri,
+          source: CameraSource.Camera
+        });
+        if (photo && photo.webPath) {
+          const response = await fetch(photo.webPath);
+          const blob = await response.blob();
+          const ext = photo.format || 'jpg';
+          const file = new File(
+            [blob],
+            `foto-caso-${Date.now()}.${ext}`,
+            { type: `image/${ext === 'png' ? 'png' : 'jpeg'}` }
+          );
+          setSelectedFiles(prev => [...prev, file]);
+          return;
+        }
+      } catch (err: any) {
+        const errStr = (err?.message || err?.toString() || '').toLowerCase();
+        if (errStr.includes('cancelled') || errStr.includes('cancel') || errStr.includes('user cancelled')) {
+          return;
+        }
+        console.warn("Capacitor camera failed, falling back to native file capture:", err);
       }
-    );
+    }
+
+    // Trigger native device camera via capture input
+    nativeCameraInputRef.current?.click();
   };
 
   const [routeInfo, setRouteInfo] = useState<DeliveryRoute | null>(null);
@@ -4006,6 +4033,21 @@ export const JobDetails = () => {
                         </div>
 
                         <div className="space-y-4">
+                            {/* Hidden native camera capture input */}
+                            <input 
+                                ref={nativeCameraInputRef}
+                                type="file" 
+                                accept="image/*" 
+                                capture="environment" 
+                                className="hidden"
+                                onChange={(e) => {
+                                    if (e.target.files && e.target.files[0]) {
+                                        setSelectedFiles(prev => [...prev, e.target.files![0]]);
+                                        e.target.value = '';
+                                    }
+                                }}
+                            />
+
                             <div className="flex gap-2">
                                 <div className="flex-1 p-4 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50 group hover:border-blue-400 hover:bg-blue-50/50 transition-all text-center relative shrink-0">
                                     <input type="file" multiple onChange={handleFileSelect} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" accept=".stl,.pdf,.doc,.docx,.xls,.xlsx,.html,.png,.jpg,.jpeg" />
@@ -4015,9 +4057,10 @@ export const JobDetails = () => {
                                     </div>
                                 </div>
                                 <button 
+                                    type="button"
                                     onClick={handleTakePhotoClick}
                                     disabled={isUploadingFiles}
-                                    className="w-24 p-4 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50 group hover:border-blue-400 hover:bg-blue-50/50 transition-all flex flex-col items-center justify-center gap-2 shrink-0 disabled:opacity-50"
+                                    className="w-24 p-4 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50 group hover:border-blue-400 hover:bg-blue-50/50 transition-all flex flex-col items-center justify-center gap-2 shrink-0 disabled:opacity-50 cursor-pointer"
                                 >
                                     <CameraIcon size={28} className="text-slate-300 group-hover:text-blue-500 transition-colors" />
                                     <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest text-center leading-tight">Tirar Foto</span>
@@ -4481,17 +4524,6 @@ export const JobDetails = () => {
             </div>
           </div>
         </div>
-      )}
-      
-      {isWebcamOpen && (
-        <WebcamModal 
-          title="Foto para o Caso"
-          onClose={() => setIsWebcamOpen(false)}
-          onCapture={(file) => {
-            setSelectedFiles(prev => [...prev, file]);
-            setIsWebcamOpen(false);
-          }}
-        />
       )}
 
        {showReviewModal && job && (
