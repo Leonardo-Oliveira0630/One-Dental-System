@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { OnlineRequisition, Attachment, JobStatus, Job } from '../../types';
 import { apiAddPatientHistory } from '../../services/firebaseService';
-import { ClipboardList, Plus, FileText, Send, Loader2, AlertCircle, CheckCircle, Clock, Trash2, HelpCircle, HardDrive, ShieldAlert, Building, RefreshCw, Activity, Package, X, MessageSquare, MessageCircle, Lock, XCircle } from 'lucide-react';
+import { ClipboardList, Plus, FileText, Send, Loader2, AlertCircle, CheckCircle, Clock, Trash2, HelpCircle, HardDrive, ShieldAlert, Building, RefreshCw, Activity, Package, X, MessageSquare, MessageCircle, Lock, XCircle, Search, ChevronDown, Check } from 'lucide-react';
 import { ChatSystem } from '../../components/ChatSystem';
 import { AttachmentPreviewModal } from '../../components/AttachmentPreviewModal';
 import { Odontogram } from '../../components/Odontogram';
@@ -69,6 +69,9 @@ export const DentistRequisitions = () => {
   const [patientName, setPatientName] = useState('');
   const [selectedPatientId, setSelectedPatientId] = useState('');
   const [selectedServiceId, setSelectedServiceId] = useState('');
+  const [serviceSearchText, setServiceSearchText] = useState('');
+  const [showServiceSuggestions, setShowServiceSuggestions] = useState(false);
+  const serviceInputContainerRef = useRef<HTMLDivElement>(null);
   const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -83,6 +86,21 @@ export const DentistRequisitions = () => {
 
   const [showPatientSuggestions, setShowPatientSuggestions] = useState(false);
   const patientInputContainerRef = useRef<HTMLDivElement>(null);
+
+  const sortedServices = useMemo(() => {
+    return [...services].sort((a, b) => 
+      (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' })
+    );
+  }, [services]);
+
+  const filteredServices = useMemo(() => {
+    if (!serviceSearchText.trim()) return sortedServices;
+    const q = serviceSearchText.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return sortedServices.filter(s => {
+      const nameNorm = (s.name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      return nameNorm.includes(q);
+    });
+  }, [sortedServices, serviceSearchText]);
 
   const filteredPatients = useMemo(() => {
     if (!patientName.trim()) return patients || [];
@@ -107,6 +125,9 @@ export const DentistRequisitions = () => {
     const handleClickOutside = (event: MouseEvent) => {
       if (patientInputContainerRef.current && !patientInputContainerRef.current.contains(event.target as Node)) {
         setShowPatientSuggestions(false);
+      }
+      if (serviceInputContainerRef.current && !serviceInputContainerRef.current.contains(event.target as Node)) {
+        setShowServiceSuggestions(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -255,12 +276,10 @@ export const DentistRequisitions = () => {
             });
           }
         });
+        list.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' }));
         setServices(list);
-        if (list.length > 0) {
-          setSelectedServiceId(list[0].id);
-        } else {
-          setSelectedServiceId('');
-        }
+        setSelectedServiceId('');
+        setServiceSearchText('');
       } catch (err) {
         console.error('Error fetching laboratory service list:', err);
       }
@@ -371,14 +390,19 @@ export const DentistRequisitions = () => {
     ]);
     
     setSelectedServiceId('');
+    setServiceSearchText('');
     setSelectedVariations({});
     setQuantity(1);
     setItemSelectedTeeth([]);
+    setShowServiceSuggestions(false);
   };
 
   const handleReuseRequisition = (req: OnlineRequisition) => {
     setSelectedLabId(req.labId);
     setPatientName(req.patientName || '');
+    setSelectedServiceId('');
+    setServiceSearchText('');
+    setShowServiceSuggestions(false);
     setNotes(req.notes || '');
     
     // Map items
@@ -549,6 +573,9 @@ export const DentistRequisitions = () => {
       setSuccess(true);
       setPatientName('');
       setSelectedPatientId('');
+      setSelectedServiceId('');
+      setServiceSearchText('');
+      setShowServiceSuggestions(false);
       setNotes('');
       setAttachedFiles([]);
       setSelectedVariations({});
@@ -686,19 +713,87 @@ export const DentistRequisitions = () => {
                   </p>
                 ) : (
                   <div className="space-y-4">
-                    <select
-                      required={requisitionItems.length === 0}
-                      value={selectedServiceId}
-                      onChange={(e) => setSelectedServiceId(e.target.value)}
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-slate-700 text-sm"
-                    >
-                      <option value="" disabled>{t('dentistRequisitions.selectServiceOption', 'SELECIONE UM TRABALHO / SERVIÇO')}</option>
-                      {services.map(ser => (
-                        <option key={ser.id} value={ser.id}>
-                          {ser.name}
-                        </option>
-                      ))}
-                    </select>
+                    {/* Searchable input with Dropdown */}
+                    <div ref={serviceInputContainerRef} className="relative">
+                      <div className="relative flex items-center">
+                        <input
+                          type="text"
+                          value={serviceSearchText}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setServiceSearchText(val);
+                            setShowServiceSuggestions(true);
+                            const match = sortedServices.find(s => s.name.toLowerCase() === val.trim().toLowerCase());
+                            if (match) {
+                              setSelectedServiceId(match.id);
+                            } else if (!val.trim()) {
+                              setSelectedServiceId('');
+                            }
+                          }}
+                          onFocus={() => setShowServiceSuggestions(true)}
+                          onClick={() => setShowServiceSuggestions(true)}
+                          placeholder={t('dentistRequisitions.selectServicePlaceholder', 'DIGITE OU SELECIONE UM TIPO DE SERVIÇO...')}
+                          className="w-full pl-4 pr-20 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold uppercase text-slate-700 placeholder:normal-case placeholder:font-medium placeholder:text-slate-400 text-sm transition"
+                        />
+                        <div className="absolute right-2 flex items-center gap-1 text-slate-400">
+                          {serviceSearchText && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setServiceSearchText('');
+                                setSelectedServiceId('');
+                                setShowServiceSuggestions(true);
+                              }}
+                              className="p-1.5 hover:bg-slate-200 rounded-lg text-slate-400 hover:text-slate-600 transition-colors"
+                              title={t('common.clear', 'Limpar')}
+                            >
+                              <X size={16} />
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setShowServiceSuggestions(prev => !prev)}
+                            className="p-1.5 hover:bg-slate-200 rounded-lg text-slate-400 hover:text-slate-600 transition-colors"
+                          >
+                            <ChevronDown size={18} className={`transition-transform duration-200 ${showServiceSuggestions ? 'rotate-180 text-indigo-600' : ''}`} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Dropdown with scroll and alphabetical sorting */}
+                      {showServiceSuggestions && (
+                        <div className="absolute z-50 left-0 right-0 mt-1.5 bg-white border border-slate-200 rounded-2xl shadow-xl max-h-[250px] overflow-y-auto divide-y divide-slate-100 animate-in fade-in-50 zoom-in-95 duration-150">
+                          {filteredServices.length > 0 ? (
+                            filteredServices.map(ser => {
+                              const isSelected = selectedServiceId === ser.id;
+                              return (
+                                <button
+                                  key={ser.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedServiceId(ser.id);
+                                    setServiceSearchText(ser.name.toUpperCase());
+                                    setShowServiceSuggestions(false);
+                                  }}
+                                  className={`w-full text-left px-4 py-3.5 text-xs font-bold uppercase transition-colors flex items-center justify-between ${
+                                    isSelected
+                                      ? 'bg-indigo-50 text-indigo-700 font-black'
+                                      : 'hover:bg-slate-50 text-slate-700'
+                                  }`}
+                                >
+                                  <span>{ser.name}</span>
+                                  {isSelected && <Check size={16} className="text-indigo-600 shrink-0" />}
+                                </button>
+                              );
+                            })
+                          ) : (
+                            <div className="p-4 text-center text-xs font-medium text-slate-400">
+                              {t('dentistRequisitions.noServicesFound', 'Nenhum tipo de serviço encontrado para esta busca.')}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
 
                     {/* Active Service Variations Selection (Strictly NO prices/modifiers) */}
                     {(() => {

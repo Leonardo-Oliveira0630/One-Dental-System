@@ -120,29 +120,8 @@ export const LabResets = () => {
             }
 
             if (selections.jobs) {
-                setProgressStatus('Buscando trabalhos para apagar...');
-                const q = collection(db, `organizations/${org.id}/jobs`);
-                const snap = await getDocs(q);
-                const allJobRefs: any[] = [];
-                
-                for (const d of snap.docs) {
-                    allJobRefs.push(d.ref);
-                    try {
-                        const msgsSnap = await getDocs(collection(db, `organizations/${org.id}/jobs/${d.id}/messages`));
-                        msgsSnap.docs.forEach(m => allJobRefs.push(m.ref));
-                    } catch (e) {
-                        // Subcollection might be empty or missing
-                    }
-                    try {
-                        const appSnap = await getDocs(collection(db, `organizations/${org.id}/jobs/${d.id}/caseApprovals`));
-                        appSnap.docs.forEach(a => allJobRefs.push(a.ref));
-                    } catch (e) {
-                        // Subcollection might be empty or missing
-                    }
-                }
-
-                await deleteRefsInBatches(allJobRefs, 'Trabalhos e histórico');
-                results.push(`${snap.size} Trabalhos (e subcoleções)`);
+                const count = await deleteDocsInQuery(collection(db, `organizations/${org.id}/jobs`), 'Trabalhos');
+                results.push(`${count} Trabalhos`);
             }
 
             if (selections.receipts) {
