@@ -1,11 +1,11 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '../context/AppContext';
 import { 
   FileText, Download, Filter, Calendar, Users, Building2, Package, Search, X, 
   DollarSign, TrendingUp, ChevronDown, ChevronUp, ChevronRight, FileSpreadsheet, 
   ArrowUpDown, Wallet, UserCheck, Stethoscope, CheckCircle2, Clock, AlertCircle,
-  BarChart3, Sparkles
+  BarChart3, Sparkles, Lock, ArrowLeft
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
@@ -41,8 +41,121 @@ export default function Reports() {
   
   const isAdmin = currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.SUPER_ADMIN;
   const isManager = currentUser?.role === UserRole.MANAGER;
-  const hasReportsPerm = isAdmin || isManager || (currentUser?.permissions || []).includes('reports:view');
-  
+
+  const userPerms = useMemo(() => currentUser?.permissions || [], [currentUser?.permissions]);
+
+  // Check if user has any specific granular view permissions set
+  const hasGranularViewPerms = useMemo(() => {
+    return userPerms.some(p => 
+      ['reports:client_summary:view', 'reports:production:view', 'reports:detailed_orders:view', 'reports:service_types:view'].includes(p as any)
+    );
+  }, [userPerms]);
+
+  // Granular view permissions for each report type
+  const canViewClientSummary = Boolean(
+    isAdmin || isManager || 
+    userPerms.includes('reports:client_summary:view') || 
+    (!hasGranularViewPerms && userPerms.includes('reports:view'))
+  );
+
+  const canViewProduction = Boolean(
+    isAdmin || isManager || 
+    userPerms.includes('reports:production:view') || 
+    (!hasGranularViewPerms && userPerms.includes('reports:view'))
+  );
+
+  const canViewDetailedOrders = Boolean(
+    isAdmin || isManager || 
+    userPerms.includes('reports:detailed_orders:view') || 
+    (!hasGranularViewPerms && userPerms.includes('reports:view'))
+  );
+
+  const canViewServiceTypes = Boolean(
+    isAdmin || isManager || 
+    userPerms.includes('reports:service_types:view') || 
+    (!hasGranularViewPerms && userPerms.includes('reports:view'))
+  );
+
+  const hasAnyReportView = canViewClientSummary || canViewProduction || canViewDetailedOrders || canViewServiceTypes;
+
+  // Granular export permissions for each report type
+  const hasGlobalExport = userPerms.includes('reports:export');
+
+  const canExportClientSummary = Boolean(
+    isAdmin || isManager || hasGlobalExport || userPerms.includes('reports:client_summary:export')
+  );
+
+  const canExportProduction = Boolean(
+    isAdmin || isManager || hasGlobalExport || userPerms.includes('reports:production:export')
+  );
+
+  const canExportDetailedOrders = Boolean(
+    isAdmin || isManager || hasGlobalExport || userPerms.includes('reports:detailed_orders:export')
+  );
+
+  const canExportServiceTypes = Boolean(
+    isAdmin || isManager || hasGlobalExport || userPerms.includes('reports:service_types:export')
+  );
+
+  // Available report types for navigation based on view permissions
+  const availableReportTabs = useMemo(() => {
+    const tabs: {
+      type: 'CLIENT_SUMMARY' | 'PRODUCTION' | 'DETAILED_ORDERS' | 'SERVICE_TYPES';
+      label: string;
+      icon: any;
+      activeColor: string;
+      textColor: string;
+      canExport: boolean;
+    }[] = [];
+
+    if (canViewClientSummary) {
+      tabs.push({
+        type: 'CLIENT_SUMMARY',
+        label: t('reports.clientSummary', 'Resumo por Cliente'),
+        icon: Users,
+        activeColor: 'bg-white text-teal-700 shadow-sm border border-slate-200/60',
+        textColor: 'text-teal-600',
+        canExport: canExportClientSummary
+      });
+    }
+    if (canViewProduction) {
+      tabs.push({
+        type: 'PRODUCTION',
+        label: t('reports.basicProduction', 'Produção Básica'),
+        icon: BarChart3,
+        activeColor: 'bg-white text-indigo-700 shadow-sm border border-slate-200/60',
+        textColor: 'text-indigo-600',
+        canExport: canExportProduction
+      });
+    }
+    if (canViewDetailedOrders) {
+      tabs.push({
+        type: 'DETAILED_ORDERS',
+        label: t('reports.detailedOrders', 'Pedidos Detalhado'),
+        icon: FileText,
+        activeColor: 'bg-white text-amber-700 shadow-sm border border-slate-200/60',
+        textColor: 'text-amber-600',
+        canExport: canExportDetailedOrders
+      });
+    }
+    if (canViewServiceTypes) {
+      tabs.push({
+        type: 'SERVICE_TYPES',
+        label: t('reports.serviceTypes', 'Tipos de Serviço'),
+        icon: Package,
+        activeColor: 'bg-white text-purple-700 shadow-sm border border-slate-200/60',
+        textColor: 'text-purple-600',
+        canExport: canExportServiceTypes
+      });
+    }
+
+    return tabs;
+  }, [
+    canViewClientSummary, canViewProduction, canViewDetailedOrders, canViewServiceTypes,
+    canExportClientSummary, canExportProduction, canExportDetailedOrders, canExportServiceTypes,
+    t
+  ]);
+
   // Status translation helper
   const getStatusLabel = (status: string) => {
     switch (status) {
@@ -72,6 +185,27 @@ export default function Reports() {
   const [urgencyFilter, setUrgencyFilter] = useState('');
   const [groupBy, setGroupBy] = useState<'DATE' | 'JOB_TYPE' | 'LIST' | 'COLLABORATOR'>('DATE');
   const [reportType, setReportType] = useState<'CLIENT_SUMMARY' | 'PRODUCTION' | 'DETAILED_ORDERS' | 'SERVICE_TYPES'>('CLIENT_SUMMARY');
+
+  // Active report export permission
+  const canExportCurrentReport = useMemo(() => {
+    switch (reportType) {
+      case 'CLIENT_SUMMARY': return canExportClientSummary;
+      case 'PRODUCTION': return canExportProduction;
+      case 'DETAILED_ORDERS': return canExportDetailedOrders;
+      case 'SERVICE_TYPES': return canExportServiceTypes;
+      default: return false;
+    }
+  }, [reportType, canExportClientSummary, canExportProduction, canExportDetailedOrders, canExportServiceTypes]);
+
+  // Auto-switch to first available tab if current reportType is not permitted
+  useEffect(() => {
+    if (availableReportTabs.length > 0) {
+      const isCurrentPermitted = availableReportTabs.some(tab => tab.type === reportType);
+      if (!isCurrentPermitted) {
+        setReportType(availableReportTabs[0].type);
+      }
+    }
+  }, [availableReportTabs, reportType]);
   
   // Client summary specific state
   const [clientSearch, setClientSearch] = useState('');
@@ -389,6 +523,10 @@ export default function Reports() {
 
   // Export to PDF
   const generatePDF = () => {
+    if (!canExportCurrentReport) {
+      alert(t('reports.noExportPermission', 'Você não tem permissão para exportar este relatório. Solicite autorização ao administrador.'));
+      return;
+    }
     const isLandscape = reportType === 'DETAILED_ORDERS' || reportType === 'CLIENT_SUMMARY';
     const doc = new jsPDF(isLandscape ? 'landscape' : 'portrait');
     const orgName = currentOrg?.name || 'Laboratório';
@@ -608,6 +746,10 @@ export default function Reports() {
 
   // Export to Excel (.xlsx)
   const exportToExcel = () => {
+    if (!canExportCurrentReport) {
+      alert(t('reports.noExportPermission', 'Você não tem permissão para exportar este relatório. Solicite autorização ao administrador.'));
+      return;
+    }
     if (reportType === 'CLIENT_SUMMARY') {
       const rows = sortedClients.map((c, index) => ({
         '#': index + 1,
@@ -688,21 +830,24 @@ export default function Reports() {
     setClientSearch('');
   };
 
-  if (!hasReportsPerm) {
+  if (!hasAnyReportView) {
     return (
-      <div className="flex flex-col items-center justify-center h-[60vh] text-center p-4 sm:p-6">
-        <AlertCircle size={48} className="text-amber-500 mb-3" />
-        <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200">
-          Você não tem permissão para visualizar relatórios.
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-6 max-w-lg mx-auto animate-in fade-in">
+        <div className="w-16 h-16 bg-rose-50 text-rose-600 rounded-3xl flex items-center justify-center mb-4 border border-rose-200 shadow-sm">
+          <Lock size={32} />
+        </div>
+        <h2 className="text-xl font-black text-slate-800 mb-2">
+          {t('reports.accessRestrictedTitle', 'Acesso Restrito aos Relatórios')}
         </h2>
-        <p className="text-xs text-slate-400 mt-1 max-w-sm">
-          Solicite ao administrador do laboratório para habilitar a permissão "Ver Relatórios de Produção e Faturamento".
+        <p className="text-xs sm:text-sm text-slate-500 mb-6 leading-relaxed">
+          {t('reports.accessRestrictedDesc', 'Seu usuário não possui permissão para visualizar nenhum dos relatórios deste laboratório. Solicite ao administrador da equipe a liberação do acesso aos relatórios desejados.')}
         </p>
         <button 
           onClick={() => navigate('/dashboard')} 
-          className="mt-4 px-5 py-2.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors shadow-sm cursor-pointer"
+          className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs uppercase tracking-wider transition-colors inline-flex items-center gap-2 cursor-pointer shadow-md shadow-blue-100"
         >
-          {t('common.back', 'Voltar ao Painel')}
+          <ArrowLeft size={16} />
+          <span>{t('common.back', 'Voltar ao Início')}</span>
         </button>
       </div>
     );
@@ -718,9 +863,17 @@ export default function Reports() {
               <FileText size={24} />
             </div>
             <div>
-              <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-                {t('reports.title', 'Relatórios & Faturamento')}
-              </h1>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-2xl font-black text-slate-900 tracking-tight">
+                  {t('reports.title', 'Relatórios & Faturamento')}
+                </h1>
+                {!canExportCurrentReport && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-50 text-amber-700 border border-amber-200">
+                    <Lock size={10} />
+                    {t('reports.viewOnlyBadge', 'Apenas Visualização')}
+                  </span>
+                )}
+              </div>
               <p className="text-slate-500 text-sm font-medium">
                 {t('reports.subtitle', 'Consulte o faturamento por cliente, volume de casos e acompanhe a produção.')}
               </p>
@@ -729,75 +882,73 @@ export default function Reports() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+          {!canExportCurrentReport && (
+            <span className="text-[11px] font-bold text-amber-600 hidden lg:inline-flex items-center gap-1 bg-amber-50/80 px-2.5 py-1.5 rounded-lg border border-amber-200/60">
+              <Lock size={12} />
+              {t('reports.noExportPermNotice', 'Exportação desabilitada p/ seu usuário')}
+            </span>
+          )}
+
           <button 
             onClick={exportToExcel}
-            disabled={filteredJobs.length === 0}
-            className="px-4 py-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold rounded-xl transition-all flex items-center gap-2 text-xs uppercase tracking-wider border border-emerald-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            disabled={filteredJobs.length === 0 || !canExportCurrentReport}
+            title={!canExportCurrentReport ? t('reports.noExportPermissionTooltip', 'Você não tem permissão para exportar este relatório.') : undefined}
+            className={`px-4 py-3 font-bold rounded-xl transition-all flex items-center gap-2 text-xs uppercase tracking-wider border shadow-sm ${
+              !canExportCurrentReport
+                ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed opacity-70'
+                : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed'
+            }`}
           >
-            <FileSpreadsheet size={18} className="text-emerald-600" />
+            {!canExportCurrentReport ? <Lock size={16} /> : <FileSpreadsheet size={18} className="text-emerald-600" />}
             <span>{t('reports.exportExcel', 'Exportar Excel')}</span>
           </button>
           
           <button 
             onClick={generatePDF}
-            disabled={filteredJobs.length === 0}
-            className="px-5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-all flex items-center gap-2 text-xs uppercase tracking-wider shadow-lg shadow-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            disabled={filteredJobs.length === 0 || !canExportCurrentReport}
+            title={!canExportCurrentReport ? t('reports.noExportPermissionTooltip', 'Você não tem permissão para exportar este relatório.') : undefined}
+            className={`px-5 py-3 font-bold rounded-xl transition-all flex items-center gap-2 text-xs uppercase tracking-wider shadow-lg ${
+              !canExportCurrentReport
+                ? 'bg-slate-200 text-slate-400 shadow-none cursor-not-allowed opacity-70'
+                : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-100 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed'
+            }`}
           >
-            <Download size={18} />
+            {!canExportCurrentReport ? <Lock size={16} /> : <Download size={18} />}
             <span>{t('reports.exportPdf', 'Exportar PDF')}</span>
           </button>
         </div>
       </div>
 
-      {/* Segmented Navigation of Report Types */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 bg-slate-100 p-1.5 rounded-2xl">
-        <button
-          onClick={() => setReportType('CLIENT_SUMMARY')}
-          className={`px-4 py-3 rounded-xl font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer ${
-            reportType === 'CLIENT_SUMMARY'
-              ? 'bg-white text-teal-700 shadow-sm border border-slate-200/60'
-              : 'text-slate-600 hover:text-slate-900'
-          }`}
-        >
-          <Users size={16} className={reportType === 'CLIENT_SUMMARY' ? 'text-teal-600' : 'text-slate-400'} />
-          <span>{t('reports.clientSummary', 'Resumo por Cliente')}</span>
-        </button>
-
-        <button
-          onClick={() => setReportType('PRODUCTION')}
-          className={`px-4 py-3 rounded-xl font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer ${
-            reportType === 'PRODUCTION'
-              ? 'bg-white text-indigo-700 shadow-sm border border-slate-200/60'
-              : 'text-slate-600 hover:text-slate-900'
-          }`}
-        >
-          <BarChart3 size={16} className={reportType === 'PRODUCTION' ? 'text-indigo-600' : 'text-slate-400'} />
-          <span>{t('reports.basicProduction', 'Produção Básica')}</span>
-        </button>
-
-        <button
-          onClick={() => setReportType('DETAILED_ORDERS')}
-          className={`px-4 py-3 rounded-xl font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer ${
-            reportType === 'DETAILED_ORDERS'
-              ? 'bg-white text-amber-700 shadow-sm border border-slate-200/60'
-              : 'text-slate-600 hover:text-slate-900'
-          }`}
-        >
-          <FileText size={16} className={reportType === 'DETAILED_ORDERS' ? 'text-amber-600' : 'text-slate-400'} />
-          <span>{t('reports.detailedOrders', 'Pedidos Detalhado')}</span>
-        </button>
-
-        <button
-          onClick={() => setReportType('SERVICE_TYPES')}
-          className={`px-4 py-3 rounded-xl font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer ${
-            reportType === 'SERVICE_TYPES'
-              ? 'bg-white text-purple-700 shadow-sm border border-slate-200/60'
-              : 'text-slate-600 hover:text-slate-900'
-          }`}
-        >
-          <Package size={16} className={reportType === 'SERVICE_TYPES' ? 'text-purple-600' : 'text-slate-400'} />
-          <span>{t('reports.serviceTypes', 'Tipos de Serviço')}</span>
-        </button>
+      {/* Segmented Navigation of Permitted Report Types */}
+      <div className={`grid gap-2 bg-slate-100 p-1.5 rounded-2xl ${
+        availableReportTabs.length === 1 ? 'grid-cols-1 max-w-xs' :
+        availableReportTabs.length === 2 ? 'grid-cols-1 sm:grid-cols-2 max-w-xl' :
+        availableReportTabs.length === 3 ? 'grid-cols-1 sm:grid-cols-3' :
+        'grid-cols-2 md:grid-cols-4'
+      }`}>
+        {availableReportTabs.map(tab => {
+          const Icon = tab.icon;
+          const isActive = reportType === tab.type;
+          return (
+            <button
+              key={tab.type}
+              onClick={() => setReportType(tab.type)}
+              className={`px-4 py-3 rounded-xl font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                isActive
+                  ? tab.activeColor
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+              }`}
+            >
+              <Icon size={16} className={isActive ? tab.textColor : 'text-slate-400'} />
+              <span className="truncate">{tab.label}</span>
+              {!tab.canExport && (
+                <span title={t('reports.viewOnlyShort', 'Visualização apenas')} className="inline-flex items-center">
+                  <Lock size={12} className="text-slate-400 shrink-0" />
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {/* KPI Cards when in CLIENT_SUMMARY mode */}

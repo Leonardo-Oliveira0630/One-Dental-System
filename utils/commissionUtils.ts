@@ -45,10 +45,15 @@ export const calculateItemCommission = (
                 const stageKey = `${sectorName}:${stageName}`;
                 const stSetting = stageSettings[stageKey];
                 
-                // Get stage quantity if defined, otherwise use sector quantity
+                // Get stage quantity if defined, otherwise use sector quantity (e.g. 3 crowns = 3 stages)
                 let stageQty = secQty;
                 if (item.stageQuantities && item.stageQuantities[sectorName] && item.stageQuantities[sectorName][stageName] !== undefined) {
-                    stageQty = item.stageQuantities[sectorName][stageName];
+                    const customQty = Number(item.stageQuantities[sectorName][stageName]);
+                    if (!isNaN(customQty) && customQty > 0) {
+                        // If secQty > 1 and customQty was defaulted to 1 (legacy bug where stage was defaulted to 1 regardless of service quantity),
+                        // use secQty so that 3 crowns = 3 stages executed
+                        stageQty = (customQty === 1 && secQty > 1) ? secQty : customQty;
+                    }
                 }
                 
                 if (stSetting && stSetting.value !== undefined) {

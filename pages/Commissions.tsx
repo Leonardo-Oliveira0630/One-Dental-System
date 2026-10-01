@@ -8,6 +8,13 @@ import { jsPDF } from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 
+interface EnrichedItemExecutionDetail {
+  serviceTypeName: string;
+  stagesExecuted: string[];
+  isBaseOnly: boolean;
+  quantity: number;
+}
+
 interface EnrichedCommission {
   id: string;
   createdAt: Date;
@@ -18,6 +25,7 @@ interface EnrichedCommission {
   patientName: string;
   dentistName: string;
   serviceTypes: string;
+  executedDetails: EnrichedItemExecutionDetail[];
   quantity: number;
   sector: string;
   amount: number;
@@ -41,43 +49,90 @@ export const Commissions = () => {
       const job = jobs.find(j => j.id === comm.jobId);
       let quantity = 0;
       let serviceTypes = 'N/A';
+      const executedDetails: EnrichedItemExecutionDetail[] = [];
+      const textDetails: string[] = [];
       
       if (job && job.itemExecutions) {
           const userExecutions = job.itemExecutions.filter((e: any) => e.userId === comm.userId && e.sector === comm.sector);
-          const details: string[] = [];
           
           userExecutions.forEach((exec: any) => {
               const item = job.items.find((i: any) => i.id === exec.itemId);
               if (item) {
                   // Get sector quantity, fallback to item quantity
-                  const secQty = item.sectorQuantities?.[comm.sector] ?? item.quantity;
-                          
-                  let executedDesc = [];
+                  const secQty = (item.sectorQuantities && item.sectorQuantities[comm.sector] !== undefined)
+                      ? item.sectorQuantities[comm.sector]
+                      : item.quantity;
                   
-                  // If they executed specific stages, we only list those stages as requested
-                  if (exec.executedStages && exec.executedStages.length > 0) {
-                      exec.executedStages.forEach((stage: string) => {
+                  const stages = exec.executedStages || [];
+                  if (stages.length > 0) {
+                      // Specific stages were executed
+                      let itemStageQty = secQty;
+                      stages.forEach((stage: string) => {
                           let stageQty = secQty;
                           if (item.stageQuantities?.[comm.sector]?.[stage] !== undefined) {
-                              stageQty = item.stageQuantities[comm.sector][stage];
+                              const customQty = Number(item.stageQuantities[comm.sector][stage]);
+                              if (!isNaN(customQty) && customQty > 0) {
+                                  // Fix: inherit secQty (service quantity) if custom was 1 and secQty > 1
+                                  stageQty = (customQty === 1 && secQty > 1) ? secQty : customQty;
+                              }
                           }
-                          executedDesc.push(stage);
+                          itemStageQty = stageQty;
                           quantity += stageQty;
                       });
+
+                      executedDetails.push({
+                          serviceTypeName: item.name,
+                          stagesExecuted: stages,
+                          isBaseOnly: false,
+                          quantity: itemStageQty
+                      });
+
+                      textDetails.push(`${item.name} (Etapa: ${stages.join(', ')} - Qtd: ${itemStageQty})`);
                   } else if (exec.isBaseChecked !== false) {
-                      // If no stages, but base is checked, use the item name
-                     executedDesc.push(item.name);
-                     quantity += secQty;
-                  }
-                  
-                  if (executedDesc.length > 0) {
-                      details.push(executedDesc.join(', '));
+                      // Base service executed
+                      quantity += secQty;
+                      executedDetails.push({
+                          serviceTypeName: item.name,
+                          stagesExecuted: [],
+                          isBaseOnly: true,
+                          quantity: secQty
+                      });
+                      textDetails.push(`${item.name} (Serviço Base - Qtd: ${secQty})`);
                   }
               }
           });
           
-          if (details.length > 0) {
-              serviceTypes = details.join(' | ');
+          if (textDetails.length > 0) {
+              serviceTypes = textDetails.join(' | ');
+          }
+      }
+
+      // Fallback if no itemExecutions found or comm has direct itemName/stageName
+      if (executedDetails.length === 0) {
+          if (comm.itemName || comm.stageName) {
+              const sName = comm.itemName || 'Serviço';
+              const stgs = comm.stageName ? [comm.stageName] : [];
+              const q = comm.quantity || 1;
+              quantity = q;
+              executedDetails.push({
+                  serviceTypeName: sName,
+                  stagesExecuted: stgs,
+                  isBaseOnly: stgs.length === 0,
+                  quantity: q
+              });
+              serviceTypes = stgs.length > 0 ? `${sName} (Etapa: ${stgs.join(', ')} - Qtd: ${q})` : `${sName} (Qtd: ${q})`;
+          } else if (job && job.items && job.items.length > 0) {
+              job.items.forEach(i => {
+                  const q = (i.sectorQuantities && i.sectorQuantities[comm.sector] !== undefined) ? i.sectorQuantities[comm.sector] : i.quantity;
+                  quantity += q;
+                  executedDetails.push({
+                      serviceTypeName: i.name,
+                      stagesExecuted: [],
+                      isBaseOnly: true,
+                      quantity: q
+                  });
+              });
+              serviceTypes = job.items.map(i => i.name).join(' | ');
           }
       }
       
@@ -85,7 +140,8 @@ export const Commissions = () => {
         ...comm,
         dentistName: job?.dentistName || 'N/A',
         serviceTypes: serviceTypes,
-        quantity: quantity,
+        executedDetails: executedDetails,
+        quantity: quantity || comm.quantity || 1,
         createdAt: new Date(comm.createdAt)
       };
     });
@@ -127,7 +183,7 @@ export const Commissions = () => {
       [t('commissions.excelOs', 'OS')]: c.osNumber,
       [t('commissions.excelPatient', 'Paciente')]: c.patientName,
       [t('commissions.excelDentist', 'Dentista')]: c.dentistName,
-      [t('commissions.excelServices', 'Serviços')]: c.serviceTypes,
+      [t('commissions.excelServiceAndStage', 'Serviço / Etapa Executada')]: c.serviceTypes,
       [t('commissions.excelQty', 'Qtd')]: c.quantity,
       [t('commissions.excelSector', 'Setor')]: c.sector,
       [t('commissions.excelAmount', 'Valor')]: c.amount,
@@ -170,7 +226,7 @@ export const Commissions = () => {
           t('commissions.excelOs', 'OS'), 
           t('commissions.excelPatient', 'Paciente'), 
           t('commissions.excelDentist', 'Dentista'), 
-          t('commissions.excelServices', 'Serviço'), 
+          t('commissions.serviceAndStage', 'Serviço / Etapa Executada'), 
           t('commissions.excelQty', 'Qtd'), 
           t('commissions.excelSector', 'Setor'), 
           t('commissions.excelAmount', 'Valor'), 
@@ -232,7 +288,7 @@ export const Commissions = () => {
             t('commissions.excelOs', 'OS'), 
             t('commissions.excelPatient', 'Paciente'), 
             t('commissions.excelDentist', 'Dentista'), 
-            t('commissions.excelServices', 'Serviço'), 
+            t('commissions.serviceAndStage', 'Serviço / Etapa Executada'), 
             t('commissions.excelQty', 'Qtd'), 
             t('commissions.excelSector', 'Setor'), 
             t('commissions.excelAmount', 'Valor'), 
@@ -361,7 +417,7 @@ export const Commissions = () => {
                         <th className="p-4">{t('commissions.date', 'Data')}</th>
                         <th className="p-4">{t('commissions.technician', 'Colaborador')}</th>
                         <th className="p-4">{t('commissions.jobDetails', 'Detalhes do Trabalho')}</th>
-                        <th className="p-4">{t('commissions.service', 'Serviço / Qtd')}</th>
+                        <th className="p-4">{t('commissions.serviceAndStage', 'Serviço / Etapa Executada')}</th>
                         <th className="p-4">{t('commissions.sector', 'Setor')}</th>
                         <th className="p-4 text-right">{t('commissions.amount', 'Valor')}</th>
                         <th className="p-4">{t('commissions.status', 'Status')}</th>
@@ -386,10 +442,30 @@ export const Commissions = () => {
                                 </div>
                             </td>
                             <td className="p-4">
-                                <div className="flex flex-col">
-                                  <span className="text-xs font-medium text-slate-700 line-clamp-1" title={rec.serviceTypes}>{rec.serviceTypes}</span>
-                                  <span className="text-[10px] font-bold text-slate-400 uppercase">{t('commissions.quantity', 'Qtd')}: {rec.quantity}</span>
-                                </div>
+                                {rec.executedDetails && rec.executedDetails.length > 0 ? (
+                                  <div className="flex flex-col gap-2.5">
+                                    {rec.executedDetails.map((detail, idx) => (
+                                      <div key={idx} className="flex flex-col">
+                                        <span className="text-xs font-bold text-slate-900 leading-tight">
+                                          {detail.serviceTypeName}
+                                        </span>
+                                        <span className="text-[11px] font-semibold text-blue-700 bg-blue-50/80 px-2 py-0.5 rounded-md mt-1 w-fit border border-blue-100">
+                                          {detail.stagesExecuted && detail.stagesExecuted.length > 0
+                                            ? `Etapa${detail.stagesExecuted.length > 1 ? 's' : ''}: ${detail.stagesExecuted.join(', ')}`
+                                            : 'Etapa: Produção Base'}
+                                        </span>
+                                        <span className="text-[10px] font-bold text-slate-500 uppercase mt-0.5">
+                                          {t('commissions.quantity', 'Qtd')}: {detail.quantity}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div className="flex flex-col">
+                                    <span className="text-xs font-bold text-slate-800" title={rec.serviceTypes}>{rec.serviceTypes}</span>
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">{t('commissions.quantity', 'Qtd')}: {rec.quantity}</span>
+                                  </div>
+                                )}
                             </td>
                             <td className="p-4">
                                 <span className="bg-slate-100 px-2 py-1 rounded text-[10px] font-bold text-slate-600 uppercase">{rec.sector}</span>

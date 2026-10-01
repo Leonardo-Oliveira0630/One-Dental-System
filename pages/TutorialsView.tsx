@@ -2,15 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { 
   BookOpen, Video, Image as ImageIcon, Search, ChevronLeft, 
   ChevronRight, ArrowLeft, Play, Info, CheckCircle2, Bookmark,
-  HelpCircle, ExternalLink, Calendar, Compass, User
+  HelpCircle, ExternalLink, Calendar, Compass, User, Lock, ArrowRight
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { subscribeTutorials } from '../services/firebaseService';
 import { Tutorial, UserRole } from '../types';
 
 export const TutorialsView = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { currentUser, currentOrg } = useApp();
   const [tutorials, setTutorials] = useState<Tutorial[]>([]);
   const [selectedTutorial, setSelectedTutorial] = useState<Tutorial | null>(null);
@@ -23,6 +25,8 @@ export const TutorialsView = () => {
 
   // Detect context type accurately (Dentist / Clinic vs Lab)
   const isSuperAdmin = currentUser?.role === UserRole.SUPER_ADMIN;
+  const isAdmin = currentUser?.role === UserRole.ADMIN || isSuperAdmin;
+  const isManager = currentUser?.role === UserRole.MANAGER;
   const isClinicOrDentist = Boolean(
     currentUser?.role === UserRole.CLIENT || 
     currentUser?.role === UserRole.DENTIST ||
@@ -32,6 +36,10 @@ export const TutorialsView = () => {
     (currentUser as any)?.regType === 'DENTIST' ||
     (currentUser as any)?.clinicId
   );
+
+  // Check lab user permission
+  const isLabUser = !isClinicOrDentist && !isSuperAdmin;
+  const hasHelpPerm = isAdmin || isManager || (currentUser?.permissions || []).includes('tutorials:view') || (currentUser?.permissions || []).includes('helpdesk:view');
 
   const [adminAudienceFilter, setAdminAudienceFilter] = useState<'LAB' | 'CLINIC' | null>(null);
   const targetAudience: 'LAB' | 'CLINIC' = adminAudienceFilter || (isClinicOrDentist ? 'CLINIC' : 'LAB');
@@ -89,6 +97,29 @@ export const TutorialsView = () => {
     setCurrentSlide(0);
     setIsVideoPlaying(false);
   };
+
+  if (isLabUser && !hasHelpPerm) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center p-6 text-center max-w-lg mx-auto animate-in fade-in">
+        <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-3xl flex items-center justify-center mb-4 border border-amber-200 shadow-sm">
+          <Lock size={32} />
+        </div>
+        <h2 className="text-xl font-black text-slate-800 mb-2">
+          {t('tutorials.accessRestrictedTitle', 'Acesso Restrito à Central de Ajuda')}
+        </h2>
+        <p className="text-slate-500 text-sm mb-6 leading-relaxed">
+          {t('tutorials.accessRestrictedDesc', 'Você não possui permissão para acessar os tutoriais e a central de ajuda do laboratório. Solicite a liberação desta permissão ao administrador da sua equipe.')}
+        </p>
+        <button 
+          onClick={() => navigate('/dashboard')}
+          className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs uppercase tracking-wider transition-colors inline-flex items-center gap-2 cursor-pointer shadow-md shadow-blue-100"
+        >
+          <span>{t('common.backToHome', 'Voltar ao Início')}</span>
+          <ArrowRight size={16} />
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 max-w-7xl mx-auto">

@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { AlertTriangle, Trash2, CheckSquare, Square, Building2, Search } from 'lucide-react';
 import { db } from '../../services/firebaseConfig';
-import { collection, query, where, getDocs, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, deleteDoc, updateDoc } from 'firebase/firestore';
 import { isLabOrganization } from '../../services/firebaseService';
 
 export const LabResets = () => {
@@ -27,6 +27,7 @@ export const LabResets = () => {
         jobTypes: false,
         clients: false,
         collaborators: false,
+        commissions: false,
         sectors: false,
         jobs: false,
         receipts: false,
@@ -90,6 +91,35 @@ export const LabResets = () => {
                 results.push(`${count1 + count2} Colaboradores/Gerentes`);
             }
 
+            if (selections.commissions) {
+                // 1. Apagar lançamentos e extratos de comissões
+                const qComm = collection(db, `organizations/${org.id}/commissions`);
+                const commCount = await deleteDocsInQuery(qComm);
+
+                // 2. Apagar grupos de comissões cadastrados
+                const qGroups = collection(db, `organizations/${org.id}/commissionGroups`);
+                const groupsCount = await deleteDocsInQuery(qGroups);
+
+                // 3. Resetar regras de comissão individuais e desvincular grupos dos usuários do lab
+                const usersQ = query(collection(db, 'users'), where('organizationId', '==', org.id));
+                const usersSnap = await getDocs(usersQ);
+                let usersResetCount = 0;
+                const userUpdatePromises = [];
+                for (const uDoc of usersSnap.docs) {
+                    const data = uDoc.data();
+                    if ((data.commissionSettings && data.commissionSettings.length > 0) || data.commissionGroupId) {
+                        userUpdatePromises.push(updateDoc(uDoc.ref, {
+                            commissionSettings: [],
+                            commissionGroupId: null
+                        }));
+                        usersResetCount++;
+                    }
+                }
+                await Promise.all(userUpdatePromises);
+
+                results.push(`${commCount} Lançamentos de Comissões, ${groupsCount} Grupos de Ganhos e ${usersResetCount} Regras de Colaboradores Zeradas`);
+            }
+
             if (selections.sectors) {
                 const q = collection(db, `organizations/${org.id}/sectors`);
                 const count = await deleteDocsInQuery(q);
@@ -140,6 +170,7 @@ export const LabResets = () => {
                 jobTypes: false,
                 clients: false,
                 collaborators: false,
+                commissions: false,
                 sectors: false,
                 jobs: false,
                 receipts: false,
@@ -159,6 +190,7 @@ export const LabResets = () => {
         { key: 'jobTypes', label: 'Tipos de Serviço Cadastrados', desc: 'Apaga todos os serviços, preços e variações do laboratório.' },
         { key: 'clients', label: 'Cadastro de Clientes', desc: 'Apaga todos os dentistas/clínicas vinculados ao laboratório.' },
         { key: 'collaborators', label: 'Cadastro de Colaboradores', desc: 'Apaga os usuários com perfil de Colaborador ou Gerente (Administradores são mantidos).' },
+        { key: 'commissions', label: 'Comissões dos Colaboradores', desc: 'Apaga todos os lançamentos e extratos de comissão, zera as regras individuais e exclui os grupos de ganhos.' },
         { key: 'sectors', label: 'Cadastro de Setores', desc: 'Apaga os setores de produção.' },
         { key: 'jobs', label: 'Trabalhos Criados', desc: 'Apaga o histórico de pedidos e ordens de serviço.' },
         { key: 'receipts', label: 'Recibos Criados', desc: 'Apaga os pagamentos e recibos registrados (entradas e saídas).' },

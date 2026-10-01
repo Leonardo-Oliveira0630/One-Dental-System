@@ -350,6 +350,13 @@ export type PermissionKey =
   | 'jobs:view' | 'jobs:create' | 'jobs:edit' | 'jobs:delete' | 'jobs:return' | 'jobs:finish' | 'jobs:alert' | 'jobs:print' | 'jobs:chat_toggle' | 'jobs:approval' | 'jobs:change_status'
   | 'budgets:view' | 'budgets:create' | 'budgets:edit' | 'budgets:delete'
   | 'reports:view'
+  | 'reports:export'
+  | 'reports:client_summary:view' | 'reports:client_summary:export'
+  | 'reports:production:view' | 'reports:production:export'
+  | 'reports:detailed_orders:view' | 'reports:detailed_orders:export'
+  | 'reports:service_types:view' | 'reports:service_types:export'
+  | 'tutorials:view'
+  | 'helpdesk:view'
   | 'finance:view' | 'finance:create' | 'finance:edit' | 'finance:delete'
   | 'catalog:view' | 'catalog:create' | 'catalog:edit' | 'catalog:delete' | 'catalog:prices_view'
   | 'prices:view' | 'prices:create' | 'prices:edit' | 'prices:delete'
@@ -383,6 +390,13 @@ export const ALL_SYSTEM_PERMISSIONS: PermissionKey[] = [
   'jobs:view', 'jobs:create', 'jobs:edit', 'jobs:delete', 'jobs:return', 'jobs:finish', 'jobs:alert', 'jobs:print', 'jobs:chat_toggle', 'jobs:approval', 'jobs:change_status',
   'budgets:view', 'budgets:create', 'budgets:edit', 'budgets:delete',
   'reports:view',
+  'reports:export',
+  'reports:client_summary:view', 'reports:client_summary:export',
+  'reports:production:view', 'reports:production:export',
+  'reports:detailed_orders:view', 'reports:detailed_orders:export',
+  'reports:service_types:view', 'reports:service_types:export',
+  'tutorials:view',
+  'helpdesk:view',
   'finance:view', 'finance:create', 'finance:edit', 'finance:delete',
   'catalog:view', 'catalog:create', 'catalog:edit', 'catalog:delete', 'catalog:prices_view',
   'prices:view', 'prices:create', 'prices:edit', 'prices:delete',

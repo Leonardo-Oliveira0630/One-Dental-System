@@ -40,7 +40,18 @@ const AVAILABLE_PERMISSIONS: { key: PermissionKey, label: string, category: stri
     { key: 'budgets:create', label: 'Criar Novos Orçamentos', category: 'Orçamentos' },
     { key: 'budgets:edit', label: 'Editar Dados de Orçamentos', category: 'Orçamentos' },
     { key: 'budgets:delete', label: 'Excluir Orçamentos', category: 'Orçamentos' },
-    { key: 'reports:view', label: 'Ver Relatórios de Produção e Faturamento', category: 'Relatórios' },
+    { key: 'reports:view', label: 'Acessar Aba Geral de Relatórios', category: 'Relatórios' },
+    { key: 'reports:client_summary:view', label: 'Ver Relatório: Resumo por Cliente (Faturamento e Casos)', category: 'Relatórios' },
+    { key: 'reports:client_summary:export', label: 'Exportar Relatório: Resumo por Cliente (PDF e Excel)', category: 'Relatórios' },
+    { key: 'reports:production:view', label: 'Ver Relatório: Produção Básica', category: 'Relatórios' },
+    { key: 'reports:production:export', label: 'Exportar Relatório: Produção Básica (PDF e Excel)', category: 'Relatórios' },
+    { key: 'reports:detailed_orders:view', label: 'Ver Relatório: Pedidos Detalhado', category: 'Relatórios' },
+    { key: 'reports:detailed_orders:export', label: 'Exportar Relatório: Pedidos Detalhado (PDF e Excel)', category: 'Relatórios' },
+    { key: 'reports:service_types:view', label: 'Ver Relatório: Tipos de Serviço Detalhado', category: 'Relatórios' },
+    { key: 'reports:service_types:export', label: 'Exportar Relatório: Tipos de Serviço (PDF e Excel)', category: 'Relatórios' },
+    { key: 'reports:export', label: 'Exportar Qualquer Relatório (Acesso Geral de Exportação)', category: 'Relatórios' },
+    { key: 'tutorials:view', label: 'Acessar Central de Ajuda e Tutoriais em Vídeo', category: 'Central de Ajuda' },
+    { key: 'helpdesk:view', label: 'Acessar Atendimento e Suporte (Helpdesk)', category: 'Central de Ajuda' },
     { key: 'vip:view', label: 'Acessar Produção VIP', category: 'Produção' },
     { key: 'calendar:view', label: 'Acessar Calendário', category: 'Produção' },
     { key: 'finance:view', label: 'Ver Dashboard Financeiro', category: 'Financeiro' },
@@ -717,9 +728,55 @@ export const UsersTab = () => {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           {Array.from(new Set(AVAILABLE_PERMISSIONS.map(p => p.category))).map(cat => (
                               <div key={cat} className="space-y-3 bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
-                                  <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest pb-2 border-b border-slate-200/80">
-                                      {t(`admin.users.permissionCategories.${cat}`, cat)}
-                                  </h4>
+                                  <div className="flex items-center justify-between pb-2 border-b border-slate-200/80 gap-2">
+                                      <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest truncate">
+                                          {t(`admin.users.permissionCategories.${cat}`, cat)}
+                                      </h4>
+                                      <div className="flex items-center gap-2 shrink-0">
+                                          {cat === 'Relatórios' && (
+                                              <button
+                                                  type="button"
+                                                  onClick={() => {
+                                                      const viewKeys = AVAILABLE_PERMISSIONS
+                                                          .filter(p => p.category === 'Relatórios' && p.key.endsWith(':view'))
+                                                          .map(p => p.key);
+                                                      const exportKeys = AVAILABLE_PERMISSIONS
+                                                          .filter(p => p.category === 'Relatórios' && !p.key.endsWith(':view'))
+                                                          .map(p => p.key);
+                                                      setTempPerms(prev => {
+                                                          const cleaned = prev.filter(k => !exportKeys.includes(k));
+                                                          return Array.from(new Set([...cleaned, ...viewKeys]));
+                                                      });
+                                                  }}
+                                                  className="text-[10px] font-bold text-teal-700 hover:text-teal-800 bg-teal-50 px-1.5 py-0.5 rounded cursor-pointer transition-colors"
+                                                  title="Selecionar apenas permissões de visualização"
+                                              >
+                                                  Apenas Ver
+                                              </button>
+                                          )}
+                                          <button
+                                              type="button"
+                                              onClick={() => {
+                                                  const catKeys = AVAILABLE_PERMISSIONS.filter(p => p.category === cat).map(p => p.key);
+                                                  setTempPerms(prev => Array.from(new Set([...prev, ...catKeys])));
+                                              }}
+                                              className="text-[10px] font-bold text-blue-600 hover:text-blue-800 cursor-pointer transition-colors"
+                                          >
+                                              Todos
+                                          </button>
+                                          <span className="text-slate-300 text-xs">|</span>
+                                          <button
+                                              type="button"
+                                              onClick={() => {
+                                                  const catKeys = AVAILABLE_PERMISSIONS.filter(p => p.category === cat).map(p => p.key);
+                                                  setTempPerms(prev => prev.filter(k => !catKeys.includes(k)));
+                                              }}
+                                              className="text-[10px] font-bold text-slate-400 hover:text-slate-600 cursor-pointer transition-colors"
+                                          >
+                                              Nenhum
+                                          </button>
+                                      </div>
+                                  </div>
                                   <div className="space-y-2">
                                       {AVAILABLE_PERMISSIONS.filter(p => p.category === cat).map(perm => {
                                           const isChecked = tempPerms.includes(perm.key);

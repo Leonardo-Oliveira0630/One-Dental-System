@@ -481,7 +481,9 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         const profile = await api.getUserProfile(user.uid);
         if (profile) {
             // For any user who has no permissions set yet (legacy user), or is admin/super_admin, grant all permissions
-            if (!profile.permissions || profile.permissions.length === 0 || profile.role === UserRole.ADMIN || profile.role === UserRole.SUPER_ADMIN) {
+            if (profile.role === UserRole.ADMIN || profile.role === UserRole.SUPER_ADMIN) {
+                profile.permissions = ALL_SYSTEM_PERMISSIONS;
+            } else if (profile.permissions === undefined) {
                 profile.permissions = ALL_SYSTEM_PERMISSIONS;
             }
             

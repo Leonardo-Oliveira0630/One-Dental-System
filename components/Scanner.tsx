@@ -674,6 +674,15 @@ export const GlobalScanner: React.FC = () => {
 
         if (commissionEarned > 0) {
             try {
+                const secQty = (item.sectorQuantities && item.sectorQuantities[sector]) ? item.sectorQuantities[sector] : item.quantity;
+                let calculatedQty = secQty;
+                if (stageName && item.stageQuantities?.[sector]?.[stageName] !== undefined) {
+                    const cQty = Number(item.stageQuantities[sector][stageName]);
+                    if (!isNaN(cQty) && cQty > 0) {
+                        calculatedQty = (cQty === 1 && secQty > 1) ? secQty : cQty;
+                    }
+                }
+
                 await addCommissionRecord({
                     userId: user.id,
                     userName: user.name,
@@ -683,7 +692,11 @@ export const GlobalScanner: React.FC = () => {
                     amount: commissionEarned,
                     status: 'PENDING' as CommissionStatus,
                     createdAt: new Date(),
-                    patientName: currentJob.patientName
+                    patientName: currentJob.patientName,
+                    itemId: item.id,
+                    itemName: item.name,
+                    stageName: stageName || undefined,
+                    quantity: calculatedQty
                 });
             } catch (commErr: any) {
                 console.error("Erro ao registrar comissão:", commErr);
@@ -1021,9 +1034,23 @@ export const GlobalScanner: React.FC = () => {
                                             status = 'IN_PROGRESS';
                                         }
 
+                                        const secQty = (currentUser?.sector && item.sectorQuantities && item.sectorQuantities[currentUser.sector]) 
+                                            ? item.sectorQuantities[currentUser.sector] 
+                                            : item.quantity;
+                                        let stageQty = secQty;
+                                        if (item.stageQuantities?.[sector]?.[stageName] !== undefined) {
+                                            const cQty = Number(item.stageQuantities[sector][stageName]);
+                                            if (!isNaN(cQty) && cQty > 0) {
+                                                stageQty = (cQty === 1 && secQty > 1) ? secQty : cQty;
+                                            }
+                                        }
+
                                         return (
                                             <div key={stageName} className="flex items-center justify-between p-2 hover:bg-slate-50 rounded-lg">
-                                                <span className="text-sm font-bold text-slate-600 flex-1">{stageName}</span>
+                                                <span className="text-sm font-bold text-slate-600 flex-1">
+                                                    {stageName}
+                                                    <span className="text-xs font-semibold text-slate-400 ml-1.5">(Qtd: {stageQty})</span>
+                                                </span>
                                                 <button
                                                     disabled={status === 'DONE' || isUploading}
                                                     onClick={() => handleStageAction(item, stageName, status)}

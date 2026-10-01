@@ -192,7 +192,28 @@ export const JobDetails = () => {
     setStageConfigItem(item);
     const jt = jobTypes.find(t => t.id === item.jobTypeId);
     const initialStages = item.sectorStages || jt?.sectorStages || {};
-    const initialQuantities = item.stageQuantities || jt?.stageQuantities || {};
+    const initialQuantities: Record<string, Record<string, number>> = {};
+    const itemQty = item.quantity || 1;
+
+    sectors.forEach(s => {
+      const stages = initialStages[s.name] || [];
+      if (stages.length > 0) {
+        initialQuantities[s.name] = {};
+        const secQty = (item.sectorQuantities && item.sectorQuantities[s.name] !== undefined)
+          ? item.sectorQuantities[s.name]
+          : itemQty;
+        stages.forEach(stg => {
+          const rawQ = item.stageQuantities?.[s.name]?.[stg];
+          if (rawQ !== undefined && rawQ > 1) {
+            initialQuantities[s.name][stg] = rawQ;
+          } else {
+            // Default to secQty (e.g. 3) instead of 1
+            initialQuantities[s.name][stg] = secQty;
+          }
+        });
+      }
+    });
+
     setTempItemStages(initialStages);
     setTempStageQuantities(initialQuantities);
     const initialExpanded: Record<string, boolean> = {};
@@ -221,7 +242,7 @@ export const JobDetails = () => {
 
       const jType = jobTypes.find(t => t.id === stageConfigItem.jobTypeId);
       if (jType && updateJobType) {
-        await updateJobType(jType.id, { sectorStages: tempItemStages, stageQuantities: tempStageQuantities });
+        await updateJobType(jType.id, { sectorStages: tempItemStages });
       }
 
       await updateJob(job.id, { items: updatedItems });
@@ -902,7 +923,17 @@ export const JobDetails = () => {
           selectedTeeth: newItemTeeth.length > 0 ? newItemTeeth : undefined,
           color: newItemColor || undefined,
           sectorStages: type.sectorStages ? JSON.parse(JSON.stringify(type.sectorStages)) : undefined,
-          stageQuantities: type.stageQuantities ? JSON.parse(JSON.stringify(type.stageQuantities)) : undefined
+          stageQuantities: (() => {
+              if (!type.sectorStages) return undefined;
+              const sq: Record<string, Record<string, number>> = {};
+              Object.entries(type.sectorStages).forEach(([sec, stgs]) => {
+                  if (Array.isArray(stgs)) {
+                      sq[sec] = {};
+                      stgs.forEach(stg => { sq[sec][stg] = 1; });
+                  }
+              });
+              return Object.keys(sq).length > 0 ? sq : undefined;
+          })()
       };
       const newItems = [...editItems, newItem];
       setEditItems(newItems);
@@ -933,7 +964,31 @@ export const JobDetails = () => {
                       updated.name = type.name;
                       updated.selectedVariationIds = [];
                       updated.sectorStages = type.sectorStages ? JSON.parse(JSON.stringify(type.sectorStages)) : undefined;
-                      updated.stageQuantities = type.stageQuantities ? JSON.parse(JSON.stringify(type.stageQuantities)) : undefined;
+                      if (type.sectorStages) {
+                          const sq: Record<string, Record<string, number>> = {};
+                          Object.entries(type.sectorStages).forEach(([sec, stgs]) => {
+                              if (Array.isArray(stgs)) {
+                                  sq[sec] = {};
+                                  stgs.forEach(stg => { sq[sec][stg] = updated.quantity || 1; });
+                              }
+                          });
+                          updated.stageQuantities = sq;
+                      } else {
+                          updated.stageQuantities = undefined;
+                      }
+                  }
+              }
+
+              if ('quantity' in updates && updates.quantity > 0) {
+                  if (updated.stageQuantities) {
+                      const nextSQ: Record<string, Record<string, number>> = {};
+                      Object.entries(updated.stageQuantities).forEach(([sec, stgs]) => {
+                          nextSQ[sec] = {};
+                          Object.entries(stgs as Record<string, number>).forEach(([stg, q]) => {
+                              nextSQ[sec][stg] = (q === 1 || q === item.quantity) ? updates.quantity : q;
+                          });
+                      });
+                      updated.stageQuantities = nextSQ;
                   }
               }
 
@@ -1713,7 +1768,17 @@ export const JobDetails = () => {
                   variationValues: itemEditForm.variationValues,
                   sectorCommissionDisabled: itemEditForm.sectorCommissionDisabled,
                   selectedTeeth: itemEditForm.selectedTeeth.length > 0 ? itemEditForm.selectedTeeth : undefined,
-                  color: itemEditForm.color || undefined
+                  color: itemEditForm.color || undefined,
+                  stageQuantities: i.stageQuantities ? (() => {
+                      const nextSQ: Record<string, Record<string, number>> = {};
+                      Object.entries(i.stageQuantities).forEach(([sec, stgs]) => {
+                          nextSQ[sec] = {};
+                          Object.entries(stgs as Record<string, number>).forEach(([stg, q]) => {
+                              nextSQ[sec][stg] = (q === 1 || q === i.quantity) ? itemEditForm.quantity : q;
+                          });
+                      });
+                      return nextSQ;
+                  })() : undefined
               };
           }
           return i;
@@ -2182,6 +2247,16 @@ export const JobDetails = () => {
                                                                   let next;
                                                                   if (e.target.checked) {
                                                                       next = [...current, stage];
+                                                                      const secQty = (stageConfigItem?.sectorQuantities && stageConfigItem.sectorQuantities[sector.name] !== undefined)
+                                                                          ? stageConfigItem.sectorQuantities[sector.name]
+                                                                          : (stageConfigItem?.quantity || 1);
+                                                                      setTempStageQuantities(prev => ({
+                                                                          ...prev,
+                                                                          [sector.name]: {
+                                                                              ...(prev[sector.name] || {}),
+                                                                              [stage]: secQty
+                                                                          }
+                                                                      }));
                                                                   } else {
                                                                       next = current.filter(s => s !== stage);
                                                                       // Remove qty when unchecked
@@ -2208,7 +2283,14 @@ export const JobDetails = () => {
                                                                   type="number"
                                                                   min="1"
                                                                   className="w-16 h-8 text-xs font-bold text-slate-700 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent px-2"
-                                                                  value={tempStageQuantities[sector.name]?.[stage] || stageConfigItem?.quantity || 1}
+                                                                  value={(() => {
+                                                                      const v = tempStageQuantities[sector.name]?.[stage];
+                                                                      if (v !== undefined && v > 0) return v;
+                                                                      const secQty = (stageConfigItem?.sectorQuantities && stageConfigItem.sectorQuantities[sector.name] !== undefined)
+                                                                          ? stageConfigItem.sectorQuantities[sector.name]
+                                                                          : (stageConfigItem?.quantity || 1);
+                                                                      return secQty;
+                                                                  })()}
                                                                   onChange={(e) => {
                                                                       const val = parseInt(e.target.value) || 1;
                                                                       setTempStageQuantities(prev => ({
