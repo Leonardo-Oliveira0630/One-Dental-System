@@ -117,7 +117,7 @@ export const capturePhotoWithNativePreference = async (
             }
 
             const photo = await Camera.getPhoto({
-                quality: 92,
+                quality: 100,
                 allowEditing: false,
                 resultType: CameraResultType.Uri,
                 source: CameraSource.Camera

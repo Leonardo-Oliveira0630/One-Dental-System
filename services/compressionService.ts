@@ -2,10 +2,15 @@
 import JSZip from 'jszip';
 
 /**
- * Comprime imagens usando Canvas.
- * Para fotos odontológicas ou web.
+ * Comprime imagens usando Canvas preservando máxima fidelidade e nitidez.
+ * Para fotos odontológicas clínicas e detalhes de prótese em alta resolução (até 4K).
  */
-export const compressImage = async (file: File, maxWidth = 1920, quality = 0.85): Promise<File> => {
+export const compressImage = async (file: File, maxWidth = 4096, quality = 0.98): Promise<File> => {
+  // Se o arquivo for menor que 10MB e formato padrão de foto, mantém original intacto com 100% de nitidez
+  if (file.size < 10 * 1024 * 1024 && (file.type === 'image/jpeg' || file.type === 'image/png' || file.type === 'image/webp')) {
+    return file;
+  }
+
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
@@ -17,16 +22,22 @@ export const compressImage = async (file: File, maxWidth = 1920, quality = 0.85)
         let width = img.width;
         let height = img.height;
 
-        if (width > maxWidth) {
-          height = Math.round((maxWidth / width) * height);
-          width = maxWidth;
+        // Limita apenas se exceder resolução Ultra HD (4096px)
+        if (width > maxWidth || height > maxWidth) {
+          if (width > height) {
+            height = Math.round((maxWidth / width) * height);
+            width = maxWidth;
+          } else {
+            width = Math.round((maxWidth / height) * width);
+            height = maxWidth;
+          }
         }
 
         canvas.width = width;
         canvas.height = height;
 
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return reject(new Error("Canvas context failed"));
+        const ctx = canvas.getContext('2d', { alpha: false });
+        if (!ctx) return resolve(file);
         
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
@@ -39,19 +50,19 @@ export const compressImage = async (file: File, maxWidth = 1920, quality = 0.85)
                 type: 'image/jpeg',
                 lastModified: Date.now(),
               });
-              console.log(`[LABPROX] Imagem otimizada: ${(file.size / 1024).toFixed(1)}KB -> ${(compressedFile.size / 1024).toFixed(1)}KB`);
+              console.log(`[LABPROX HD] Imagem processada em alta definição (${width}x${height}): ${(file.size / 1024).toFixed(1)}KB -> ${(compressedFile.size / 1024).toFixed(1)}KB`);
               resolve(compressedFile);
             } else {
-              reject(new Error("Compression failed"));
+              resolve(file);
             }
           },
           'image/jpeg',
           quality
         );
       };
-      img.onerror = () => reject(new Error("Erro ao carregar imagem"));
+      img.onerror = () => resolve(file);
     };
-    reader.onerror = (err) => reject(err);
+    reader.onerror = () => resolve(file);
   });
 };
 

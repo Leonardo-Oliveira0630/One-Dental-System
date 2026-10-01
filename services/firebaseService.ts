@@ -1190,30 +1190,17 @@ export const getOriginalUrl = async (url: string): Promise<string> => {
 };
 
 export const uploadJobFile = async (file: File): Promise<string> => {
-    const ext = file.name.split('.').pop()?.toLowerCase();
-    const isImage = ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif'].includes(ext || '');
-
-    if (isImage) {
-        try {
-            const base64 = await fileToBase64(file);
-            const fn = httpsCallable(functions, 'optimizeAndUploadImage');
-            const result = await fn({
-                base64,
-                fileName: file.name,
-                mimeType: file.type || `image/${ext}`
-            });
-            const data = result.data as any;
-            if (data && data.webpUrl) {
-                return data.webpUrl;
-            }
-        } catch (err) {
-            logger.error({ err: err }, "[uploadJobFile] Erro ao otimizar imagem no servidor, usando fallback normal:");
-        }
+    try {
+        const cleanName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const fileRef = ref(storage, `jobs/${Date.now()}_${cleanName}`);
+        await uploadBytes(fileRef, file, {
+            contentType: file.type || 'application/octet-stream'
+        });
+        return await getDownloadURL(fileRef);
+    } catch (storageErr) {
+        logger.error({ err: storageErr }, "[uploadJobFile] Erro ao enviar arquivo para o Storage:");
+        throw storageErr;
     }
-
-    const fileRef = ref(storage, `jobs/${Date.now()}_${file.name}`);
-    await uploadBytes(fileRef, file);
-    return getDownloadURL(fileRef);
 };
 
 export const uploadBannerImage = async (file: File): Promise<string> => {

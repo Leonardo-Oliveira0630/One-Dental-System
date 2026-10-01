@@ -36,6 +36,9 @@ export const WebcamModal: React.FC<WebcamModalProps> = ({
   const [isTorchOn, setIsTorchOn] = useState(false);
   const [isFlashing, setIsFlashing] = useState(false);
 
+  const [cameraResolution, setCameraResolution] = useState<{ width: number; height: number } | null>(null);
+  const [focusAnimation, setFocusAnimation] = useState<{ x: number; y: number } | null>(null);
+
   useEffect(() => {
     let isMounted = true;
     const fetchCameras = async () => {
@@ -71,6 +74,7 @@ export const WebcamModal: React.FC<WebcamModalProps> = ({
       setIsLoading(true);
       setCameraError(null);
       setIsTorchOn(false);
+      setCameraResolution(null);
 
       try {
         if (videoRef.current && videoRef.current.srcObject) {
@@ -78,28 +82,57 @@ export const WebcamModal: React.FC<WebcamModalProps> = ({
           tracks.forEach(t => t.stop());
         }
 
-        // Attempt 1: With ideal camera ID
+        const deviceConstraint = selectedCameraId !== 'default' 
+          ? { deviceId: { ideal: selectedCameraId } }
+          : { facingMode: { ideal: 'environment' } };
+
+        // Attempt 1: Ultra High Definition 4K with advanced auto-focus & exposure
         try {
-          const constraints: MediaStreamConstraints = {
-            video: selectedCameraId !== 'default' ? {
-              deviceId: { ideal: selectedCameraId },
-              facingMode: { ideal: 'environment' },
-              width: { ideal: 1920 },
-              height: { ideal: 1080 }
-            } : {
-              facingMode: { ideal: 'environment' }
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              ...deviceConstraint,
+              width: { ideal: 4096 },
+              height: { ideal: 2160 },
+              frameRate: { ideal: 30 },
+              advanced: [
+                { focusMode: 'continuous' } as any,
+                { exposureMode: 'continuous' } as any,
+                { whiteBalanceMode: 'continuous' } as any
+              ]
             }
-          };
-          stream = await navigator.mediaDevices.getUserMedia(constraints);
+          });
         } catch (e1) {
-          console.warn("Attempt 1 getUserMedia failed, trying fallback...", e1);
+          console.warn("Tentativa 4K falhou, tentando Full HD...", e1);
           try {
+            // Attempt 2: Full HD 1080p
             stream = await navigator.mediaDevices.getUserMedia({
-              video: { facingMode: { ideal: 'environment' } }
+              video: {
+                ...deviceConstraint,
+                width: { ideal: 1920 },
+                height: { ideal: 1080 },
+                advanced: [
+                  { focusMode: 'continuous' } as any,
+                  { exposureMode: 'continuous' } as any
+                ]
+              }
             });
           } catch (e2) {
-            console.warn("Attempt 2 getUserMedia failed, trying basic video...", e2);
-            stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            console.warn("Tentativa Full HD falhou, tentando HD 720p...", e2);
+            try {
+              // Attempt 3: HD 720p
+              stream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                  ...deviceConstraint,
+                  width: { ideal: 1280 },
+                  height: { ideal: 720 }
+                }
+              });
+            } catch (e3) {
+              console.warn("Tentativa HD falhou, usando configuração flexível...", e3);
+              stream = await navigator.mediaDevices.getUserMedia({
+                video: deviceConstraint
+              });
+            }
           }
         }
 
@@ -111,6 +144,12 @@ export const WebcamModal: React.FC<WebcamModalProps> = ({
               setIsLoading(false);
               if (videoRef.current) {
                 videoRef.current.play().catch(console.error);
+                if (videoRef.current.videoWidth && videoRef.current.videoHeight) {
+                  setCameraResolution({
+                    width: videoRef.current.videoWidth,
+                    height: videoRef.current.videoHeight
+                  });
+                }
               }
               // Check torch capability
               try {
@@ -229,7 +268,35 @@ export const WebcamModal: React.FC<WebcamModalProps> = ({
     }, 150);
   };
 
-  const capturePhoto = useCallback(() => {
+  const handleViewfinderClick = async (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!videoRef.current) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    setFocusAnimation({ x, y });
+    setTimeout(() => setFocusAnimation(null), 1200);
+
+    // Try hardware focus constraint if available
+    try {
+      if (videoRef.current.srcObject) {
+        const stream = videoRef.current.srcObject as MediaStream;
+        const track = stream.getVideoTracks()[0];
+        if (track && track.applyConstraints) {
+          const caps = (track.getCapabilities ? track.getCapabilities() : {}) as any;
+          if (caps.focusMode && (caps.focusMode.includes('continuous') || caps.focusMode.includes('single-shot'))) {
+            await track.applyConstraints({
+              advanced: [{ focusMode: 'continuous' } as any]
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("Autofocus tap constraint error:", err);
+    }
+  };
+
+  const capturePhoto = useCallback(async () => {
     if (!videoRef.current) return;
     const video = videoRef.current;
     
@@ -241,26 +308,82 @@ export const WebcamModal: React.FC<WebcamModalProps> = ({
 
     triggerShutterFeedback();
 
+    const stream = video.srcObject as MediaStream;
+    const track = stream?.getVideoTracks()[0];
+
+    // Priority 1: Hardware-level ImageCapture API for true sensor resolution (12MP/48MP/4K)
+    if (track && (window as any).ImageCapture) {
+      try {
+        const imageCapture = new (window as any).ImageCapture(track);
+        
+        // Trigger auto-focus right before taking photo if supported
+        try {
+          const caps = (track.getCapabilities ? track.getCapabilities() : {}) as any;
+          if (caps.focusMode && (caps.focusMode.includes('single-shot') || caps.focusMode.includes('continuous'))) {
+            await track.applyConstraints({ advanced: [{ focusMode: 'continuous' } as any] });
+          }
+        } catch (fErr) {}
+
+        let photoSettings: any = {};
+        try {
+          if (imageCapture.getPhotoCapabilities) {
+            const photoCaps = await imageCapture.getPhotoCapabilities();
+            if (photoCaps.imageWidth?.max) {
+              photoSettings.imageWidth = photoCaps.imageWidth.max;
+            }
+            if (photoCaps.imageHeight?.max) {
+              photoSettings.imageHeight = photoCaps.imageHeight.max;
+            }
+            if (isTorchOn && photoCaps.fillLightMode?.includes('flash')) {
+              photoSettings.fillLightMode = 'flash';
+            }
+          }
+        } catch (capsErr) {
+          console.warn("Could not query photo capabilities, using defaults:", capsErr);
+        }
+
+        const blob = await imageCapture.takePhoto(photoSettings);
+
+        if (blob && blob.size > 0) {
+          const file = new File(
+            [blob], 
+            `foto-caso-hd-${Date.now()}.jpg`, 
+            { type: 'image/jpeg' }
+          );
+          console.log(`[LABPROX CAMERA] Foto de alta resolução capturada via ImageCapture (${(blob.size / 1024).toFixed(1)}KB)`);
+          onCapture(file);
+          onClose();
+          return;
+        }
+      } catch (icErr) {
+        console.warn("ImageCapture takePhoto fallback to high-resolution Canvas:", icErr);
+      }
+    }
+
+    // Priority 2: High-resolution Canvas capture with bicubic smoothing
     const canvas = document.createElement('canvas');
     canvas.width = video.videoWidth || 1920;
     canvas.height = video.videoHeight || 1080;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { alpha: false });
     if (!ctx) return;
     
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     
     canvas.toBlob((blob) => {
       if (blob) {
         const file = new File(
           [blob], 
-          `foto-caso-${Date.now()}.jpg`, 
+          `foto-caso-hd-${Date.now()}.jpg`, 
           { type: 'image/jpeg' }
         );
+        console.log(`[LABPROX CAMERA] Foto capturada via Canvas HD (${canvas.width}x${canvas.height}): ${(blob.size / 1024).toFixed(1)}KB`);
         onCapture(file);
         onClose();
       }
-    }, 'image/jpeg', 0.92);
-  }, [onCapture, onClose]);
+    }, 'image/jpeg', 0.98);
+  }, [onCapture, onClose, isTorchOn]);
 
   const cycleCamera = () => {
     if (cameras.length > 1 && selectedCameraId) {
@@ -296,12 +419,20 @@ export const WebcamModal: React.FC<WebcamModalProps> = ({
             <X size={20} />
           </button>
 
-          {/* Title Pill */}
-          <div className="px-3.5 py-1.5 bg-black/50 border border-white/15 rounded-full backdrop-blur-md flex items-center gap-2 shadow-lg">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-xs font-black uppercase tracking-wider text-white">
-              {title}
-            </span>
+          {/* Title & HD Resolution Pill */}
+          <div className="flex items-center gap-1.5">
+            <div className="px-3.5 py-1.5 bg-black/50 border border-white/15 rounded-full backdrop-blur-md flex items-center gap-2 shadow-lg">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-xs font-black uppercase tracking-wider text-white">
+                {title}
+              </span>
+            </div>
+            {cameraResolution && (
+              <div className="hidden sm:flex px-2.5 py-1 bg-blue-600/60 border border-blue-400/40 rounded-full backdrop-blur-md items-center gap-1 shadow-lg text-[10px] font-black text-white uppercase tracking-tight">
+                <Sparkles size={11} className="text-blue-300" />
+                {cameraResolution.width >= 3840 ? '4K Ultra HD' : cameraResolution.width >= 1920 ? 'Full HD' : `${cameraResolution.width}x${cameraResolution.height}`}
+              </div>
+            )}
           </div>
 
           {/* Right Action Icons */}
@@ -337,13 +468,25 @@ export const WebcamModal: React.FC<WebcamModalProps> = ({
         </div>
 
         {/* Viewfinder Video Area */}
-        <div className="relative flex-1 w-full bg-black flex items-center justify-center overflow-hidden">
+        <div 
+          onClick={handleViewfinderClick}
+          className="relative flex-1 w-full bg-black flex items-center justify-center overflow-hidden cursor-crosshair"
+          title="Toque na tela para focar"
+        >
           {/* Shutter White Flash Feedback */}
           <div 
             className={`absolute inset-0 bg-white pointer-events-none z-40 transition-opacity duration-150 ${
               isFlashing ? 'opacity-90' : 'opacity-0'
             }`} 
           />
+
+          {/* Dynamic Tap-to-Focus Reticle */}
+          {focusAnimation && (
+            <div 
+              style={{ left: `${focusAnimation.x - 32}px`, top: `${focusAnimation.y - 32}px` }}
+              className="absolute w-16 h-16 border-2 border-amber-400 rounded-2xl pointer-events-none z-30 animate-ping duration-700 shadow-lg shadow-amber-400/50"
+            />
+          )}
 
           {/* Rule of Thirds Alignment Grid */}
           <div className="absolute inset-0 pointer-events-none grid grid-cols-3 grid-rows-3 z-10 opacity-20">
