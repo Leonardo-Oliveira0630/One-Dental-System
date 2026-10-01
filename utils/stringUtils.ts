@@ -351,3 +351,48 @@ export function filterAndSortClients<T extends SearchableClient>(
 
   return scored.map(s => s.item);
 }
+
+/**
+ * Converte qualquer valor monetário (seja número, string no formato brasileiro "1.550,00" ou internacional "1550.00")
+ * em um número de ponto flutuante válido.
+ * Ex: "1.550,00" -> 1550
+ * Ex: "1550,00" -> 1550
+ * Ex: "1550.00" -> 1550
+ * Ex: "1550" -> 1550
+ * Ex: 1550 -> 1550
+ */
+export function parseBrazilianCurrency(value: string | number | null | undefined): number {
+  if (value === null || value === undefined) return 0;
+  if (typeof value === 'number') return isNaN(value) ? 0 : value;
+
+  const str = String(value).trim();
+  if (!str) return 0;
+
+  // Se tem separador decimal com vírgula (ex: "1.550,00" ou "1550,00" ou "1,55")
+  if (str.includes(',')) {
+    const normalized = str.replace(/\./g, '').replace(',', '.');
+    const parsed = parseFloat(normalized);
+    return isNaN(parsed) ? 0 : parsed;
+  }
+
+  // Se tem múltiplos pontos (ex: "1.550.000")
+  if (str.includes('.') && (str.match(/\./g) || []).length > 1) {
+    const normalized = str.replace(/\./g, '');
+    const parsed = parseFloat(normalized);
+    return isNaN(parsed) ? 0 : parsed;
+  }
+
+  const parsed = parseFloat(str);
+  return isNaN(parsed) ? 0 : parsed;
+}
+
+/**
+ * Aplica máscara de moeda brasileira em tempo real no onChange de inputs.
+ * Ex: Digitar "155000" -> "1.550,00"
+ */
+export function formatCurrencyInputMask(value: string): string {
+  const digits = value.replace(/\D/g, '');
+  if (!digits) return '';
+  const num = parseInt(digits, 10) / 100;
+  return num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}

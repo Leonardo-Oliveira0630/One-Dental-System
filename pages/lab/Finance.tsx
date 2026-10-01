@@ -8,7 +8,7 @@ import { DollarSign, TrendingUp, TrendingDown, Search, Calendar, Plus, Printer, 
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { SendDebtsEmailModal } from '../../components/SendDebtsEmailModal';
-import { filterAndSortClients } from '../../utils/stringUtils';
+import { filterAndSortClients, parseBrazilianCurrency, formatCurrencyInputMask } from '../../utils/stringUtils';
 
 const translatePaymentMethod = (method: string, t?: (key: string, def?: string) => string) => {
     switch (method) {
@@ -889,7 +889,7 @@ export const Finance = () => {
     e.preventDefault();
     if (!statementClient || !currentOrg) return;
 
-    const amount = parseFloat(manualEntryAmount);
+    const amount = parseBrazilianCurrency(manualEntryAmount);
     if (isNaN(amount) || amount <= 0) {
         alert("Digite um valor válido.");
         return;
@@ -3096,12 +3096,11 @@ export const Finance = () => {
                       <div>
                           <label className="block text-xs font-black text-slate-500 mb-1 uppercase tracking-wider">Valor (R$)</label>
                           <input 
-                              type="number"
-                              step="0.01"
+                              type="text"
                               value={manualEntryAmount}
-                              onChange={e => setManualEntryAmount(e.target.value)}
-                              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold"
-                              placeholder="0.00"
+                              onChange={e => setManualEntryAmount(formatCurrencyInputMask(e.target.value))}
+                              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-black text-lg text-slate-800"
+                              placeholder="0,00"
                               required
                           />
                       </div>

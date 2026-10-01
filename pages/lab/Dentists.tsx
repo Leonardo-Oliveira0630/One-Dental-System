@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { getDentistJobs, subscribeDentistJobs } from '../../services/firebaseService';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { matchesSearchQuery, filterAndSortClients } from '../../utils/stringUtils';
+import { matchesSearchQuery, filterAndSortClients, parseBrazilianCurrency, formatCurrencyInputMask } from '../../utils/stringUtils';
 
 const translatePaymentMethod = (method: string) => {
     switch (method) {
@@ -280,7 +280,7 @@ export const Dentists = () => {
         e.preventDefault();
         if (!statementClient) return;
         
-        const amount = parseFloat(manualEntryAmount);
+        const amount = parseBrazilianCurrency(manualEntryAmount);
         if (isNaN(amount) || amount <= 0) {
             alert(t('dentists.enterValidValue', 'Digite um valor válido.'));
             return;
@@ -2531,15 +2531,9 @@ export const Dentists = () => {
                                     type="text" 
                                     required
                                     value={manualEntryAmount}
-                                    onChange={(e) => {
-                                        let val = e.target.value.replace(/\D/g, '');
-                                        if (val.length > 0) {
-                                            val = (parseInt(val) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                                        }
-                                        setManualEntryAmount(val);
-                                    }}
+                                    onChange={(e) => setManualEntryAmount(formatCurrencyInputMask(e.target.value))}
                                     placeholder="0,00"
-                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-black text-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 />
                             </div>
                             
