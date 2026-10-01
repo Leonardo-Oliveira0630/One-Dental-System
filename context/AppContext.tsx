@@ -481,7 +481,9 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         const profile = await api.getUserProfile(user.uid);
         if (profile) {
             // For any user who has no permissions set yet (legacy user), or is admin/super_admin, grant all permissions
-            if (!profile.permissions || profile.permissions.length === 0 || profile.role === UserRole.ADMIN || profile.role === UserRole.SUPER_ADMIN) {
+            if (profile.role === UserRole.ADMIN || profile.role === UserRole.SUPER_ADMIN) {
+                profile.permissions = ALL_SYSTEM_PERMISSIONS;
+            } else if (profile.permissions === undefined) {
                 profile.permissions = ALL_SYSTEM_PERMISSIONS;
             }
             
@@ -929,6 +931,11 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     const isSameOrg = targetUser && targetUser.organizationId === currentUser.organizationId;
     const canManageUsers = currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.MANAGER || currentUser.role === UserRole.SUPER_ADMIN;
 
+    setAllUsers(prev => prev.map(usr => usr.id === id ? { ...usr, ...u } : usr));
+    if (currentUser.id === id) {
+      setCurrentUser(prev => prev ? { ...prev, ...u } : null);
+    }
+
     if (id === currentUser.id || (canManageUsers && isSameOrg)) {
         await api.apiUpdateUser(id, u);
     } else {
@@ -1097,7 +1104,9 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       const orgId = activeDataId;
       if(!orgId) return;
       try {
-          await api.apiAddCommission(orgId, { ...rec, id: `comm_${Date.now()}`, organizationId: orgId } as CommissionRecord);
+          const newRec: CommissionRecord = { ...rec, id: `comm_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`, organizationId: orgId } as CommissionRecord;
+          setCommissions(prev => [newRec, ...prev]);
+          await api.apiAddCommission(orgId, newRec);
       } catch (err: any) {
           handleFirestoreError(err, OperationType.CREATE, `organizations/${orgId}/commissions`);
       }
@@ -1105,13 +1114,16 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const updateCommissionStatus = async (id: string, status: CommissionStatus) => {
       const orgId = activeDataId;
       if(!orgId) return;
-      await api.apiUpdateCommission(orgId, id, { status, paidAt: status === CommissionStatus.PAID ? new Date() : undefined });
+      const updates = { status, paidAt: status === CommissionStatus.PAID ? new Date() : undefined };
+      setCommissions(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+      await api.apiUpdateCommission(orgId, id, updates);
   };
 
   const updateCommissionRecord = async (id: string, updates: Partial<CommissionRecord>) => {
       const orgId = activeDataId;
       if(!orgId) return;
       try {
+          setCommissions(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
           await api.apiUpdateCommission(orgId, id, updates);
       } catch (err: any) {
           handleFirestoreError(err, OperationType.UPDATE, `organizations/${orgId}/commissions/${id}`);
@@ -1122,6 +1134,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       const orgId = activeDataId;
       if(!orgId) return;
       try {
+          setCommissions(prev => prev.filter(c => c.id !== id));
           await api.apiDeleteCommission(orgId, id);
       } catch (err: any) {
           handleFirestoreError(err, OperationType.DELETE, `organizations/${orgId}/commissions/${id}`);
@@ -1136,11 +1149,13 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const updateJobType = async (id: string, u: Partial<JobType>) => {
       const orgId = activeDataId;
       if(!orgId) return;
+      setJobTypes(prev => prev.map(j => j.id === id ? { ...j, ...u } : j));
       await api.apiUpdateJobType(orgId, id, u);
   }
   const deleteJobType = async (id: string) => {
       const orgId = activeDataId;
       if(!orgId) return;
+      setJobTypes(prev => prev.filter(j => j.id !== id));
       await api.apiDeleteJobType(orgId, id);
   }
 
@@ -1200,11 +1215,13 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const updateSector = async (id: string, updates: Partial<Sector>) => {
       const orgId = activeDataId;
       if (!orgId) return;
+      setSectors(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
       await api.apiUpdateSector(orgId, id, updates);
   }
   const deleteSector = async (id: string) => {
       const orgId = activeDataId;
       if(!orgId) return;
+      setSectors(prev => prev.filter(s => s.id !== id));
       await api.apiDeleteSector(orgId, id);
   }
 
@@ -1548,6 +1565,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const updateCommissionGroup = async (id: string, updates: Partial<CommissionGroup>) => {
     const orgId = activeDataId;
     if (!orgId) return;
+    setCommissionGroups(prev => prev.map(g => g.id === id ? { ...g, ...updates } : g));
     try {
       await api.apiUpdateCommissionGroup(orgId, id, updates);
       // Synchronize affected members' cached commissionSettings if settings were updated
@@ -1569,6 +1587,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const deleteCommissionGroup = async (id: string) => {
     const orgId = activeDataId;
     if (!orgId) return;
+    setCommissionGroups(prev => prev.filter(g => g.id !== id));
     try {
       await api.apiDeleteCommissionGroup(orgId, id);
       // Safely unlink members from this group

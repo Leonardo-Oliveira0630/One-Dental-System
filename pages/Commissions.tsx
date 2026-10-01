@@ -3,13 +3,21 @@ import React, { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '../context/AppContext';
 import { UserRole, CommissionStatus, Job } from '../types';
-import { DollarSign, CheckCircle, Clock, Calendar, User, Search, Filter, Download, FileText, FileSpreadsheet, Users } from 'lucide-react';
+import { DollarSign, CheckCircle, Clock, Calendar, User, Search, Filter, Download, FileText, FileSpreadsheet, Users, Layers, Trash2 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 
+interface EnrichedItemExecutionDetail {
+  serviceTypeName: string;
+  stagesExecuted: string[];
+  isBaseOnly: boolean;
+  quantity: number;
+}
+
 interface EnrichedCommission {
   id: string;
+  ids: string[];
   createdAt: Date;
   userId: string;
   userName: string;
@@ -18,6 +26,7 @@ interface EnrichedCommission {
   patientName: string;
   dentistName: string;
   serviceTypes: string;
+  executedDetails: EnrichedItemExecutionDetail[];
   quantity: number;
   sector: string;
   amount: number;
@@ -26,70 +35,240 @@ interface EnrichedCommission {
 
 export const Commissions = () => {
   const { t } = useTranslation();
-  const { commissions, currentUser, updateCommissionStatus, allUsers, jobs, activeOrganization } = useApp();
+  const { commissions, currentUser, updateCommissionStatus, deleteCommissionRecord, allUsers, jobs, activeOrganization } = useApp();
   const [filterUser, setFilterUser] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [consolidateByJob, setConsolidateByJob] = useState(true);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
 
   const isManager = currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.MANAGER || currentUser?.role === UserRole.SUPER_ADMIN || !!currentUser?.permissions?.includes('commissions:view');
 
-  // Enriquecer dados com informações do Job
+  // Consolidar e enriquecer dados de comissões por caso (jobId), colaborador (userId) e status
   const enrichedCommissions: EnrichedCommission[] = useMemo(() => {
-    return commissions.map(comm => {
+    // 1. Agrupar lançamentos para evitar que o pagamento do mesmo caso/setor fique dividido ao meio
+    const groupsMap = new Map<string, {
+      ids: string[];
+      comm: any;
+      totalAmount: number;
+      latestCreatedAt: Date;
+      sectors: Set<string>;
+      itemsDirect: { itemName?: string; stageName?: string; quantity?: number; itemId?: string; amount?: number }[];
+    }>();
+
+    commissions.forEach(comm => {
+      // Se consolidateByJob for true, agrupa todos os lançamentos da mesma OS + Colaborador + Status
+      const groupKey = (consolidateByJob && comm.jobId) 
+        ? `${comm.jobId}_${comm.userId}_${comm.status}`
+        : comm.id;
+
+      const commDate = new Date(comm.createdAt);
+      const existing = groupsMap.get(groupKey);
+      if (existing) {
+        existing.ids.push(comm.id);
+        existing.totalAmount += (comm.amount || 0);
+        if (commDate > existing.latestCreatedAt) {
+          existing.latestCreatedAt = commDate;
+        }
+        if (comm.sector) existing.sectors.add(comm.sector);
+        if (comm.itemName || comm.stageName || comm.itemId) {
+          existing.itemsDirect.push({ 
+            itemId: comm.itemId, 
+            itemName: comm.itemName, 
+            stageName: comm.stageName, 
+            quantity: comm.quantity,
+            amount: comm.amount
+          });
+        }
+      } else {
+        const sectors = new Set<string>();
+        if (comm.sector) sectors.add(comm.sector);
+        groupsMap.set(groupKey, {
+          ids: [comm.id],
+          comm: comm,
+          totalAmount: comm.amount || 0,
+          latestCreatedAt: commDate,
+          sectors: sectors,
+          itemsDirect: (comm.itemName || comm.stageName || comm.itemId) 
+            ? [{ 
+                itemId: comm.itemId, 
+                itemName: comm.itemName, 
+                stageName: comm.stageName, 
+                quantity: comm.quantity,
+                amount: comm.amount
+              }] 
+            : []
+        });
+      }
+    });
+
+    // 2. Enriquecer cada grupo consolidado ou lançamento individual
+    return Array.from(groupsMap.values()).map(group => {
+      const comm = group.comm;
       const job = jobs.find(j => j.id === comm.jobId);
       let quantity = 0;
       let serviceTypes = 'N/A';
-      
+      const executedDetails: EnrichedItemExecutionDetail[] = [];
+      const textDetails: string[] = [];
+
+      const isConsolidated = group.ids.length > 1 || consolidateByJob;
+
       if (job && job.itemExecutions) {
-          const userExecutions = job.itemExecutions.filter((e: any) => e.userId === comm.userId && e.sector === comm.sector);
-          const details: string[] = [];
-          
-          userExecutions.forEach((exec: any) => {
-              const item = job.items.find((i: any) => i.id === exec.itemId);
-              if (item) {
-                  // Get sector quantity, fallback to item quantity
-                  const secQty = item.sectorQuantities?.[comm.sector] ?? item.quantity;
-                          
-                  let executedDesc = [];
-                  
-                  // If they executed specific stages, we only list those stages as requested
-                  if (exec.executedStages && exec.executedStages.length > 0) {
-                      exec.executedStages.forEach((stage: string) => {
-                          let stageQty = secQty;
-                          if (item.stageQuantities?.[comm.sector]?.[stage] !== undefined) {
-                              stageQty = item.stageQuantities[comm.sector][stage];
-                          }
-                          executedDesc.push(stage);
-                          quantity += stageQty;
-                      });
-                  } else if (exec.isBaseChecked !== false) {
-                      // If no stages, but base is checked, use the item name
-                     executedDesc.push(item.name);
-                     quantity += secQty;
-                  }
-                  
-                  if (executedDesc.length > 0) {
-                      details.push(executedDesc.join(', '));
-                  }
-              }
-          });
-          
-          if (details.length > 0) {
-              serviceTypes = details.join(' | ');
+        // Obter as execuções do usuário no trabalho
+        let userExecutions = job.itemExecutions.filter(
+          (e: any) => e.userId === comm.userId
+        );
+
+        if (!isConsolidated) {
+          // No modo individual, se tiver itemId ou setor específico no registro, filtra por ele
+          if (comm.itemId) {
+            userExecutions = userExecutions.filter((e: any) => e.itemId === comm.itemId);
+          } else if (comm.sector) {
+            const bySector = userExecutions.filter((e: any) => e.sector === comm.sector);
+            if (bySector.length > 0) userExecutions = bySector;
           }
+        }
+
+        userExecutions.forEach((exec: any) => {
+          const item = job.items?.find((i: any) => i.id === exec.itemId);
+          if (item) {
+            if (item.commissionDisabled) return;
+            if (exec.sector && item.sectorCommissionDisabled?.[exec.sector]) return;
+
+            const sec = exec.sector || comm.sector;
+            const secQty = (item.sectorQuantities && sec && item.sectorQuantities[sec] !== undefined)
+              ? item.sectorQuantities[sec]
+              : item.quantity;
+
+            const stages = exec.executedStages || [];
+            if (stages.length > 0) {
+              // Etapas específicas executadas
+              let itemStageQty = secQty;
+              stages.forEach((stage: string) => {
+                let stageQty = secQty;
+                if (sec && item.stageQuantities?.[sec]?.[stage] !== undefined) {
+                  const customQty = Number(item.stageQuantities[sec][stage]);
+                  if (!isNaN(customQty) && customQty > 0) {
+                    stageQty = (customQty === 1 && secQty > 1) ? secQty : customQty;
+                  }
+                }
+                itemStageQty = stageQty;
+                quantity += stageQty;
+              });
+
+              executedDetails.push({
+                serviceTypeName: item.name,
+                stagesExecuted: stages,
+                isBaseOnly: false,
+                quantity: itemStageQty
+              });
+
+              textDetails.push(`${item.name} (Etapa: ${stages.join(', ')} - Qtd: ${itemStageQty})`);
+            } else if (exec.isBaseChecked !== false) {
+              // Serviço base executado
+              quantity += secQty;
+              executedDetails.push({
+                serviceTypeName: item.name,
+                stagesExecuted: [],
+                isBaseOnly: true,
+                quantity: secQty
+              });
+              textDetails.push(`${item.name} (Serviço Base - Qtd: ${secQty})`);
+            }
+          }
+        });
+
+        if (textDetails.length > 0) {
+          serviceTypes = textDetails.join(' | ');
+        }
       }
-      
+
+      // Fallback se não encontrar nas execuções da OS
+      if (executedDetails.length === 0) {
+        if (group.itemsDirect.length > 0) {
+          group.itemsDirect.forEach(d => {
+            const sName = d.itemName || 'Serviço';
+            const stgs = d.stageName ? [d.stageName] : [];
+            const q = d.quantity || 1;
+            quantity += q;
+            executedDetails.push({
+              serviceTypeName: sName,
+              stagesExecuted: stgs,
+              isBaseOnly: stgs.length === 0,
+              quantity: q
+            });
+            textDetails.push(stgs.length > 0 ? `${sName} (Etapa: ${stgs.join(', ')} - Qtd: ${q})` : `${sName} (Qtd: ${q})`);
+          });
+          serviceTypes = textDetails.join(' | ');
+        } else if (comm.itemName || comm.stageName) {
+          const sName = comm.itemName || 'Serviço';
+          const stgs = comm.stageName ? [comm.stageName] : [];
+          const q = comm.quantity || 1;
+          quantity = q;
+          executedDetails.push({
+            serviceTypeName: sName,
+            stagesExecuted: stgs,
+            isBaseOnly: stgs.length === 0,
+            quantity: q
+          });
+          serviceTypes = stgs.length > 0 ? `${sName} (Etapa: ${stgs.join(', ')} - Qtd: ${q})` : `${sName} (Qtd: ${q})`;
+        } else if (job && job.items && job.items.length > 0) {
+          job.items.forEach(i => {
+            if (i.commissionDisabled) return;
+            const q = i.quantity;
+            quantity += q;
+            executedDetails.push({
+              serviceTypeName: i.name,
+              stagesExecuted: [],
+              isBaseOnly: true,
+              quantity: q
+            });
+          });
+          serviceTypes = executedDetails.map(d => `${d.serviceTypeName} (Qtd: ${d.quantity})`).join(' | ');
+        }
+      }
+
+      const displaySector = group.sectors.size > 0 
+        ? Array.from(group.sectors).join(', ') 
+        : (comm.sector || 'Geral');
+
       return {
-        ...comm,
+        id: comm.id,
+        ids: group.ids,
+        userId: comm.userId,
+        userName: comm.userName,
+        jobId: comm.jobId,
+        osNumber: comm.osNumber || (job?.osNumber || 'N/A'),
+        patientName: comm.patientName || (job?.patientName || 'N/A'),
         dentistName: job?.dentistName || 'N/A',
         serviceTypes: serviceTypes,
-        quantity: quantity,
-        createdAt: new Date(comm.createdAt)
+        executedDetails: executedDetails,
+        quantity: quantity || comm.quantity || 1,
+        sector: displaySector,
+        amount: group.totalAmount,
+        status: comm.status,
+        createdAt: group.latestCreatedAt
       };
     });
-  }, [commissions, jobs]);
+  }, [commissions, jobs, consolidateByJob]);
+
+  const handleMarkAsPaid = async (rec: EnrichedCommission) => {
+    if (rec.ids && rec.ids.length > 0) {
+      await Promise.all(rec.ids.map(id => updateCommissionStatus(id, CommissionStatus.PAID)));
+    } else {
+      await updateCommissionStatus(rec.id, CommissionStatus.PAID);
+    }
+  };
+
+  const handleDeleteCommission = async (rec: EnrichedCommission) => {
+    if (!window.confirm(t('commissions.confirmDelete', 'Tem certeza que deseja excluir este registro de comissão?'))) return;
+    if (rec.ids && rec.ids.length > 0) {
+      await Promise.all(rec.ids.map(id => deleteCommissionRecord(id)));
+    } else {
+      await deleteCommissionRecord(rec.id);
+    }
+  };
 
   // Filtragem
   const filteredCommissions = useMemo(() => {
@@ -127,7 +306,7 @@ export const Commissions = () => {
       [t('commissions.excelOs', 'OS')]: c.osNumber,
       [t('commissions.excelPatient', 'Paciente')]: c.patientName,
       [t('commissions.excelDentist', 'Dentista')]: c.dentistName,
-      [t('commissions.excelServices', 'Serviços')]: c.serviceTypes,
+      [t('commissions.excelServiceAndStage', 'Serviço / Etapa Executada')]: c.serviceTypes,
       [t('commissions.excelQty', 'Qtd')]: c.quantity,
       [t('commissions.excelSector', 'Setor')]: c.sector,
       [t('commissions.excelAmount', 'Valor')]: c.amount,
@@ -145,6 +324,16 @@ export const Commissions = () => {
   const exportToPDF = (mode: 'GENERAL' | 'BATCH') => {
     const doc = new jsPDF();
 
+    const formatServicesForPdf = (c: EnrichedCommission) => {
+      if (c.executedDetails && c.executedDetails.length > 0) {
+        return c.executedDetails.map(d => {
+          const stg = d.stagesExecuted.length > 0 ? ` (${d.stagesExecuted.join(', ')})` : '';
+          return `${d.serviceTypeName}${stg} [Qtd: ${d.quantity}]`;
+        }).join('\n');
+      }
+      return c.serviceTypes;
+    };
+
     if (mode === 'GENERAL') {
       doc.text(t('commissions.pdfGeneralTitle', "Extrato de Comissões - Geral"), 14, 15);
       doc.setFontSize(10);
@@ -156,7 +345,7 @@ export const Commissions = () => {
         c.osNumber,
         c.patientName,
         c.dentistName,
-        c.serviceTypes,
+        formatServicesForPdf(c),
         c.quantity,
         c.sector,
         `R$ ${c.amount.toFixed(2)}`,
@@ -170,7 +359,7 @@ export const Commissions = () => {
           t('commissions.excelOs', 'OS'), 
           t('commissions.excelPatient', 'Paciente'), 
           t('commissions.excelDentist', 'Dentista'), 
-          t('commissions.excelServices', 'Serviço'), 
+          t('commissions.serviceAndStage', 'Serviço / Etapa Executada'), 
           t('commissions.excelQty', 'Qtd'), 
           t('commissions.excelSector', 'Setor'), 
           t('commissions.excelAmount', 'Valor'), 
@@ -219,7 +408,7 @@ export const Commissions = () => {
           c.osNumber,
           c.patientName,
           c.dentistName,
-          c.serviceTypes,
+          formatServicesForPdf(c),
           c.quantity,
           c.sector,
           `R$ ${c.amount.toFixed(2)}`,
@@ -232,7 +421,7 @@ export const Commissions = () => {
             t('commissions.excelOs', 'OS'), 
             t('commissions.excelPatient', 'Paciente'), 
             t('commissions.excelDentist', 'Dentista'), 
-            t('commissions.excelServices', 'Serviço'), 
+            t('commissions.serviceAndStage', 'Serviço / Etapa Executada'), 
             t('commissions.excelQty', 'Qtd'), 
             t('commissions.excelSector', 'Setor'), 
             t('commissions.excelAmount', 'Valor'), 
@@ -350,6 +539,22 @@ export const Commissions = () => {
                 className="px-3 py-2 border border-slate-200 rounded-lg outline-none bg-white font-medium text-slate-600 text-sm w-full md:w-auto"
             />
           </div>
+
+          <button
+            type="button"
+            onClick={() => setConsolidateByJob(prev => !prev)}
+            className={`flex items-center gap-2 px-3 py-2 border rounded-lg text-sm font-semibold transition-colors ${
+              consolidateByJob 
+                ? 'bg-blue-50 border-blue-200 text-blue-700 shadow-xs' 
+                : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+            }`}
+            title={consolidateByJob ? t('commissions.consolidatedTitle', 'Visualizando consolidado por OS (Evita pagamentos divididos)') : t('commissions.detailedTitle', 'Visualizando lançamentos individuais')}
+          >
+            <Layers size={18} className={consolidateByJob ? 'text-blue-600' : 'text-slate-400'} />
+            <span className="whitespace-nowrap">
+              {consolidateByJob ? t('commissions.consolidatedView', 'Consolidado por OS') : t('commissions.detailedView', 'Lançamentos Detalhados')}
+            </span>
+          </button>
       </div>
 
       {/* Table */}
@@ -361,7 +566,7 @@ export const Commissions = () => {
                         <th className="p-4">{t('commissions.date', 'Data')}</th>
                         <th className="p-4">{t('commissions.technician', 'Colaborador')}</th>
                         <th className="p-4">{t('commissions.jobDetails', 'Detalhes do Trabalho')}</th>
-                        <th className="p-4">{t('commissions.service', 'Serviço / Qtd')}</th>
+                        <th className="p-4">{t('commissions.serviceAndStage', 'Serviço / Etapa Executada')}</th>
                         <th className="p-4">{t('commissions.sector', 'Setor')}</th>
                         <th className="p-4 text-right">{t('commissions.amount', 'Valor')}</th>
                         <th className="p-4">{t('commissions.status', 'Status')}</th>
@@ -386,10 +591,30 @@ export const Commissions = () => {
                                 </div>
                             </td>
                             <td className="p-4">
-                                <div className="flex flex-col">
-                                  <span className="text-xs font-medium text-slate-700 line-clamp-1" title={rec.serviceTypes}>{rec.serviceTypes}</span>
-                                  <span className="text-[10px] font-bold text-slate-400 uppercase">{t('commissions.quantity', 'Qtd')}: {rec.quantity}</span>
-                                </div>
+                                {rec.executedDetails && rec.executedDetails.length > 0 ? (
+                                  <div className="flex flex-col gap-2.5">
+                                    {rec.executedDetails.map((detail, idx) => (
+                                      <div key={idx} className="flex flex-col">
+                                        <span className="text-xs font-bold text-slate-900 leading-tight">
+                                          {detail.serviceTypeName}
+                                        </span>
+                                        <span className="text-[11px] font-semibold text-blue-700 bg-blue-50/80 px-2 py-0.5 rounded-md mt-1 w-fit border border-blue-100">
+                                          {detail.stagesExecuted && detail.stagesExecuted.length > 0
+                                            ? `Etapa${detail.stagesExecuted.length > 1 ? 's' : ''}: ${detail.stagesExecuted.join(', ')}`
+                                            : 'Etapa: Produção Base'}
+                                        </span>
+                                        <span className="text-[10px] font-bold text-slate-500 uppercase mt-0.5">
+                                          {t('commissions.quantity', 'Qtd')}: {detail.quantity}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div className="flex flex-col">
+                                    <span className="text-xs font-bold text-slate-800" title={rec.serviceTypes}>{rec.serviceTypes}</span>
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">{t('commissions.quantity', 'Qtd')}: {rec.quantity}</span>
+                                  </div>
+                                )}
                             </td>
                             <td className="p-4">
                                 <span className="bg-slate-100 px-2 py-1 rounded text-[10px] font-bold text-slate-600 uppercase">{rec.sector}</span>
@@ -402,15 +627,24 @@ export const Commissions = () => {
                             </td>
                             {isManager && (
                                 <td className="p-4 text-center">
-                                    {rec.status === CommissionStatus.PENDING && (
-                                        <button 
-                                            onClick={() => updateCommissionStatus(rec.id, CommissionStatus.PAID)}
-                                            className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                                            title={t('commissions.markAsPaid', 'Marcar como Pago')}
-                                        >
-                                            <CheckCircle size={20} />
-                                        </button>
-                                    )}
+                                    <div className="flex items-center justify-center gap-1">
+                                      {rec.status === CommissionStatus.PENDING && (
+                                          <button 
+                                              onClick={() => handleMarkAsPaid(rec)}
+                                              className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                                              title={t('commissions.markAsPaid', 'Marcar como Pago')}
+                                          >
+                                              <CheckCircle size={20} />
+                                          </button>
+                                      )}
+                                      <button
+                                          onClick={() => handleDeleteCommission(rec)}
+                                          className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                          title={t('common.delete', 'Excluir')}
+                                      >
+                                          <Trash2 size={18} />
+                                      </button>
+                                    </div>
                                 </td>
                             )}
                         </tr>

@@ -78,7 +78,7 @@ export const JobSearch = () => {
                 : item.quantity;
                 
             const jobType = jobTypes.find(t => t.id === item.jobTypeId);
-            totalComm += calculateItemCommission(item, jobType, currentUser, secQty, undefined, undefined, true, commissionGroups);
+            totalComm += calculateItemCommission(item, jobType, currentUser, secQty, sector, undefined, true, commissionGroups);
           });
 
           if (totalComm > 0) {

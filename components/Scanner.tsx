@@ -53,7 +53,7 @@ const formatItemNameWithVariations = (item: JobItem, jobTypes: JobType[]) => {
 
 export const GlobalScanner: React.FC = () => {
   console.log("GlobalScanner mounted!");
-  const { jobs, updateJob, currentUser, addCommissionRecord, commissions, uploadFile, sectors, jobTypes, nfcBoxes, commissionGroups } = useApp();
+  const { jobs, updateJob, currentUser, addCommissionRecord, updateCommissionRecord, deleteCommissionRecord, commissions, uploadFile, sectors, jobTypes, nfcBoxes, commissionGroups } = useApp();
   const navigate = useNavigate();
   const bufferRef = useRef<string>('');
   const lastKeyTimeRef = useRef<number>(0);
@@ -674,17 +674,60 @@ export const GlobalScanner: React.FC = () => {
 
         if (commissionEarned > 0) {
             try {
-                await addCommissionRecord({
-                    userId: user.id,
-                    userName: user.name,
-                    jobId: currentJob.id,
-                    osNumber: currentJob.osNumber || 'N/A',
-                    sector: sector,
-                    amount: commissionEarned,
-                    status: 'PENDING' as CommissionStatus,
-                    createdAt: new Date(),
-                    patientName: currentJob.patientName
+                // Calculate total commission for this user in this sector across all completed executions
+                let totalSectorUserComm = 0;
+                (currentJob.items || []).forEach((itm: JobItem) => {
+                    if (itm.commissionDisabled) return;
+                    const itmSectorDisabled = itm.sectorCommissionDisabled?.[sector];
+                    if (itmSectorDisabled) return;
+
+                    const itmExec = newExecutions.find(e => e.itemId === itm.id && e.sector === sector && e.userId === user.id);
+                    if (!itmExec) return;
+
+                    const itmJt = jobTypesRef.current.find((t: JobType) => t.id === itm.jobTypeId);
+                    const itmSecQty = (itm.sectorQuantities && itm.sectorQuantities[sector]) ? itm.sectorQuantities[sector] : itm.quantity;
+                    totalSectorUserComm += calculateItemCommission(
+                        itm,
+                        itmJt,
+                        user,
+                        itmSecQty,
+                        sector,
+                        itmExec.executedStages,
+                        itmExec.isBaseChecked !== false,
+                        commissionGroups
+                    );
                 });
+
+                const finalCommAmount = totalSectorUserComm > 0 ? totalSectorUserComm : commissionEarned;
+
+                const matchingPendingComms = commissions.filter(c => 
+                    c.jobId === currentJob.id && 
+                    c.userId === user.id && 
+                    c.sector === sector && 
+                    c.status === CommissionStatus.PENDING
+                );
+
+                if (matchingPendingComms.length > 0) {
+                    await updateCommissionRecord(matchingPendingComms[0].id, {
+                        amount: finalCommAmount,
+                        createdAt: new Date()
+                    });
+                    for (let i = 1; i < matchingPendingComms.length; i++) {
+                        await deleteCommissionRecord(matchingPendingComms[i].id);
+                    }
+                } else {
+                    await addCommissionRecord({
+                        userId: user.id,
+                        userName: user.name,
+                        jobId: currentJob.id,
+                        osNumber: currentJob.osNumber || 'N/A',
+                        sector: sector,
+                        amount: finalCommAmount,
+                        status: CommissionStatus.PENDING,
+                        createdAt: new Date(),
+                        patientName: currentJob.patientName
+                    });
+                }
             } catch (commErr: any) {
                 console.error("Erro ao registrar comissão:", commErr);
             }
@@ -1021,9 +1064,23 @@ export const GlobalScanner: React.FC = () => {
                                             status = 'IN_PROGRESS';
                                         }
 
+                                        const secQty = (currentUser?.sector && item.sectorQuantities && item.sectorQuantities[currentUser.sector]) 
+                                            ? item.sectorQuantities[currentUser.sector] 
+                                            : item.quantity;
+                                        let stageQty = secQty;
+                                        if (item.stageQuantities?.[sector]?.[stageName] !== undefined) {
+                                            const cQty = Number(item.stageQuantities[sector][stageName]);
+                                            if (!isNaN(cQty) && cQty > 0) {
+                                                stageQty = (cQty === 1 && secQty > 1) ? secQty : cQty;
+                                            }
+                                        }
+
                                         return (
                                             <div key={stageName} className="flex items-center justify-between p-2 hover:bg-slate-50 rounded-lg">
-                                                <span className="text-sm font-bold text-slate-600 flex-1">{stageName}</span>
+                                                <span className="text-sm font-bold text-slate-600 flex-1">
+                                                    {stageName}
+                                                    <span className="text-xs font-semibold text-slate-400 ml-1.5">(Qtd: {stageQty})</span>
+                                                </span>
                                                 <button
                                                     disabled={status === 'DONE' || isUploading}
                                                     onClick={() => handleStageAction(item, stageName, status)}

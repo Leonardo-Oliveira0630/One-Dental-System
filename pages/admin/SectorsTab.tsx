@@ -1,16 +1,153 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '../../context/AppContext';
-import { Plus, Edit, Trash2, MapPin, Layers, X } from 'lucide-react';
+import { Plus, Edit, Trash2, MapPin, Layers, X, RefreshCw } from 'lucide-react';
 import * as api from '../../services/firebaseService';
-import { Sector } from '../../types';
+import { Sector, JobType } from '../../types';
 
 export const SectorsTab = () => {
   const { t } = useTranslation();
-  const { sectors, addSector, updateSector, deleteSector, currentOrg } = useApp();
+  const { 
+    sectors, addSector, updateSector, deleteSector, currentOrg,
+    jobTypes, updateJobType, commissionGroups, updateCommissionGroup, allUsers, updateUser 
+  } = useApp();
   const [newSectorName, setNewSectorName] = useState('');
   const [editingSector, setEditingSector] = useState<Sector | null>(null);
   const [newStageInputs, setNewStageInputs] = useState<Record<string, string>>({});
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  // Sincronizar e remover automaticamente etapas órfãs que já foram excluídas dos setores no passado
+  useEffect(() => {
+    if (!sectors || sectors.length === 0) return;
+
+    const cleanupOrphanStages = async () => {
+      try {
+        // 1. Limpar Tipos de Serviço (JobTypes)
+        if (jobTypes && jobTypes.length > 0 && updateJobType) {
+          for (const jt of jobTypes) {
+            if (!jt.sectorStages && !jt.stageQuantities) continue;
+            let changed = false;
+            const cleanedSectorStages: Record<string, string[]> = {};
+            const cleanedStageQuantities: Record<string, Record<string, number>> = {};
+
+            if (jt.sectorStages) {
+              Object.entries(jt.sectorStages).forEach(([secName, stList]) => {
+                const sec = sectors.find(s => s.name === secName);
+                const activeStages = sec?.stages || [];
+                const valid = (stList || []).filter(st => activeStages.includes(st));
+                if (valid.length > 0) {
+                  cleanedSectorStages[secName] = valid;
+                }
+                if (valid.length !== (stList || []).length || !sec) {
+                  changed = true;
+                }
+              });
+            }
+
+            if (jt.stageQuantities) {
+              Object.entries(jt.stageQuantities).forEach(([secName, qMap]) => {
+                const sec = sectors.find(s => s.name === secName);
+                const activeStages = sec?.stages || [];
+                const newQMap: Record<string, number> = {};
+                Object.entries(qMap || {}).forEach(([stKey, qty]) => {
+                  if (activeStages.includes(stKey)) {
+                    newQMap[stKey] = qty;
+                  } else {
+                    changed = true;
+                  }
+                });
+                if (Object.keys(newQMap).length > 0) {
+                  cleanedStageQuantities[secName] = newQMap;
+                }
+              });
+            }
+
+            if (changed) {
+              const payload: Partial<JobType> = {
+                sectorStages: cleanedSectorStages
+              };
+              if (Object.keys(cleanedStageQuantities).length > 0) {
+                payload.stageQuantities = cleanedStageQuantities;
+              }
+              await updateJobType(jt.id, payload);
+            }
+          }
+        }
+
+        // 2. Limpar Grupos de Comissão (Ganhos)
+        if (commissionGroups && commissionGroups.length > 0 && updateCommissionGroup) {
+          for (const grp of commissionGroups) {
+            let groupChanged = false;
+            const currentSettings = grp.settings || (grp as any).commissionSettings || [];
+            const newSettings = currentSettings.map(setting => {
+              if (setting.stageSettings) {
+                const copySt: Record<string, any> = {};
+                let stChanged = false;
+                Object.entries(setting.stageSettings).forEach(([k, v]) => {
+                  const parts = k.split(':');
+                  const secName = parts.length > 1 ? parts[0] : '';
+                  const stgName = parts.length > 1 ? parts.slice(1).join(':') : parts[0];
+                  const sec = secName ? sectors.find(s => s.name === secName) : sectors.find(s => (s.stages || []).includes(stgName));
+                  if (sec && (sec.stages || []).includes(stgName)) {
+                    copySt[k] = v;
+                  } else {
+                    stChanged = true;
+                  }
+                });
+                if (stChanged) {
+                  groupChanged = true;
+                  return { ...setting, stageSettings: copySt };
+                }
+              }
+              return setting;
+            });
+
+            if (groupChanged) {
+              await updateCommissionGroup(grp.id, { settings: newSettings });
+            }
+          }
+        }
+
+        // 3. Limpar Usuários Individuais (Ganhos)
+        if (allUsers && allUsers.length > 0 && updateUser) {
+          for (const u of allUsers) {
+            let userChanged = false;
+            const currentSettings = u.commissionSettings || [];
+            const newSettings = currentSettings.map(setting => {
+              if (setting.stageSettings) {
+                const copySt: Record<string, any> = {};
+                let stChanged = false;
+                Object.entries(setting.stageSettings).forEach(([k, v]) => {
+                  const parts = k.split(':');
+                  const secName = parts.length > 1 ? parts[0] : '';
+                  const stgName = parts.length > 1 ? parts.slice(1).join(':') : parts[0];
+                  const sec = secName ? sectors.find(s => s.name === secName) : sectors.find(s => (s.stages || []).includes(stgName));
+                  if (sec && (sec.stages || []).includes(stgName)) {
+                    copySt[k] = v;
+                  } else {
+                    stChanged = true;
+                  }
+                });
+                if (stChanged) {
+                  userChanged = true;
+                  return { ...setting, stageSettings: copySt };
+                }
+              }
+              return setting;
+            });
+
+            if (userChanged) {
+              await updateUser(u.id, { commissionSettings: newSettings });
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Erro ao sincronizar etapas órfãs:', err);
+      }
+    };
+
+    cleanupOrphanStages();
+  }, [sectors.length]);
 
   const handleAddSector = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,12 +180,208 @@ export const SectorsTab = () => {
   };
 
   const handleRemoveStage = async (sectorId: string, stageToRemove: string, currentStages: string[] = []) => {
+    const targetSector = sectors.find(s => s.id === sectorId);
+    const sectorName = targetSector?.name;
+
+    // 1. Remover do setor
     const updatedStages = currentStages.filter(st => st !== stageToRemove);
     if (updateSector) {
       await updateSector(sectorId, { stages: updatedStages });
     } else if (currentOrg) {
       await api.apiUpdateSector(currentOrg.id, sectorId, { stages: updatedStages });
     }
+
+    if (!sectorName) return;
+
+    // 2. Remover dos tipos de serviço cadastrados (JobTypes)
+    if (jobTypes && jobTypes.length > 0 && updateJobType) {
+      for (const jt of jobTypes) {
+        let changed = false;
+        const newSectorStages: Record<string, string[]> = jt.sectorStages ? { ...jt.sectorStages } : {};
+        const newStageQuantities: Record<string, Record<string, number>> = jt.stageQuantities ? { ...jt.stageQuantities } : {};
+
+        if (newSectorStages[sectorName]) {
+          const filtered = newSectorStages[sectorName].filter(st => st !== stageToRemove);
+          if (filtered.length !== newSectorStages[sectorName].length) {
+            if (filtered.length > 0) {
+              newSectorStages[sectorName] = filtered;
+            } else {
+              delete newSectorStages[sectorName];
+            }
+            changed = true;
+          }
+        }
+
+        if (newStageQuantities[sectorName] && newStageQuantities[sectorName][stageToRemove] !== undefined) {
+          const qMap = { ...newStageQuantities[sectorName] };
+          delete qMap[stageToRemove];
+          if (Object.keys(qMap).length > 0) {
+            newStageQuantities[sectorName] = qMap;
+          } else {
+            delete newStageQuantities[sectorName];
+          }
+          changed = true;
+        }
+
+        if (changed) {
+          const payload: Partial<JobType> = {
+            sectorStages: newSectorStages
+          };
+          if (Object.keys(newStageQuantities).length > 0) {
+            payload.stageQuantities = newStageQuantities;
+          }
+          await updateJobType(jt.id, payload);
+        }
+      }
+    }
+
+    // 3. Remover dos grupos de comissões (Ganhos)
+    if (commissionGroups && commissionGroups.length > 0 && updateCommissionGroup) {
+      for (const grp of commissionGroups) {
+        let groupChanged = false;
+        const currentSettings = grp.settings || (grp as any).commissionSettings || [];
+        const newSettings = currentSettings.map(setting => {
+          if (setting.stageSettings) {
+            const copySt = { ...setting.stageSettings };
+            let stChanged = false;
+            Object.keys(copySt).forEach(k => {
+              if (k === `${sectorName}:${stageToRemove}` || k === stageToRemove || k.endsWith(`:${stageToRemove}`)) {
+                delete copySt[k];
+                stChanged = true;
+              }
+            });
+            if (stChanged) {
+              groupChanged = true;
+              return { ...setting, stageSettings: copySt };
+            }
+          }
+          return setting;
+        });
+
+        if (groupChanged) {
+          await updateCommissionGroup(grp.id, { settings: newSettings });
+        }
+      }
+    }
+
+    // 4. Remover das configurações individuais de colaboradores (Ganhos)
+    if (allUsers && allUsers.length > 0 && updateUser) {
+      for (const u of allUsers) {
+        let userChanged = false;
+        const newSettings = (u.commissionSettings || []).map(setting => {
+          if (setting.stageSettings) {
+            const copySt = { ...setting.stageSettings };
+            let stChanged = false;
+            Object.keys(copySt).forEach(k => {
+              if (k === `${sectorName}:${stageToRemove}` || k === stageToRemove || k.endsWith(`:${stageToRemove}`)) {
+                delete copySt[k];
+                stChanged = true;
+              }
+            });
+            if (stChanged) {
+              userChanged = true;
+              return { ...setting, stageSettings: copySt };
+            }
+          }
+          return setting;
+        });
+
+        if (userChanged) {
+          await updateUser(u.id, { commissionSettings: newSettings });
+        }
+      }
+    }
+  };
+
+  const handleDeleteSector = async (sector: Sector) => {
+    if (!window.confirm(t('admin.sectors.confirmDeleteSector', `Tem certeza que deseja excluir o setor "${sector.name}"? As etapas associadas deixarão de aparecer nos tipos de serviço e na aba de ganhos.`))) return;
+    
+    const sectorName = sector.name;
+
+    // Limpar das configurações de tipos de serviço
+    if (sectorName && jobTypes && jobTypes.length > 0 && updateJobType) {
+      for (const jt of jobTypes) {
+        let changed = false;
+        const newSectorStages: Record<string, string[]> = jt.sectorStages ? { ...jt.sectorStages } : {};
+        const newStageQuantities: Record<string, Record<string, number>> = jt.stageQuantities ? { ...jt.stageQuantities } : {};
+
+        if (newSectorStages[sectorName]) {
+          delete newSectorStages[sectorName];
+          changed = true;
+        }
+        if (newStageQuantities[sectorName]) {
+          delete newStageQuantities[sectorName];
+          changed = true;
+        }
+
+        if (changed) {
+          const payload: Partial<JobType> = {
+            sectorStages: newSectorStages
+          };
+          if (Object.keys(newStageQuantities).length > 0) {
+            payload.stageQuantities = newStageQuantities;
+          }
+          await updateJobType(jt.id, payload);
+        }
+      }
+    }
+
+    // Limpar dos grupos de comissão
+    if (sectorName && commissionGroups && commissionGroups.length > 0 && updateCommissionGroup) {
+      for (const grp of commissionGroups) {
+        let groupChanged = false;
+        const currentSettings = grp.settings || (grp as any).commissionSettings || [];
+        const newSettings = currentSettings.map(setting => {
+          if (setting.stageSettings) {
+            const copySt = { ...setting.stageSettings };
+            let stChanged = false;
+            Object.keys(copySt).forEach(key => {
+              if (key.startsWith(`${sectorName}:`) || key === sectorName) {
+                delete copySt[key];
+                stChanged = true;
+              }
+            });
+            if (stChanged) {
+              groupChanged = true;
+              return { ...setting, stageSettings: copySt };
+            }
+          }
+          return setting;
+        });
+        if (groupChanged) {
+          await updateCommissionGroup(grp.id, { settings: newSettings });
+        }
+      }
+    }
+
+    // Limpar de todos os usuários
+    if (sectorName && allUsers && allUsers.length > 0 && updateUser) {
+      for (const u of allUsers) {
+        let userChanged = false;
+        const newSettings = (u.commissionSettings || []).map(setting => {
+          if (setting.stageSettings) {
+            const copySt = { ...setting.stageSettings };
+            let stChanged = false;
+            Object.keys(copySt).forEach(key => {
+              if (key.startsWith(`${sectorName}:`) || key === sectorName) {
+                delete copySt[key];
+                stChanged = true;
+              }
+            });
+            if (stChanged) {
+              userChanged = true;
+              return { ...setting, stageSettings: copySt };
+            }
+          }
+          return setting;
+        });
+        if (userChanged) {
+          await updateUser(u.id, { commissionSettings: newSettings });
+        }
+      }
+    }
+
+    await deleteSector(sector.id);
   };
 
   return (
@@ -94,7 +427,7 @@ export const SectorsTab = () => {
                     <button onClick={() => setEditingSector(s)} title={t('admin.sectors.editSectorTitle', 'Editar nome do setor')} className="p-1.5 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors cursor-pointer">
                       <Edit size={16}/>
                     </button>
-                    <button onClick={() => deleteSector(s.id)} title={t('admin.sectors.deleteSectorTitle', 'Excluir setor')} className="p-1.5 text-slate-300 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors cursor-pointer">
+                    <button onClick={() => handleDeleteSector(s)} title={t('admin.sectors.deleteSectorTitle', 'Excluir setor')} className="p-1.5 text-slate-300 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors cursor-pointer">
                       <Trash2 size={16}/>
                     </button>
                   </div>

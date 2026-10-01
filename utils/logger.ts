@@ -23,11 +23,24 @@ const redactOptions = {
   censor: '[MASKED]'
 };
 
-// Helper for safe JSON stringify handling circular references
+// Helper for safe JSON stringify handling circular references and DOM nodes
 export const getCircularReplacer = () => {
   const seen = new WeakSet();
   return (key: string, value: any) => {
     if (typeof value === "object" && value !== null) {
+      if (typeof Element !== 'undefined' && value instanceof Element) {
+        return '[DOM Element]';
+      }
+      if (typeof window !== 'undefined' && (value === window || value === document)) {
+        return '[Window/Document]';
+      }
+      if (value instanceof Error) {
+        return {
+          name: value.name,
+          message: value.message,
+          stack: value.stack
+        };
+      }
       if (seen.has(value)) {
         return "[Circular]";
       }

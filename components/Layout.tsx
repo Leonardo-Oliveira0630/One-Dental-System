@@ -9,7 +9,7 @@ import {
   LogOut, Menu, UserCircle, ShoppingCart, 
   PlusCircle, Layers, X, Building, Table,
   Contact, CalendarRange, Crown, Handshake, ChevronsUpDown, Settings, DollarSign, Package, Inbox as InboxIcon, Activity, Stethoscope, Globe, Bell, Ticket, Truck, WifiOff, RefreshCw, Home, Search, Camera, Briefcase, LayoutGrid, Users, Wallet, FileText, AlertTriangle, BookOpen, HelpCircle, ShieldCheck, ClipboardList, Cpu
-, ChevronLeft, MessageSquare, Columns, Sun, Moon} from 'lucide-react';
+, ChevronLeft, MessageSquare, Columns, Sun, Moon, Tv} from 'lucide-react';
 import { UserRole, PermissionKey } from '../types';
 import { GlobalScanner, ManualScannerInput } from './Scanner';
 import { PrintOverlay } from './PrintOverlay';
@@ -158,6 +158,13 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
   const hasPerm = (key: PermissionKey) => {
       if (isAdmin || isManager) return true;
       if (!currentUser?.permissions) return false;
+      if (key === 'reports:view') {
+          return currentUser.permissions.includes('reports:view') ||
+                 currentUser.permissions.some(p => ['reports:client_summary:view', 'reports:production:view', 'reports:detailed_orders:view', 'reports:service_types:view'].includes(p as any));
+      }
+      if (key === 'tutorials:view' || key === 'helpdesk:view') {
+          return currentUser.permissions.includes('tutorials:view') || currentUser.permissions.includes('helpdesk:view');
+      }
       return currentUser.permissions.includes(key);
   };
 
@@ -371,8 +378,9 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                             {hasPerm('jobs:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/kanban" icon={<Columns size={20} />} label={t('navigation.kanban', 'Kanban')} active={location.pathname === '/lab/kanban'} />}
                             {hasPerm('calendar:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/calendar" icon={<Calendar size={20} />} label={t('navigation.productionCalendar', 'Calendário')} active={location.pathname === '/calendar'} />}
                             {hasPerm('catalog:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/job-types" icon={<Package size={20} />} label={t('navigation.services', 'Serviços')} active={location.pathname === '/job-types'} />}
-                            {hasPerm('jobs:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/reports" icon={<FileText size={20} />} label={t('navigation.reports', 'Relatórios')} active={location.pathname === '/reports'} />}
-                            <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/tutorials" icon={<HelpCircle size={20} />} label={t('navigation.helpdesk', 'Central de Ajuda')} active={location.pathname === '/tutorials'} />
+                            {hasPerm('reports:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/reports" icon={<FileText size={20} />} label={t('navigation.reports', 'Relatórios')} active={location.pathname === '/reports'} />}
+                            <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/monitoring" icon={<Tv size={20} />} label={t('navigation.monitoringScreen', 'Tela de Visualização')} active={location.pathname === '/monitoring' || location.pathname === '/lab/monitoring'} />
+                            {(hasPerm('tutorials:view') || hasPerm('helpdesk:view')) && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/tutorials" icon={<HelpCircle size={20} />} label={t('navigation.helpdesk', 'Central de Ajuda')} active={location.pathname === '/tutorials'} />}
                           </>
                         ) : (
                           <>
@@ -382,7 +390,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                             <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/job-types" icon={<Package size={20} />} label={t('navigation.services', 'Serviços')} active={location.pathname === '/job-types'} />
                             <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/logistics" icon={<Truck size={20} />} label={t('navigation.logistics', 'Entregas')} active={location.pathname === '/lab/logistics'} />
                             <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/store" icon={<ShoppingBag size={20} />} label={t('navigation.store', 'Loja Online')} active={location.pathname === '/store'} />
-                            <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/tutorials" icon={<HelpCircle size={20} />} label={t('navigation.helpdesk', 'Central de Ajuda')} active={location.pathname === '/tutorials'} />
+                            {(hasPerm('tutorials:view') || hasPerm('helpdesk:view')) && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/tutorials" icon={<HelpCircle size={20} />} label={t('navigation.helpdesk', 'Central de Ajuda')} active={location.pathname === '/tutorials'} />}
                           </>
                         )}
                       </>
@@ -681,6 +689,16 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
           )}
 
           <div className="flex items-center gap-3 lg:gap-4 shrink-0">
+              {isLab && (
+                <Link
+                  to="/monitoring"
+                  className="w-10 h-10 rounded-xl bg-slate-100 hover:bg-teal-50 border border-slate-200 hover:border-teal-300 flex items-center justify-center text-slate-600 hover:text-teal-600 transition-colors shadow-sm"
+                  title="Tela de Visualização Multitelas (Painel TV)"
+                  aria-label="Tela de Visualização"
+                >
+                  <Tv size={18} />
+                </Link>
+              )}
               <NotificationCenter />
               <LanguageSelector />
               <button 

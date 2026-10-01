@@ -129,3 +129,225 @@ export function matchesSearchQuery(query: string, ...targetFields: (string | num
 
   return allTokensMatched;
 }
+
+export interface SearchableClient {
+  name?: string | null;
+  clinicName?: string | null;
+  email?: string | null;
+  cro?: string | null;
+  cpfCnpj?: string | null;
+  phone?: string | null;
+  whatsapp?: string | null;
+  [key: string]: any;
+}
+
+const COMMON_HONORIFICS = new Set([
+  'dr', 'dra', 'dr.', 'dra.', 'doutor', 'doutora',
+  'prof', 'profa', 'prof.', 'profa.', 'cd', 'cirurgiao', 'cirurgia'
+]);
+
+/**
+ * Extrai palavras de um nome desconsiderando honoríficos comuns (Dr., Dra., etc.)
+ * para que buscas por primeiro nome encontrem tanto "Marcos Silva" quanto "Dr. Marcos Silva" com máxima relevância.
+ */
+function extractClientNameTokens(name: any): { words: string[]; rawWords: string[]; hasHonorific: boolean } {
+  const norm = normalizeText(name);
+  if (!norm) return { words: [], rawWords: [], hasHonorific: false };
+  const rawWords = norm.split(/[\s,.\-_/\\()]+/).filter(w => w.length > 0);
+  if (rawWords.length > 1 && COMMON_HONORIFICS.has(rawWords[0])) {
+    return { words: rawWords.slice(1), rawWords, hasHonorific: true };
+  }
+  return { words: rawWords, rawWords, hasHonorific: false };
+}
+
+/**
+ * Calcula a pontuação de relevância de um cliente para uma busca (menor pontuação = maior prioridade no resultado).
+ * 
+ * Hierarquia de relevância:
+ * 1. Correspondência exata no primeiro nome (ex: buscou "Marcos" e o primeiro nome é "Marcos")
+ * 2. Correspondência por prefixo no primeiro nome (ex: buscou "Mar" e o primeiro nome começa com "Mar": "Maria", "Mario", "Marcio", "Marcos")
+ *    - Quanto mais próximo do comprimento da busca, melhor posicionado.
+ * 3. Correspondência exata em segundo nome ou sobrenome (ex: buscou "Marcos" e o cliente se chama "João Marcos")
+ * 4. Correspondência por prefixo em segundo nome ou sobrenome
+ * 5. Correspondência em nome da clínica/consultório
+ * 6. Correspondência por outros dados (documentos, CRO, telefone, e-mail)
+ * 7. Semelhança fonética/ortográfica (distância de Levenshtein)
+ * 
+ * Retorna `null` se o cliente não atender aos critérios da busca.
+ */
+export function calculateClientSearchScore(query: string, client: SearchableClient): number | null {
+  const normQuery = normalizeText(query);
+  if (!normQuery) return 0;
+
+  // Tratar honoríficos na busca também (ex: usuário digitou "Dr Marcos")
+  let queryTokens = normQuery.split(/\s+/).filter(Boolean);
+  if (queryTokens.length > 1 && COMMON_HONORIFICS.has(queryTokens[0])) {
+    queryTokens = queryTokens.slice(1);
+  }
+  if (queryTokens.length === 0) return 0;
+
+  const { words: nameWords, hasHonorific } = extractClientNameTokens(client.name);
+  const normClinic = normalizeText(client.clinicName);
+  const clinicWords = normClinic ? normClinic.split(/[\s,.\-_/\\()]+/).filter(w => w.length > 0) : [];
+  
+  const rawDocs = [client.cro, client.cpfCnpj, client.phone, client.whatsapp, client.email].filter(Boolean).map(String).join(' ');
+  const cleanDocs = removePunctuation(rawDocs);
+  const normDocs = normalizeText(rawDocs);
+
+  const tokenScores: number[] = [];
+  const matchedWordIndices: number[] = [];
+
+  for (const qToken of queryTokens) {
+    let bestScoreForToken: number | null = null;
+    let bestWordIndex = -1;
+
+    // 1. Avaliar palavras do nome do cliente
+    for (let idx = 0; idx < nameWords.length; idx++) {
+      const w = nameWords[idx];
+      let score: number | null = null;
+
+      if (w === qToken) {
+        // Correspondência exata de palavra
+        if (idx === 0) score = 10; // Primeiro nome exato (topo absoluto)
+        else if (idx === 1) score = 100; // Segundo nome exato
+        else if (idx === 2) score = 200; // Terceiro nome exato
+        else score = 250 + idx * 5;
+      } else if (w.startsWith(qToken)) {
+        // Começa com o termo digitado (prefixo)
+        const lenDiff = w.length - qToken.length;
+        const lenPenalty = Math.min(lenDiff * 0.4, 25);
+        if (idx === 0) score = 20 + lenPenalty; // Primeiro nome começa com a busca
+        else if (idx === 1) score = 120 + lenPenalty; // Segundo nome começa com a busca
+        else if (idx === 2) score = 220 + lenPenalty; // Terceiro nome começa com a busca
+        else score = 260 + idx * 5 + lenPenalty;
+      } else if (w.includes(qToken)) {
+        // Contém no meio da palavra
+        const subPos = w.indexOf(qToken);
+        if (idx === 0) score = 300 + subPos;
+        else score = 400 + idx * 10 + subPos;
+      } else if (qToken.length >= 4 && levenshteinDistance(qToken, w) <= 1) {
+        // Tolerância a pequenos erros de digitação ou variações (ex: Markos / Marcos, Luiz / Luis, Mateus / Matheus)
+        const dist = levenshteinDistance(qToken, w);
+        if (idx === 0) score = 500 + dist * 20;
+        else score = 600 + dist * 20;
+      }
+
+      if (score !== null && (bestScoreForToken === null || score < bestScoreForToken)) {
+        bestScoreForToken = score;
+        bestWordIndex = idx;
+      }
+    }
+
+    // 2. Se não encontrou no nome ou se encontrou apenas algo fraco, verificar nome da clínica
+    if (bestScoreForToken === null || bestScoreForToken >= 300) {
+      for (let cIdx = 0; cIdx < clinicWords.length; cIdx++) {
+        const cw = clinicWords[cIdx];
+        let cScore: number | null = null;
+        if (cw === qToken) {
+          cScore = cIdx === 0 ? 320 : 360;
+        } else if (cw.startsWith(qToken)) {
+          const lenDiff = cw.length - qToken.length;
+          cScore = (cIdx === 0 ? 340 : 380) + Math.min(lenDiff * 0.4, 20);
+        } else if (cw.includes(qToken)) {
+          cScore = 450 + cIdx * 10;
+        }
+
+        if (cScore !== null && (bestScoreForToken === null || cScore < bestScoreForToken)) {
+          bestScoreForToken = cScore;
+          bestWordIndex = 50 + cIdx;
+        }
+      }
+    }
+
+    // 3. Se ainda não encontrou, verificar documentos, telefone, CRO, email
+    if (bestScoreForToken === null) {
+      const cleanToken = removePunctuation(qToken);
+      if (cleanToken.length >= 3 && cleanDocs.includes(cleanToken)) {
+        bestScoreForToken = 750;
+      } else if (normDocs.includes(qToken)) {
+        bestScoreForToken = 780;
+      }
+    }
+
+    // Se um dos tokens digitados não encontrou nenhuma correspondência, descarta este cliente
+    if (bestScoreForToken === null) {
+      return null;
+    }
+
+    tokenScores.push(bestScoreForToken);
+    matchedWordIndices.push(bestWordIndex);
+  }
+
+  // Combinar a pontuação de todos os tokens
+  let totalScore = tokenScores.reduce((sum, s) => sum + s, 0) / tokenScores.length;
+
+  // Bônus se os múltiplos termos digitados bateram em ordem sequencial no nome (ex: "Marcos" depois "Silva")
+  let inOrder = true;
+  for (let i = 1; i < matchedWordIndices.length; i++) {
+    if (matchedWordIndices[i] <= matchedWordIndices[i - 1] || matchedWordIndices[i] < 0) {
+      inOrder = false;
+      break;
+    }
+  }
+
+  if (tokenScores.length > 1) {
+    if (inOrder) {
+      totalScore -= 5; // Bônus de sequência correta
+    } else {
+      totalScore += 40; // Penalidade por fora de ordem
+    }
+  }
+
+  if (hasHonorific) {
+    totalScore += 1; // Leve desempate para clientes com Dr./Dra.
+  }
+
+  return totalScore;
+}
+
+/**
+ * Filtra e ordena uma lista de clientes garantindo que os clientes com nomes mais parecidos
+ * apareçam primeiro (primeiro nome tem prioridade, seguido de segundo nome/sobrenome).
+ */
+export function filterAndSortClients<T extends SearchableClient>(
+  clients: T[],
+  query: string,
+  secondarySort?: (a: T, b: T) => number
+): T[] {
+  const normQuery = normalizeText(query);
+  if (!normQuery) {
+    if (secondarySort) {
+      return [...clients].sort(secondarySort);
+    }
+    return clients;
+  }
+
+  const scored: { item: T; score: number }[] = [];
+
+  for (const client of clients) {
+    const score = calculateClientSearchScore(query, client);
+    if (score !== null) {
+      scored.push({ item: client, score });
+    }
+  }
+
+  scored.sort((a, b) => {
+    // 1. Menor pontuação = mais parecido / prioritário
+    if (Math.abs(a.score - b.score) > 0.001) {
+      return a.score - b.score;
+    }
+
+    // 2. Critério de desempate fornecido (ex: saldo devedor ou ordem alfabética)
+    if (secondarySort) {
+      const sec = secondarySort(a.item, b.item);
+      if (sec !== 0) return sec;
+    }
+
+    // 3. Ordem alfabética padrão por nome
+    const nameA = a.item.name || '';
+    const nameB = b.item.name || '';
+    return nameA.localeCompare(nameB, 'pt-BR');
+  });
+
+  return scored.map(s => s.item);
+}

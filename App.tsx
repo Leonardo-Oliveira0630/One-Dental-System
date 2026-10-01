@@ -58,6 +58,7 @@ import { TutorialsView } from './pages/TutorialsView';
 import { HelpdeskWorkspace } from './pages/HelpdeskWorkspace';
 import { TermsOfUse } from './pages/TermsOfUse';
 import { PrivacyPolicy } from './pages/PrivacyPolicy';
+import { MonitoringPage } from './pages/MonitoringPage';
 import { SupplierTermsAndGuidelines } from './pages/SupplierTermsAndGuidelines';
 import { RequisitionInvite } from './pages/RequisitionInvite';
 import { SupplierDashboard } from './pages/supplier/Dashboard';
@@ -116,8 +117,28 @@ const ProtectedRoute = ({ children, requiredPermission }: { children?: React.Rea
   const isClient = currentUser.role === UserRole.CLIENT || currentUser.role === UserRole.DENTIST || (currentUser as any)?.role === 'DENTIST';
 
   if (requiredPermission && !isAdmin && !isManager) {
-    const isClientAllowed = isClient && (requiredPermission === 'jobs:view' || requiredPermission === 'budgets:view');
-    const hasPermission = currentUser.permissions?.includes(requiredPermission);
+    const isClientAllowed = isClient && (requiredPermission === 'jobs:view' || requiredPermission === 'budgets:view' || requiredPermission === 'tutorials:view');
+    let hasPermission = currentUser.permissions?.includes(requiredPermission);
+    
+    // For reports:view, allow if user has reports:view OR any specific report view permission
+    if (requiredPermission === 'reports:view') {
+      hasPermission = Boolean(
+        hasPermission || 
+        (currentUser.permissions || []).some(p => 
+          ['reports:client_summary:view', 'reports:production:view', 'reports:detailed_orders:view', 'reports:service_types:view'].includes(p as any)
+        )
+      );
+    }
+    
+    // For tutorials:view, allow if user has tutorials:view OR helpdesk:view
+    if (requiredPermission === 'tutorials:view') {
+      hasPermission = Boolean(
+        hasPermission || 
+        (currentUser.permissions || []).includes('helpdesk:view') ||
+        isClient
+      );
+    }
+
     if (!isClientAllowed && !hasPermission) {
       return <Navigate to={isClient ? "/jobs" : "/dashboard"} replace />;
     }
@@ -187,7 +208,7 @@ const AppContent = () => {
        <Route path="/incoming-orders" element={<ProtectedRoute><IncomingOrders /></ProtectedRoute>} />
       <Route path="/incoming-requisitions" element={<ProtectedRoute><IncomingRequisitions /></ProtectedRoute>} />
       <Route path="/job-types" element={<ProtectedRoute><JobTypes /></ProtectedRoute>} />
-      <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+      <Route path="/reports" element={<ProtectedRoute requiredPermission="reports:view"><Reports /></ProtectedRoute>} />
       
       <Route path="/admin" element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>
         <Route index element={<Navigate to="organizacao" replace />} />
@@ -237,9 +258,11 @@ const AppContent = () => {
       <Route path="/supplier/settings" element={<ProtectedRoute><SupplierSettings /></ProtectedRoute>} />
 
       <Route path="/calendar" element={<ProtectedRoute><ProductionCalendar /></ProtectedRoute>} />
+      <Route path="/monitoring" element={<ProtectedRoute><MonitoringPage /></ProtectedRoute>} />
+      <Route path="/lab/monitoring" element={<ProtectedRoute><MonitoringPage /></ProtectedRoute>} />
       <Route path="/promised" element={<ProtectedRoute><PromisedJobs /></ProtectedRoute>} />
       <Route path="/subscribe" element={<ProtectedRoute><Subscribe /></ProtectedRoute>} />
-      <Route path="/tutorials" element={<ProtectedRoute><TutorialsView /></ProtectedRoute>} />
+      <Route path="/tutorials" element={<ProtectedRoute requiredPermission="tutorials:view"><TutorialsView /></ProtectedRoute>} />
 
       <Route path="/superadmin" element={<ProtectedRoute><SuperAdminDashboard /></ProtectedRoute>} />
       <Route path="/superadmin/plans" element={<ProtectedRoute><Plans /></ProtectedRoute>} />

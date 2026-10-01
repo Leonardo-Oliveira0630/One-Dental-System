@@ -40,7 +40,7 @@ const getJobTypeColor = (jobTypeId: string, jobTypeName?: string) => {
 
 export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
   const { t } = useTranslation();
-  const { addJob, updateJob, updateBudget, addBudget, jobs, budgets, jobTypes, currentUser, triggerPrint, allUsers, manualDentists, boxColors, priceTables, inventoryItems, updateInventoryItem, updateOnlineRequisition, currentOrg, updateOrganization } = useApp();
+  const { addJob, updateJob, updateBudget, addBudget, jobs, budgets, jobTypes, sectors, currentUser, triggerPrint, allUsers, manualDentists, boxColors, priceTables, inventoryItems, updateInventoryItem, updateOnlineRequisition, currentOrg, updateOrganization } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -787,6 +787,23 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
         if (table) appliedTableName = table.name;
     }
 
+    const initialStageQuantities: Record<string, Record<string, number>> = {};
+    const sanitizedSectorStages: Record<string, string[]> = {};
+    if (activeJobType.sectorStages) {
+      Object.entries(activeJobType.sectorStages).forEach(([sec, stgs]) => {
+        const secObj = sectors.find(s => s.name === sec);
+        const activeStages = secObj?.stages || [];
+        const valid = (stgs || []).filter(stg => activeStages.includes(stg));
+        if (valid.length > 0) {
+          sanitizedSectorStages[sec] = valid;
+          initialStageQuantities[sec] = {};
+          valid.forEach(stg => {
+            initialStageQuantities[sec][stg] = quantity;
+          });
+        }
+      });
+    }
+
     const newItem: JobItem = { 
         id: `item_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`, 
         jobTypeId: activeJobType.id, 
@@ -804,8 +821,8 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
         commissionDisabled: commissionDisabled, 
         selectedTeeth: itemSelectedTeeth && itemSelectedTeeth.length > 0 ? itemSelectedTeeth : (manualTeethText.trim() ? [manualTeethText.trim()] : undefined), 
         color: itemColor || undefined,
-        sectorStages: activeJobType.sectorStages ? JSON.parse(JSON.stringify(activeJobType.sectorStages)) : undefined,
-        stageQuantities: activeJobType.stageQuantities ? JSON.parse(JSON.stringify(activeJobType.stageQuantities)) : undefined
+        sectorStages: Object.keys(sanitizedSectorStages).length > 0 ? sanitizedSectorStages : undefined,
+        stageQuantities: Object.keys(initialStageQuantities).length > 0 ? initialStageQuantities : undefined
     };
     setAddedItems([...addedItems, newItem]);
     setSelectedTypeId('');

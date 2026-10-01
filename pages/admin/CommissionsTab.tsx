@@ -134,8 +134,24 @@ export const CommissionsTab = () => {
   const { t } = useTranslation();
   const { 
     allUsers, jobTypes, updateUser, updateJobType,
-    commissionGroups, addCommissionGroup, updateCommissionGroup, deleteCommissionGroup
+    commissionGroups, addCommissionGroup, updateCommissionGroup, deleteCommissionGroup,
+    sectors
   } = useApp();
+
+  // Helper para obter apenas etapas ativas nos setores cadastrados
+  const getActiveSectorStages = (type: JobType) => {
+    if (!type.sectorStages) return {};
+    const active: Record<string, string[]> = {};
+    Object.entries(type.sectorStages).forEach(([secName, stagesList]) => {
+      const sec = sectors.find(s => s.name === secName);
+      if (!sec) return;
+      const valid = (stagesList || []).filter(stageName => (sec.stages || []).includes(stageName));
+      if (valid.length > 0) {
+        active[secName] = valid;
+      }
+    });
+    return active;
+  };
   
   // Navigation / View state: 'TECHNICIANS' (Por Colaborador), 'GROUPS' (Grupos de Ganhos) or 'SERVICES' (Tabela Geral de Serviços)
   const [activeView, setActiveView] = useState<'TECHNICIANS' | 'GROUPS' | 'SERVICES'>('TECHNICIANS');
@@ -996,13 +1012,9 @@ export const CommissionsTab = () => {
                   const isEditing = editingBaseId === type.id;
                   const isSavedJustNow = savedSuccessId === type.id;
                   
-                  // Count total stages
-                  let stageCount = 0;
-                  if (type.sectorStages) {
-                    Object.values(type.sectorStages).forEach(stages => {
-                      stageCount += (stages || []).length;
-                    });
-                  }
+                  // Count total active stages
+                  const activeStages = getActiveSectorStages(type);
+                  const stageCount = Object.values(activeStages).reduce((acc, stgs) => acc + stgs.length, 0);
 
                   return (
                     <div 
@@ -1407,7 +1419,7 @@ export const CommissionsTab = () => {
               {/* STAGES SECTION */}
               {(() => {
                 const stageTypes = filteredModalJobTypes.filter(type =>
-                  type.sectorStages && Object.keys(type.sectorStages).some(sectorName => (type.sectorStages?.[sectorName] || []).length > 0)
+                  Object.keys(getActiveSectorStages(type)).length > 0
                 );
                 if (stageTypes.length === 0) return null;
                 const isReadOnly = !!selectedUserGroupId;
@@ -1426,11 +1438,12 @@ export const CommissionsTab = () => {
                     <div className="space-y-4">
                       {stageTypes.map(type => {
                         const setting = tempCommissions.find(s => s.jobTypeId === type.id);
+                        const activeStagesMap = getActiveSectorStages(type);
                         return (
                           <div key={`stage-comm-${type.id}`} className="p-4 bg-indigo-50/30 rounded-2xl border border-indigo-100 space-y-3">
                             <p className="font-bold text-indigo-900">{type.name}</p>
                             
-                            {Object.entries(type.sectorStages || {}).map(([sectorName, stagesList]) => {
+                            {Object.entries(activeStagesMap).map(([sectorName, stagesList]) => {
                               if (!stagesList || stagesList.length === 0) return null;
                               return (
                                 <div key={sectorName} className="space-y-2">
@@ -1691,7 +1704,7 @@ export const CommissionsTab = () => {
               {/* STAGES SECTION */}
               {(() => {
                 const stageTypes = filteredModalGroupJobTypes.filter(type =>
-                  type.sectorStages && Object.keys(type.sectorStages).some(sectorName => (type.sectorStages?.[sectorName] || []).length > 0)
+                  Object.keys(getActiveSectorStages(type)).length > 0
                 );
                 if (stageTypes.length === 0) return null;
                 return (
@@ -1708,11 +1721,12 @@ export const CommissionsTab = () => {
                     <div className="space-y-4">
                       {stageTypes.map(type => {
                         const setting = tempGroupCommissions.find(s => s.jobTypeId === type.id);
+                        const activeStagesMap = getActiveSectorStages(type);
                         return (
                           <div key={`stage-comm-${type.id}`} className="p-4 bg-indigo-50/40 rounded-2xl border border-indigo-100 space-y-3">
                             <p className="font-bold text-indigo-900">{type.name}</p>
                             
-                            {Object.entries(type.sectorStages || {}).map(([sectorName, stagesList]) => {
+                            {Object.entries(activeStagesMap).map(([sectorName, stagesList]) => {
                               if (!stagesList || stagesList.length === 0) return null;
                               return (
                                 <div key={sectorName} className="space-y-2">

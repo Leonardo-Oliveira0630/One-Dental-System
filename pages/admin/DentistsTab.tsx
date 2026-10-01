@@ -11,7 +11,7 @@ import {
 import * as XLSX from 'xlsx';
 import { GoogleGenAI } from "@google/genai";
 import { searchCEP, searchLoqateAddress, fetchLoqateRetrieve, searchInternationalZip } from '../../services/addressService';
-import { matchesSearchQuery } from '../../utils/stringUtils';
+import { matchesSearchQuery, filterAndSortClients } from '../../utils/stringUtils';
 
 export interface DentistCompletenessResult {
   isIncomplete: boolean;
@@ -503,23 +503,8 @@ export const DentistsTab = () => {
   }, [manualDentists]);
 
   const filteredDentists = useMemo(() => {
-    return manualDentists.filter(d => {
+    const base = manualDentists.filter(d => {
       const comp = checkDentistCompleteness(d);
-
-      const matchesSearch = matchesSearchQuery(
-        dentistSearch,
-        d.name,
-        d.cro,
-        d.cpfCnpj,
-        d.clinicName,
-        d.email,
-        d.phone,
-        d.whatsapp,
-        d.city,
-        d.address
-      );
-
-      if (!matchesSearch) return false;
 
       // Completeness Filter
       if (completenessFilter === 'INCOMPLETE' && !comp.isIncomplete) return false;
@@ -554,6 +539,8 @@ export const DentistsTab = () => {
 
       return true;
     });
+
+    return filterAndSortClients(base, dentistSearch, (a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR'));
   }, [manualDentists, dentistSearch, completenessFilter, statusFilter, priceTableFilter, customPricingFilter]);
 
   const formCompleteness = useMemo(() => {

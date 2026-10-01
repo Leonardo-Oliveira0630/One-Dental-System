@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
-import { AlertTriangle, Trash2, CheckSquare, Square, Building2, Search } from 'lucide-react';
+import { AlertTriangle, Trash2, CheckSquare, Square, Building2, Search, Loader2 } from 'lucide-react';
 import { db } from '../../services/firebaseConfig';
-import { collection, query, where, getDocs, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, writeBatch } from 'firebase/firestore';
 import { isLabOrganization } from '../../services/firebaseService';
 
 export const LabResets = () => {
@@ -11,6 +11,7 @@ export const LabResets = () => {
     const [search, setSearch] = useState('');
     const [filterType, setFilterType] = useState<'ALL' | 'LABS_ONLY'>('ALL');
     const [isResetting, setIsResetting] = useState(false);
+    const [progressStatus, setProgressStatus] = useState<string>('');
     
     const labs = useMemo(() => {
         return allOrganizations
@@ -27,6 +28,7 @@ export const LabResets = () => {
         jobTypes: false,
         clients: false,
         collaborators: false,
+        commissions: false,
         sectors: false,
         jobs: false,
         receipts: false,
@@ -35,6 +37,31 @@ export const LabResets = () => {
 
     const handleToggle = (key: keyof typeof selections) => {
         setSelections(prev => ({ ...prev, [key]: !prev[key] }));
+    };
+
+    // Helper to delete all documents using writeBatch in chunks of 400
+    const deleteRefsInBatches = async (refs: any[], label: string) => {
+        if (!refs || refs.length === 0) return 0;
+        const CHUNK_SIZE = 400;
+        let totalDeleted = 0;
+        for (let i = 0; i < refs.length; i += CHUNK_SIZE) {
+            const chunk = refs.slice(i, i + CHUNK_SIZE);
+            const batch = writeBatch(db);
+            chunk.forEach(ref => {
+                batch.delete(ref);
+            });
+            await batch.commit();
+            totalDeleted += chunk.length;
+            setProgressStatus(`Apagando ${label}: ${totalDeleted}/${refs.length}...`);
+        }
+        return totalDeleted;
+    };
+
+    const deleteDocsInQuery = async (q: any, label: string) => {
+        setProgressStatus(`Buscando ${label}...`);
+        const snap = await getDocs(q);
+        const refs = snap.docs.map(d => d.ref);
+        return await deleteRefsInBatches(refs, label);
     };
 
     const handleReset = async () => {
@@ -48,7 +75,7 @@ export const LabResets = () => {
             return;
         }
 
-        const confirm1 = window.confirm(`ATENÇÃO: Você está prestes a apagar dados permanentemente do laboratório ${org.name}. Deseja continuar?`);
+        const confirm1 = window.confirm(`ATENÇÃO: Você está prestes a apagar dados permanentemente do laboratório "${org.name}". Deseja continuar?`);
         if (!confirm1) return;
         
         const confirm2 = window.prompt(`Para confirmar a exclusão, digite o nome do laboratório exatamente como aparece: "${org.name}"`);
@@ -58,81 +85,81 @@ export const LabResets = () => {
         }
 
         setIsResetting(true);
+        setProgressStatus('Iniciando reset...');
         try {
-            // Helper to delete all docs in a collection/query
-            const deleteDocsInQuery = async (q: any) => {
-                const snap = await getDocs(q);
-                const deletePromises = snap.docs.map((d: any) => deleteDoc(d.ref));
-                await Promise.all(deletePromises);
-                return snap.size;
-            };
-
-            let results = [];
+            const results: string[] = [];
 
             if (selections.jobTypes) {
-                const q = collection(db, `organizations/${org.id}/jobTypes`);
-                const count = await deleteDocsInQuery(q);
+                const count = await deleteDocsInQuery(collection(db, `organizations/${org.id}/jobTypes`), 'Tipos de Serviço');
                 results.push(`${count} Tipos de Serviço`);
             }
 
             if (selections.clients) {
                 const q = query(collection(db, 'users'), where('organizationId', '==', org.id), where('role', '==', 'CLIENT'));
-                const count = await deleteDocsInQuery(q);
-                results.push(`${count} Clientes`);
+                const count1 = await deleteDocsInQuery(q, 'Clientes (Usuários)');
+                const count2 = await deleteDocsInQuery(collection(db, `organizations/${org.id}/manualDentists`), 'Clientes Manuais');
+                results.push(`${count1 + count2} Clientes/Dentistas`);
             }
 
             if (selections.collaborators) {
                 const q1 = query(collection(db, 'users'), where('organizationId', '==', org.id), where('role', '==', 'COLLABORATOR'));
                 const q2 = query(collection(db, 'users'), where('organizationId', '==', org.id), where('role', '==', 'MANAGER'));
-                // We shouldn't delete ADMIN as it could be the owner
-                const count1 = await deleteDocsInQuery(q1);
-                const count2 = await deleteDocsInQuery(q2);
+                const count1 = await deleteDocsInQuery(q1, 'Colaboradores');
+                const count2 = await deleteDocsInQuery(q2, 'Gerentes');
                 results.push(`${count1 + count2} Colaboradores/Gerentes`);
             }
 
+            if (selections.commissions) {
+                const count = await deleteDocsInQuery(collection(db, `organizations/${org.id}/commissions`), 'Comissões');
+                results.push(`${count} Registros de Comissões`);
+            }
+
             if (selections.sectors) {
-                const q = collection(db, `organizations/${org.id}/sectors`);
-                const count = await deleteDocsInQuery(q);
+                const count = await deleteDocsInQuery(collection(db, `organizations/${org.id}/sectors`), 'Setores');
                 results.push(`${count} Setores`);
             }
 
             if (selections.jobs) {
+                setProgressStatus('Buscando trabalhos para apagar...');
                 const q = collection(db, `organizations/${org.id}/jobs`);
                 const snap = await getDocs(q);
-                let count = 0;
+                const allJobRefs: any[] = [];
+                
                 for (const d of snap.docs) {
-                    const msgsQ = collection(db, `organizations/${org.id}/jobs/${d.id}/messages`);
-                    const msgsSnap = await getDocs(msgsQ);
-                    for (const m of msgsSnap.docs) await deleteDoc(m.ref);
-                    
-                    const appQ = collection(db, `organizations/${org.id}/jobs/${d.id}/caseApprovals`);
-                    const appSnap = await getDocs(appQ);
-                    for (const a of appSnap.docs) await deleteDoc(a.ref);
-                    
-                    await deleteDoc(d.ref);
-                    count++;
+                    allJobRefs.push(d.ref);
+                    try {
+                        const msgsSnap = await getDocs(collection(db, `organizations/${org.id}/jobs/${d.id}/messages`));
+                        msgsSnap.docs.forEach(m => allJobRefs.push(m.ref));
+                    } catch (e) {
+                        // Subcollection might be empty or missing
+                    }
+                    try {
+                        const appSnap = await getDocs(collection(db, `organizations/${org.id}/jobs/${d.id}/caseApprovals`));
+                        appSnap.docs.forEach(a => allJobRefs.push(a.ref));
+                    } catch (e) {
+                        // Subcollection might be empty or missing
+                    }
                 }
-                results.push(`${count} Trabalhos (e histórico)`);
+
+                await deleteRefsInBatches(allJobRefs, 'Trabalhos e histórico');
+                results.push(`${snap.size} Trabalhos (e subcoleções)`);
             }
 
             if (selections.receipts) {
-                // Deleta recibos criados na coleção global 'receipts'
-                const receiptsQuery = query(collection(db, 'receipts'), where('organizationId', '==', org.id));
-                const receiptsCount = await deleteDocsInQuery(receiptsQuery);
-
-                // Deleta pagamentos/recibos na subcoleção 'dentistPayments'
-                const paymentsQuery = collection(db, `organizations/${org.id}/dentistPayments`);
-                const paymentsCount = await deleteDocsInQuery(paymentsQuery);
-
-                results.push(`${receiptsCount + paymentsCount} Recibos e Pagamentos`);
+                const qReceipts = query(collection(db, 'receipts'), where('organizationId', '==', org.id));
+                const count1 = await deleteDocsInQuery(qReceipts, 'Recibos Globais');
+                const count2 = await deleteDocsInQuery(collection(db, `organizations/${org.id}/dentistPayments`), 'Pagamentos de Dentistas');
+                const count3 = await deleteDocsInQuery(collection(db, `organizations/${org.id}/patientPayments`), 'Pagamentos de Pacientes');
+                results.push(`${count1 + count2 + count3} Recibos e Pagamentos`);
             }
 
             if (selections.billing) {
-                const q = collection(db, `organizations/${org.id}/billingBatches`);
-                const count = await deleteDocsInQuery(q);
-                results.push(`${count} Registros de Faturamento (Faturas)`);
+                const count1 = await deleteDocsInQuery(collection(db, `organizations/${org.id}/billingBatches`), 'Faturas de Laboratório');
+                const count2 = await deleteDocsInQuery(collection(db, `organizations/${org.id}/patientBillingBatches`), 'Faturas de Pacientes');
+                results.push(`${count1 + count2} Registros de Faturamento (Faturas)`);
             }
 
+            setProgressStatus('Finalizado!');
             alert(`Reset concluído com sucesso!\n\nItens apagados:\n${results.join('\n')}`);
             
             // Reset selections
@@ -140,6 +167,7 @@ export const LabResets = () => {
                 jobTypes: false,
                 clients: false,
                 collaborators: false,
+                commissions: false,
                 sectors: false,
                 jobs: false,
                 receipts: false,
@@ -147,11 +175,12 @@ export const LabResets = () => {
             });
             setSelectedOrgId('');
 
-        } catch (error) {
-            console.error(error);
-            alert('Ocorreu um erro durante o reset. Verifique o console.');
+        } catch (error: any) {
+            console.error('Erro durante reset:', error);
+            alert(`Ocorreu um erro durante o reset: ${error?.message || error}`);
         } finally {
             setIsResetting(false);
+            setProgressStatus('');
         }
     };
 
@@ -159,6 +188,7 @@ export const LabResets = () => {
         { key: 'jobTypes', label: 'Tipos de Serviço Cadastrados', desc: 'Apaga todos os serviços, preços e variações do laboratório.' },
         { key: 'clients', label: 'Cadastro de Clientes', desc: 'Apaga todos os dentistas/clínicas vinculados ao laboratório.' },
         { key: 'collaborators', label: 'Cadastro de Colaboradores', desc: 'Apaga os usuários com perfil de Colaborador ou Gerente (Administradores são mantidos).' },
+        { key: 'commissions', label: 'Registro de Comissões dos Colaboradores', desc: 'Apaga apenas os lançamentos e extratos de comissões gerados, mantendo intactos os grupos e regras da aba Ganhos.' },
         { key: 'sectors', label: 'Cadastro de Setores', desc: 'Apaga os setores de produção.' },
         { key: 'jobs', label: 'Trabalhos Criados', desc: 'Apaga o histórico de pedidos e ordens de serviço.' },
         { key: 'receipts', label: 'Recibos Criados', desc: 'Apaga os pagamentos e recibos registrados (entradas e saídas).' },
@@ -260,8 +290,10 @@ export const LabResets = () => {
                                 return (
                                     <div 
                                         key={opt.key}
-                                        onClick={() => handleToggle(opt.key as keyof typeof selections)}
-                                        className={`flex items-start gap-3 p-4 rounded-2xl border cursor-pointer transition-all ${
+                                        onClick={() => !isResetting && handleToggle(opt.key as keyof typeof selections)}
+                                        className={`flex items-start gap-3 p-4 rounded-2xl border transition-all ${
+                                            isResetting ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
+                                        } ${
                                             isSelected 
                                             ? 'bg-red-50/50 border-red-200' 
                                             : 'bg-slate-50 border-slate-200 hover:border-slate-300'
@@ -279,17 +311,29 @@ export const LabResets = () => {
                             })}
                         </div>
 
-                        <div className="flex items-center justify-between p-5 bg-red-50 rounded-2xl border border-red-100">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between p-5 bg-red-50 rounded-2xl border border-red-100 gap-4">
                             <div>
                                 <h4 className="font-black text-red-900 text-sm">Pronto para resetar?</h4>
-                                <p className="text-xs font-bold text-red-700/70 mt-0.5">Os dados selecionados serão apagados permanentemente.</p>
+                                <p className="text-xs font-bold text-red-700/70 mt-0.5">
+                                    {isResetting ? (progressStatus || 'Processando...') : 'Os dados selecionados serão apagados permanentemente.'}
+                                </p>
                             </div>
                             <button
                                 onClick={handleReset}
                                 disabled={isResetting || !Object.values(selections).some(v => v)}
-                                className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-black text-sm rounded-xl shadow-lg shadow-red-500/30 transition-all disabled:opacity-50 flex items-center gap-2"
+                                className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-black text-sm rounded-xl shadow-lg shadow-red-500/30 transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer shrink-0"
                             >
-                                {isResetting ? 'Apagando...' : 'Executar Reset'}
+                                {isResetting ? (
+                                    <>
+                                        <Loader2 size={16} className="animate-spin" />
+                                        <span>{progressStatus || 'Apagando...'}</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Trash2 size={16} />
+                                        <span>Executar Reset</span>
+                                    </>
+                                )}
                             </button>
                         </div>
                     </div>

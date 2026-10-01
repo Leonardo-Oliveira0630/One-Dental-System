@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import * as XLSX from 'xlsx';
 import { useApp } from '../context/AppContext';
@@ -336,14 +336,31 @@ export const JobTypes = () => {
     setExpandedFormSectors(next);
   };
 
-  const totalFormSelectedStages = Object.values(formSectorStages).reduce(
-    (acc, list) => acc + (Array.isArray(list) ? list.length : 0),
-    0
-  );
+  const sanitizeSectorStages = (raw: Record<string, string[]> | undefined) => {
+    if (!raw) return {};
+    const sanitized: Record<string, string[]> = {};
+    sectors.forEach(s => {
+      const list = raw[s.name] || [];
+      const valid = list.filter(stageName => (s.stages || []).includes(stageName));
+      if (valid.length > 0) {
+        sanitized[s.name] = valid;
+      }
+    });
+    return sanitized;
+  };
+
+  const totalFormSelectedStages = useMemo(() => {
+    let count = 0;
+    sectors.forEach(s => {
+      const list = formSectorStages[s.name] || [];
+      count += list.filter(st => (s.stages || []).includes(st)).length;
+    });
+    return count;
+  }, [formSectorStages, sectors]);
 
   const openStageConfigModal = (type: JobType) => {
     setSelectedTypeForStages(type);
-    setTempSectorStages(type.sectorStages || {});
+    setTempSectorStages(sanitizeSectorStages(type.sectorStages));
     const initialExpanded: Record<string, boolean> = {};
     sectors.forEach(s => { initialExpanded[s.name] = true; });
     setExpandedSectors(initialExpanded);
@@ -368,9 +385,10 @@ export const JobTypes = () => {
   const handleSaveSectorStages = async () => {
     if (!selectedTypeForStages) return;
     try {
-      await updateJobType(selectedTypeForStages.id, { sectorStages: tempSectorStages });
+      const sanitized = sanitizeSectorStages(tempSectorStages);
+      await updateJobType(selectedTypeForStages.id, { sectorStages: sanitized });
       if (editingId === selectedTypeForStages.id) {
-        setFormSectorStages(tempSectorStages);
+        setFormSectorStages(sanitized);
       }
       setShowStageModal(false);
       setSelectedTypeForStages(null);
@@ -426,7 +444,7 @@ export const JobTypes = () => {
     setImageUrl(type.imageUrl || '');
     setPreviewUrl(type.imageUrl || '');
     setAllowedSectors(type.allowedSectors || []);
-    setFormSectorStages(type.sectorStages || {});
+    setFormSectorStages(sanitizeSectorStages(type.sectorStages));
     const initialExpanded: Record<string, boolean> = {};
     sectors.forEach(s => { initialExpanded[s.name] = true; });
     setExpandedFormSectors(initialExpanded);
@@ -513,7 +531,7 @@ export const JobTypes = () => {
           isVisibleInternallyLabs,
           imageUrl: finalImageUrl, 
           allowedSectors,
-          sectorStages: formSectorStages,
+          sectorStages: sanitizeSectorStages(formSectorStages),
           isPromotion: isPromoToSave,
       };
 
@@ -1427,7 +1445,7 @@ export const JobTypes = () => {
                                     {sectors.map(sector => {
                                         const isExpanded = expandedFormSectors[sector.name] ?? true;
                                         const sectorStagesList = sector.stages || [];
-                                        const selectedStagesForSector = formSectorStages[sector.name] || [];
+                                        const selectedStagesForSector = (formSectorStages[sector.name] || []).filter(st => sectorStagesList.includes(st));
                                         const hasAllSelected = sectorStagesList.length > 0 && sectorStagesList.every(st => selectedStagesForSector.includes(st));
 
                                         return (
