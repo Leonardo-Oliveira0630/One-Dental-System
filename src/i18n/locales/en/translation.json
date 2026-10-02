@@ -2478,6 +2478,8 @@
       "permissionLabels": {
         "dashboard:view": "View Control Panel (Dashboard)",
         "jobs:view": "View List & Details",
+        "jobs:production_view": "View Production Tab & Stages (Case Details)",
+        "jobs:production_edit": "Edit Production Stages & Records (Case Details)",
         "jobs:create": "Create New Work Orders",
         "jobs:edit": "Edit Work Orders",
         "jobs:delete": "Delete Work Orders",

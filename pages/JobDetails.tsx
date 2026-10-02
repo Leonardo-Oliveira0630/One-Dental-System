@@ -584,6 +584,8 @@ export const JobDetails = () => {
   const canToggleChat = isAdmin || isManager || (isTech && currentUser?.permissions?.includes('jobs:chat_toggle'));
   const canManageApproval = isAdmin || isManager || (isTech && currentUser?.permissions?.includes('jobs:approval'));
   const canChangeStatus = isAdmin || isManager || (isTech && currentUser?.permissions?.includes('jobs:change_status'));
+  const canViewProduction = isAdmin || isManager || (isTech && currentUser?.permissions?.includes('jobs:production_view'));
+  const canEditProduction = isAdmin || isManager || (isTech && currentUser?.permissions?.includes('jobs:production_edit'));
 
   // Buyer / Client Delivery Confirmation & Shopee-style Service Review
   const [showReviewModal, setShowReviewModal] = useState(false);
@@ -1368,6 +1370,7 @@ export const JobDetails = () => {
   };
 
   const handleOpenEditExecution = (item: JobItem, sector: string, execution?: JobItemExecution | null, latestMov?: SectorMovement | null, stageName?: string) => {
+      if (!canEditProduction) return;
       const targetStage = stageName || 'BASE';
       const stageData = execution?.stageTimes?.[targetStage];
 
@@ -1413,6 +1416,7 @@ export const JobDetails = () => {
   };
 
   const handleSaveExecutionEdit = async () => {
+      if (!canEditProduction) return;
       if (!editingExecution || !job) return;
       if (!editingExecution.userId) return alert('Selecione um funcionário');
 
@@ -3156,7 +3160,7 @@ export const JobDetails = () => {
          
          {!isClient && (
            <>
-             {!job.isBudget && (!job.isPseudo && (isLabStaff || revealJobStatus)) ? (
+             {!job.isBudget && (!job.isPseudo && (isLabStaff ? canViewProduction : revealJobStatus)) ? (
                 <button onClick={() => setActiveTab('PRODUCTION')} className={`px-4 md:px-6 py-4 font-black text-[10px] md:text-xs uppercase tracking-widest flex items-center gap-2 transition-all whitespace-nowrap shrink-0 ${activeTab === 'PRODUCTION' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}><Layers size={16} /> {t('jobDetails.production', 'Produção')}</button>
              ) : !job.isBudget ? (
                 <button type="button" className="px-4 md:px-6 py-4 font-black text-[10px] md:text-xs uppercase tracking-widest flex items-center gap-2 transition-all whitespace-nowrap shrink-0 text-slate-300 cursor-not-allowed" title="Controle de produção indisponível para este trabalho">
@@ -3434,7 +3438,7 @@ export const JobDetails = () => {
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-3 shrink-0">
-                                            {canManageCommissions && (
+                                            {(canManageCommissions || canEditProduction) && (
                                                 <button
                                                     type="button"
                                                     onClick={(e) => {
@@ -4167,7 +4171,7 @@ export const JobDetails = () => {
         )}
 
         {activeTab === 'PRODUCTION' && (
-            revealJobStatus ? (
+            (isLabStaff ? canViewProduction : revealJobStatus) ? (
                 <div className="w-full animate-in fade-in duration-300 pb-8 overflow-x-auto">
                 <div className="min-w-[800px] max-w-6xl mx-auto space-y-6">
                     {job.items.map((item: any) => {
@@ -4198,7 +4202,7 @@ export const JobDetails = () => {
                                             <th className="px-5 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Previsão</th>
                                             <th className="px-5 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Início</th>
                                             <th className="px-5 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Término</th>
-                                            {isLabStaff && <th className="px-5 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Ações</th>}
+                                            {(isLabStaff && canEditProduction) && <th className="px-5 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Ações</th>}
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-50">
@@ -4308,7 +4312,7 @@ export const JobDetails = () => {
                             </div>
                         ) : <span className="text-slate-200">—</span>}
                     </td>
-                    {isLabStaff && (
+                    {isLabStaff && canEditProduction && (
                         <td className="px-5 py-3 text-right">
                             <div className="flex items-center justify-end gap-2">
                                 <button

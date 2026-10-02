@@ -2403,7 +2403,9 @@
         "Lojas": "Lojas"
       },
       "permissionLabels": {
-        "dashboard:view": "Ver Painel de Controle (Dashboard)"
+        "dashboard:view": "Ver Painel de Controle (Dashboard)",
+        "jobs:production_view": "Ver Aba de Produção e Etapas (Detalhes do Caso)",
+        "jobs:production_edit": "Editar Registros e Execuções de Produção (Detalhes do Caso)"
       }
     },
     "organization": {
