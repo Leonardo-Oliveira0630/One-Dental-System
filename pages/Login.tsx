@@ -41,7 +41,15 @@ export const Login = () => {
         } else if (currentUser.role === UserRole.SUPER_ADMIN) {
             navigate('/superadmin');
         } else {
-            navigate('/dashboard');
+            const isAdminOrManager = currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.MANAGER;
+            const canDashboard = isAdminOrManager || currentUser.permissions?.includes('dashboard:view');
+            if (canDashboard) {
+                navigate('/dashboard');
+            } else if (currentUser.permissions?.includes('jobs:view')) {
+                navigate('/jobs');
+            } else {
+                navigate('/profile');
+            }
         }
     }
   }, [currentUser, isLoadingAuth, navigate, location.search]);

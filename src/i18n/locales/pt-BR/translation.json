@@ -2389,7 +2389,22 @@
       "roleManager": "GESTOR",
       "roleTechnician": "TÉCNICO",
       "roleCollaborator": "COLABORADOR",
-      "roleClient": "CLIENTE"
+      "roleClient": "CLIENTE",
+      "permissionCategories": {
+        "Painel de Controle": "Painel de Controle",
+        "Produção": "Produção",
+        "Financeiro": "Financeiro",
+        "Catálogo": "Catálogo",
+        "Tabelas de Preços": "Tabelas de Preços",
+        "Clientes": "Clientes",
+        "Administração": "Administração",
+        "Logística": "Logística",
+        "Estoque": "Estoque",
+        "Lojas": "Lojas"
+      },
+      "permissionLabels": {
+        "dashboard:view": "Ver Painel de Controle (Dashboard)"
+      }
     },
     "organization": {
       "visualIdentityTitle": "Identidade Visual e Dados Gerais",

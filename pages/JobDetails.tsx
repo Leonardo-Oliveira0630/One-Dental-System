@@ -27,6 +27,8 @@ import { Odontogram } from '../components/Odontogram';
 import { db } from '../services/firebaseConfig';
 import { getCarrierBadgeConfig } from '../services/frenetService';
 import { LabServiceReviewModal } from '../components/LabServiceReviewModal';
+import { WebcamModal } from '../components/WebcamModal';
+import { capturePhotoWithNativePreference } from '../utils/cameraUtils';
 
 const { doc, onSnapshot } = firestorePkg as any;
 
@@ -389,44 +391,18 @@ export const JobDetails = () => {
   const [isUploadingFiles, setIsUploadingFiles] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadProgressMsg, setUploadProgressMsg] = useState('');
+  const [isWebcamOpen, setIsWebcamOpen] = useState(false);
   const nativeCameraInputRef = useRef<HTMLInputElement>(null);
 
   const handleTakePhotoClick = async () => {
-    if (Capacitor.isNativePlatform()) {
-      try {
-        const perm = await Camera.checkPermissions();
-        if (perm.camera !== 'granted') {
-          await Camera.requestPermissions({ permissions: ['camera'] });
-        }
-        const photo = await Camera.getPhoto({
-          quality: 100,
-          allowEditing: false,
-          resultType: CameraResultType.Uri,
-          source: CameraSource.Camera
-        });
-        if (photo && photo.webPath) {
-          const response = await fetch(photo.webPath);
-          const blob = await response.blob();
-          const ext = photo.format || 'jpg';
-          const file = new File(
-            [blob],
-            `foto-caso-${Date.now()}.${ext}`,
-            { type: `image/${ext === 'png' ? 'png' : 'jpeg'}` }
-          );
-          setSelectedFiles(prev => [...prev, file]);
-          return;
-        }
-      } catch (err: any) {
-        const errStr = (err?.message || err?.toString() || '').toLowerCase();
-        if (errStr.includes('cancelled') || errStr.includes('cancel') || errStr.includes('user cancelled')) {
-          return;
-        }
-        console.warn("Capacitor camera failed, falling back to native file capture:", err);
+    await capturePhotoWithNativePreference(
+      (file) => {
+        setSelectedFiles(prev => [...prev, file]);
+      },
+      () => {
+        setIsWebcamOpen(true);
       }
-    }
-
-    // Trigger native device camera via capture input
-    nativeCameraInputRef.current?.click();
+    );
   };
 
   const [routeInfo, setRouteInfo] = useState<DeliveryRoute | null>(null);
@@ -4546,6 +4522,17 @@ export const JobDetails = () => {
                    setAllAttachmentsForPreview([]);
                }}
            />
+       )}
+
+       {isWebcamOpen && (
+         <WebcamModal 
+           title={`Foto do Caso #${job?.jobOrder || job?.id || ''}`}
+           onClose={() => setIsWebcamOpen(false)}
+           onCapture={(file) => {
+             setSelectedFiles(prev => [...prev, file]);
+             setIsWebcamOpen(false);
+           }}
+         />
        )}
       </div>
     </div>

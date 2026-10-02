@@ -347,6 +347,7 @@ export enum UserRole {
 }
 
 export type PermissionKey = 
+  | 'dashboard:view'
   | 'jobs:view' | 'jobs:create' | 'jobs:edit' | 'jobs:delete' | 'jobs:return' | 'jobs:finish' | 'jobs:alert' | 'jobs:print' | 'jobs:chat_toggle' | 'jobs:approval' | 'jobs:change_status'
   | 'budgets:view' | 'budgets:create' | 'budgets:edit' | 'budgets:delete'
   | 'reports:view'
@@ -387,6 +388,7 @@ export type PermissionKey =
   | 'store:view' | 'store:buy';
 
 export const ALL_SYSTEM_PERMISSIONS: PermissionKey[] = [
+  'dashboard:view',
   'jobs:view', 'jobs:create', 'jobs:edit', 'jobs:delete', 'jobs:return', 'jobs:finish', 'jobs:alert', 'jobs:print', 'jobs:chat_toggle', 'jobs:approval', 'jobs:change_status',
   'budgets:view', 'budgets:create', 'budgets:edit', 'budgets:delete',
   'reports:view',

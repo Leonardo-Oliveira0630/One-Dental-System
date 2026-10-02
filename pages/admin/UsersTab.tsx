@@ -25,6 +25,7 @@ import * as api from '../../services/firebaseService';
 import * as XLSX from 'xlsx';
 
 const AVAILABLE_PERMISSIONS: { key: PermissionKey, label: string, category: string }[] = [
+    { key: 'dashboard:view', label: 'Ver Painel de Controle (Dashboard)', category: 'Painel de Controle' },
     { key: 'jobs:view', label: 'Ver Lista e Detalhes de Casos', category: 'Produção' },
     { key: 'jobs:create', label: 'Criar Novos Casos (OS)', category: 'Produção' },
     { key: 'jobs:edit', label: 'Editar Dados de Trabalhos', category: 'Produção' },

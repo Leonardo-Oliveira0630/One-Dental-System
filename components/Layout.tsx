@@ -356,7 +356,9 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                       <>
                         {!isFreeLab ? (
                           <>
-                            <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/dashboard" icon={<LayoutDashboard size={20} />} label={t('navigation.dashboard', 'Dashboard')} active={location.pathname === '/dashboard'} />
+                            {hasPerm('dashboard:view') && (
+                              <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/dashboard" icon={<LayoutDashboard size={20} />} label={t('navigation.dashboard', 'Painel de Controle')} active={location.pathname === '/dashboard'} />
+                            )}
                             {hasPerm('finance:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/finance" icon={<DollarSign size={20} />} label={t('navigation.clinicFinance', 'Financeiro')} active={location.pathname === '/lab/finance'} />}
                             {hasPerm('receipts:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/receipts" icon={<FileText size={20} />} label={t('navigation.receipts', 'Recibos')} active={location.pathname === '/lab/receipts'} />}
                             {hasPerm('commissions:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/commissions" icon={<Wallet size={20} />} label={t('navigation.commissions', 'Comissões')} active={location.pathname === '/commissions'} />}
@@ -613,7 +615,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
       )}
 
       <nav className="fixed bottom-0 left-0 right-0 h-16 bg-white dark:bg-[#131B2A] border-t border-slate-200 dark:border-slate-800 flex items-center justify-around z-50 md:hidden pb-[env(safe-area-inset-bottom)] print:hidden">
-          <MobileNavItem to={isFreeLab ? "/lab/finance" : "/dashboard"} icon={<Home size={22}/>} label={t('navigation.home', 'Home')} active={isFreeLab ? location.pathname === '/lab/finance' : location.pathname === '/dashboard'} />
+          <MobileNavItem to={isFreeLab ? "/lab/finance" : (hasPerm('dashboard:view') ? "/dashboard" : "/jobs")} icon={<Home size={22}/>} label={t('navigation.home', 'Home')} active={isFreeLab ? location.pathname === '/lab/finance' : (hasPerm('dashboard:view') ? location.pathname === '/dashboard' : location.pathname === '/jobs')} />
           
           {!isBuyer ? (
             <>

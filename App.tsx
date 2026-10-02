@@ -140,7 +140,13 @@ const ProtectedRoute = ({ children, requiredPermission }: { children?: React.Rea
     }
 
     if (!isClientAllowed && !hasPermission) {
-      return <Navigate to={isClient ? "/jobs" : "/dashboard"} replace />;
+      if (isClient) return <Navigate to="/jobs" replace />;
+      if (requiredPermission === 'dashboard:view') {
+        const canJobs = currentUser.permissions?.includes('jobs:view');
+        return <Navigate to={canJobs ? "/jobs" : "/profile"} replace />;
+      }
+      const canDashboard = isAdmin || isManager || currentUser.permissions?.includes('dashboard:view');
+      return <Navigate to={canDashboard ? "/dashboard" : (currentUser.permissions?.includes('jobs:view') ? "/jobs" : "/profile")} replace />;
     }
   }
 
@@ -197,7 +203,7 @@ const AppContent = () => {
       <Route path="/privacy" element={<PrivacyPolicy />} />
       <Route path="/requisition-invite" element={<RequisitionInvite />} />
       
-      <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+      <Route path="/dashboard" element={<ProtectedRoute requiredPermission="dashboard:view"><Dashboard /></ProtectedRoute>} />
       <Route path="/new-job" element={<ProtectedRoute requiredPermission="jobs:create"><NewJob /></ProtectedRoute>} />
       <Route path="/budgets" element={<ProtectedRoute requiredPermission="budgets:view"><JobsList key="budgets" isBudgetMode={true} /></ProtectedRoute>} />
       <Route path="/new-budget" element={<ProtectedRoute requiredPermission="budgets:create"><NewJob isBudget={true} /></ProtectedRoute>} />

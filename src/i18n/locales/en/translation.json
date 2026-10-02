@@ -2464,6 +2464,7 @@
       "roleCollaborator": "COLLABORATOR",
       "roleClient": "CLIENT",
       "permissionCategories": {
+        "Painel de Controle": "Control Panel",
         "Produção": "Production",
         "Financeiro": "Financial",
         "Catálogo": "Catalog",
@@ -2475,6 +2476,7 @@
         "Lojas": "Stores"
       },
       "permissionLabels": {
+        "dashboard:view": "View Control Panel (Dashboard)",
         "jobs:view": "View List & Details",
         "jobs:create": "Create New Work Orders",
         "jobs:edit": "Edit Work Orders",
