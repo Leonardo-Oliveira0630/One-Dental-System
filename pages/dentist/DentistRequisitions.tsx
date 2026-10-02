@@ -143,7 +143,7 @@ export const DentistRequisitions = () => {
 
   // Dynamic service variations and quantity
   const [selectedVariations, setSelectedVariations] = useState<Record<string, string | string[]>>({});
-  const [quantity, setQuantity] = useState<number>(1);
+  const [quantity, setQuantity] = useState<number | string>(1);
   const [itemSelectedTeeth, setItemSelectedTeeth] = useState<string[]>([]);
   const [requisitionItems, setRequisitionItems] = useState<any[]>([]);
 
@@ -384,7 +384,7 @@ export const DentistRequisitions = () => {
             serviceId: selectedServiceId,
             serviceName: activeService.name,
             selectedVariationIds: allSelectedOptionIds,
-            quantity: quantity,
+            quantity: Number(quantity) || 1,
             selectedTeeth: itemSelectedTeeth.length > 0 ? itemSelectedTeeth : undefined
         }
     ]);
@@ -484,7 +484,7 @@ export const DentistRequisitions = () => {
         serviceId: selectedServiceId,
         serviceName: activeService.name,
         selectedVariationIds: allSelectedOptionIds,
-        quantity: quantity,
+        quantity: Number(quantity) || 1,
         selectedTeeth: itemSelectedTeeth.length > 0 ? itemSelectedTeeth : undefined
       } : null;
 
@@ -876,7 +876,7 @@ export const DentistRequisitions = () => {
                               required
                               readOnly={itemSelectedTeeth.length > 0}
                               value={quantity}
-                              onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                              onChange={(e) => setQuantity(e.target.value === '' ? '' : (parseInt(e.target.value) || ''))}
                               className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-center font-black text-slate-700 focus:ring-2 focus:ring-indigo-500"
                             />
                           </div>

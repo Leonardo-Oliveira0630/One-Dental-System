@@ -157,9 +157,9 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
   
   const [isAddingProduct, setIsAddingProduct] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState('');
-  const [productQuantity, setProductQuantity] = useState(1);
-  const [productManualPrice, setProductManualPrice] = useState<number | null>(null);
-  const [productDiscountPercent, setProductDiscountPercent] = useState<number>(0);
+  const [productQuantity, setProductQuantity] = useState<number | string>(1);
+  const [productManualPrice, setProductManualPrice] = useState<number | string | null>(null);
+  const [productDiscountPercent, setProductDiscountPercent] = useState<number | string>(0);
 
   const locationKeyRef = useRef<string | null>(null);
 
@@ -211,16 +211,16 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
   const [isInternalStep, setIsInternalStep] = useState(false);
   const [selectedTypeId, setSelectedTypeId] = useState('');
   const [hasSetInitialType, setHasSetInitialType] = useState(false);
-  const [quantity, setQuantity] = useState(1);
+  const [quantity, setQuantity] = useState<number | string>(1);
   const [itemColor, setItemColor] = useState('');
   const [selectedVariations, setSelectedVariations] = useState<Record<string, string | string[]>>({}); 
   const [variationTextValues, setVariationTextValues] = useState<Record<string, string>>({}); 
   const [itemSelectedTeeth, setItemSelectedTeeth] = useState<string[]>([]);
   const [manualTeethText, setManualTeethText] = useState('');
   const [commissionDisabled, setCommissionDisabled] = useState(false);
-  const [manualPrice, setManualPrice] = useState<number | null>(null);
+  const [manualPrice, setManualPrice] = useState<number | string | null>(null);
   const [discountType, setDiscountType] = useState<"PERCENTAGE" | "FIXED">("PERCENTAGE");
-  const [discountValue, setDiscountValue] = useState<number>(0);
+  const [discountValue, setDiscountValue] = useState<number | string>(0);
   
 
   const connectedDentists = useMemo(() => allUsers.filter(u => u.role === UserRole.CLIENT), [allUsers]);
@@ -467,9 +467,10 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
   }, [selectedDentistObj, priceTables, jobTypes]);
 
   const finalItemPrice = useMemo(() => {
-    let price = manualPrice !== null ? manualPrice : calculatedBasePrice;
-    if (discountType === 'PERCENTAGE' && discountValue > 0) price = price * (1 - discountValue / 100);
-    if (discountType === 'FIXED' && discountValue > 0) price = price - discountValue;
+    let price = manualPrice !== null ? (Number(manualPrice) || 0) : calculatedBasePrice;
+    const numDisc = Number(discountValue) || 0;
+    if (discountType === 'PERCENTAGE' && numDisc > 0) price = price * (1 - numDisc / 100);
+    if (discountType === 'FIXED' && numDisc > 0) price = price - numDisc;
     return Math.max(0, price);
   }, [calculatedBasePrice, manualPrice, discountType, discountValue]);
 
@@ -744,22 +745,22 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
     const invItem = inventoryItems.find(i => i.id === selectedProductId);
     if (!invItem) return;
     
-    if (invItem.currentStock < productQuantity) {
+    if (invItem.currentStock < Number(productQuantity)) {
         alert("Quantidade insuficiente no estoque.");
         return;
     }
 
-    const basePrice = productManualPrice !== null ? productManualPrice : invItem.sellPrice;
-    const finalPrice = basePrice * (1 - (productDiscountPercent / 100));
+    const basePrice = productManualPrice !== null ? Number(productManualPrice) : invItem.sellPrice;
+    const finalPrice = basePrice * (1 - ((Number(productDiscountPercent) || 0) / 100));
 
     const newProd = {
         id: Math.random().toString(),
         inventoryItemId: invItem.id,
         name: invItem.name,
-        quantity: productQuantity,
+        quantity: Number(productQuantity) || 1,
         unitPrice: finalPrice,
         basePriceBeforeDiscount: basePrice,
-        appliedDiscount: productDiscountPercent,
+        appliedDiscount: Number(productDiscountPercent) || 0,
         dentistOwnerId: invItem.dentistOwnerId
     };
 
@@ -798,7 +799,7 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
           sanitizedSectorStages[sec] = valid;
           initialStageQuantities[sec] = {};
           valid.forEach(stg => {
-            initialStageQuantities[sec][stg] = quantity;
+            initialStageQuantities[sec][stg] = Number(quantity) || 1;
           });
         }
       });
@@ -808,13 +809,13 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
         id: `item_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`, 
         jobTypeId: activeJobType.id, 
         name: activeJobType.name, 
-        quantity: quantity, 
+        quantity: Number(quantity) || 1, 
         nature: itemNature, 
         isInternalStep: isInternalStep,
         price: finalItemPrice, 
-        basePriceBeforeDiscount: manualPrice !== null ? manualPrice : calculatedBasePrice,
-        appliedDiscount: discountType === 'PERCENTAGE' ? discountValue : 0,
-        appliedDiscountFixed: discountType === 'FIXED' ? discountValue : 0,
+        basePriceBeforeDiscount: manualPrice !== null ? (Number(manualPrice) || 0) : calculatedBasePrice,
+        appliedDiscount: discountType === 'PERCENTAGE' ? (Number(discountValue) || 0) : 0,
+        appliedDiscountFixed: discountType === 'FIXED' ? (Number(discountValue) || 0) : 0,
         appliedPriceTable: appliedTableName,
         selectedVariationIds: allSelectedOptionIds, 
         variationValues: variationTextValues, 
@@ -1367,7 +1368,7 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
                                 <div className={`w-full ${itemSelectedTeeth.length > 0 ? 'opacity-50 pointer-events-none' : ''}`}>
                                     <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">{t('newJob.quantity', 'Qtd')}</label>
-                                    <input type="number" min="1" value={quantity} readOnly={itemSelectedTeeth.length > 0} onChange={e => setQuantity(parseInt(e.target.value) || 1)} className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl outline-none text-center font-black" />
+                                    <input type="number" min="1" value={quantity} readOnly={itemSelectedTeeth.length > 0} onChange={e => setQuantity(e.target.value === '' ? '' : parseInt(e.target.value))} className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl outline-none text-center font-black" />
                                 </div>
                                 <div className="w-full">
                                     <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">{t('newJob.color', 'Cor')}</label>
@@ -1405,7 +1406,7 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">{t('newJob.finalUnitPrice', 'Preço Final Unitário (R$)')}</label>
-                                    <input type="number" step="0.01" value={manualPrice !== null ? manualPrice : calculatedBasePrice.toFixed(2)} onChange={e => setManualPrice(parseFloat(e.target.value))} className="w-full px-4 py-2.5 border rounded-xl font-black focus:ring-2 outline-none" />
+                                    <input type="number" step="0.01" value={manualPrice !== null ? manualPrice : calculatedBasePrice.toFixed(2)} onChange={e => setManualPrice(e.target.value === '' ? '' : parseFloat(e.target.value))} className="w-full px-4 py-2.5 border rounded-xl font-black focus:ring-2 outline-none" />
                                 </div>
                                 <div>
                                     <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">{t('newJob.extraDiscount', 'Desconto Extra')}</label>
@@ -1424,7 +1425,7 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                                             step={discountType === 'PERCENTAGE' ? "1" : "0.01"}
                                             max={discountType === 'PERCENTAGE' ? "100" : undefined}
                                             value={discountValue} 
-                                            onChange={e => setDiscountValue(discountType === 'PERCENTAGE' ? Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)) : Math.max(0, parseFloat(e.target.value) || 0))} 
+                                            onChange={e => setDiscountValue(e.target.value === '' ? '' : (discountType === 'PERCENTAGE' ? Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)) : Math.max(0, parseFloat(e.target.value) || 0)))} 
                                             className="flex-1 px-4 py-2.5 bg-white border border-slate-200 rounded-xl font-black focus:ring-2 outline-none" 
                                             placeholder={discountType === 'PERCENTAGE' ? "0%" : "R$ 0,00"}
                                         />
@@ -1604,22 +1605,22 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                                 <div className="flex gap-2">
                                     <div className="space-y-1 flex-1">
                                         <label className="text-[10px] font-black text-slate-500 uppercase">{t('newJob.quantity', 'Qtd.')}</label>
-                                        <input type="number" min="1" value={productQuantity} onChange={e => setProductQuantity(Number(e.target.value))} className="w-full p-2.5 rounded-xl border border-slate-200 bg-white" />
+                                        <input type="number" min="1" value={productQuantity} onChange={e => setProductQuantity(e.target.value === '' ? '' : Number(e.target.value))} className="w-full p-2.5 rounded-xl border border-slate-200 bg-white" />
                                     </div>
                                     <div className="space-y-1 flex-[1.5]">
                                         <label className="text-[10px] font-black text-slate-500 uppercase">{t('newJob.unitValue', 'Valor Un. (R$)')}</label>
-                                        <input type="number" step="0.01" value={productManualPrice !== null ? productManualPrice : ''} onChange={e => setProductManualPrice(Number(e.target.value))} className="w-full p-2.5 rounded-xl border border-slate-200 bg-white" />
+                                        <input type="number" step="0.01" value={productManualPrice !== null ? productManualPrice : ''} onChange={e => setProductManualPrice(e.target.value === '' ? '' : Number(e.target.value))} className="w-full p-2.5 rounded-xl border border-slate-200 bg-white" />
                                     </div>
                                     <div className="space-y-1 flex-[1.5]">
                                         <label className="text-[10px] font-black text-slate-500 uppercase flex justify-between items-center">
                                            <span>{t('newJob.discountPercent', 'Desc (%)')}</span>
-                                           {productDiscountPercent > 0 && <span className="text-[8px] text-green-600 font-bold bg-green-50 px-1 rounded">-{(productDiscountPercent).toFixed(1)}%</span>}
+                                           {Number(productDiscountPercent) > 0 && <span className="text-[8px] text-green-600 font-bold bg-green-50 px-1 rounded">-{(Number(productDiscountPercent)).toFixed(1)}%</span>}
                                         </label>
                                         <div className="relative">
                                             <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
                                                 <Percent size={14} />
                                             </div>
-                                            <input type="number" step="0.01" min="0" max="100" value={productDiscountPercent} onChange={e => setProductDiscountPercent(Number(e.target.value))} className="w-full pl-9 pr-2 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-blue-500 outline-none" />
+                                            <input type="number" step="0.01" min="0" max="100" value={productDiscountPercent} onChange={e => setProductDiscountPercent(e.target.value === '' ? '' : Number(e.target.value))} className="w-full pl-9 pr-2 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-blue-500 outline-none" />
                                         </div>
                                     </div>
                                 </div>
@@ -1779,7 +1780,7 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                                                     type="number"
                                                     min="1"
                                                     value={materialQuantities[mat] || 1}
-                                                    onChange={(e) => setMaterialQuantities(prev => ({...prev, [mat]: parseInt(e.target.value) || 1}))}
+                                                    onChange={(e) => setMaterialQuantities(prev => ({...prev, [mat]: e.target.value === '' ? '' : (parseInt(e.target.value) || 1)} as any))}
                                                     className="w-16 p-1 text-xs border border-slate-200 rounded outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                                                 />
                                             </div>

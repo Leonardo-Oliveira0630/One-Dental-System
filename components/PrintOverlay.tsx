@@ -466,7 +466,10 @@ export const PrintOverlay = () => {
                   width: 49mm;
                   height: 28mm;
                   margin: 0;
-                  padding: 1.5mm;
+                  padding-top: 4.5mm !important;
+                  padding-left: 2.8mm !important;
+                  padding-right: 1.5mm !important;
+                  padding-bottom: 1.5mm !important;
                   overflow: hidden;
                   box-sizing: border-box;
                   page-break-after: avoid;
@@ -566,16 +569,16 @@ export const PrintOverlay = () => {
             <div 
               id="slp-mrl-print"
               className="w-[49mm] h-[28mm] print:w-[49mm] print:h-[28mm] overflow-hidden flex flex-col bg-white box-border" 
-              style={{ fontFamily: 'Arial, Helvetica, sans-serif', color: 'black', paddingLeft: '2.9mm', paddingRight: '1.5mm', paddingTop: '2.5mm', paddingBottom: '2.5mm' }}
+              style={{ fontFamily: 'Arial, Helvetica, sans-serif', color: 'black', paddingLeft: '2.8mm', paddingRight: '1.5mm', paddingTop: '4.5mm', paddingBottom: '1.5mm' }}
             > 
                {/* Dentist Name */}
                <p className="font-bold text-[11px] leading-tight truncate uppercase w-full">{job.dentistName}</p>
                {/* Patient Name */}
-               <p className="text-[10px] leading-tight truncate uppercase w-full">{job.patientName}</p>
+               <p className="text-[10px] leading-tight truncate uppercase w-full mt-0.5">{job.patientName}</p>
                
                {/* Bottom Section: Dates/OS on left, Barcode on right */}
                <div className="flex-1 flex flex-col justify-end mt-0.5">
-                   <div className="flex justify-between items-center text-[10px] leading-tight mb-0.5">
+                   <div className="flex justify-between items-center text-[9.5px] leading-tight mb-0.5">
                      <span>{new Date(job.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>
                      <span className="font-bold">{new Date(job.dueDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>
                      <span className="font-black">{job.osNumber || job.id.substring(0,8)}</span>
@@ -585,7 +588,7 @@ export const PrintOverlay = () => {
                        <Barcode 
                          value={String(job.osNumber || job.id.substring(0,8))} 
                          width={2.0} 
-                         height={45} 
+                         height={38} 
                          displayValue={false}
                          margin={0} 
                          format="CODE128" 
@@ -598,10 +601,10 @@ export const PrintOverlay = () => {
             <div 
               id="slp-mrl-print"
               className="w-[49mm] h-[28mm] print:w-[49mm] print:h-[28mm] overflow-hidden flex flex-col bg-white box-border" 
-              style={{ fontFamily: 'Arial, Helvetica, sans-serif', color: 'black', paddingLeft: '2.9mm', paddingRight: '1mm', paddingTop: '1.5mm', paddingBottom: '1.5mm' }}
+              style={{ fontFamily: 'Arial, Helvetica, sans-serif', color: 'black', paddingLeft: '2.8mm', paddingRight: '1.2mm', paddingTop: '4.5mm', paddingBottom: '1.5mm' }}
             >
                <p className="font-bold text-[10px] leading-tight truncate uppercase">{job.dentistName}</p>
-               <p className="text-[9px] leading-tight truncate uppercase">{job.patientName}</p>
+               <p className="text-[9px] leading-tight truncate uppercase mt-0.5">{job.patientName}</p>
                <div className="flex justify-between items-start my-0.5">
                   <p className="font-black text-[11px] leading-tight">OS: {job.osNumber || job.id.substring(0,8)}</p>
                </div>

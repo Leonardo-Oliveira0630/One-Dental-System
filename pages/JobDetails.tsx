@@ -129,11 +129,11 @@ export const JobDetails = () => {
   const [expandedItemIdx, setExpandedItemIdx] = useState<number | null>(null);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [itemEditForm, setItemEditForm] = useState<{
-    quantity: number;
+    quantity: number | string;
     nature?: 'NORMAL' | 'REPETITION' | 'ADJUSTMENT';
-    price: number;
-    appliedDiscount: number;
-    appliedDiscountFixed: number;
+    price: number | string;
+    appliedDiscount: number | string;
+    appliedDiscountFixed: number | string;
     discountType: 'PERCENTAGE' | 'FIXED';
     appliedPriceTable: string;
     commissionDisabled: boolean;
@@ -635,7 +635,7 @@ export const JobDetails = () => {
   }, [editBoxNumber, jobs, job]);
   const [editDueDate, setEditDueDate] = useState('');
   const [editDueTime, setEditDueTime] = useState('');
-  const [editTotalValue, setEditTotalValue] = useState<number>(0);
+  const [editTotalValue, setEditTotalValue] = useState<number | string>(0);
   const [editUrgency, setEditUrgency] = useState<UrgencyLevel>(UrgencyLevel.NORMAL);
   const [editNotes, setEditNotes] = useState('');
   const [editReceivedMaterials, setEditReceivedMaterials] = useState<string[]>([]);
@@ -644,7 +644,7 @@ export const JobDetails = () => {
   const [editProducts, setEditProducts] = useState<JobProduct[]>([]);
   const [editingModalItemId, setEditingModalItemId] = useState<string | null>(null);
   const [newItemTypeId, setNewItemTypeId] = useState('');
-  const [newItemQty, setNewItemQty] = useState(1);
+  const [newItemQty, setNewItemQty] = useState<number | string>(1);
   const [newItemNature, setNewItemNature] = useState<JobNature>('NORMAL');
   const [newItemVariationIds, setNewItemVariationIds] = useState<string[]>([]);
   const [newItemTeeth, setNewItemTeeth] = useState<string[]>([]);
@@ -929,7 +929,7 @@ export const JobDetails = () => {
           id: `item_edit_${Date.now()}`,
           jobTypeId: type.id,
           name: type.name,
-          quantity: newItemQty,
+          quantity: Number(newItemQty) || 1,
           price: finalItemPrice,
           basePriceBeforeDiscount: calculatedBasePrice,
           appliedDiscount: 0,
@@ -1043,12 +1043,12 @@ export const JobDetails = () => {
       setEditTotalValue(itemsTotal + newProds.reduce((acc: number, p: any) => acc + (p.unitPrice * p.quantity), 0));
   };
 
-  const handleProductChange = (prodId: string, field: 'quantity' | 'basePriceBeforeDiscount' | 'appliedDiscount', value: number) => {
+  const handleProductChange = (prodId: string, field: 'quantity' | 'basePriceBeforeDiscount' | 'appliedDiscount', value: any) => {
       const newProds = editProducts.map(p => {
           if (p.id === prodId) {
-              const basePrice = field === 'basePriceBeforeDiscount' ? value : (p.basePriceBeforeDiscount ?? p.unitPrice);
-              const appliedDiscount = field === 'appliedDiscount' ? value : (p.appliedDiscount || 0);
-              const quantity = field === 'quantity' ? value : p.quantity;
+              const basePrice = field === 'basePriceBeforeDiscount' ? (value === '' ? 0 : Number(value)) : (p.basePriceBeforeDiscount ?? p.unitPrice);
+              const appliedDiscount = field === 'appliedDiscount' ? (value === '' ? 0 : Number(value)) : (p.appliedDiscount || 0);
+              const quantity = field === 'quantity' ? (value === '' ? 1 : Number(value)) : p.quantity;
               
               const finalPrice = basePrice * (1 - (appliedDiscount / 100));
               return {
@@ -1062,7 +1062,7 @@ export const JobDetails = () => {
       });
       setEditProducts(newProds);
       const itemsTotal = editItems.reduce((acc, i) => acc + (i.price * i.quantity), 0);
-      setEditTotalValue(itemsTotal + newProds.reduce((acc, p) => acc + (p.unitPrice * p.quantity), 0));
+      setEditTotalValue(itemsTotal + newProds.reduce((acc, p) => acc + (p.unitPrice * (Number(p.quantity) || 1)), 0));
   };
 
   const handleAddProductToJob = () => {
@@ -1155,9 +1155,9 @@ export const JobDetails = () => {
             notes: editNotes,
             receivedMaterials: editReceivedMaterials,
             receivedMaterialQuantities: editReceivedMaterialQuantities,
-            items: editItems,
-            products: editProducts,
-            totalValue: editTotalValue,
+            items: editItems.map(i => ({ ...i, quantity: Number(i.quantity) || 1 })),
+            products: editProducts.map(p => ({ ...p, quantity: Number(p.quantity) || 1, basePriceBeforeDiscount: Number(p.basePriceBeforeDiscount) || p.unitPrice, appliedDiscount: Number(p.appliedDiscount) || 0 })),
+            totalValue: Number(editTotalValue) || 0,
             history: [...(job.history || []).filter(Boolean), {
                 id: `hist_edit_${Date.now()}`,
                 timestamp: new Date(),
@@ -1776,9 +1776,12 @@ export const JobDetails = () => {
   };
 
   const handleSaveItemEdit = async (item: JobItem) => {
-      const newBasePrice = itemEditForm.price;
-      let finalPrice = newBasePrice * (1 - (itemEditForm.appliedDiscount / 100));
-      if (itemEditForm.appliedDiscountFixed > 0) finalPrice -= itemEditForm.appliedDiscountFixed;
+      const parsedQty = Math.max(1, parseInt(String(itemEditForm.quantity)) || 1);
+      const newBasePrice = Math.max(0, parseFloat(String(itemEditForm.price)) || 0);
+      const appliedDiscount = Math.max(0, parseFloat(String(itemEditForm.appliedDiscount)) || 0);
+      const appliedDiscountFixed = Math.max(0, parseFloat(String(itemEditForm.appliedDiscountFixed)) || 0);
+      let finalPrice = newBasePrice * (1 - (appliedDiscount / 100));
+      if (appliedDiscountFixed > 0) finalPrice -= appliedDiscountFixed;
       if (itemEditForm.nature === 'REPETITION' || itemEditForm.nature === 'ADJUSTMENT') {
           finalPrice = 0;
       } else {
@@ -1789,12 +1792,12 @@ export const JobDetails = () => {
           if (i.id === item.id) {
               return {
                   ...i,
-                  quantity: itemEditForm.quantity,
+                  quantity: parsedQty,
                   nature: itemEditForm.nature || 'NORMAL',
                   price: finalPrice,
                   basePriceBeforeDiscount: newBasePrice,
-                  appliedDiscount: itemEditForm.appliedDiscount,
-                  appliedDiscountFixed: itemEditForm.appliedDiscountFixed,
+                  appliedDiscount: appliedDiscount,
+                  appliedDiscountFixed: appliedDiscountFixed,
                   appliedPriceTable: itemEditForm.appliedPriceTable,
                   commissionDisabled: itemEditForm.commissionDisabled,
                   isInternalStep: itemEditForm.isInternalStep,
@@ -1808,7 +1811,7 @@ export const JobDetails = () => {
                       Object.entries(i.stageQuantities).forEach(([sec, stgs]) => {
                           nextSQ[sec] = {};
                           Object.entries(stgs as Record<string, number>).forEach(([stg, q]) => {
-                              nextSQ[sec][stg] = (q === 1 || q === i.quantity) ? itemEditForm.quantity : q;
+                              nextSQ[sec][stg] = (q === 1 || q === i.quantity) ? parsedQty : q;
                           });
                       });
                       return nextSQ;
@@ -1827,7 +1830,7 @@ export const JobDetails = () => {
           history: [...(job.history || []).filter(Boolean), {
               id: `hist_item_edit_${Date.now()}`,
               timestamp: new Date(),
-              action: `Item "${item.name}" editado (Qtd: ${itemEditForm.quantity}, Total: R$ ${(finalPrice * itemEditForm.quantity).toFixed(2)})`,
+              action: `Item "${item.name}" editado (Qtd: ${parsedQty}, Total: R$ ${(finalPrice * parsedQty).toFixed(2)})`,
               userId: currentUser?.id || '',
               userName: currentUser?.name || 'Sistema',
               sector: currentUser?.sector || 'Gestão'
@@ -2326,12 +2329,12 @@ export const JobDetails = () => {
                                                                       return secQty;
                                                                   })()}
                                                                   onChange={(e) => {
-                                                                      const val = parseInt(e.target.value) || 1;
+                                                                      const val = e.target.value === '' ? '' : (parseInt(e.target.value) || '');
                                                                       setTempStageQuantities(prev => ({
                                                                           ...prev,
                                                                           [sector.name]: {
                                                                               ...(prev[sector.name] || {}),
-                                                                              [stage]: val
+                                                                              [stage]: val as any
                                                                           }
                                                                       }));
                                                                   }}
@@ -2557,7 +2560,7 @@ export const JobDetails = () => {
                           )}
                           <div>
                               <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Valor Total (R$)</label>
-                              <input type="number" step="0.01" value={editTotalValue} onChange={e => setEditTotalValue(parseFloat(e.target.value) || 0)} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold" />
+                              <input type="number" step="0.01" value={editTotalValue} onChange={e => setEditTotalValue(e.target.value === '' ? '' : parseFloat(e.target.value))} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold" />
                           </div>
                           <div>
                               <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">{t("job.newDelivery", "Nova Entrega")}</label>
@@ -2599,7 +2602,7 @@ export const JobDetails = () => {
                                                   <div className="flex gap-2 items-end">
                                                       <div className={(item.selectedTeeth && item.selectedTeeth.length > 0) ? "w-20 opacity-50 pointer-events-none" : "w-20"}>
                                                           <label className="block text-[9px] font-black text-slate-500 uppercase mb-1">Qtd</label>
-                                                          <input type="number" min="1" value={item.quantity || 1} readOnly={!!(item.selectedTeeth && item.selectedTeeth.length > 0)} onChange={e => handleUpdateEditItem(item.id, { quantity: parseInt(e.target.value) || 1 })} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-center" />
+                                                          <input type="number" min="1" value={(item.quantity as any) === '' ? '' : (item.quantity ?? 1)} readOnly={!!(item.selectedTeeth && item.selectedTeeth.length > 0)} onChange={e => handleUpdateEditItem(item.id, { quantity: e.target.value === '' ? '' : (parseInt(e.target.value) || '') as any })} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-center" />
                                                       </div>
                                                       <div className="flex-1">
                                                           <label className="block text-[9px] font-black text-slate-500 uppercase mb-1">Cor</label>
@@ -2697,15 +2700,15 @@ export const JobDetails = () => {
                                           <div className="flex gap-2 items-center">
                                               <div className="flex-1">
                                                   <label className="text-[9px] font-black text-slate-500 uppercase">Qtd</label>
-                                                  <input type="number" min="1" value={prod.quantity} onChange={(e) => handleProductChange(prod.id, 'quantity', Number(e.target.value))} className="w-full text-xs font-bold p-1.5 bg-white border border-amber-200 rounded outline-none" />
+                                                  <input type="number" min="1" value={prod.quantity} onChange={(e) => handleProductChange(prod.id, 'quantity', e.target.value === '' ? '' : Number(e.target.value))} className="w-full text-xs font-bold p-1.5 bg-white border border-amber-200 rounded outline-none" />
                                               </div>
                                               <div className="flex-[1.5]">
                                                   <label className="text-[9px] font-black text-slate-500 uppercase">Val. Unit</label>
-                                                  <input type="number" step="0.01" value={prod.basePriceBeforeDiscount ?? prod.unitPrice} onChange={(e) => handleProductChange(prod.id, 'basePriceBeforeDiscount', parseFloat(e.target.value) || 0)} className="w-full text-xs font-bold p-1.5 bg-white border border-amber-200 rounded outline-none" />
+                                                  <input type="number" step="0.01" value={prod.basePriceBeforeDiscount ?? prod.unitPrice} onChange={(e) => handleProductChange(prod.id, 'basePriceBeforeDiscount', e.target.value === '' ? '' : parseFloat(e.target.value))} className="w-full text-xs font-bold p-1.5 bg-white border border-amber-200 rounded outline-none" />
                                               </div>
                                               <div className="flex-[1.5]">
                                                   <label className="text-[9px] font-black text-slate-500 uppercase">Desc (%)</label>
-                                                  <input type="number" step="0.01" max="100" min="0" value={prod.appliedDiscount || 0} onChange={(e) => handleProductChange(prod.id, 'appliedDiscount', parseFloat(e.target.value) || 0)} className="w-full text-xs font-bold p-1.5 bg-white border border-amber-200 rounded outline-none" />
+                                                  <input type="number" step="0.01" max="100" min="0" value={prod.appliedDiscount === undefined ? '' : prod.appliedDiscount} onChange={(e) => handleProductChange(prod.id, 'appliedDiscount', e.target.value === '' ? '' : parseFloat(e.target.value))} className="w-full text-xs font-bold p-1.5 bg-white border border-amber-200 rounded outline-none" />
                                               </div>
                                           </div>
                                           <div className="text-right mt-1 font-black text-slate-700 text-xs">
@@ -2731,7 +2734,7 @@ export const JobDetails = () => {
                                    <div className="flex gap-2 items-end">
                                       <div className={newItemTeeth.length > 0 ? "w-20 opacity-50 pointer-events-none" : "w-20"}>
                                            <label className="block text-[9px] font-black text-slate-400 uppercase mb-1">Qtd</label>
-                                           <input type="number" min="1" value={newItemQty} readOnly={newItemTeeth.length > 0} onChange={e => setNewItemQty(parseInt(e.target.value) || 1)} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-center" />
+                                           <input type="number" min="1" value={newItemQty} readOnly={newItemTeeth.length > 0} onChange={e => setNewItemQty(e.target.value === '' ? '' : parseInt(e.target.value))} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-center" />
                                        </div>
                                        <div className="flex-1">
                                            <label className="block text-[9px] font-black text-slate-400 uppercase mb-1">Cor</label>
@@ -3512,7 +3515,7 @@ export const JobDetails = () => {
                                                                 type="number" min={1}
                                                                 className="w-full text-sm font-bold border border-slate-300 p-2.5 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                                                                 value={itemEditForm.quantity}
-                                                                onChange={(e) => setItemEditForm({...itemEditForm, quantity: Math.max(1, parseInt(e.target.value) || 1)})}
+                                                                onChange={(e) => setItemEditForm({...itemEditForm, quantity: e.target.value === '' ? '' : (parseInt(e.target.value) || '')})}
                                                             />
                                                         </div>
                                                         <div>
@@ -3523,7 +3526,7 @@ export const JobDetails = () => {
                                                                     type="number" min={0} step={0.01}
                                                                     className="w-full text-sm font-bold border border-slate-300 p-2.5 pl-8 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                                                                     value={itemEditForm.price}
-                                                                    onChange={(e) => setItemEditForm({...itemEditForm, price: parseFloat(e.target.value) || 0, appliedPriceTable: 'Personalizado'})}
+                                                                    onChange={(e) => setItemEditForm({...itemEditForm, price: e.target.value === '' ? '' : e.target.value, appliedPriceTable: 'Personalizado'})}
                                                                 />
                                                             </div>
                                                         </div>
@@ -3546,9 +3549,9 @@ export const JobDetails = () => {
                                                                     className="flex-1 w-full text-sm font-bold border border-slate-300 p-2.5 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                                                                     value={itemEditForm.discountType === 'PERCENTAGE' ? itemEditForm.appliedDiscount : itemEditForm.appliedDiscountFixed}
                                                                     onChange={(e) => {
-                                                                        const val = Math.max(0, parseFloat(e.target.value) || 0);
+                                                                        const val = e.target.value === '' ? '' : e.target.value;
                                                                         if (itemEditForm.discountType === 'PERCENTAGE') {
-                                                                            setItemEditForm({...itemEditForm, appliedDiscount: Math.min(100, val), appliedDiscountFixed: 0});
+                                                                            setItemEditForm({...itemEditForm, appliedDiscount: val, appliedDiscountFixed: 0});
                                                                         } else {
                                                                             setItemEditForm({...itemEditForm, appliedDiscountFixed: val, appliedDiscount: 0});
                                                                         }
@@ -3711,7 +3714,7 @@ export const JobDetails = () => {
                                                                                         min={0.1} 
                                                                                         step={0.1}
                                                                                         value={secQty}
-                                                                                        onChange={(e) => handleSectorQuantityChange(item.id, secName, parseFloat(e.target.value) || item.quantity)}
+                                                                                        onChange={(e) => handleSectorQuantityChange(item.id, secName, e.target.value === '' ? (item.quantity || 1) : (parseFloat(e.target.value) || item.quantity || 1))}
                                                                                         className="w-16 p-1 text-center text-xs font-bold border border-slate-300 bg-slate-50 focus:bg-white rounded outline-none focus:border-blue-500"
                                                                                     />
                                                                                 </div>

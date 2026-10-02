@@ -149,7 +149,7 @@ export const JobTypes = () => {
   // Form State
   const [name, setName] = useState('');
   const [category, setCategory] = useState('');
-  const [basePrice, setBasePrice] = useState<number>(0);
+  const [basePrice, setBasePrice] = useState<number | string>(0);
   const [baseCommission, setBaseCommission] = useState<number | ''>('');
   const [productionTimeDays, setProductionTimeDays] = useState<number | ''>('');
   const [variationGroups, setVariationGroups] = useState<VariationGroup[]>([]);
@@ -521,7 +521,7 @@ export const JobTypes = () => {
       const commonFields = {
           name, 
           category, 
-          basePrice, 
+          basePrice: Number(basePrice) || 0, 
           baseCommission: baseCommission === '' ? undefined : Number(baseCommission), 
           productionTimeDays: productionTimeDays === '' ? undefined : Math.max(0, Number(productionTimeDays)),
           variationGroups, 
@@ -1018,14 +1018,14 @@ export const JobTypes = () => {
                                             )}
                                             <div className="relative">
                                                 <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">R$</div>
-                                                <input type="number" step="0.01" value={basePrice} onChange={e => setBasePrice(parseFloat(e.target.value))} required className="w-full pl-8 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+                                                <input type="number" step="0.01" value={basePrice} onChange={e => setBasePrice(e.target.value === '' ? '' : parseFloat(e.target.value))} required className="w-full pl-8 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
                                             </div>
                                         </div>
                                         {mainTab === 'PROMOTIONS' && originalJobTypeId && promotionQuantity && (
                                             <div className="mt-2 text-xs font-medium text-slate-500 bg-slate-50 p-2 rounded-lg border border-slate-200 flex justify-between">
                                                 <span>{t('jobTypes.originalTotalValue', { value: ((jobTypes.find(jt => jt.id === originalJobTypeId)?.basePrice || 0) * Number(promotionQuantity) || 0).toFixed(2), defaultValue: `Valor original total: R$ ${((jobTypes.find(jt => jt.id === originalJobTypeId)?.basePrice || 0) * Number(promotionQuantity) || 0).toFixed(2)}` })}</span>
-                                                {jobTypes.find(jt => jt.id === originalJobTypeId) && basePrice < ((jobTypes.find(jt => jt.id === originalJobTypeId)?.basePrice || 0) * Number(promotionQuantity)) && (
-                                                    <span className="text-green-600 font-bold">-{Math.round(((((jobTypes.find(jt => jt.id === originalJobTypeId)?.basePrice || 0) * Number(promotionQuantity)) - basePrice) / ((jobTypes.find(jt => jt.id === originalJobTypeId)?.basePrice || 1) * Number(promotionQuantity))) * 100)}% off</span>
+                                                {jobTypes.find(jt => jt.id === originalJobTypeId) && Number(basePrice) < ((jobTypes.find(jt => jt.id === originalJobTypeId)?.basePrice || 0) * Number(promotionQuantity)) && (
+                                                    <span className="text-green-600 font-bold">-{Math.round(((((jobTypes.find(jt => jt.id === originalJobTypeId)?.basePrice || 0) * Number(promotionQuantity)) - Number(basePrice)) / ((jobTypes.find(jt => jt.id === originalJobTypeId)?.basePrice || 1) * Number(promotionQuantity))) * 100)}% off</span>
                                                 )}
                                             </div>
                                         )}
@@ -1321,7 +1321,7 @@ export const JobTypes = () => {
                                                                         type="number" 
                                                                         step="0.01" 
                                                                         value={option.priceModifier} 
-                                                                        onChange={e => updateOption(group.id, option.id, { priceModifier: parseFloat(e.target.value) || 0 })} 
+                                                                        onChange={e => updateOption(group.id, option.id, { priceModifier: e.target.value === '' ? '' : (parseFloat(e.target.value) || 0) as any })} 
                                                                         className="w-full p-2 text-sm rounded bg-slate-50 focus:bg-white outline-none focus:ring-1 ring-slate-200 focus:ring-indigo-400 text-right pr-3 pl-8" 
                                                                     />
                                                                 </div>
