@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { PriceTable, JobType } from '../../types';
 import { Plus, Table, Edit2, Trash2, Save, X, Search, DollarSign, Layers } from 'lucide-react';
@@ -33,6 +33,13 @@ export const PriceTables = () => {
     const [tableName, setTableName] = useState('');
     const [prices, setPrices] = useState<Record<string, { basePrice: number, variations: Record<string, number> }>>({});
     const [searchTerm, setSearchTerm] = useState('');
+
+    const sortedAndFilteredJobTypes = useMemo(() => {
+        const list = [...jobTypes].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' }));
+        if (!searchTerm.trim()) return list;
+        const term = searchTerm.toLowerCase();
+        return list.filter(jt => jt.name.toLowerCase().includes(term));
+    }, [jobTypes, searchTerm]);
 
     const openCreateModal = () => {
         setEditingTable(null);
@@ -211,10 +218,15 @@ export const PriceTables = () => {
                                 </div>
 
                                 <div className="space-y-4">
-                                    {jobTypes.filter(jt => jt.name.toLowerCase().includes(searchTerm.toLowerCase())).map(jt => {
-                                        const tablePrice = prices[jt.id] || { basePrice: jt.basePrice, variations: {} };
-                                        return (
-                                            <div key={jt.id} className="bg-white border border-slate-100 rounded-[32px] overflow-hidden shadow-sm hover:border-blue-100 transition-all">
+                                    {sortedAndFilteredJobTypes.length === 0 ? (
+                                        <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200 text-slate-400 text-xs font-bold">
+                                            Nenhum tipo de serviço encontrado para "{searchTerm}".
+                                        </div>
+                                    ) : (
+                                        sortedAndFilteredJobTypes.map(jt => {
+                                            const tablePrice = prices[jt.id] || { basePrice: jt.basePrice, variations: {} };
+                                            return (
+                                                <div key={jt.id} className="bg-white border border-slate-100 rounded-[32px] overflow-hidden shadow-sm hover:border-blue-100 transition-all">
                                                 <div className="px-4 pb-4 sm:px-6 sm:pb-6 bg-slate-50/50 flex flex-col sm:flex-row justify-between sm:items-center border-b border-slate-50 gap-4">
                                                     <div>
                                                         <p className="font-black text-slate-800 uppercase text-sm tracking-tight">{jt.name}</p>
@@ -271,7 +283,7 @@ export const PriceTables = () => {
                                                 )}
                                             </div>
                                         );
-                                    })}
+                                    }))}
                                 </div>
                             </div>
                         </div>

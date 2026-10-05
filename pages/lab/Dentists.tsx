@@ -57,6 +57,7 @@ export const Dentists = () => {
     const [temporaryUnblockUntil, setTemporaryUnblockUntil] = useState<Date | null>(null);
     const [customPrices, setCustomPrices] = useState<any[]>([]);
     const [subDentists, setSubDentists] = useState<{ id: string; name: string; cro?: string; }[]>([]);
+    const [servicePriceSearch, setServicePriceSearch] = useState('');
     const [technicalManagerName, setTechnicalManagerName] = useState('');
     const [technicalManagerEmail, setTechnicalManagerEmail] = useState('');
     const [technicalManagerCpf, setTechnicalManagerCpf] = useState('');
@@ -212,6 +213,7 @@ export const Dentists = () => {
         // Load custom prices as defined without overriding with dummy fixedPrices
         const loadedCustomPrices = client.customPrices || [];
         setCustomPrices(loadedCustomPrices);
+        setServicePriceSearch('');
         setTechnicalManagerName(client.technicalManagerName || '');
         setTechnicalManagerEmail(client.technicalManagerEmail || '');
         setTechnicalManagerCpf(client.technicalManagerCpf || '');
@@ -375,6 +377,13 @@ export const Dentists = () => {
 
         return filterAndSortClients(base, searchTerm, (a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR'));
     }, [combinedClients, searchTerm, statusFilter, clientTypeFilter, priceTableFilter, customPricingFilter]);
+
+    const sortedAndFilteredJobTypes = useMemo(() => {
+        const list = [...jobTypes].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' }));
+        if (!servicePriceSearch.trim()) return list;
+        const term = servicePriceSearch.toLowerCase();
+        return list.filter(jt => jt.name.toLowerCase().includes(term));
+    }, [jobTypes, servicePriceSearch]);
 
     // Advanced chronological statement with previous balance
     const chronoHistory = useMemo(() => {
@@ -1014,9 +1023,9 @@ export const Dentists = () => {
                 )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:p-6">
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
                 {filtered.length === 0 ? (
-                    <div className="bg-white rounded-2xl p-12 text-center border border-slate-100 shadow-sm col-span-full">
+                    <div className="p-12 text-center">
                         <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-4 text-slate-400 border border-slate-100">
                             <Search size={28} />
                         </div>
@@ -1034,129 +1043,157 @@ export const Dentists = () => {
                             </button>
                         )}
                     </div>
-                ) : filtered.map(client => {
-                    const clientBatches = billingBatches.filter(b => b.dentistId === client.id);
-                    const gBatches = clientBatches.filter(b => b.status === 'PENDING');
-                    const eBatches = clientBatches.filter(b => b.status === 'OVERDUE');
-                    const pBatches = clientBatches.filter(b => b.status === 'PAID');
-                    
-                    return (
-                        <div key={client.id} className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-100 hover:shadow-md transition-all group relative overflow-hidden">
-                        {client.deliveryViaPost && (
-                          <div className="absolute top-4 right-4 bg-orange-100 text-orange-600 p-2 rounded-lg" title={t('dentists.postDeliveryTooltip', 'Entrega via Correios')}>
-                             <Package size={16} />
-                          </div>
-                        )}
-                        
-                        <div className="flex items-start gap-4 mb-6">
-                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-inner transition-colors ${client.isManual ? 'bg-slate-100 text-slate-500' : 'bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white'}`}>
-                                {client.isManual ? <HardDrive size={28} /> : <Globe size={28} />}
-                            </div>
-                            <div className="flex-1 min-w-0 pr-6">
-                                <div className="flex items-center gap-2">
-                                    <h3 className="font-bold text-slate-900 text-lg truncate" title={client.name}>{client.name}</h3>
-                                    {client.isManual ? (
-                                        <span className="bg-slate-200 text-slate-600 text-[9px] font-black px-1.5 py-0.5 rounded flex items-center gap-1 shrink-0">
-                                            {t('dentists.internal', 'INTERNO')}
-                                        </span>
-                                    ) : (
-                                        <span className="bg-blue-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded flex items-center gap-1 shrink-0">
-                                            WEB
-                                        </span>
-                                    )}
-                                    {client.isBlocked && (
-                                        <span className="bg-red-100 text-red-700 text-[9px] font-black px-1.5 py-0.5 rounded flex items-center gap-1 shrink-0">
-                                            {t('dentists.blocked', 'BLOQUEADO')}
-                                        </span>
-                                    )}
-                                </div>
-                                <div className="flex items-center gap-1.5 text-slate-500 text-sm mt-0.5">
-                                    <Building size={14} className="shrink-0" />
-                                    <span className="truncate">{client.clinicName || t('dentists.privatePractice', 'Consultório Particular')}</span>
-                                </div>
-                            </div>
-                        </div>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse min-w-[640px] md:min-w-full">
+                            <thead>
+                                <tr className="bg-slate-50/80 text-[11px] font-black uppercase tracking-wider text-slate-500 border-b border-slate-100">
+                                    <th className="py-3.5 px-4 sm:px-5">{t('dentists.colClient', 'Cliente & Clínica')}</th>
+                                    <th className="py-3.5 px-3 sm:px-4">{t('dentists.colPricing', 'Tabela & Desconto')}</th>
+                                    <th className="py-3.5 px-3 sm:px-4">{t('dentists.colBatchesSummary', 'Faturamento / Boletos')}</th>
+                                    <th className="py-3.5 px-4 sm:px-5 text-right">{t('dentists.colActions', 'Ações')}</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 text-sm">
+                                {filtered.map(client => {
+                                    const clientBatches = billingBatches.filter(b => b.dentistId === client.id);
+                                    const gBatches = clientBatches.filter(b => b.status === 'PENDING');
+                                    const eBatches = clientBatches.filter(b => b.status === 'OVERDUE');
+                                    const pBatches = clientBatches.filter(b => b.status === 'PAID');
+                                    
+                                    return (
+                                        <tr key={client.id} className="hover:bg-slate-50/70 transition-colors group">
+                                            {/* Cliente & Clínica */}
+                                            <td className="py-3 px-4 sm:px-5">
+                                                <div className="flex items-center gap-2.5">
+                                                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-inner ${client.isManual ? 'bg-slate-100 text-slate-500' : 'bg-blue-50 text-blue-600'}`}>
+                                                        {client.isManual ? <HardDrive size={18} /> : <Globe size={18} />}
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                                            <span className="font-bold text-slate-900 text-sm truncate max-w-[160px] sm:max-w-[220px] lg:max-w-xs" title={client.name}>
+                                                                {client.name}
+                                                            </span>
+                                                            {client.isManual ? (
+                                                                <span className="bg-slate-100 text-slate-600 text-[9px] font-black px-1.5 py-0.5 rounded shrink-0">
+                                                                    {t('dentists.internal', 'INTERNO')}
+                                                                </span>
+                                                            ) : (
+                                                                <span className="bg-blue-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded shrink-0">
+                                                                    WEB
+                                                                </span>
+                                                            )}
+                                                            {client.isBlocked && (
+                                                                <span className="bg-red-100 text-red-700 text-[9px] font-black px-1.5 py-0.5 rounded shrink-0">
+                                                                    {t('dentists.blocked', 'BLOQUEADO')}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <div className="flex items-center gap-1 text-xs text-slate-400 mt-0.5 truncate max-w-[200px]">
+                                                            <Building size={11} className="shrink-0" />
+                                                            <span className="truncate">{client.clinicName || t('dentists.privatePractice', 'Consultório Particular')}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </td>
 
-                        <div className="space-y-3 py-4 border-y border-slate-50">
-                            <div className="flex justify-between items-center text-sm">
-                                <span className="text-slate-500">{t('dentists.priceTableLabel', 'Tabela de Preços:')}</span>
-                                <div className="flex items-center gap-1.5 flex-wrap justify-end">
-                                    {(client.isCustomPricing || (client.customPrices && client.customPrices.length > 0)) ? (
-                                        <span className="font-bold text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded-lg flex items-center gap-1" title={t('dentists.customPricesTooltip', 'Preços personalizados individualmente (Base: {{tableName}})', { tableName: client.priceTableId ? (priceTables.find(t => t.id === client.priceTableId)?.name || 'Específica') : 'Tabela Genérica' })}>
-                                            <Tag size={12} className="text-indigo-500 shrink-0" /> {t('dentists.customized', 'Personalizada')}
-                                            <span className="text-[10px] text-indigo-500 font-medium">({client.priceTableId ? (priceTables.find(t => t.id === client.priceTableId)?.name || 'Específica') : t('dentists.generic', 'Genérica')})</span>
-                                        </span>
-                                    ) : client.priceTableId ? (
-                                        <span className="font-bold text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-lg flex items-center gap-1 max-w-[180px] truncate" title={t('dentists.linkedTableTooltip', 'Tabela de preço vinculada')}>
-                                            <Table size={12} className="text-blue-500 shrink-0" /> <span className="truncate">{priceTables.find(t => t.id === client.priceTableId)?.name || t('dentists.specialTable', 'Tabela Especial')}</span>
-                                        </span>
-                                    ) : (
-                                        <span className="font-bold text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-lg">
-                                            {t('dentists.genericTable', 'Tabela Genérica')}
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
-                            <div className="flex justify-between items-center text-sm">
-                                <span className="text-slate-500">{t('dentists.globalDiscount', 'Desconto Global:')}</span>
-                                <span className="font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-lg">{client.globalDiscountPercent || 0}%</span>
-                            </div>
-                            <div className="flex justify-between items-center text-sm">
-                                <span className="text-slate-500">{t('dentists.logistics', 'Logística:')}</span>
-                                <span className="font-bold text-slate-700">{client.deliveryViaPost ? t('dentists.postDelivery', 'Correios') : t('dentists.directDelivery', 'Entrega Direta')}</span>
-                            </div>
-                        </div>
+                                            {/* Tabela & Desconto */}
+                                            <td className="py-3 px-3 sm:px-4">
+                                                <div className="space-y-1">
+                                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                                        {(client.isCustomPricing || (client.customPrices && client.customPrices.length > 0)) ? (
+                                                            <span className="font-bold text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded-lg inline-flex items-center gap-1 max-w-[190px] truncate" title={t('dentists.customPricesTooltip', 'Preços personalizados individualmente (Base: {{tableName}})', { tableName: client.priceTableId ? (priceTables.find(t => t.id === client.priceTableId)?.name || 'Específica') : 'Tabela Genérica' })}>
+                                                                <Tag size={11} className="text-indigo-500 shrink-0" />
+                                                                <span className="truncate">{t('dentists.customized', 'Personalizada')}</span>
+                                                                <span className="text-[10px] text-indigo-500 font-medium">({client.priceTableId ? (priceTables.find(t => t.id === client.priceTableId)?.name || 'Específica') : t('dentists.generic', 'Genérica')})</span>
+                                                            </span>
+                                                        ) : client.priceTableId ? (
+                                                            <span className="font-bold text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-lg inline-flex items-center gap-1 max-w-[170px] truncate" title={t('dentists.linkedTableTooltip', 'Tabela de preço vinculada')}>
+                                                                <Table size={11} className="text-blue-500 shrink-0" />
+                                                                <span className="truncate">{priceTables.find(t => t.id === client.priceTableId)?.name || t('dentists.specialTable', 'Tabela Especial')}</span>
+                                                            </span>
+                                                        ) : (
+                                                            <span className="font-bold text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-lg inline-flex items-center gap-1">
+                                                                {t('dentists.genericTable', 'Tabela Genérica')}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <div className="text-xs flex items-center gap-1">
+                                                        <span className="text-slate-400 font-medium text-[11px]">{t('dentists.discount', 'Desc:')}</span>
+                                                        <span className="font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-1.5 py-0.2 rounded text-[11px]">{client.globalDiscountPercent || 0}%</span>
+                                                    </div>
+                                                </div>
+                                            </td>
 
-                        {/* Estatísticas de Boletos */}
-                        <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex justify-between items-center text-[10px] uppercase font-black text-slate-500 gap-1 mt-3">
-                            <div className="text-center flex-1 border-r border-slate-100">
-                                <span className="block text-[8px] text-slate-400 font-bold uppercase">{t('dentists.generated', 'Gerados')}</span>
-                                <span className="text-blue-600 font-black text-xs">{gBatches.length} (R$ {gBatches.reduce((sum, b) => sum + b.totalAmount, 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 })})</span>
-                            </div>
-                            <div className="text-center flex-1 border-r border-slate-100">
-                                <span className="block text-[8px] text-slate-400 font-bold uppercase">{t('dentists.expired', 'Expirados')}</span>
-                                <span className="text-red-500 font-black text-xs">{eBatches.length} (R$ {eBatches.reduce((sum, b) => sum + b.totalAmount, 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 })})</span>
-                            </div>
-                            <div className="text-center flex-1">
-                                <span className="block text-[8px] text-slate-400 font-bold uppercase">{t('dentists.paid', 'Pagos')}</span>
-                                <span className="text-green-600 font-black text-xs">{pBatches.length} (R$ {pBatches.reduce((sum, b) => sum + b.totalAmount, 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 })})</span>
-                            </div>
-                        </div>
+                                            {/* Faturamento / Boletos */}
+                                            <td className="py-3 px-3 sm:px-4 whitespace-nowrap">
+                                                <div className="inline-flex items-center gap-2 bg-slate-50/90 px-2.5 py-1 rounded-xl border border-slate-100 text-[11px]">
+                                                    <div className="text-center" title="Boletos Gerados">
+                                                        <span className="text-slate-400 block text-[8px] uppercase font-bold tracking-wider">{t('dentists.generated', 'Gerados')}</span>
+                                                        <span className="text-blue-600 font-black text-xs">{gBatches.length} <span className="text-[10px] font-bold text-slate-500">(R$ {gBatches.reduce((sum, b) => sum + b.totalAmount, 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 })})</span></span>
+                                                    </div>
+                                                    <span className="text-slate-200 font-light">|</span>
+                                                    <div className="text-center" title="Boletos Expirados">
+                                                        <span className="text-slate-400 block text-[8px] uppercase font-bold tracking-wider">{t('dentists.expired', 'Expirados')}</span>
+                                                        <span className={`font-black text-xs ${eBatches.length > 0 ? 'text-red-600' : 'text-slate-500'}`}>
+                                                            {eBatches.length} <span className="text-[10px] font-bold text-slate-500">(R$ {eBatches.reduce((sum, b) => sum + b.totalAmount, 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 })})</span>
+                                                        </span>
+                                                    </div>
+                                                    <span className="text-slate-200 font-light">|</span>
+                                                    <div className="text-center" title="Boletos Pagos">
+                                                        <span className="text-slate-400 block text-[8px] uppercase font-bold tracking-wider">{t('dentists.paid', 'Pagos')}</span>
+                                                        <span className={`font-black text-xs ${pBatches.length > 0 ? 'text-emerald-600' : 'text-slate-500'}`}>
+                                                            {pBatches.length} <span className="text-[10px] font-bold text-slate-500">(R$ {pBatches.reduce((sum, b) => sum + b.totalAmount, 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 })})</span>
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </td>
 
-                        <div className="flex flex-col gap-2 mt-6">
-                            <div className="grid grid-cols-2 gap-2">
-                                {canViewPrices && (
-                                    <button 
-                                        onClick={() => handleOpenPricing(client)}
-                                        className="py-2.5 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-indigo-50 hover:text-indigo-600 transition-all flex items-center justify-center gap-2 text-[11px] border border-slate-200"
-                                    >
-                                        <Tag size={14} /> {t('dentists.priceTableBtn', 'Tabela Preços')}
-                                    </button>
-                                )}
-                                {hasPerm('jobs:view') && (
-                                    <button 
-                                        onClick={() => navigate(`/jobs?dentist=${client.id}`)}
-                                        className="py-2.5 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-blue-50 hover:text-blue-600 transition-all flex items-center justify-center gap-2 text-[11px] border border-slate-200"
-                                    >
-                                        <Package size={14} /> {t('dentists.jobsBtn', 'Trabalhos')}
-                                    </button>
-                                )}
-                            </div>
-                            
-                            {(hasPerm('clients:statement_view') || hasPerm('finance:view')) && (
-                                <button 
-                                    onClick={() => {
-                                        setStatementClient(client);
-                                        setShowStatement(true);
-                                    }}
-                                    className="w-full py-3 bg-blue-600 text-white font-black rounded-xl hover:bg-blue-700 transition-all flex items-center justify-center gap-2 text-[11px] shadow-lg shadow-blue-100 uppercase tracking-widest"
-                                >
-                                    <DollarSign size={14} /> {t('dentists.financialBtn', 'Financeiro')}
-                                </button>
-                            )}
-                        </div>
+                                            {/* Ações */}
+                                            <td className="py-3 px-4 sm:px-5 text-right whitespace-nowrap">
+                                                <div className="flex items-center justify-end gap-1.5">
+                                                    {canViewPrices && (
+                                                        <button 
+                                                            onClick={() => handleOpenPricing(client)}
+                                                            className="px-2.5 py-1.5 bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-600 font-bold rounded-xl transition-all inline-flex items-center gap-1 text-xs border border-slate-200/80 cursor-pointer shadow-2xs"
+                                                            title={t('dentists.priceTableBtn', 'Tabela de Preços')}
+                                                        >
+                                                            <Tag size={13} className="text-indigo-500 shrink-0" />
+                                                            <span>{t('dentists.priceTableBtn', 'Tabela')}</span>
+                                                        </button>
+                                                    )}
+                                                    {hasPerm('jobs:view') && (
+                                                        <button 
+                                                            onClick={() => navigate(`/jobs?dentist=${client.id}`)}
+                                                            className="px-2.5 py-1.5 bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-600 font-bold rounded-xl transition-all inline-flex items-center gap-1 text-xs border border-slate-200/80 cursor-pointer shadow-2xs"
+                                                            title={t('dentists.jobsBtn', 'Trabalhos do Cliente')}
+                                                        >
+                                                            <Package size={13} className="text-blue-500 shrink-0" />
+                                                            <span>{t('dentists.jobsBtn', 'Trabalhos')}</span>
+                                                        </button>
+                                                    )}
+                                                    {(hasPerm('clients:statement_view') || hasPerm('finance:view')) && (
+                                                        <button 
+                                                            onClick={() => {
+                                                                setStatementClient(client);
+                                                                setShowStatement(true);
+                                                            }}
+                                                            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all inline-flex items-center gap-1 text-xs shadow-sm cursor-pointer shrink-0"
+                                                            title={t('dentists.financialBtn', 'Financeiro / Extrato')}
+                                                        >
+                                                            <DollarSign size={13} className="shrink-0" />
+                                                            <span>{t('dentists.financialBtn', 'Financeiro')}</span>
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
                     </div>
-                );})}
+                )}
             </div>
 
             {/* MODAL DE TABELA DE PREÇOS */}
@@ -1549,17 +1586,43 @@ export const Dentists = () => {
                                     </div>
 
                                         <div className="space-y-4">
-                                            <div className="flex items-center justify-between">
-                                                <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                                    <DollarSign size={14}/> {t('dentists.individualPrices', 'Preços e Descontos Individuais')}
-                                                </h4>
-                                                <span className="text-[10px] text-slate-400 font-bold">
-                                                    {t('dentists.inheritedBaseValues', 'Valores base herdados de:')} {priceTables.find(t => t.id === priceTableId)?.name || t('dentists.genericTable', 'Tabela Genérica')}
-                                                </span>
+                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                                <div>
+                                                    <h4 className="text-xs font-black text-slate-700 uppercase tracking-widest flex items-center gap-2">
+                                                        <DollarSign size={14} className="text-blue-600"/> {t('dentists.individualPrices', 'Preços e Descontos Individuais')}
+                                                    </h4>
+                                                    <span className="text-[10px] text-slate-400 font-bold block mt-0.5">
+                                                        {t('dentists.inheritedBaseValues', 'Valores base herdados de:')} {priceTables.find(t => t.id === priceTableId)?.name || t('dentists.genericTable', 'Tabela Genérica')}
+                                                    </span>
+                                                </div>
+                                                <div className="relative w-full sm:w-64">
+                                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                                                    <input 
+                                                        type="text"
+                                                        placeholder={t('dentists.searchServicePlaceholder', 'Buscar tipo de serviço...')}
+                                                        value={servicePriceSearch}
+                                                        onChange={e => setServicePriceSearch(e.target.value)}
+                                                        className="w-full pl-9 pr-8 py-2 bg-slate-100/80 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500"
+                                                    />
+                                                    {servicePriceSearch && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setServicePriceSearch('')}
+                                                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+                                                        >
+                                                            <X size={14} />
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </div>
                                             
                                             <div className="space-y-3">
-                                                {jobTypes.map(type => {
+                                                {sortedAndFilteredJobTypes.length === 0 ? (
+                                                    <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200 text-slate-400 text-xs font-bold">
+                                                        Nenhum tipo de serviço encontrado para "{servicePriceSearch}".
+                                                    </div>
+                                                ) : (
+                                                    sortedAndFilteredJobTypes.map(type => {
                                                     const cp = customPrices.find(p => p.jobTypeId === type.id);
                                                     const hasCustomFixed = cp?.fixedPrice !== undefined && cp.fixedPrice !== null && cp.fixedPrice > 0;
                                                     const hasCustomDiscount = cp?.discountPercent !== undefined && cp.discountPercent !== null && cp.discountPercent > 0;
@@ -1748,7 +1811,7 @@ export const Dentists = () => {
                                                             )}
                                                         </div>
                                                     );
-                                                })}
+                                                }))}
                                             </div>
                                         </div>
                                     </>

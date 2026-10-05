@@ -91,7 +91,7 @@ export const Finance = () => {
       const d = new Date();
       return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
   });
-  const [reportType, setReportType] = useState<'ALL' | 'DESPESA' | 'RECEBIMENTO' | 'DEBITOS'>('ALL');
+  const [reportType, setReportType] = useState<'ALL' | 'DESPESA' | 'RECEBIMENTO' | 'DEBITO' | 'DRE' | 'DEBITOS'>('ALL');
   const [reportSource, setReportSource] = useState<'ALL' | 'MANUAL_OR_ASAAS' | 'ONLINE_STORE' | 'EXPENSE'>('ALL');
   const [reportStatus, setReportStatus] = useState<'ALL' | 'PAID' | 'PENDING'>('ALL');
   const [reportSearchTerm, setReportSearchTerm] = useState('');
@@ -141,6 +141,13 @@ export const Finance = () => {
       });
   };
 
+  const safeDate = (d: any): Date => {
+      if (!d) return new Date();
+      if (typeof d.toDate === 'function') return d.toDate();
+      const parsed = new Date(d);
+      return isNaN(parsed.getTime()) ? new Date() : parsed;
+  };
+
   // Calculations for Client Debits Report
   const reportDebts = useMemo(() => {
     const sDate = reportStartDate ? new Date(`${reportStartDate}T00:00:00`) : new Date(0);
@@ -188,9 +195,9 @@ export const Finance = () => {
         });
     });
 
-    // Process all completed/delivered jobs
+    // Process all jobs
     jobs.forEach(job => {
-        if (job.status !== JobStatus.COMPLETED && job.status !== JobStatus.DELIVERED) return;
+        if (job.status === JobStatus.CANCELED || job.status === JobStatus.REJECTED) return;
         
         let entry = map.get(job.dentistId);
         if (!entry) {
@@ -214,11 +221,12 @@ export const Finance = () => {
             map.set(job.dentistId, entry);
         }
 
-        const jobDate = new Date(job.createdAt);
+        const jobDate = safeDate((job as any).completedAt || job.deliveredAt || job.createdAt);
+        const jobVal = Number(job.totalValue) || 0;
         
         // Debits up to end date
         if (jobDate <= eDate) {
-            entry.totalDebitsUpTo += (job.totalValue || 0);
+            entry.totalDebitsUpTo += jobVal;
             entry.allJobsCount += 1;
             
             const isUnpaid = (job.paymentStatus === 'PENDING' || !job.paymentStatus) && !job.batchId && !job.asaasPaymentId;
@@ -230,7 +238,7 @@ export const Finance = () => {
 
         // Debits within selected period
         if (jobDate >= sDate && jobDate <= eDate) {
-            entry.periodDebits += (job.totalValue || 0);
+            entry.periodDebits += jobVal;
         }
     });
 
@@ -258,7 +266,7 @@ export const Finance = () => {
             map.set(p.dentistId, entry);
         }
 
-        const payDate = new Date(p.paymentDate);
+        const payDate = safeDate(p.paymentDate || p.createdAt);
         const isDebit = p.type === 'MANUAL_DEBIT';
         const creditAmount = p.type === 'DISCOUNT' || p.type === 'MANUAL_CREDIT' 
             ? Number(p.amount || 0) 
@@ -340,17 +348,129 @@ export const Finance = () => {
     };
   }, [reportDebts]);
 
+  // Comprehensive DRE (Demonstrativo do Resultado do Exercício) Data
+  const dreData = useMemo(() => {
+    const sDate = reportStartDate ? new Date(`${reportStartDate}T00:00:00`) : new Date(0);
+    const eDate = reportEndDate ? new Date(`${reportEndDate}T23:59:59`) : new Date(8640000000000000);
+
+    // 1. Lab Jobs within period
+    const periodJobs = jobs.filter(j => {
+      if (j.status === JobStatus.CANCELED || j.status === JobStatus.REJECTED) return false;
+      const jDate = safeDate((j as any).completedAt || j.deliveredAt || j.createdAt);
+      return jDate >= sDate && jDate <= eDate;
+    });
+
+    const labProductionGross = periodJobs
+      .filter(j => j.origin !== 'ONLINE_ORDER')
+      .reduce((sum, j) => sum + (Number(j.totalValue) || 0), 0);
+    const labJobsCount = periodJobs.filter(j => j.origin !== 'ONLINE_ORDER').length;
+
+    const storeGross = periodJobs
+      .filter(j => j.origin === 'ONLINE_ORDER' || j.origin === 'ONLINE_REQUISITION')
+      .reduce((sum, j) => sum + (Number(j.totalValue) || 0), 0);
+    const storeOrdersCount = periodJobs.filter(j => j.origin === 'ONLINE_ORDER' || j.origin === 'ONLINE_REQUISITION').length;
+
+    // 2. Manual Debits in period
+    const manualDebits = dentistPayments
+      .filter(p => p.type === 'MANUAL_DEBIT')
+      .filter(p => {
+        const pDate = safeDate(p.paymentDate || p.createdAt);
+        return pDate >= sDate && pDate <= eDate;
+      })
+      .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+
+    const grossRevenue = labProductionGross + storeGross + manualDebits;
+
+    // 3. Deductions / Discounts in period
+    const discountsGiven = dentistPayments
+      .filter(p => p.type === 'DISCOUNT')
+      .filter(p => {
+        const pDate = safeDate(p.paymentDate || p.createdAt);
+        return pDate >= sDate && pDate <= eDate;
+      })
+      .reduce((sum, p) => sum + (Number(p.amount) || 0), 0) +
+      dentistPayments
+      .filter(p => p.type === 'PAYMENT' && p.discount && p.discount > 0)
+      .filter(p => {
+        const pDate = safeDate(p.paymentDate || p.createdAt);
+        return pDate >= sDate && pDate <= eDate;
+      })
+      .reduce((sum, p) => sum + (Number(p.discount) || 0), 0);
+
+    const netRevenue = Math.max(0, grossRevenue - discountsGiven);
+
+    // 4. Expenses by category in period
+    const periodExpenses = expenses.filter(e => {
+      const eDateObj = safeDate(e.date ? (typeof e.date === 'string' && (e.date as string).length === 10 ? (e.date as string) + 'T12:00:00' : e.date) : (e as any).createdAt);
+      return eDateObj >= sDate && eDateObj <= eDate;
+    });
+
+    const expensesByCategory: Record<string, number> = {};
+    let totalExpenses = 0;
+    periodExpenses.forEach(e => {
+      const cat = e.category || 'Geral';
+      expensesByCategory[cat] = (expensesByCategory[cat] || 0) + (Number(e.amount) || 0);
+      totalExpenses += (Number(e.amount) || 0);
+    });
+
+    const netOperatingProfit = netRevenue - totalExpenses;
+    const profitMargin = netRevenue > 0 ? (netOperatingProfit / netRevenue) * 100 : 0;
+
+    // 5. Cash Flow Realized in period
+    const cashInflows = dentistPayments
+      .filter(p => p.type === 'PAYMENT' || p.type === 'MANUAL_CREDIT' || !p.type)
+      .filter(p => {
+        const pDate = safeDate(p.paymentDate || p.createdAt);
+        return pDate >= sDate && pDate <= eDate;
+      })
+      .reduce((sum, p) => sum + (Number(p.amount) || 0), 0) +
+      periodJobs
+      .filter(j => j.origin === 'ONLINE_ORDER' && (j.paymentStatus === 'PAID' || j.paymentStatus === 'VOUCHER'))
+      .reduce((sum, j) => sum + (Number(j.totalValue) || 0), 0);
+
+    const cashOutflows = periodExpenses
+      .filter(e => e.status === 'PAID')
+      .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+
+    const cashBalance = cashInflows - cashOutflows;
+
+    // Pending to receive from this period
+    const pendingToReceive = periodJobs
+      .filter(j => (j.paymentStatus === 'PENDING' || !j.paymentStatus) && !j.batchId && !j.asaasPaymentId)
+      .reduce((sum, j) => sum + (Number(j.totalValue) || 0), 0);
+
+    return {
+      labProductionGross,
+      labJobsCount,
+      storeGross,
+      storeOrdersCount,
+      manualDebits,
+      grossRevenue,
+      discountsGiven,
+      netRevenue,
+      expensesByCategory,
+      totalExpenses,
+      periodExpensesCount: periodExpenses.length,
+      netOperatingProfit,
+      profitMargin,
+      cashInflows,
+      cashOutflows,
+      cashBalance,
+      pendingToReceive
+    };
+  }, [jobs, expenses, dentistPayments, reportStartDate, reportEndDate]);
+
   const reportMovements = useMemo(() => {
     // 1. Expenses
     const movementsFromExpenses = expenses.map(e => ({
       id: e.id,
-      date: new Date(e.date + 'T12:00:00'),
+      date: safeDate(e.date ? (typeof e.date === 'string' && (e.date as string).length === 10 ? (e.date as string) + 'T12:00:00' : e.date) : (e as any).createdAt),
       description: e.description,
       type: 'DESPESA' as const,
-      category: `Despesa (${e.category})`,
-      amount: e.amount,
+      category: `Despesa (${e.category || 'Geral'})`,
+      amount: Number(e.amount || 0),
       paymentMethod: '---',
-      status: e.status === 'PAID' ? 'PAID' : 'PENDING',
+      status: e.status === 'PAID' ? ('PAID' as const) : ('PENDING' as const),
       source: 'EXPENSE' as const,
       refId: e.id,
       dentistName: '---'
@@ -382,7 +502,7 @@ export const Finance = () => {
 
       return {
         id: p.id,
-        date: new Date(p.paymentDate),
+        date: safeDate(p.paymentDate || p.createdAt),
         description: p.notes || (isDebit ? `Débito Manual - ${p.dentistName}` : `Recebimento - ${p.dentistName}`),
         type: movementType,
         category,
@@ -400,23 +520,52 @@ export const Finance = () => {
       .filter(j => j.origin === 'ONLINE_ORDER' || j.origin === 'ONLINE_REQUISITION')
       .map(j => ({
         id: j.id,
-        date: new Date(j.createdAt),
+        date: safeDate(j.createdAt),
         description: `Pedido Loja Online OS #${j.osNumber || j.id.substring(0, 6)} - Paciente: ${j.patientName || '---'}`,
         type: 'RECEBIMENTO' as const,
         category: 'Loja Online',
-        amount: j.totalValue,
+        amount: Number(j.totalValue || 0),
         paymentMethod: 'Cartão/Pix (Asaas)',
-        status: (j.paymentStatus === 'PAID' || j.paymentStatus === 'VOUCHER') ? 'PAID' : 'PENDING',
+        status: (j.paymentStatus === 'PAID' || j.paymentStatus === 'VOUCHER') ? ('PAID' as const) : ('PENDING' as const),
         source: 'ONLINE_STORE' as const,
         refId: j.id,
         dentistName: j.dentistName || '---'
       }));
 
+    // 4. Laboratory Jobs / Internal Services (Débitos dos Dentistas por Serviços Laboratoriais)
+    const movementsFromLabJobs = jobs
+      .filter(j => j.origin !== 'ONLINE_ORDER' && j.status !== JobStatus.CANCELED && j.status !== JobStatus.REJECTED && (j.totalValue && j.totalValue > 0))
+      .map(j => {
+        const isPaid = j.paymentStatus === 'PAID' || j.paymentStatus === 'VOUCHER';
+        const dObj = manualDentists.find(d => d.id === j.dentistId) || allUsers.find(u => u.id === j.dentistId);
+        const dentistName = j.dentistName || dObj?.name || 'Cliente';
+        const jobDate = safeDate((j as any).completedAt || j.deliveredAt || j.createdAt);
+
+        let statusLabel = 'Em Produção';
+        if (j.status === JobStatus.DELIVERED) statusLabel = 'Entregue';
+        else if (j.status === JobStatus.COMPLETED) statusLabel = 'Concluído';
+
+        return {
+          id: `job-${j.id}`,
+          date: jobDate,
+          description: `Trabalho OS #${j.osNumber || j.id.substring(0, 6)} - Paciente: ${j.patientName || '---'} (${statusLabel})`,
+          type: 'DEBITO' as const,
+          category: 'Serviço Laboratorial (OS)',
+          amount: Number(j.totalValue || 0),
+          paymentMethod: isPaid ? (j.paymentMethod || 'Pago') : (j.batchId ? 'Faturado em Boleto' : 'Aguardando Cobrança'),
+          status: isPaid ? ('PAID' as const) : ('PENDING' as const),
+          source: 'MANUAL_OR_ASAAS' as const,
+          refId: j.id,
+          dentistName
+        };
+      });
+
     // Combine all
     let allMovements = [
       ...movementsFromExpenses,
       ...movementsFromPayments,
-      ...movementsFromOnlineStore
+      ...movementsFromOnlineStore,
+      ...movementsFromLabJobs
     ];
 
     // Filter by start date and end date
@@ -426,7 +575,7 @@ export const Finance = () => {
     allMovements = allMovements.filter(m => m.date >= sDate && m.date <= eDate);
 
     // Filter by type
-    if (reportType !== 'ALL' && reportType !== 'DEBITOS') {
+    if (reportType !== 'ALL' && reportType !== 'DEBITOS' && reportType !== 'DRE') {
       allMovements = allMovements.filter(m => m.type === reportType);
     }
 
@@ -452,11 +601,12 @@ export const Finance = () => {
 
     // Sort by date descending
     return allMovements.sort((a, b) => b.date.getTime() - a.date.getTime());
-  }, [expenses, dentistPayments, jobs, reportStartDate, reportEndDate, reportType, reportSource, reportStatus, reportSearchTerm]);
+  }, [expenses, dentistPayments, jobs, manualDentists, allUsers, reportStartDate, reportEndDate, reportType, reportSource, reportStatus, reportSearchTerm]);
 
   const reportStats = useMemo(() => {
     let totalInflows = 0;
     let totalOutflows = 0;
+    let totalDebitsBilled = 0;
     let pendingInflows = 0;
     let pendingOutflows = 0;
 
@@ -474,9 +624,8 @@ export const Finance = () => {
           pendingOutflows += m.amount;
         }
       } else if (m.type === 'DEBITO') {
-        if (m.status === 'PAID') {
-          totalInflows += m.amount;
-        } else {
+        totalDebitsBilled += m.amount;
+        if (m.status === 'PENDING') {
           pendingInflows += m.amount;
         }
       }
@@ -485,6 +634,7 @@ export const Finance = () => {
     return {
       totalInflows,
       totalOutflows,
+      totalDebitsBilled,
       pendingInflows,
       pendingOutflows,
       netBalance: totalInflows - totalOutflows
@@ -493,6 +643,53 @@ export const Finance = () => {
 
   const exportReportCSV = () => {
     if (!currentOrg) return;
+
+    if (reportType === 'DRE') {
+      const headers = ['Item / Descrição', 'Valor (R$)', '% da Receita Bruta'];
+      const rows = [
+        ['1. RECEITA OPERACIONAL BRUTA', '', '100.0%'],
+        ['  1.1 Faturamento Produção Laboratorial (OSs)', dreData.labProductionGross.toFixed(2), dreData.grossRevenue > 0 ? `${((dreData.labProductionGross / dreData.grossRevenue) * 100).toFixed(1)}%` : '0%'],
+        ['  1.2 Pedidos Loja Online', dreData.storeGross.toFixed(2), dreData.grossRevenue > 0 ? `${((dreData.storeGross / dreData.grossRevenue) * 100).toFixed(1)}%` : '0%'],
+        ['  1.3 Débitos Manuais / Outros Serviços', dreData.manualDebits.toFixed(2), dreData.grossRevenue > 0 ? `${((dreData.manualDebits / dreData.grossRevenue) * 100).toFixed(1)}%` : '0%'],
+        ['(=) TOTAL DA RECEITA BRUTA', dreData.grossRevenue.toFixed(2), '100.0%'],
+        ['', '', ''],
+        ['2. DEDUÇÕES DA RECEITA BRUTA', '', ''],
+        ['  2.1 Descontos Comerciais & Cortesias', dreData.discountsGiven.toFixed(2), dreData.grossRevenue > 0 ? `${((dreData.discountsGiven / dreData.grossRevenue) * 100).toFixed(1)}%` : '0%'],
+        ['(=) RECEITA OPERACIONAL LÍQUIDA', dreData.netRevenue.toFixed(2), dreData.grossRevenue > 0 ? `${((dreData.netRevenue / dreData.grossRevenue) * 100).toFixed(1)}%` : '0%'],
+        ['', '', ''],
+        ['3. CUSTOS & DESPESAS OPERACIONAIS', '', ''],
+        ...Object.entries(dreData.expensesByCategory).map(([cat, val]) => [
+          `  Despesa: ${cat}`,
+          val.toFixed(2),
+          dreData.netRevenue > 0 ? `${((val / dreData.netRevenue) * 100).toFixed(1)}%` : '0%'
+        ]),
+        ['(=) TOTAL DE DESPESAS OPERACIONAIS', dreData.totalExpenses.toFixed(2), dreData.netRevenue > 0 ? `${((dreData.totalExpenses / dreData.netRevenue) * 100).toFixed(1)}%` : '0%'],
+        ['', '', ''],
+        ['4. RESULTADO OPERACIONAL LÍQUIDO', '', ''],
+        ['(=) LUCRO / PREJUÍZO LÍQUIDO DO PERÍODO', dreData.netOperatingProfit.toFixed(2), dreData.netRevenue > 0 ? `${dreData.profitMargin.toFixed(1)}%` : '0%'],
+        ['', '', ''],
+        ['5. CONCILIAÇÃO DE CAIXA REALIZADO', '', ''],
+        ['  Entradas Efetivamente Recebidas em Caixa', dreData.cashInflows.toFixed(2), ''],
+        ['  Saídas Efetivamente Pagas em Despesas', dreData.cashOutflows.toFixed(2), ''],
+        ['(=) SALDO LÍQUIDO DE CAIXA REALIZADO', dreData.cashBalance.toFixed(2), ''],
+        ['  Faturamento Pendente a Receber (Em Aberto/Gaveta)', dreData.pendingToReceive.toFixed(2), '']
+      ];
+
+      const csvContent = [
+        headers.join(';'),
+        ...rows.map(row => row.join(';'))
+      ].join('\n');
+
+      const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `DRE_Demonstrativo_Resultado_${currentOrg.name.replace(/\s+/g, '_')}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      return;
+    }
 
     if (reportType === 'DEBITOS') {
       const headers = ['Cliente (Dentista)', 'Clinica', 'Documento', 'Telefone', 'OSs Pendentes (Qtd)', 'Debito no Periodo (R$)', 'Pagamentos no Periodo (R$)', 'Saldo Devedor Total (R$)'];
@@ -553,11 +750,73 @@ export const Finance = () => {
   const exportReportPDF = () => {
     if (!currentOrg) return;
     const doc = new jsPDF();
-    
-    if (reportType === 'DEBITOS') {
-      const sDate = reportStartDate ? new Date(`${reportStartDate}T00:00:00`).toLocaleDateString('pt-BR') : 'Início';
-      const eDate = reportEndDate ? new Date(`${reportEndDate}T23:59:59`).toLocaleDateString('pt-BR') : 'Fim';
+    const sDate = reportStartDate ? new Date(`${reportStartDate}T00:00:00`).toLocaleDateString('pt-BR') : 'Início';
+    const eDate = reportEndDate ? new Date(`${reportEndDate}T23:59:59`).toLocaleDateString('pt-BR') : 'Fim';
 
+    if (reportType === 'DRE') {
+      // Header
+      doc.setFillColor(15, 23, 42); // slate-900 color
+      doc.rect(0, 0, 210, 40, 'F');
+      
+      doc.setFontSize(18);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(255, 255, 255);
+      doc.text(currentOrg.name, 14, 18);
+      
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(200, 220, 255);
+      doc.text("DRE - Demonstrativo do Resultado do Exercício", 14, 28);
+      
+      doc.setFontSize(10);
+      doc.setTextColor(255, 255, 255);
+      doc.text(`Período: ${sDate} - ${eDate}`, 195, 28, { align: 'right' });
+
+      // Summary metrics
+      doc.setTextColor(50, 50, 50);
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.text("Resumo Executivo do DRE", 14, 52);
+      
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Faturamento Bruto: R$ ${dreData.grossRevenue.toFixed(2)}`, 14, 60);
+      doc.text(`Receita Líquida: R$ ${dreData.netRevenue.toFixed(2)}`, 14, 66);
+      doc.text(`Despesas Operacionais: R$ ${dreData.totalExpenses.toFixed(2)}`, 14, 72);
+      doc.text(`Resultado Líquido: R$ ${dreData.netOperatingProfit.toFixed(2)} (${dreData.profitMargin.toFixed(1)}%)`, 110, 60);
+      doc.text(`Saldo de Caixa Realizado: R$ ${dreData.cashBalance.toFixed(2)}`, 110, 66);
+      doc.text(`A Receber do Período: R$ ${dreData.pendingToReceive.toFixed(2)}`, 110, 72);
+
+      const dreTableRows = [
+        ['1. RECEITA OPERACIONAL BRUTA', `R$ ${dreData.grossRevenue.toFixed(2)}`, '100.0%'],
+        ['   • Serviços Laboratoriais (OSs)', `R$ ${dreData.labProductionGross.toFixed(2)}`, dreData.grossRevenue > 0 ? `${((dreData.labProductionGross / dreData.grossRevenue) * 100).toFixed(1)}%` : '0%'],
+        ['   • Loja Online / Pedidos', `R$ ${dreData.storeGross.toFixed(2)}`, dreData.grossRevenue > 0 ? `${((dreData.storeGross / dreData.grossRevenue) * 100).toFixed(1)}%` : '0%'],
+        ['   • Débitos Manuais', `R$ ${dreData.manualDebits.toFixed(2)}`, dreData.grossRevenue > 0 ? `${((dreData.manualDebits / dreData.grossRevenue) * 100).toFixed(1)}%` : '0%'],
+        ['2. DEDUÇÕES DA RECEITA', `R$ ${dreData.discountsGiven.toFixed(2)}`, dreData.grossRevenue > 0 ? `${((dreData.discountsGiven / dreData.grossRevenue) * 100).toFixed(1)}%` : '0%'],
+        ['3. RECEITA OPERACIONAL LÍQUIDA', `R$ ${dreData.netRevenue.toFixed(2)}`, '100.0%'],
+        ['4. CUSTOS E DESPESAS OPERACIONAIS', `R$ ${dreData.totalExpenses.toFixed(2)}`, dreData.netRevenue > 0 ? `${((dreData.totalExpenses / dreData.netRevenue) * 100).toFixed(1)}%` : '0%'],
+        ...Object.entries(dreData.expensesByCategory).map(([cat, val]) => [
+          `   • Despesa: ${cat}`,
+          `R$ ${val.toFixed(2)}`,
+          dreData.netRevenue > 0 ? `${((val / dreData.netRevenue) * 100).toFixed(1)}%` : '0%'
+        ]),
+        ['5. RESULTADO LÍQUIDO DO EXERCÍCIO', `R$ ${dreData.netOperatingProfit.toFixed(2)}`, `${dreData.profitMargin.toFixed(1)}%`]
+      ];
+
+      autoTable(doc, {
+        startY: 80,
+        head: [['Estrutura do DRE', 'Valor (R$)', '% Receita']],
+        body: dreTableRows,
+        theme: 'striped',
+        headStyles: { fillColor: [15, 23, 42] },
+        styles: { fontSize: 8 }
+      });
+
+      doc.save(`DRE_Demonstrativo_${currentOrg.name.replace(/\s+/g, '_')}.pdf`);
+      return;
+    }
+
+    if (reportType === 'DEBITOS') {
       // Header
       doc.setFillColor(15, 23, 42); // slate-900 color
       doc.rect(0, 0, 210, 40, 'F');
@@ -632,8 +891,6 @@ export const Finance = () => {
     doc.setTextColor(200, 220, 255);
     doc.text("Relatório de Movimentações Financeiras", 14, 28);
     
-    const sDate = reportStartDate ? new Date(`${reportStartDate}T00:00:00`).toLocaleDateString('pt-BR') : 'Início';
-    const eDate = reportEndDate ? new Date(`${reportEndDate}T23:59:59`).toLocaleDateString('pt-BR') : 'Fim';
     doc.setFontSize(10);
     doc.setTextColor(255, 255, 255);
     doc.text(`Período: ${sDate} - ${eDate}`, 195, 28, { align: 'right' });
@@ -646,19 +903,19 @@ export const Finance = () => {
     
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
-    doc.text(`Total Recebimentos (Realizados): R$ ${reportStats.totalInflows.toFixed(2)}`, 14, 60);
-    doc.text(`Total Despesas (Realizadas): R$ ${reportStats.totalOutflows.toFixed(2)}`, 14, 66);
-    doc.text(`Saldo Líquido: R$ ${reportStats.netBalance.toFixed(2)}`, 14, 72);
+    doc.text(`Total Faturado (Débitos): R$ ${reportStats.totalDebitsBilled.toFixed(2)}`, 14, 60);
+    doc.text(`Receita Realizada (Entradas): R$ ${reportStats.totalInflows.toFixed(2)}`, 14, 66);
+    doc.text(`Despesas Realizadas (Saídas): R$ ${reportStats.totalOutflows.toFixed(2)}`, 14, 72);
     
-    doc.text(`Recebimentos Pendentes: R$ ${reportStats.pendingInflows.toFixed(2)}`, 110, 60);
-    doc.text(`Despesas Pendentes: R$ ${reportStats.pendingOutflows.toFixed(2)}`, 110, 66);
+    doc.text(`Saldo Líquido Caixa: R$ ${reportStats.netBalance.toFixed(2)}`, 110, 60);
+    doc.text(`Recebimentos Pendentes: R$ ${reportStats.pendingInflows.toFixed(2)}`, 110, 66);
     doc.text(`Qtd. de Movimentações: ${reportMovements.length}`, 110, 72);
     
     // Table of movements
     const tableData = reportMovements.map(m => [
       m.date.toLocaleDateString('pt-BR'),
       m.description,
-      m.type === 'RECEBIMENTO' ? 'Recebimento' : m.type === 'DEBITO' ? 'Débito Manual' : 'Despesa',
+      m.type === 'RECEBIMENTO' ? 'Recebimento' : m.type === 'DEBITO' ? 'Débito' : 'Despesa',
       m.category,
       m.dentistName || '---',
       `R$ ${m.amount.toFixed(2)}`,
@@ -1632,51 +1889,109 @@ export const Finance = () => {
                       </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {dentistSummary.map(d => {
-                          const clientBatches = billingBatches.filter(b => b.dentistId === d.id);
-                          const gBatches = clientBatches.filter(b => b.status === 'PENDING');
-                          const eBatches = clientBatches.filter(b => b.status === 'OVERDUE');
-                          const pBatches = clientBatches.filter(b => b.status === 'PAID');
+                  {dentistSummary.length === 0 ? (
+                      <div className="py-20 text-center text-slate-400 border-2 border-dashed rounded-3xl italic">
+                          {t('finance.receivables.empty', 'Nenhum trabalho concluído aguardando faturamento.')}
+                      </div>
+                  ) : (
+                      <div className="overflow-x-auto border border-slate-100 rounded-2xl">
+                          <table className="w-full text-left border-collapse min-w-[700px] lg:min-w-full">
+                              <thead>
+                                  <tr className="bg-slate-50/80 text-[11px] font-black uppercase tracking-wider text-slate-500 border-b border-slate-100">
+                                      <th className="py-3.5 px-4 sm:px-6">{t('finance.receivables.colClient', 'Cliente & Consultório')}</th>
+                                      <th className="py-3.5 px-4">{t('finance.receivables.colPending', 'Débito na Gaveta')}</th>
+                                      <th className="py-3.5 px-4">{t('finance.batches.status', 'Boletos Gerados')}</th>
+                                      <th className="py-3.5 px-4">{t('finance.summary.overdue', 'Boletos Expirados')}</th>
+                                      <th className="py-3.5 px-4">{t('finance.expenses.statusPaid', 'Boletos Pagos')}</th>
+                                      <th className="py-3.5 px-4 sm:px-6 text-right">{t('finance.receivables.colActions', 'Ações')}</th>
+                                  </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100 text-sm">
+                                  {dentistSummary.map(d => {
+                                      const clientBatches = billingBatches.filter(b => b.dentistId === d.id);
+                                      const gBatches = clientBatches.filter(b => b.status === 'PENDING');
+                                      const eBatches = clientBatches.filter(b => b.status === 'OVERDUE');
+                                      const pBatches = clientBatches.filter(b => b.status === 'PAID');
+                                      const pendingJobsCount = d.pendingJobs?.length || 0;
 
-                          return (
-                              <div key={d.id} onClick={() => { setStatementClient(d); setShowStatement(true); }} className="p-5 border border-slate-100 rounded-2xl hover:border-blue-500 cursor-pointer transition-all bg-slate-50 group flex flex-col justify-between">
-                                  <div className="flex items-center gap-3 mb-4">
-                                      <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center font-black text-blue-600 shadow-sm">{d.name.charAt(0)}</div>
-                                      <div className="flex-1 overflow-hidden"><p className="font-bold text-slate-800 truncate">{d.name}</p><p className="text-[10px] text-slate-400 font-bold uppercase truncate">{d.clinicName || t('finance.receivables.client', 'Consultório')}</p></div>
-                                      <div className="flex gap-1">
-                                          <ChevronRight size={20} className="text-slate-300 group-hover:text-blue-500" />
-                                      </div>
-                                  </div>
-                                  <div className="grid grid-cols-1 gap-2 border-t border-slate-200/50 pt-4">
-                                      <p className="text-[9px] font-bold text-slate-400 uppercase">{t('finance.receivables.totalDebt', 'Débito na Gaveta')}</p>
-                                      <p className="text-xl font-black text-red-600">R$ {d.totalPending.toFixed(2)}</p>
-                                  </div>
+                                      return (
+                                          <tr 
+                                              key={d.id} 
+                                              onClick={() => { setStatementClient(d); setShowStatement(true); }}
+                                              className="hover:bg-blue-50/50 cursor-pointer transition-colors group"
+                                          >
+                                              {/* Cliente & Consultório */}
+                                              <td className="py-3.5 px-4 sm:px-6">
+                                                  <div className="flex items-center gap-3">
+                                                      <div className="w-10 h-10 bg-slate-100 group-hover:bg-blue-600 group-hover:text-white rounded-xl flex items-center justify-center font-black text-blue-600 shadow-sm shrink-0 transition-colors">
+                                                          {d.name.charAt(0).toUpperCase()}
+                                                      </div>
+                                                      <div className="min-w-0 max-w-[220px] sm:max-w-xs">
+                                                          <p className="font-bold text-slate-800 truncate group-hover:text-blue-600 transition-colors">{d.name}</p>
+                                                          <p className="text-[11px] text-slate-400 font-bold uppercase truncate">{d.clinicName || t('finance.receivables.client', 'Consultório')}</p>
+                                                      </div>
+                                                  </div>
+                                              </td>
 
-                                  {/* Estatísticas de Boletos */}
-                                  <div className="bg-white p-3 rounded-xl border border-slate-100 flex justify-between items-center text-[9px] uppercase font-black text-slate-500 gap-1 mt-3">
-                                      <div className="text-center flex-1 border-r border-slate-100">
-                                          <span className="block text-[8px] text-slate-400 font-bold uppercase">{t('finance.batches.status', 'Gerados')}</span>
-                                          <span className="text-blue-600 font-black text-xs">{gBatches.length} (R$ {gBatches.reduce((sum, b) => sum + b.totalAmount, 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 })})</span>
-                                      </div>
-                                      <div className="text-center flex-1 border-r border-slate-100">
-                                          <span className="block text-[8px] text-slate-400 font-bold uppercase">{t('finance.summary.overdue', 'Expirados')}</span>
-                                          <span className="text-red-500 font-black text-xs">{eBatches.length} (R$ {eBatches.reduce((sum, b) => sum + b.totalAmount, 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 })})</span>
-                                      </div>
-                                      <div className="text-center flex-1">
-                                          <span className="block text-[8px] text-slate-400 font-bold uppercase">{t('finance.expenses.statusPaid', 'Pagos')}</span>
-                                          <span className="text-green-600 font-black text-xs">{pBatches.length} (R$ {pBatches.reduce((sum, b) => sum + b.totalAmount, 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 })})</span>
-                                      </div>
-                                  </div>
-                              </div>
-                          );
-                      })}
-                      {dentistSummary.length === 0 && (
-                          <div className="col-span-full py-20 text-center text-slate-400 border-2 border-dashed rounded-3xl italic">
-                              {t('finance.receivables.empty', 'Nenhum trabalho concluído aguardando faturamento.')}
-                          </div>
-                      )}
-                  </div>
+                                              {/* Débito na Gaveta */}
+                                              <td className="py-3.5 px-4 whitespace-nowrap">
+                                                  <div className="space-y-0.5">
+                                                      <p className="text-base font-black text-red-600">R$ {d.totalPending.toFixed(2)}</p>
+                                                      <p className="text-[10px] font-bold text-slate-400 uppercase">
+                                                          {pendingJobsCount} {pendingJobsCount === 1 ? 'trabalho' : 'trabalhos'} a faturar
+                                                      </p>
+                                                  </div>
+                                              </td>
+
+                                              {/* Boletos Gerados */}
+                                              <td className="py-3.5 px-4 whitespace-nowrap">
+                                                  <div className="inline-flex flex-col">
+                                                      <span className="font-bold text-blue-600 text-xs">{gBatches.length} {gBatches.length === 1 ? 'boleto' : 'boletos'}</span>
+                                                      <span className="text-[11px] text-slate-500 font-medium">R$ {gBatches.reduce((sum, b) => sum + b.totalAmount, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                                  </div>
+                                              </td>
+
+                                              {/* Boletos Expirados */}
+                                              <td className="py-3.5 px-4 whitespace-nowrap">
+                                                  <div className="inline-flex flex-col">
+                                                      <span className={`font-bold text-xs ${eBatches.length > 0 ? 'text-red-600' : 'text-slate-500'}`}>
+                                                          {eBatches.length} {eBatches.length === 1 ? 'boleto' : 'boletos'}
+                                                      </span>
+                                                      <span className="text-[11px] text-slate-500 font-medium">R$ {eBatches.reduce((sum, b) => sum + b.totalAmount, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                                  </div>
+                                              </td>
+
+                                              {/* Boletos Pagos */}
+                                              <td className="py-3.5 px-4 whitespace-nowrap">
+                                                  <div className="inline-flex flex-col">
+                                                      <span className="font-bold text-green-600 text-xs">{pBatches.length} {pBatches.length === 1 ? 'boleto' : 'boletos'}</span>
+                                                      <span className="text-[11px] text-slate-500 font-medium">R$ {pBatches.reduce((sum, b) => sum + b.totalAmount, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                                  </div>
+                                              </td>
+
+                                              {/* Ações */}
+                                              <td className="py-3.5 px-4 sm:px-6 text-right whitespace-nowrap">
+                                                  <button 
+                                                      type="button"
+                                                      onClick={(e) => {
+                                                          e.stopPropagation();
+                                                          setStatementClient(d);
+                                                          setShowStatement(true);
+                                                      }}
+                                                      className="px-3.5 py-1.5 bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white font-bold rounded-xl transition-all inline-flex items-center gap-1.5 text-xs shadow-xs"
+                                                  >
+                                                      <Receipt size={14} />
+                                                      <span>{t('finance.receivables.btnStatement', 'Extrato / Faturar')}</span>
+                                                      <ChevronRight size={14} className="opacity-70" />
+                                                  </button>
+                                              </td>
+                                          </tr>
+                                      );
+                                  })}
+                              </tbody>
+                          </table>
+                      </div>
+                  )}
               </div>
           </div>
       )}
@@ -1849,17 +2164,18 @@ export const Finance = () => {
                           />
                       </div>
                       <div>
-                          <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Tipo de Entrada</label>
+                          <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Tipo de Entrada / Relatório</label>
                           <select 
                               value={reportType}
                               onChange={e => setReportType(e.target.value as any)}
                               className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xs font-bold focus:ring-2 focus:ring-blue-500 font-sans"
                           >
-                              <option value="ALL">Todos os Tipos</option>
-                              <option value="RECEBIMENTO">Recebimentos</option>
-                              <option value="DEBITO">Débitos Manuais</option>
-                              <option value="DESPESA">Despesas</option>
-                              <option value="DEBITOS">Clientes em Débito (Painel Consolidado)</option>
+                              <option value="ALL">Todas as Movimentações (OSs, Recebimentos, Despesas)</option>
+                              <option value="DRE">Demonstrativo de Resultado do Exercício (DRE)</option>
+                              <option value="DEBITOS">Painel Consolidado de Clientes em Débito</option>
+                              <option value="DEBITO">Débitos de OSs e Serviços Laboratoriais</option>
+                              <option value="RECEBIMENTO">Recebimentos e Pagamentos Realizados</option>
+                              <option value="DESPESA">Despesas e Custos</option>
                           </select>
                       </div>
                       <div>
@@ -1867,19 +2183,19 @@ export const Finance = () => {
                           <select 
                               value={reportSource}
                               onChange={e => setReportSource(e.target.value as any)}
-                              disabled={reportType === 'DEBITOS'}
+                              disabled={reportType === 'DEBITOS' || reportType === 'DRE'}
                               className={`w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xs font-bold focus:ring-2 focus:ring-blue-500 ${
-                                  reportType === 'DEBITOS' ? 'opacity-60 cursor-not-allowed text-slate-400' : ''
+                                  (reportType === 'DEBITOS' || reportType === 'DRE') ? 'opacity-60 cursor-not-allowed text-slate-400' : ''
                               }`}
                           >
-                              {reportType === 'DEBITOS' ? (
-                                  <option value="ALL">Contas de Clientes</option>
+                              {(reportType === 'DEBITOS' || reportType === 'DRE') ? (
+                                  <option value="ALL">Todos os Registros</option>
                               ) : (
                                   <>
-                                      <option value="ALL">Todos</option>
-                                      <option value="MANUAL_OR_ASAAS">Faturas (Manual/Asaas)</option>
+                                      <option value="ALL">Todos os Canais</option>
+                                      <option value="MANUAL_OR_ASAAS">Ordens de Serviço & Faturas</option>
                                       <option value="ONLINE_STORE">Loja Online (Pedidos)</option>
-                                      <option value="EXPENSE">Despesas</option>
+                                      <option value="EXPENSE">Despesas Operacionais</option>
                                   </>
                               )}
                           </select>
@@ -1904,7 +2220,275 @@ export const Finance = () => {
               </div>
 
               {/* Statistics Row */}
-              {reportType === 'DEBITOS' ? (
+              {reportType === 'DRE' ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                      <div className="bg-white p-5 rounded-2xl border border-blue-100 shadow-sm bg-gradient-to-br from-white to-blue-50/20">
+                          <p className="text-[10px] font-black text-blue-600 uppercase mb-1">Receita Bruta Total</p>
+                          <h4 className="text-xl font-black text-slate-800">R$ {dreData.grossRevenue.toFixed(2)}</h4>
+                          <span className="text-[10px] text-slate-400 font-bold block mt-1">{dreData.labJobsCount + dreData.storeOrdersCount} OSs no período</span>
+                      </div>
+                      <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+                          <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Receita Líquida</p>
+                          <h4 className="text-xl font-black text-emerald-600">R$ {dreData.netRevenue.toFixed(2)}</h4>
+                          <span className="text-[10px] text-slate-400 font-bold block mt-1">Desc: R$ {dreData.discountsGiven.toFixed(2)}</span>
+                      </div>
+                      <div className="bg-white p-5 rounded-2xl border border-rose-100 shadow-sm bg-gradient-to-br from-white to-rose-50/20">
+                          <p className="text-[10px] font-black text-rose-500 uppercase mb-1">Despesas Operacionais</p>
+                          <h4 className="text-xl font-black text-rose-600">R$ {dreData.totalExpenses.toFixed(2)}</h4>
+                          <span className="text-[10px] text-slate-400 font-bold block mt-1">{dreData.periodExpensesCount} lançamento(s)</span>
+                      </div>
+                      <div className={`p-5 rounded-2xl border shadow-sm ${dreData.netOperatingProfit >= 0 ? 'bg-emerald-50/50 border-emerald-200' : 'bg-rose-50/50 border-rose-200'}`}>
+                          <p className={`text-[10px] font-black uppercase mb-1 ${dreData.netOperatingProfit >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                              {dreData.netOperatingProfit >= 0 ? 'Lucro Líquido' : 'Prejuízo Líquido'}
+                          </p>
+                          <h4 className={`text-xl font-black ${dreData.netOperatingProfit >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                              R$ {dreData.netOperatingProfit.toFixed(2)}
+                          </h4>
+                          <span className="text-[10px] font-black block mt-1 opacity-80">Margem: {dreData.profitMargin.toFixed(1)}%</span>
+                      </div>
+                      <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+                          <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Saldo Caixa Realizado</p>
+                          <h4 className={`text-xl font-black ${dreData.cashBalance >= 0 ? 'text-slate-800' : 'text-rose-600'}`}>
+                              R$ {dreData.cashBalance.toFixed(2)}
+                          </h4>
+                          <span className="text-[10px] text-slate-400 font-bold block mt-1">A receber: R$ {dreData.pendingToReceive.toFixed(2)}</span>
+                      </div>
+                  </div>
+              ) : reportType === 'DEBITOS' ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                      <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+                          <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Clientes em Débito</p>
+                          <h4 className="text-xl font-black text-slate-800">{reportDebtStats.totalClientsWithDebt}</h4>
+                      </div>
+                      <div className="bg-white p-5 rounded-2xl border border-rose-100 shadow-sm bg-gradient-to-br from-white to-rose-50/30">
+                          <p className="text-[10px] font-black text-rose-500 uppercase mb-1">Saldo Total Devedor</p>
+                          <h4 className="text-xl font-black text-rose-600">R$ {reportDebtStats.totalDebtAmount.toFixed(2)}</h4>
+                      </div>
+                      <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+                          <p className="text-[10px] font-black text-slate-400 uppercase mb-1">OSs Pendentes</p>
+                          <h4 className="text-xl font-black text-amber-600">{reportDebtStats.totalPendingJobs}</h4>
+                      </div>
+                      <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+                          <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Média por Devedor</p>
+                          <h4 className="text-xl font-black text-slate-700">R$ {reportDebtStats.avgDebt.toFixed(2)}</h4>
+                      </div>
+                      <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+                          <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Maior Débito</p>
+                          <h4 className="text-sm font-black text-slate-800 truncate" title={reportDebtStats.maxDebtClient ? reportDebtStats.maxDebtClient.name : '---'}>
+                              {reportDebtStats.maxDebtClient ? (
+                                  <>
+                                      <span className="text-rose-600 block">R$ {reportDebtStats.maxDebtClient.balanceUpToEndDate.toFixed(2)}</span>
+                                      <span className="text-xs text-slate-500 font-bold truncate block">{reportDebtStats.maxDebtClient.name}</span>
+                                  </>
+                              ) : (
+                                  '---'
+                              )}
+                          </h4>
+                      </div>
+                  </div>
+              ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                      <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+                          <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Recebimentos Realizados</p>
+                          <h4 className="text-xl font-black text-green-600">R$ {reportStats.totalInflows.toFixed(2)}</h4>
+                      </div>
+                      <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+                          <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Despesas Pagas</p>
+                          <h4 className="text-xl font-black text-red-500">R$ {reportStats.totalOutflows.toFixed(2)}</h4>
+                      </div>
+                      <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+                          <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Saldo Líquido Período</p>
+                          <h4 className={`text-xl font-black ${reportStats.netBalance >= 0 ? 'text-blue-600' : 'text-rose-600'}`}>
+                              R$ {reportStats.netBalance.toFixed(2)}
+                          </h4>
+                      </div>
+                      <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+                          <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Débitos OSs Faturados/Trabalhos</p>
+                          <h4 className="text-xl font-black text-orange-600">R$ {reportStats.totalDebitsBilled.toFixed(2)}</h4>
+                      </div>
+                      <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+                          <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Aguardando Cobrança/Gaveta</p>
+                          <h4 className="text-xl font-black text-amber-600">R$ {reportStats.pendingInflows.toFixed(2)}</h4>
+                      </div>
+                  </div>
+              )}
+
+              {/* Table Section */}
+              {reportType === 'DRE' ? (
+                  <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+                      <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                          <div className="flex items-center gap-2">
+                              <span className="text-xs font-black text-slate-800 uppercase tracking-wider">
+                                  Demonstrativo do Resultado do Exercício (DRE)
+                              </span>
+                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-blue-800">
+                                  Competência / Período
+                              </span>
+                          </div>
+                          <span className="text-[11px] text-slate-400 font-bold">
+                              {reportStartDate ? new Date(`${reportStartDate}T00:00:00`).toLocaleDateString('pt-BR') : 'Início'} até {reportEndDate ? new Date(`${reportEndDate}T23:59:59`).toLocaleDateString('pt-BR') : 'Fim'}
+                          </span>
+                      </div>
+
+                      <div className="overflow-x-auto">
+                          <table className="w-full text-left border-collapse">
+                              <thead>
+                                  <tr className="bg-slate-100/70 border-b border-slate-200/80 text-[10px] font-black text-slate-500 uppercase tracking-wider">
+                                      <th className="py-3 px-6">Estrutura Contábil / Indicador</th>
+                                      <th className="py-3 px-6 text-right">Valor no Período</th>
+                                      <th className="py-3 px-6 text-right">% Receita Bruta</th>
+                                  </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100 text-xs">
+                                  {/* 1. Receita Bruta */}
+                                  <tr className="bg-blue-50/40 font-black text-slate-800">
+                                      <td className="py-3.5 px-6 uppercase tracking-wider flex items-center gap-2">
+                                          <span className="w-2 h-2 rounded-full bg-blue-600"></span> 1. RECEITA OPERACIONAL BRUTA
+                                      </td>
+                                      <td className="py-3.5 px-6 text-right text-blue-700 font-black text-sm">
+                                          R$ {dreData.grossRevenue.toFixed(2)}
+                                      </td>
+                                      <td className="py-3.5 px-6 text-right font-bold text-slate-500">100.0%</td>
+                                  </tr>
+                                  <tr className="hover:bg-slate-50 text-slate-700">
+                                      <td className="py-2.5 px-8 pl-10">
+                                          • Faturamento Produção Laboratorial (OSs Internas) ({dreData.labJobsCount} casos)
+                                      </td>
+                                      <td className="py-2.5 px-6 text-right font-bold">R$ {dreData.labProductionGross.toFixed(2)}</td>
+                                      <td className="py-2.5 px-6 text-right text-slate-400">
+                                          {dreData.grossRevenue > 0 ? `${((dreData.labProductionGross / dreData.grossRevenue) * 100).toFixed(1)}%` : '0%'}
+                                      </td>
+                                  </tr>
+                                  <tr className="hover:bg-slate-50 text-slate-700">
+                                      <td className="py-2.5 px-8 pl-10">
+                                          • Pedidos Loja Online ({dreData.storeOrdersCount} pedidos)
+                                      </td>
+                                      <td className="py-2.5 px-6 text-right font-bold">R$ {dreData.storeGross.toFixed(2)}</td>
+                                      <td className="py-2.5 px-6 text-right text-slate-400">
+                                          {dreData.grossRevenue > 0 ? `${((dreData.storeGross / dreData.grossRevenue) * 100).toFixed(1)}%` : '0%'}
+                                      </td>
+                                  </tr>
+                                  <tr className="hover:bg-slate-50 text-slate-700">
+                                      <td className="py-2.5 px-8 pl-10">
+                                          • Débitos Manuais / Outros Lançamentos
+                                      </td>
+                                      <td className="py-2.5 px-6 text-right font-bold">R$ {dreData.manualDebits.toFixed(2)}</td>
+                                      <td className="py-2.5 px-6 text-right text-slate-400">
+                                          {dreData.grossRevenue > 0 ? `${((dreData.manualDebits / dreData.grossRevenue) * 100).toFixed(1)}%` : '0%'}
+                                      </td>
+                                  </tr>
+
+                                  {/* 2. Deduções */}
+                                  <tr className="bg-amber-50/30 font-black text-slate-800">
+                                      <td className="py-3 px-6 uppercase tracking-wider flex items-center gap-2">
+                                          <span className="w-2 h-2 rounded-full bg-amber-500"></span> 2. DEDUÇÕES DA RECEITA BRUTA
+                                      </td>
+                                      <td className="py-3 px-6 text-right text-amber-700 font-black">
+                                          - R$ {dreData.discountsGiven.toFixed(2)}
+                                      </td>
+                                      <td className="py-3 px-6 text-right font-bold text-slate-500">
+                                          {dreData.grossRevenue > 0 ? `${((dreData.discountsGiven / dreData.grossRevenue) * 100).toFixed(1)}%` : '0%'}
+                                      </td>
+                                  </tr>
+                                  <tr className="hover:bg-slate-50 text-slate-700">
+                                      <td className="py-2 px-8 pl-10">• Descontos Comerciais, Promoções & Cortesias</td>
+                                      <td className="py-2 px-6 text-right font-bold">- R$ {dreData.discountsGiven.toFixed(2)}</td>
+                                      <td className="py-2 px-6 text-right text-slate-400">
+                                          {dreData.grossRevenue > 0 ? `${((dreData.discountsGiven / dreData.grossRevenue) * 100).toFixed(1)}%` : '0%'}
+                                      </td>
+                                  </tr>
+
+                                  {/* 3. Receita Líquida */}
+                                  <tr className="bg-emerald-50/40 font-black text-emerald-900 border-y border-emerald-100">
+                                      <td className="py-3.5 px-6 uppercase tracking-wider text-xs">
+                                          (=) RECEITA OPERACIONAL LÍQUIDA
+                                      </td>
+                                      <td className="py-3.5 px-6 text-right font-black text-sm text-emerald-700">
+                                          R$ {dreData.netRevenue.toFixed(2)}
+                                      </td>
+                                      <td className="py-3.5 px-6 text-right font-black text-emerald-800">
+                                          {dreData.grossRevenue > 0 ? `${((dreData.netRevenue / dreData.grossRevenue) * 100).toFixed(1)}%` : '100%'}
+                                      </td>
+                                  </tr>
+
+                                  {/* 4. Despesas */}
+                                  <tr className="bg-rose-50/30 font-black text-slate-800">
+                                      <td className="py-3 px-6 uppercase tracking-wider flex items-center gap-2">
+                                          <span className="w-2 h-2 rounded-full bg-rose-500"></span> 3. CUSTOS & DESPESAS OPERACIONAIS
+                                      </td>
+                                      <td className="py-3 px-6 text-right text-rose-700 font-black">
+                                          - R$ {dreData.totalExpenses.toFixed(2)}
+                                      </td>
+                                      <td className="py-3 px-6 text-right font-bold text-slate-500">
+                                          {dreData.netRevenue > 0 ? `${((dreData.totalExpenses / dreData.netRevenue) * 100).toFixed(1)}%` : '0%'}
+                                      </td>
+                                  </tr>
+                                  {Object.keys(dreData.expensesByCategory).length === 0 ? (
+                                      <tr className="text-slate-400 italic">
+                                          <td colSpan={3} className="py-2 px-10">Nenhuma despesa lançada no período selecionado.</td>
+                                      </tr>
+                                  ) : (
+                                      Object.entries(dreData.expensesByCategory).map(([cat, amount]) => (
+                                          <tr key={cat} className="hover:bg-slate-50 text-slate-700">
+                                              <td className="py-2 px-8 pl-10">• Despesa: {cat}</td>
+                                              <td className="py-2 px-6 text-right font-bold text-rose-600">- R$ {amount.toFixed(2)}</td>
+                                              <td className="py-2 px-6 text-right text-slate-400">
+                                                  {dreData.netRevenue > 0 ? `${((amount / dreData.netRevenue) * 100).toFixed(1)}%` : '0%'}
+                                              </td>
+                                          </tr>
+                                      ))
+                                  )}
+
+                                  {/* 5. Lucro / Prejuízo Líquido */}
+                                  <tr className={`border-y-2 font-black text-sm ${
+                                      dreData.netOperatingProfit >= 0 
+                                          ? 'bg-emerald-100/60 text-emerald-900 border-emerald-300' 
+                                          : 'bg-rose-100/60 text-rose-900 border-rose-300'
+                                  }`}>
+                                      <td className="py-4 px-6 uppercase tracking-wider">
+                                          (=) RESULTADO OPERACIONAL LÍQUIDO ({dreData.netOperatingProfit >= 0 ? 'LUCRO' : 'PREJUÍZO'})
+                                      </td>
+                                      <td className={`py-4 px-6 text-right font-black text-base ${dreData.netOperatingProfit >= 0 ? 'text-emerald-800' : 'text-rose-800'}`}>
+                                          R$ {dreData.netOperatingProfit.toFixed(2)}
+                                      </td>
+                                      <td className="py-4 px-6 text-right font-black">
+                                          {dreData.profitMargin.toFixed(1)}% Margem
+                                      </td>
+                                  </tr>
+
+                                  {/* 6. Conciliação de Caixa Realizado */}
+                                  <tr className="bg-slate-100 font-black text-slate-800">
+                                      <td colSpan={3} className="py-3 px-6 uppercase tracking-wider text-[11px] text-slate-600">
+                                          4. CONCILIAÇÃO FINANCEIRA DE CAIXA REALIZADO (RECEBIMENTOS VS PAGAMENTOS EFETIVOS)
+                                      </td>
+                                  </tr>
+                                  <tr className="hover:bg-slate-50 text-slate-700">
+                                      <td className="py-2.5 px-8 pl-10">(+) Entradas Efetivamente Recebidas em Caixa (Pagamentos / Asaas)</td>
+                                      <td className="py-2.5 px-6 text-right font-bold text-emerald-600">R$ {dreData.cashInflows.toFixed(2)}</td>
+                                      <td className="py-2.5 px-6 text-right text-slate-400">---</td>
+                                  </tr>
+                                  <tr className="hover:bg-slate-50 text-slate-700">
+                                      <td className="py-2.5 px-8 pl-10">(-) Saídas Efetivamente Pagas em Despesas</td>
+                                      <td className="py-2.5 px-6 text-right font-bold text-rose-600">- R$ {dreData.cashOutflows.toFixed(2)}</td>
+                                      <td className="py-2.5 px-6 text-right text-slate-400">---</td>
+                                  </tr>
+                                  <tr className="bg-slate-50 font-black text-slate-800 border-t border-slate-200">
+                                      <td className="py-3 px-8 pl-10">(=) SALDO LÍQUIDO DE CAIXA REALIZADO</td>
+                                      <td className={`py-3 px-6 text-right font-black ${dreData.cashBalance >= 0 ? 'text-blue-700' : 'text-rose-700'}`}>
+                                          R$ {dreData.cashBalance.toFixed(2)}
+                                      </td>
+                                      <td className="py-3 px-6 text-right text-slate-400">---</td>
+                                  </tr>
+                                  <tr className="hover:bg-slate-50 text-slate-600">
+                                      <td className="py-2.5 px-8 pl-10">(+) Faturamento Pendente a Receber (Em Aberto / Gaveta)</td>
+                                      <td className="py-2.5 px-6 text-right font-bold text-amber-600">R$ {dreData.pendingToReceive.toFixed(2)}</td>
+                                      <td className="py-2.5 px-6 text-right text-slate-400">---</td>
+                                  </tr>
+                              </tbody>
+                          </table>
+                      </div>
+                  </div>
+              ) : reportType === 'DEBITOS' ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                       <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
                           <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Clientes em Débito</p>

@@ -93,6 +93,7 @@ export const DentistsTab = () => {
   const [customPricingFilter, setCustomPricingFilter] = useState<'ALL' | 'CUSTOM' | 'NOT_CUSTOM'>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'BLOCKED' | 'DEBT' | 'FINANCIAL_APPROVAL'>('ALL');
   const [completenessFilter, setCompletenessFilter] = useState<'ALL' | 'INCOMPLETE' | 'COMPLETE' | 'MISSING_CPF' | 'MISSING_CRO' | 'MISSING_ADDRESS' | 'MISSING_EMAIL' | 'MISSING_PHONE'>('ALL');
+  const [servicePriceSearch, setServicePriceSearch] = useState('');
 
   // AI Import States
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -319,6 +320,7 @@ export const DentistsTab = () => {
     });
     setHasBillingLimit(false);
     setShowTechnicalManager(false);
+    setServicePriceSearch('');
   };
 
   // --- AI IMPORT LOGIC (REFINED FOR CRO) ---
@@ -542,6 +544,13 @@ export const DentistsTab = () => {
 
     return filterAndSortClients(base, dentistSearch, (a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR'));
   }, [manualDentists, dentistSearch, completenessFilter, statusFilter, priceTableFilter, customPricingFilter]);
+
+  const sortedAndFilteredJobTypes = useMemo(() => {
+    const list = [...jobTypes].sort((a: any, b: any) => (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' }));
+    if (!servicePriceSearch.trim()) return list;
+    const term = servicePriceSearch.toLowerCase();
+    return list.filter((jt: any) => (jt.name || '').toLowerCase().includes(term));
+  }, [jobTypes, servicePriceSearch]);
 
   const formCompleteness = useMemo(() => {
     return checkDentistCompleteness(formData);
@@ -944,6 +953,7 @@ export const DentistsTab = () => {
                                           setEditingDentistId(dentist.id);
                                           setFormData({ ...dentist } as any);
                                           setHasBillingLimit((dentist.billingLimit || 0) > 0);
+                                          setServicePriceSearch('');
                                           setIsAddingDentist(true);
                                       }} title={t('admin.dentists.editClient', 'Editar Cliente')} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg cursor-pointer"><Edit size={18}/></button>
                                   )}
@@ -1461,8 +1471,39 @@ export const DentistsTab = () => {
                                         </div>
                                     </div>
 
-                                  <div className="grid grid-cols-1 gap-2 max-h-80 overflow-y-auto pr-2">
-                                      {jobTypes.map((type: any) => {
+                                    <div className="space-y-2">
+                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                                Preços e Descontos por Serviço
+                                            </label>
+                                            <div className="relative w-full sm:w-60">
+                                                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
+                                                <input 
+                                                    type="text"
+                                                    placeholder="Buscar tipo de serviço..."
+                                                    value={servicePriceSearch}
+                                                    onChange={e => setServicePriceSearch(e.target.value)}
+                                                    className="w-full pl-8 pr-7 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500"
+                                                />
+                                                {servicePriceSearch && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setServicePriceSearch('')}
+                                                        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+                                                    >
+                                                        <X size={12} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 gap-2 max-h-80 overflow-y-auto pr-2">
+                                            {sortedAndFilteredJobTypes.length === 0 ? (
+                                                <div className="p-6 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200 text-slate-400 text-xs font-bold">
+                                                    Nenhum tipo de serviço encontrado para "{servicePriceSearch}".
+                                                </div>
+                                            ) : (
+                                                sortedAndFilteredJobTypes.map((type: any) => {
                                           const cp = formData.customPrices?.find((p: any) => p.jobTypeId === type.id);
                                           const hasCustomFixed = cp?.fixedPrice !== undefined && cp.fixedPrice !== null && cp.fixedPrice > 0;
                                           const hasCustomDiscount = cp?.discountPercent !== undefined && cp.discountPercent !== null && cp.discountPercent > 0;
@@ -1643,9 +1684,10 @@ export const DentistsTab = () => {
                                                   )}
                                               </div>
                                           );
-                                      })}
+                                      }))}
                                   </div>
                                 </div>
+                              </div>
                              )}
                           </div>
                           )}
