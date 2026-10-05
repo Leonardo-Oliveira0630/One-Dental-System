@@ -10,7 +10,8 @@ import {
   ArrowLeft, Calendar, Stethoscope, User, Clock, MapPin, Camera as CameraIcon,
   FileText, DollarSign, CheckCircle, AlertTriangle, 
   Printer, Box, Layers, ListChecks, Bell, Edit, Save, X, Plus, Trash2, Settings,
-  LogIn, LogOut, Flag, CheckSquare, File as FileIcon, Download, Loader2, CreditCard, ExternalLink, Copy, Check, Star, UploadCloud, ChevronDown, CheckCircle2, Truck, Navigation, RotateCcw, MessageCircle, MessageSquare, Lock, Crown, FileCode, FileSpreadsheet, FileWarning, XCircle, ArrowLeftCircle, ScanBarcode, Briefcase, Search, ArrowRightCircle, RefreshCw, Edit3, Package
+  LogIn, LogOut, Flag, CheckSquare, File as FileIcon, Download, Loader2, CreditCard, ExternalLink, Copy, Check, Star, UploadCloud, ChevronDown, CheckCircle2, Truck, Navigation, RotateCcw, MessageCircle, MessageSquare, Lock, Crown, FileCode, FileSpreadsheet, FileWarning, XCircle, ArrowLeftCircle, ScanBarcode, Briefcase, Search, ArrowRightCircle, RefreshCw, Edit3, Package,
+  Eye, Edit2, LayoutGrid, List as ListIcon, Image as ImageLucide
 } from 'lucide-react';
 import { CreateAlertModal } from '../components/AlertSystem';
 import { ChatSystem } from '../components/ChatSystem';
@@ -126,6 +127,23 @@ export const JobDetails = () => {
   const [showRouteModal, setShowRouteModal] = useState(false);
   const [isCasesDropdownOpen, setIsCasesDropdownOpen] = useState(false);
   const [show3DViewer, setShow3DViewer] = useState(false);
+  const [editingCommentAttId, setEditingCommentAttId] = useState<string | null>(null);
+  const [commentDraftText, setCommentDraftText] = useState('');
+  const [isSavingComment, setIsSavingComment] = useState(false);
+  const [attachmentViewFilter, setAttachmentViewFilter] = useState<'ALL' | 'IMAGE' | 'STL' | 'DOC'>('ALL');
+
+  const formatAttachmentDateTime = (dateVal?: any) => {
+    if (!dateVal) return '';
+    const d = dateVal instanceof Date 
+      ? dateVal 
+      : dateVal?.seconds 
+        ? new Date(dateVal.seconds * 1000) 
+        : new Date(dateVal);
+    if (isNaN(d.getTime())) return '';
+    const dateStr = d.toLocaleDateString('pt-BR');
+    const timeStr = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    return `${dateStr} às ${timeStr}`;
+  };
   const [expandedItemIdx, setExpandedItemIdx] = useState<number | null>(null);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [itemEditForm, setItemEditForm] = useState<{
@@ -651,6 +669,28 @@ export const JobDetails = () => {
   const [newItemVariationIds, setNewItemVariationIds] = useState<string[]>([]);
   const [newItemTeeth, setNewItemTeeth] = useState<string[]>([]);
   const [newItemColor, setNewItemColor] = useState('');
+  const [newItemDiscountType, setNewItemDiscountType] = useState<'PERCENTAGE' | 'FIXED'>('PERCENTAGE');
+  const [newItemDiscount, setNewItemDiscount] = useState<number | string>(0);
+  const [newItemCustomPrice, setNewItemCustomPrice] = useState<number | string>('');
+
+  const newItemCalculatedBasePrice = useMemo(() => {
+    const type = jobTypes.find(t => t.id === newItemTypeId);
+    if (!type) return 0;
+    const dentistObj = allUsers.find(u => u.id === (editDentistId || job?.dentistId)) || manualDentists.find(d => d.id === (editDentistId || job?.dentistId));
+    return calculateItemPriceWithDentist(type, newItemVariationIds, dentistObj, priceTables);
+  }, [newItemTypeId, newItemVariationIds, editDentistId, job?.dentistId, allUsers, manualDentists, priceTables, jobTypes]);
+
+  const newItemEffectiveUnitPrice = useMemo(() => {
+    if (newItemNature === 'REPETITION' || newItemNature === 'ADJUSTMENT') return 0;
+    const base = newItemCustomPrice !== '' && !isNaN(Number(newItemCustomPrice)) && Number(newItemCustomPrice) >= 0
+      ? Number(newItemCustomPrice)
+      : newItemCalculatedBasePrice;
+    const disc = Number(newItemDiscount) || 0;
+    if (newItemDiscountType === 'FIXED') {
+      return Math.max(0, base - disc);
+    }
+    return Math.max(0, base * (1 - (disc / 100)));
+  }, [newItemNature, newItemCustomPrice, newItemCalculatedBasePrice, newItemDiscount, newItemDiscountType]);
   
   useEffect(() => {
     const type = jobTypes.find(t => t.id === newItemTypeId);
@@ -668,6 +708,9 @@ export const JobDetails = () => {
     setNewItemTeeth([]);
     setNewItemColor('');
     setNewItemQty(1);
+    setNewItemDiscount(0);
+    setNewItemDiscountType('PERCENTAGE');
+    setNewItemCustomPrice('');
   }, [newItemTypeId, jobTypes]);
   
   const [isAddingProduct, setIsAddingProduct] = useState(false);
@@ -841,6 +884,39 @@ export const JobDetails = () => {
     }
   };
 
+  const handleUpdateAttachmentComment = async (attId: string, newComment: string) => {
+    if (!job) return;
+    setIsSavingComment(true);
+    try {
+      const updatedAttachments = (job.attachments || []).map((att: Attachment) => {
+        if (att.id === attId) {
+          return {
+            ...att,
+            comment: newComment.trim() || undefined
+          };
+        }
+        return att;
+      });
+      await updateJob(job.id, { 
+        attachments: updatedAttachments,
+        history: [...(job.history || []).filter(Boolean), {
+          id: `hist_comment_${Date.now()}`,
+          timestamp: new Date(),
+          action: `Comentário atualizado em anexo do caso`,
+          userId: currentUser?.id || 'sys',
+          userName: currentUser?.name || 'Sistema'
+        }]
+      });
+      setEditingCommentAttId(null);
+      setCommentDraftText('');
+    } catch (error) {
+      console.error("Erro ao atualizar comentário do anexo", error);
+      alert("Erro ao salvar comentário.");
+    } finally {
+      setIsSavingComment(false);
+    }
+  };
+
   const calculateItemPriceWithDentist = (
     jobType: any | undefined,
     selectedVariationIds: string[],
@@ -923,9 +999,27 @@ export const JobDetails = () => {
       const type = jobTypes.find(t => t.id === newItemTypeId);
       if (!type) return;
 
-      const dentistObj = allUsers.find(u => u.id === job?.dentistId) || manualDentists.find(d => d.id === job?.dentistId);
-      const calculatedBasePrice = calculateItemPriceWithDentist(type, newItemVariationIds, dentistObj, priceTables);
-      const finalItemPrice = newItemNature === 'REPETITION' || newItemNature === 'ADJUSTMENT' ? 0 : calculatedBasePrice;
+      const dentistObj = allUsers.find(u => u.id === (editDentistId || job?.dentistId)) || manualDentists.find(d => d.id === (editDentistId || job?.dentistId));
+      const calculatedBasePrice = newItemCustomPrice !== '' && !isNaN(Number(newItemCustomPrice)) && Number(newItemCustomPrice) >= 0 
+          ? Number(newItemCustomPrice) 
+          : calculateItemPriceWithDentist(type, newItemVariationIds, dentistObj, priceTables);
+      
+      const discVal = Number(newItemDiscount) || 0;
+      let finalItemPrice = calculatedBasePrice;
+      let appliedPct = 0;
+      let appliedFixed = 0;
+
+      if (newItemNature === 'REPETITION' || newItemNature === 'ADJUSTMENT') {
+          finalItemPrice = 0;
+      } else {
+          if (newItemDiscountType === 'FIXED') {
+              appliedFixed = discVal;
+              finalItemPrice = Math.max(0, calculatedBasePrice - discVal);
+          } else {
+              appliedPct = discVal;
+              finalItemPrice = Math.max(0, calculatedBasePrice * (1 - (discVal / 100)));
+          }
+      }
 
       const newItem: JobItem = {
           id: `item_edit_${Date.now()}`,
@@ -934,7 +1028,8 @@ export const JobDetails = () => {
           quantity: Number(newItemQty) || 1,
           price: finalItemPrice,
           basePriceBeforeDiscount: calculatedBasePrice,
-          appliedDiscount: 0,
+          appliedDiscount: appliedPct,
+          appliedDiscountFixed: appliedFixed,
           appliedPriceTable: dentistObj?.priceTableId ? (priceTables.find(t => t.id === dentistObj.priceTableId)?.name || 'Padrão') : 'Padrão',
           selectedVariationIds: newItemVariationIds,
           nature: newItemNature,
@@ -955,18 +1050,21 @@ export const JobDetails = () => {
       };
       const newItems = [...editItems, newItem];
       setEditItems(newItems);
-      const productsTotal = (job.products || []).reduce((acc: number, p: any) => acc + (p.unitPrice * p.quantity), 0);
+      const productsTotal = (editProducts || []).reduce((acc: number, p: any) => acc + (p.unitPrice * p.quantity), 0);
       setEditTotalValue(newItems.reduce((acc: number, i: any) => acc + (i.price * i.quantity), 0) + productsTotal);
       setNewItemNature('NORMAL');
       setNewItemVariationIds([]);
       setNewItemTeeth([]);
       setNewItemColor('');
+      setNewItemDiscount(0);
+      setNewItemDiscountType('PERCENTAGE');
+      setNewItemCustomPrice('');
   };
 
   const handleRemoveItemFromJob = (itemId: string) => {
       const newItems = editItems.filter(i => i.id !== itemId);
       setEditItems(newItems);
-      const productsTotal = (job.products || []).reduce((acc: number, p: any) => acc + (p.unitPrice * p.quantity), 0);
+      const productsTotal = (editProducts || []).reduce((acc: number, p: any) => acc + (p.unitPrice * p.quantity), 0);
       setEditTotalValue(newItems.reduce((acc: number, i: any) => acc + (i.price * i.quantity), 0) + productsTotal);
   };
 
@@ -1010,13 +1108,13 @@ export const JobDetails = () => {
                   }
               }
 
-              const requiresPriceRecalc = Object.keys(updates).some(k => ['jobTypeId', 'selectedVariationIds', 'nature', 'quantity', 'basePriceBeforeDiscount', 'appliedDiscount'].includes(k));
+              const requiresPriceRecalc = Object.keys(updates).some(k => ['jobTypeId', 'selectedVariationIds', 'nature', 'quantity', 'basePriceBeforeDiscount', 'appliedDiscount', 'appliedDiscountFixed'].includes(k));
 
               if (requiresPriceRecalc) {
                   const type = jobTypes.find(t => t.id === updated.jobTypeId);
-                  const dentistObj = allUsers.find(u => u.id === job?.dentistId) || manualDentists.find(d => d.id === job?.dentistId);
+                  const dentistObj = allUsers.find(u => u.id === (editDentistId || job?.dentistId)) || manualDentists.find(d => d.id === (editDentistId || job?.dentistId));
                   
-                  if (type && ('jobTypeId' in updates || 'selectedVariationIds' in updates)) {
+                  if (type && ('jobTypeId' in updates || 'selectedVariationIds' in updates) && !('basePriceBeforeDiscount' in updates)) {
                       const basePrice = calculateItemPriceWithDentist(type, updated.selectedVariationIds || [], dentistObj, priceTables);
                       updated.basePriceBeforeDiscount = basePrice;
                   }
@@ -1024,7 +1122,14 @@ export const JobDetails = () => {
                   if (updated.nature === 'REPETITION' || updated.nature === 'ADJUSTMENT') {
                       updated.price = 0;
                   } else {
-                      updated.price = (updated.basePriceBeforeDiscount || 0) * (1 - (updated.appliedDiscount || 0) / 100);
+                      const base = updated.basePriceBeforeDiscount !== undefined ? Number(updated.basePriceBeforeDiscount) : (type?.basePrice || 0);
+                      const pctDisc = Number(updated.appliedDiscount) || 0;
+                      const fixDisc = Number(updated.appliedDiscountFixed) || 0;
+                      if (fixDisc > 0) {
+                          updated.price = Math.max(0, base - fixDisc);
+                      } else {
+                          updated.price = Math.max(0, base * (1 - (pctDisc / 100)));
+                      }
                   }
               }
               itemsTotal += (updated.price * (updated.quantity || 1));
@@ -1034,7 +1139,7 @@ export const JobDetails = () => {
           return item;
       });
       setEditItems(newItems);
-      const productsTotal = editProducts.reduce((acc: number, p: any) => acc + (p.unitPrice * p.quantity), 0);
+      const productsTotal = (editProducts || []).reduce((acc: number, p: any) => acc + (p.unitPrice * p.quantity), 0);
       setEditTotalValue(itemsTotal + productsTotal);
   };
 
@@ -1157,7 +1262,14 @@ export const JobDetails = () => {
             notes: editNotes,
             receivedMaterials: editReceivedMaterials,
             receivedMaterialQuantities: editReceivedMaterialQuantities,
-            items: editItems.map(i => ({ ...i, quantity: Number(i.quantity) || 1 })),
+            items: editItems.map(i => ({ 
+                ...i, 
+                quantity: Number(i.quantity) || 1,
+                price: Number(i.price) || 0,
+                basePriceBeforeDiscount: i.basePriceBeforeDiscount !== undefined ? (Number(i.basePriceBeforeDiscount) || 0) : (Number(i.price) || 0),
+                appliedDiscount: Number(i.appliedDiscount) || 0,
+                appliedDiscountFixed: Number(i.appliedDiscountFixed) || 0
+            })),
             products: editProducts.map(p => ({ ...p, quantity: Number(p.quantity) || 1, basePriceBeforeDiscount: Number(p.basePriceBeforeDiscount) || p.unitPrice, appliedDiscount: Number(p.appliedDiscount) || 0 })),
             totalValue: Number(editTotalValue) || 0,
             history: [...(job.history || []).filter(Boolean), {
@@ -2586,20 +2698,36 @@ export const JobDetails = () => {
                       </div>
 
                       <div className="space-y-3">
-                          <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 border-b border-slate-100 pb-1">Itens da OS</h4>
+                          <div className="flex justify-between items-center border-b border-slate-100 pb-1">
+                              <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Itens da OS</h4>
+                              <span className="text-[10px] font-bold text-slate-400">{editItems.length} {editItems.length === 1 ? 'serviço' : 'serviços'}</span>
+                          </div>
                           <div className="space-y-2">
                               {editItems.map(item => {
                                   if (editingModalItemId === item.id) {
+                                      const basePriceVal = item.basePriceBeforeDiscount !== undefined ? item.basePriceBeforeDiscount : (item.price || 0);
+                                      const isFixedDisc = (item.appliedDiscountFixed && item.appliedDiscountFixed > 0);
+                                      const currentDiscVal = isFixedDisc ? item.appliedDiscountFixed : (item.appliedDiscount || '');
+
                                       return (
-                                          <div key={item.id} className="p-3 bg-blue-50 border border-blue-200 rounded-xl space-y-3">
-                                              <div className="flex justify-between items-center mb-2">
-                                                  <h4 className="text-[10px] font-black text-blue-800 uppercase tracking-widest">Editando Serviço</h4>
-                                                  <button type="button" onClick={() => setEditingModalItemId(null)} className="text-blue-500 hover:text-blue-700 p-1 bg-white rounded-md shadow-sm border border-blue-100 hover:bg-blue-100"><Check size={16}/></button>
+                                          <div key={item.id} className="p-3.5 bg-blue-50/80 border-2 border-blue-300 rounded-2xl space-y-3 shadow-sm">
+                                              <div className="flex justify-between items-center">
+                                                  <div className="flex items-center gap-1.5">
+                                                      <div className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
+                                                      <h4 className="text-[11px] font-black text-blue-900 uppercase tracking-wider">Editando Serviço</h4>
+                                                  </div>
+                                                  <button 
+                                                      type="button" 
+                                                      onClick={() => setEditingModalItemId(null)} 
+                                                      className="text-xs font-bold text-blue-700 bg-blue-100 hover:bg-blue-200 px-2.5 py-1 rounded-lg flex items-center gap-1 transition-colors"
+                                                  >
+                                                      <Check size={14} /> Concluir
+                                                  </button>
                                               </div>
                                               <div className="space-y-2">
                                                   <div>
                                                       <label className="block text-[9px] font-black text-slate-500 uppercase mb-1">Tipo de Serviço</label>
-                                                      <select value={item.jobTypeId} onChange={e => handleUpdateEditItem(item.id, { jobTypeId: e.target.value })} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none">
+                                                      <select value={item.jobTypeId} onChange={e => handleUpdateEditItem(item.id, { jobTypeId: e.target.value })} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-blue-500">
                                                           {jobTypes.filter(t => (job.clientOrigin === 'LABORATORY' ? t.isVisibleInternallyLabs === true : t.isVisibleInternally !== false) || t.id === item.jobTypeId).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                                                       </select>
                                                   </div>
@@ -2614,6 +2742,69 @@ export const JobDetails = () => {
                                                       </div>
                                                   </div>
                                               </div>
+
+                                              {/* Valores e Desconto */}
+                                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-blue-200/60">
+                                                  <div>
+                                                      <label className="block text-[9px] font-black text-slate-600 uppercase mb-1">Valor Unitário Base (R$)</label>
+                                                      <input 
+                                                          type="number" 
+                                                          min="0" 
+                                                          step="0.01" 
+                                                          value={basePriceVal} 
+                                                          onChange={e => handleUpdateEditItem(item.id, { basePriceBeforeDiscount: e.target.value === '' ? '' : parseFloat(e.target.value) || 0 })} 
+                                                          className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold focus:border-blue-500 outline-none" 
+                                                      />
+                                                  </div>
+                                                  <div>
+                                                      <label className="block text-[9px] font-black text-slate-600 uppercase mb-1">Desconto no Serviço</label>
+                                                      <div className="flex gap-1.5">
+                                                          <select 
+                                                              value={isFixedDisc ? 'FIXED' : 'PERCENTAGE'}
+                                                              onChange={e => {
+                                                                  const mode = e.target.value;
+                                                                  if (mode === 'FIXED') {
+                                                                      handleUpdateEditItem(item.id, { appliedDiscountFixed: Number(item.appliedDiscount) || 0, appliedDiscount: 0 });
+                                                                  } else {
+                                                                      handleUpdateEditItem(item.id, { appliedDiscount: Number(item.appliedDiscountFixed) || 0, appliedDiscountFixed: 0 });
+                                                                  }
+                                                              }}
+                                                              className="w-20 px-2 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold focus:border-blue-500 outline-none"
+                                                          >
+                                                              <option value="PERCENTAGE">%</option>
+                                                              <option value="FIXED">R$</option>
+                                                          </select>
+                                                          <input 
+                                                              type="number" 
+                                                              min="0" 
+                                                              step="0.1" 
+                                                              max={isFixedDisc ? undefined : 100}
+                                                              value={currentDiscVal} 
+                                                              placeholder="0"
+                                                              onChange={e => {
+                                                                  const val = e.target.value === '' ? '' : (parseFloat(e.target.value) || 0);
+                                                                  if (isFixedDisc) {
+                                                                      handleUpdateEditItem(item.id, { appliedDiscountFixed: val, appliedDiscount: 0 });
+                                                                  } else {
+                                                                      handleUpdateEditItem(item.id, { appliedDiscount: val, appliedDiscountFixed: 0 });
+                                                                  }
+                                                              }} 
+                                                              className="flex-1 px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold focus:border-blue-500 outline-none" 
+                                                          />
+                                                      </div>
+                                                  </div>
+                                              </div>
+
+                                              {/* Resumo com Desconto do Item */}
+                                              <div className="flex items-center justify-between bg-blue-100/70 p-2.5 rounded-xl text-xs font-bold text-blue-900">
+                                                  <span>
+                                                      {item.nature === 'REPETITION' ? '(Repetição: R$ 0,00)' : item.nature === 'ADJUSTMENT' ? '(Ajuste: R$ 0,00)' : `Preço com Desc: R$ ${(item.price || 0).toFixed(2)}/un.`}
+                                                  </span>
+                                                  <span className="font-black text-sm">
+                                                      Total: R$ {((item.price || 0) * (Number(item.quantity) || 1)).toFixed(2)}
+                                                  </span>
+                                              </div>
+
                                               <div className="bg-white border border-slate-200 rounded-xl p-3 flex justify-center">
                                                   <Odontogram 
                                                       selectedTeeth={item.selectedTeeth || []}
@@ -2677,14 +2868,26 @@ export const JobDetails = () => {
                                       );
                                   }
                                   return (
-                                      <div key={item.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                      <div key={item.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100 hover:border-blue-200 transition-colors">
                                           <div className="flex flex-col min-w-0 mr-2">
                                               <div className="text-xs font-bold text-slate-700 truncate">{item.quantity}x {getNaturePrefix(item.nature)}{formatItemNameWithVariations(item, jobTypes)}</div>
-                                              <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">{item.nature === 'REPETITION' ? 'REPETIÇÃO' : item.nature === 'ADJUSTMENT' ? 'AJUSTE' : 'NORMAL'}</div>
+                                              <div className="flex items-center gap-2 mt-1 flex-wrap text-[10px]">
+                                                  <span className="font-black text-slate-500 uppercase tracking-wider">
+                                                      {item.nature === 'REPETITION' ? 'REPETIÇÃO (R$ 0)' : item.nature === 'ADJUSTMENT' ? 'AJUSTE (R$ 0)' : `R$ ${(item.basePriceBeforeDiscount !== undefined ? item.basePriceBeforeDiscount : item.price).toFixed(2)}/un.`}
+                                                  </span>
+                                                  {item.nature === 'NORMAL' && ((item.appliedDiscount && item.appliedDiscount > 0) || (item.appliedDiscountFixed && item.appliedDiscountFixed > 0)) && (
+                                                      <span className="bg-emerald-100 text-emerald-800 font-black px-1.5 py-0.5 rounded text-[9px]">
+                                                          {item.appliedDiscountFixed && item.appliedDiscountFixed > 0 ? `-R$ ${Number(item.appliedDiscountFixed).toFixed(2)} desc` : `-${item.appliedDiscount}% desc`}
+                                                      </span>
+                                                  )}
+                                                  <span className="font-black text-slate-800">
+                                                      Total: R$ {((item.price || 0) * (Number(item.quantity) || 1)).toFixed(2)}
+                                                  </span>
+                                              </div>
                                           </div>
                                           <div className="flex items-center gap-2 shrink-0">
-                                              <button type="button" onClick={() => setEditingModalItemId(item.id)} className="text-blue-400 hover:text-blue-600 p-1.5 hover:bg-blue-50 rounded-lg transition-colors"><Edit3 size={14}/></button>
-                                              <button type="button" onClick={() => handleRemoveItemFromJob(item.id)} className="text-red-400 hover:text-red-600 p-1.5 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={14}/></button>
+                                              <button type="button" onClick={() => setEditingModalItemId(item.id)} className="text-blue-500 hover:text-blue-700 p-1.5 hover:bg-blue-50 rounded-lg transition-colors" title="Editar serviço e desconto"><Edit3 size={14}/></button>
+                                              <button type="button" onClick={() => handleRemoveItemFromJob(item.id)} className="text-red-400 hover:text-red-600 p-1.5 hover:bg-red-50 rounded-lg transition-colors" title="Remover serviço"><Trash2 size={14}/></button>
                                           </div>
                                       </div>
                                   );
@@ -2744,7 +2947,55 @@ export const JobDetails = () => {
                                            <label className="block text-[9px] font-black text-slate-400 uppercase mb-1">Cor</label>
                                            <input type="text" value={newItemColor} onChange={e => setNewItemColor(e.target.value)} placeholder="Ex: A3" className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold" />
                                        </div>
-                                       <button onClick={handleAddItemToJob} className="p-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 shrink-0 shadow-md"><Plus size={18}/></button>
+                                   </div>
+
+                                   {/* Valores e Desconto para Novo Serviço */}
+                                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-slate-100">
+                                       <div>
+                                           <label className="block text-[9px] font-black text-slate-600 uppercase mb-1">Valor Unitário Base (R$)</label>
+                                           <input 
+                                               type="number" 
+                                               min="0" 
+                                               step="0.01" 
+                                               value={newItemCustomPrice !== '' ? newItemCustomPrice : (newItemCalculatedBasePrice || '')} 
+                                               placeholder={newItemCalculatedBasePrice.toFixed(2)}
+                                               onChange={e => setNewItemCustomPrice(e.target.value === '' ? '' : parseFloat(e.target.value) || 0)} 
+                                               className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold focus:border-blue-500 outline-none" 
+                                           />
+                                       </div>
+                                       <div>
+                                           <label className="block text-[9px] font-black text-slate-600 uppercase mb-1">Desconto no Serviço</label>
+                                           <div className="flex gap-1.5">
+                                               <select 
+                                                   value={newItemDiscountType}
+                                                   onChange={e => setNewItemDiscountType(e.target.value as 'PERCENTAGE' | 'FIXED')}
+                                                   className="w-20 px-2 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold focus:border-blue-500 outline-none"
+                                               >
+                                                   <option value="PERCENTAGE">%</option>
+                                                   <option value="FIXED">R$</option>
+                                               </select>
+                                               <input 
+                                                   type="number" 
+                                                   min="0" 
+                                                   step={newItemDiscountType === 'PERCENTAGE' ? "0.1" : "0.01"} 
+                                                   max={newItemDiscountType === 'PERCENTAGE' ? 100 : undefined}
+                                                   value={newItemDiscount === 0 ? '' : newItemDiscount} 
+                                                   placeholder="0"
+                                                   onChange={e => setNewItemDiscount(e.target.value === '' ? '' : (parseFloat(e.target.value) || 0))} 
+                                                   className="flex-1 px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold focus:border-blue-500 outline-none" 
+                                               />
+                                           </div>
+                                       </div>
+                                   </div>
+
+                                   {/* Resumo do Preço com Desconto */}
+                                   <div className="flex items-center justify-between bg-emerald-50/70 border border-emerald-100 p-2.5 rounded-xl text-xs font-bold text-emerald-900">
+                                       <span>
+                                           {newItemNature === 'REPETITION' ? '(Repetição: R$ 0,00)' : newItemNature === 'ADJUSTMENT' ? '(Ajuste: R$ 0,00)' : `Preço com Desc: R$ ${newItemEffectiveUnitPrice.toFixed(2)}/un.`}
+                                       </span>
+                                       <span className="font-black text-sm text-emerald-950">
+                                           Total: R$ {(newItemEffectiveUnitPrice * (Number(newItemQty) || 1)).toFixed(2)}
+                                       </span>
                                    </div>
                                </div>
 
@@ -2807,6 +3058,13 @@ export const JobDetails = () => {
                                        </div>
                                    );
                                })()}
+                               <button 
+                                   type="button" 
+                                   onClick={handleAddItemToJob} 
+                                   className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md flex items-center justify-center gap-2 mt-2 cursor-pointer"
+                               >
+                                   <Plus size={16}/> Adicionar Serviço ao Caso
+                               </button>
                            </div>
                           <div className="pt-2">
                               <div className="flex justify-between items-center mb-2">
@@ -4010,13 +4268,41 @@ export const JobDetails = () => {
                         )}
                     </div>
 
-                    <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-5 md:p-4 sm:p-6 overflow-hidden">
-                        <div className="flex justify-between items-center mb-6 shrink-0">
-                            <h3 className="text-sm md:text-base font-black text-slate-800 flex items-center gap-2 uppercase tracking-tighter truncate"><FileIcon size={20} className="text-blue-600 shrink-0" /> Documentos</h3>
-                            <span className="text-[9px] font-black text-slate-400 uppercase bg-slate-50 px-2 py-0.5 rounded shrink-0">{job.attachments?.length || 0}</span>
+                    <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-5 md:p-6 overflow-hidden">
+                        <div className="flex flex-wrap justify-between items-center gap-2 mb-6 shrink-0">
+                            <div className="flex items-center gap-2.5">
+                                <div className="p-2 bg-blue-50 text-blue-600 rounded-xl">
+                                    <FileIcon size={20} className="shrink-0" />
+                                </div>
+                                <div>
+                                    <h3 className="text-sm md:text-base font-black text-slate-800 uppercase tracking-tighter">
+                                        Documentos e Arquivos do Caso
+                                    </h3>
+                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                                        Fotos, Escaneamentos STL e Anexos
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                                {job.attachments?.some((a: any) => a.name.toLowerCase().endsWith('.stl') || a.name.toLowerCase().endsWith('.ply') || a.name.toLowerCase().endsWith('.obj')) && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setShow3DViewer(true)}
+                                        className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition active:scale-95 shadow-sm"
+                                        title="Abrir Visualizador 3D interativo para todos os modelos STL"
+                                    >
+                                        <Box size={14} className="text-indigo-600" />
+                                        <span>Visualizador 3D Geral</span>
+                                    </button>
+                                )}
+                                <span className="text-[10px] font-black text-slate-600 uppercase bg-slate-100 px-2.5 py-1 rounded-full shrink-0">
+                                    {job.attachments?.length || 0} {job.attachments?.length === 1 ? 'arquivo' : 'arquivos'}
+                                </span>
+                            </div>
                         </div>
 
-                        <div className="space-y-4">
+                        <div className="space-y-5">
                             {/* Hidden native camera capture input */}
                             <input 
                                 ref={nativeCameraInputRef}
@@ -4032,79 +4318,334 @@ export const JobDetails = () => {
                                 }}
                             />
 
-                            <div className="flex gap-2">
-                                <div className="flex-1 p-4 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50 group hover:border-blue-400 hover:bg-blue-50/50 transition-all text-center relative shrink-0">
-                                    <input type="file" multiple onChange={handleFileSelect} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" accept=".stl,.pdf,.doc,.docx,.xls,.xlsx,.html,.png,.jpg,.jpeg" />
-                                    <div className="flex flex-col items-center gap-2 pointer-events-none">
-                                        <UploadCloud size={28} className="text-slate-300 group-hover:text-blue-500 transition-colors" />
-                                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Anexar Arquivos</span>
+                            {/* Upload and Camera Buttons */}
+                            <div className="flex flex-col sm:flex-row gap-2.5">
+                                <div className="flex-1 p-4 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/80 group hover:border-blue-400 hover:bg-blue-50/40 transition-all text-center relative shrink-0">
+                                    <input 
+                                        type="file" 
+                                        multiple 
+                                        onChange={handleFileSelect} 
+                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" 
+                                        accept=".stl,.ply,.obj,.pdf,.doc,.docx,.xls,.xlsx,.html,.png,.jpg,.jpeg,.webp" 
+                                    />
+                                    <div className="flex flex-col items-center gap-1.5 pointer-events-none">
+                                        <UploadCloud size={26} className="text-slate-400 group-hover:text-blue-500 transition-colors" />
+                                        <span className="text-[11px] font-black text-slate-600 uppercase tracking-wider">
+                                            Anexar Arquivos (Imagens, STL, PDFs)
+                                        </span>
+                                        <span className="text-[9px] text-slate-400 font-medium">
+                                            Arraste arquivos ou clique para selecionar
+                                        </span>
                                     </div>
                                 </div>
                                 <button 
                                     type="button"
                                     onClick={handleTakePhotoClick}
                                     disabled={isUploadingFiles}
-                                    className="w-24 p-4 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50 group hover:border-blue-400 hover:bg-blue-50/50 transition-all flex flex-col items-center justify-center gap-2 shrink-0 disabled:opacity-50 cursor-pointer"
+                                    className="p-4 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/80 group hover:border-blue-400 hover:bg-blue-50/40 transition-all flex flex-row sm:flex-col items-center justify-center gap-2 shrink-0 disabled:opacity-50 cursor-pointer"
                                 >
-                                    <CameraIcon size={28} className="text-slate-300 group-hover:text-blue-500 transition-colors" />
-                                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest text-center leading-tight">Tirar Foto</span>
+                                    <CameraIcon size={24} className="text-slate-400 group-hover:text-blue-500 transition-colors" />
+                                    <span className="text-[11px] font-black text-slate-600 uppercase tracking-wider text-center leading-tight">
+                                        Tirar Foto
+                                    </span>
                                 </button>
                             </div>
 
+                            {/* Queue of files to upload */}
                             {selectedFiles.length > 0 && (
                                 <div className="bg-blue-600 p-4 rounded-2xl shadow-xl shadow-blue-100 space-y-3 animate-in zoom-in shrink-0">
-                                    <div className="space-y-1.5 max-h-32 overflow-y-auto no-scrollbar">
+                                    <div className="flex justify-between items-center text-white pb-1 border-b border-blue-500/50">
+                                        <span className="text-[11px] font-black uppercase tracking-wider">
+                                            {selectedFiles.length} {selectedFiles.length === 1 ? 'arquivo selecionado' : 'arquivos selecionados'}
+                                        </span>
+                                        <button 
+                                            type="button"
+                                            onClick={() => setSelectedFiles([])}
+                                            className="text-[10px] font-bold text-blue-200 hover:text-white uppercase"
+                                        >
+                                            Limpar fila
+                                        </button>
+                                    </div>
+                                    <div className="space-y-1.5 max-h-36 overflow-y-auto no-scrollbar">
                                         {selectedFiles.map((f, i) => (
-                                            <div key={i} className="flex justify-between items-center text-[10px] font-black text-white/80 uppercase tracking-tighter">
+                                            <div key={i} className="flex justify-between items-center text-[10px] font-bold text-white/90 bg-blue-700/40 px-3 py-1.5 rounded-lg">
                                                 <span className="truncate flex-1 pr-2">{f.name}</span>
-                                                <button onClick={() => setSelectedFiles(prev => prev.filter((_, idx) => idx !== i))} className="p-1 hover:text-white shrink-0"><X size={14} /></button>
+                                                <button onClick={() => setSelectedFiles(prev => prev.filter((_, idx) => idx !== i))} className="p-0.5 hover:text-white shrink-0"><X size={14} /></button>
                                             </div>
                                         ))}
                                     </div>
                                     <button onClick={handleUploadFiles} disabled={isUploadingFiles} className="w-full py-2.5 bg-white text-blue-700 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-md flex items-center justify-center gap-2 active:scale-95 transition-transform disabled:opacity-50">
                                         {isUploadingFiles ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
-                                        {isUploadingFiles ? 'Enviando...' : 'Confirmar Envio'}
+                                        {isUploadingFiles ? 'Enviando Arquivos...' : 'Confirmar Envio'}
                                     </button>
-                                    {uploadProgressMsg && <p className="text-[9px] text-white/60 text-center font-bold animate-pulse truncate">{uploadProgressMsg}</p>}
+                                    {uploadProgressMsg && <p className="text-[9px] text-white/70 text-center font-bold animate-pulse truncate">{uploadProgressMsg}</p>}
                                 </div>
                             )}
 
-                            <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1 no-scrollbar shrink-0">
-                                {job.attachments?.map((att: any) => (
-                                    <div key={att.id} className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 hover:border-blue-200 transition-all group overflow-hidden">
-                                        <button 
-                                            type="button"
-                                            onClick={() => {
-                                                setSelectedAttachment(att);
-                                                setAllAttachmentsForPreview(job.attachments || []);
-                                            }} 
-                                            className="flex items-center gap-3 overflow-hidden flex-1 text-left focus:outline-none"
-                                        >
-                                            {getFileIcon(att.name)}
-                                            <div className="min-w-0">
-                                                <p className="text-[10px] font-black text-slate-700 truncate uppercase tracking-tighter" title={att.name}>{att.name}</p>
-                                                <p className="text-[8px] text-slate-400 uppercase font-black tracking-widest">{new Date(att.uploadedAt).toLocaleDateString()}</p>
+                            {/* Filter Pills if there are attachments */}
+                            {job.attachments && job.attachments.length > 0 && (
+                                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar text-xs font-bold">
+                                    <button
+                                        type="button"
+                                        onClick={() => setAttachmentViewFilter('ALL')}
+                                        className={`px-3 py-1.5 rounded-xl transition uppercase tracking-wider text-[10px] shrink-0 ${
+                                            attachmentViewFilter === 'ALL'
+                                                ? 'bg-slate-900 text-white shadow-sm'
+                                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                        }`}
+                                    >
+                                        Todos ({job.attachments.length})
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setAttachmentViewFilter('IMAGE')}
+                                        className={`px-3 py-1.5 rounded-xl transition uppercase tracking-wider text-[10px] shrink-0 flex items-center gap-1 ${
+                                            attachmentViewFilter === 'IMAGE'
+                                                ? 'bg-blue-600 text-white shadow-sm'
+                                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                        }`}
+                                    >
+                                        <ImageLucide size={12} />
+                                        Imagens ({job.attachments.filter((a: any) => ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'].includes(a.name.split('.').pop()?.toLowerCase() || '')).length})
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setAttachmentViewFilter('STL')}
+                                        className={`px-3 py-1.5 rounded-xl transition uppercase tracking-wider text-[10px] shrink-0 flex items-center gap-1 ${
+                                            attachmentViewFilter === 'STL'
+                                                ? 'bg-indigo-600 text-white shadow-sm'
+                                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                        }`}
+                                    >
+                                        <Box size={12} />
+                                        Modelos 3D ({job.attachments.filter((a: any) => ['stl', 'ply', 'obj'].includes(a.name.split('.').pop()?.toLowerCase() || '')).length})
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setAttachmentViewFilter('DOC')}
+                                        className={`px-3 py-1.5 rounded-xl transition uppercase tracking-wider text-[10px] shrink-0 flex items-center gap-1 ${
+                                            attachmentViewFilter === 'DOC'
+                                                ? 'bg-slate-800 text-white shadow-sm'
+                                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                        }`}
+                                    >
+                                        <FileText size={12} />
+                                        Documentos ({job.attachments.filter((a: any) => !['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'stl', 'ply', 'obj'].includes(a.name.split('.').pop()?.toLowerCase() || '')).length})
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* Attachments Cards Grid */}
+                            <div className="space-y-4 max-h-[600px] overflow-y-auto pr-1 no-scrollbar">
+                                {(() => {
+                                    const allAtts = job.attachments || [];
+                                    const filtered = allAtts.filter((att: any) => {
+                                        const ext = att.name.split('.').pop()?.toLowerCase() || '';
+                                        const isImg = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'].includes(ext);
+                                        const isStl = ['stl', 'ply', 'obj'].includes(ext);
+                                        if (attachmentViewFilter === 'IMAGE') return isImg;
+                                        if (attachmentViewFilter === 'STL') return isStl;
+                                        if (attachmentViewFilter === 'DOC') return !isImg && !isStl;
+                                        return true;
+                                    });
+
+                                    if (filtered.length === 0) {
+                                        return (
+                                            <div className="text-center py-10 border border-dashed border-slate-200 rounded-3xl bg-slate-50/50 p-6">
+                                                <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">
+                                                    Nenhum arquivo encontrado nesta categoria.
+                                                </p>
                                             </div>
-                                        </button>
-                                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button 
-                                                onClick={() => handleDownloadFile(att.url, att.name)} 
-                                                className="p-2 text-slate-400 hover:text-blue-600 transition-colors focus:outline-none"
-                                                title="Baixar arquivo original"
-                                            >
-                                                <Download size={14} />
-                                            </button>
-                                            <button 
-                                                onClick={() => handleDeleteAttachment(att.id)} 
-                                                className="p-2 text-slate-400 hover:text-red-600 transition-colors focus:outline-none"
-                                                title="Excluir arquivo"
-                                            >
-                                                <Trash2 size={14} />
-                                            </button>
+                                        );
+                                    }
+
+                                    return (
+                                        <div className="grid grid-cols-1 gap-4">
+                                            {filtered.map((att: any) => {
+                                                const ext = att.name.split('.').pop()?.toLowerCase() || '';
+                                                const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'].includes(ext);
+                                                const isStl = ['stl', 'ply', 'obj'].includes(ext);
+
+                                                return (
+                                                    <div 
+                                                        key={att.id} 
+                                                        className="bg-white rounded-2xl border border-slate-200/90 shadow-sm hover:border-blue-300 transition-all overflow-hidden p-4 space-y-3"
+                                                    >
+                                                        {/* Preview Header Area */}
+                                                        {isImage && (
+                                                            <div 
+                                                                onClick={() => {
+                                                                    setSelectedAttachment(att);
+                                                                    setAllAttachmentsForPreview(job.attachments || []);
+                                                                }}
+                                                                className="relative h-48 w-full bg-slate-900 rounded-xl overflow-hidden cursor-pointer group/img flex items-center justify-center"
+                                                            >
+                                                                <img 
+                                                                    src={att.url} 
+                                                                    alt={att.name}
+                                                                    className="w-full h-full object-contain group-hover/img:scale-105 transition-transform duration-300"
+                                                                    referrerPolicy="no-referrer"
+                                                                />
+                                                                <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-sm text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-md flex items-center gap-1">
+                                                                    <ImageLucide size={10} className="text-violet-400" />
+                                                                    {ext.toUpperCase()}
+                                                                </div>
+                                                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center gap-2 text-white font-black text-xs uppercase tracking-wider">
+                                                                    <Eye size={18} /> Clique para ampliar
+                                                                </div>
+                                                            </div>
+                                                        )}
+
+                                                        {isStl && (
+                                                            <div className="h-36 w-full bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 rounded-xl p-4 flex flex-col items-center justify-center relative overflow-hidden border border-slate-750 text-white shadow-inner">
+                                                                <span className="absolute top-2 left-2 bg-blue-500/20 border border-blue-400/30 text-blue-300 text-[9px] font-black uppercase px-2 py-0.5 rounded-full flex items-center gap-1">
+                                                                    <Box size={10} /> 3D STL
+                                                                </span>
+                                                                <Box size={32} className="text-blue-400 animate-pulse mb-1.5" />
+                                                                <span className="text-xs font-black text-slate-100 uppercase truncate max-w-[90%] text-center px-2">
+                                                                    {att.name}
+                                                                </span>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        setSelectedAttachment(att);
+                                                                        setAllAttachmentsForPreview(job.attachments || []);
+                                                                    }}
+                                                                    className="mt-2.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-md active:scale-95 transition cursor-pointer"
+                                                                >
+                                                                    <Box size={13} /> Visualizar em 3D
+                                                                </button>
+                                                            </div>
+                                                        )}
+
+                                                        {/* File Info Bar */}
+                                                        <div className="flex items-start justify-between gap-3">
+                                                            <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                                                                {!isImage && !isStl && (
+                                                                    <div className="p-2 bg-slate-100 rounded-xl shrink-0 mt-0.5">
+                                                                        {getFileIcon(att.name)}
+                                                                    </div>
+                                                                )}
+                                                                <div className="min-w-0 flex-1">
+                                                                    <h4 className="text-xs font-black text-slate-800 truncate uppercase tracking-tight" title={att.name}>
+                                                                        {att.name}
+                                                                    </h4>
+                                                                    <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-400 font-bold">
+                                                                        <span className="flex items-center gap-1">
+                                                                            <Clock size={11} className="text-slate-400 shrink-0" />
+                                                                            Importado em {formatAttachmentDateTime(att.uploadedAt)}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Action buttons */}
+                                                            <div className="flex items-center gap-1 shrink-0">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        setSelectedAttachment(att);
+                                                                        setAllAttachmentsForPreview(job.attachments || []);
+                                                                    }}
+                                                                    className="p-1.5 bg-slate-50 hover:bg-blue-50 text-slate-500 hover:text-blue-600 rounded-xl transition border border-slate-100"
+                                                                    title="Visualizar anexo"
+                                                                >
+                                                                    <Eye size={14} />
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleDownloadFile(att.url, att.name)}
+                                                                    className="p-1.5 bg-slate-50 hover:bg-blue-50 text-slate-500 hover:text-blue-600 rounded-xl transition border border-slate-100"
+                                                                    title="Baixar arquivo original"
+                                                                >
+                                                                    <Download size={14} />
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleDeleteAttachment(att.id)}
+                                                                    className="p-1.5 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-600 rounded-xl transition border border-slate-100"
+                                                                    title="Excluir anexo"
+                                                                >
+                                                                    <Trash2 size={14} />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Comment Section per file */}
+                                                        <div className="pt-2 border-t border-slate-100">
+                                                            {editingCommentAttId === att.id ? (
+                                                                <div className="space-y-2">
+                                                                    <input
+                                                                        type="text"
+                                                                        value={commentDraftText}
+                                                                        onChange={e => setCommentDraftText(e.target.value)}
+                                                                        placeholder="Escreva um comentário ou instrução para este arquivo..."
+                                                                        className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-800 placeholder:text-slate-400 outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                                                                        autoFocus
+                                                                        onKeyDown={e => {
+                                                                            if (e.key === 'Enter') handleUpdateAttachmentComment(att.id, commentDraftText);
+                                                                            if (e.key === 'Escape') setEditingCommentAttId(null);
+                                                                        }}
+                                                                    />
+                                                                    <div className="flex justify-end gap-1.5">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => setEditingCommentAttId(null)}
+                                                                            className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-[10px] font-bold uppercase transition"
+                                                                        >
+                                                                            Cancelar
+                                                                        </button>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => handleUpdateAttachmentComment(att.id, commentDraftText)}
+                                                                            disabled={isSavingComment}
+                                                                            className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[10px] font-black uppercase flex items-center gap-1 shadow-sm transition disabled:opacity-50"
+                                                                        >
+                                                                            {isSavingComment ? <Loader2 size={10} className="animate-spin" /> : <Check size={10} />}
+                                                                            Salvar Comentário
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            ) : att.comment ? (
+                                                                <div className="bg-blue-50/70 border border-blue-100/80 rounded-xl p-2.5 flex items-start justify-between gap-2">
+                                                                    <div className="flex items-start gap-2 min-w-0">
+                                                                        <MessageSquare size={13} className="text-blue-500 shrink-0 mt-0.5" />
+                                                                        <p className="text-xs text-slate-700 italic leading-snug break-words">
+                                                                            "{att.comment}"
+                                                                        </p>
+                                                                    </div>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            setEditingCommentAttId(att.id);
+                                                                            setCommentDraftText(att.comment || '');
+                                                                        }}
+                                                                        className="p-1 text-slate-400 hover:text-blue-600 rounded-md transition shrink-0"
+                                                                        title="Editar comentário"
+                                                                    >
+                                                                        <Edit2 size={12} />
+                                                                    </button>
+                                                                </div>
+                                                            ) : (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        setEditingCommentAttId(att.id);
+                                                                        setCommentDraftText('');
+                                                                    }}
+                                                                    className="text-[11px] font-bold text-slate-400 hover:text-blue-600 flex items-center gap-1.5 py-1 px-2 rounded-lg hover:bg-blue-50 transition-colors cursor-pointer"
+                                                                >
+                                                                    <MessageSquare size={12} />
+                                                                    <span>+ Adicionar comentário</span>
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
-                                    </div>
-                                ))}
-                                {(!job.attachments || job.attachments.length === 0) && <p className="text-xs text-slate-300 text-center py-12 italic border border-dashed rounded-[24px]">Sem mídias associadas.</p>}
+                                    );
+                                })()}
                             </div>
                         </div>
                     </div>
@@ -4528,6 +5069,7 @@ export const JobDetails = () => {
                    setSelectedAttachment(null);
                    setAllAttachmentsForPreview([]);
                }}
+               onUpdateComment={handleUpdateAttachmentComment}
            />
        )}
 

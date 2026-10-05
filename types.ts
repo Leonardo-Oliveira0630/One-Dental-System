@@ -514,7 +514,12 @@ export interface Attachment {
   id: string;
   name: string;
   url: string;
-  uploadedAt: Date;
+  uploadedAt: Date | string;
+  size?: number;
+  type?: string;
+  comment?: string;
+  uploadedBy?: string;
+  uploadedByName?: string;
 }
 
 export interface BoxColor {

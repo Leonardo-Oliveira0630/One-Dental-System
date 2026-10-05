@@ -680,9 +680,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
              <Logo size={100} imgStyle={{ width: '100px', height: '100px' }} variant="colored" />
           </div>
 
-          <div className="flex-1 max-w-xl mx-2 lg:mx-6">
-            <JobSearch />
-          </div>
+          <div className="flex-1" />
 
           {isLab && (
             <div className="shrink-0 flex items-center">

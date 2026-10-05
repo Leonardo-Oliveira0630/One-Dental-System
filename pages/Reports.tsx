@@ -1,11 +1,11 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '../context/AppContext';
 import { 
   FileText, Download, Filter, Calendar, Users, Building2, Package, Search, X, 
   DollarSign, TrendingUp, ChevronDown, ChevronUp, ChevronRight, FileSpreadsheet, 
   ArrowUpDown, Wallet, UserCheck, Stethoscope, CheckCircle2, Clock, AlertCircle,
-  BarChart3, Sparkles, Lock, ArrowLeft
+  BarChart3, Sparkles, Lock, ArrowLeft, User as UserIcon, Layers, History, ShieldAlert
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
@@ -177,6 +177,16 @@ export default function Reports() {
   const [endDate, setEndDate] = useState('');
   const [dateType, setDateType] = useState<'CREATED' | 'DUE'>('CREATED');
   const [dentistId, setDentistId] = useState('');
+  const [dentistSearchText, setDentistSearchText] = useState('');
+  const [showDentistDropdown, setShowDentistDropdown] = useState(false);
+  const dentistDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Patient filter & search states
+  const [patientFilter, setPatientFilter] = useState('');
+  const [patientSearchText, setPatientSearchText] = useState('');
+  const [showPatientDropdown, setShowPatientDropdown] = useState(false);
+  const patientDropdownRef = useRef<HTMLDivElement>(null);
+
   const [collaboratorId, setCollaboratorId] = useState('');
   const [sector, setSector] = useState('');
   const [jobTypeId, setJobTypeId] = useState('');
@@ -185,6 +195,144 @@ export default function Reports() {
   const [urgencyFilter, setUrgencyFilter] = useState('');
   const [groupBy, setGroupBy] = useState<'DATE' | 'JOB_TYPE' | 'LIST' | 'COLLABORATOR'>('DATE');
   const [reportType, setReportType] = useState<'CLIENT_SUMMARY' | 'PRODUCTION' | 'DETAILED_ORDERS' | 'SERVICE_TYPES'>('CLIENT_SUMMARY');
+
+  // Handle outside clicks to close dropdowns
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dentistDropdownRef.current && !dentistDropdownRef.current.contains(event.target as Node)) {
+        setShowDentistDropdown(false);
+      }
+      if (patientDropdownRef.current && !patientDropdownRef.current.contains(event.target as Node)) {
+        setShowPatientDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Consolidate and sort all available clients / dentists alphabetically
+  const allClientOptions = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; clinicName?: string; phone?: string; email?: string }>();
+    
+    manualDentists.forEach(d => {
+      map.set(d.id, {
+        id: d.id,
+        name: d.name,
+        clinicName: d.clinicName || (d as any).address,
+        phone: (d as any).phone || (d as any).whatsapp,
+        email: d.email
+      });
+    });
+
+    allUsers.filter(u => u.role === UserRole.DENTIST || (u.role as any) === 'CLIENT').forEach(u => {
+      if (!map.has(u.id)) {
+        map.set(u.id, {
+          id: u.id,
+          name: u.name,
+          clinicName: (u as any).clinicName,
+          phone: (u as any).phone || (u as any).whatsapp,
+          email: u.email
+        });
+      }
+    });
+
+    jobs.forEach(j => {
+      if (j.dentistId && !map.has(j.dentistId)) {
+        map.set(j.dentistId, {
+          id: j.dentistId,
+          name: j.dentistName || 'Cliente',
+          clinicName: j.clinicName
+        });
+      }
+    });
+
+    return Array.from(map.values()).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR'));
+  }, [manualDentists, allUsers, jobs]);
+
+  // Filtered client options based on search query
+  const filteredDentistSuggestions = useMemo(() => {
+    if (!dentistSearchText.trim()) return allClientOptions;
+    const term = dentistSearchText.toLowerCase().trim();
+    return allClientOptions.filter(d => 
+      (d.name && d.name.toLowerCase().includes(term)) ||
+      (d.clinicName && d.clinicName.toLowerCase().includes(term)) ||
+      (d.phone && d.phone.toLowerCase().includes(term))
+    );
+  }, [allClientOptions, dentistSearchText]);
+
+  // Currently selected client object
+  const selectedDentist = useMemo(() => {
+    if (!dentistId) return null;
+    return allClientOptions.find(d => d.id === dentistId || d.name === dentistId) || null;
+  }, [allClientOptions, dentistId]);
+
+  // Keep dentist search text in sync when a dentist is selected or changed
+  useEffect(() => {
+    if (selectedDentist) {
+      setDentistSearchText(selectedDentist.name + (selectedDentist.clinicName ? ` (${selectedDentist.clinicName})` : ''));
+    } else if (!dentistId) {
+      // Don't wipe if user is actively searching
+    }
+  }, [selectedDentist, dentistId]);
+
+  // Patients dynamically extracted from jobs (filtered by selected client if any, sorted alphabetically)
+  const availablePatientOptions = useMemo(() => {
+    const map = new Map<string, {
+      name: string;
+      totalJobs: number;
+      totalValue: number;
+      dentistNames: Set<string>;
+      latestDate: Date;
+      jobs: Job[];
+    }>();
+
+    const baseJobs = dentistId 
+      ? jobs.filter(j => j.dentistId === dentistId || j.dentistName === dentistId || (selectedDentist && j.dentistName === selectedDentist.name))
+      : jobs;
+
+    baseJobs.forEach(job => {
+      const pName = (job.patientName || '').trim();
+      if (!pName) return;
+
+      const key = pName.toLowerCase();
+      if (!map.has(key)) {
+        map.set(key, {
+          name: pName,
+          totalJobs: 0,
+          totalValue: 0,
+          dentistNames: new Set(),
+          latestDate: new Date(job.createdAt),
+          jobs: []
+        });
+      }
+
+      const pEntry = map.get(key)!;
+      pEntry.totalJobs += 1;
+      pEntry.totalValue += (job.totalValue || 0);
+      if (job.dentistName) pEntry.dentistNames.add(job.dentistName);
+      pEntry.jobs.push(job);
+      const jDate = new Date(job.createdAt);
+      if (jDate > pEntry.latestDate) {
+        pEntry.latestDate = jDate;
+      }
+    });
+
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+  }, [jobs, dentistId, selectedDentist]);
+
+  // Filtered patient suggestions based on search query
+  const filteredPatientSuggestions = useMemo(() => {
+    if (!patientSearchText.trim()) return availablePatientOptions;
+    const term = patientSearchText.toLowerCase().trim();
+    return availablePatientOptions.filter(p => p.name.toLowerCase().includes(term));
+  }, [availablePatientOptions, patientSearchText]);
+
+  // Keep patient search text synced
+  useEffect(() => {
+    if (patientFilter) {
+      setPatientSearchText(patientFilter);
+    }
+  }, [patientFilter]);
 
   // Active report export permission
   const canExportCurrentReport = useMemo(() => {
@@ -266,7 +414,15 @@ export default function Reports() {
       }
 
       // Dentist filter
-      if (dentistId && job.dentistId !== dentistId && job.dentistName !== dentistId) return false;
+      if (dentistId && job.dentistId !== dentistId && job.dentistName !== dentistId && (!selectedDentist || job.dentistName !== selectedDentist.name)) return false;
+
+      // Patient filter
+      if (patientFilter.trim()) {
+        const pTerm = patientFilter.toLowerCase().trim();
+        if (!job.patientName || !job.patientName.toLowerCase().includes(pTerm)) {
+          return false;
+        }
+      }
 
       // Collaborator filter
       if (collaboratorId) {
@@ -314,7 +470,7 @@ export default function Reports() {
 
       return true;
     });
-  }, [jobs, startDate, endDate, dateType, dentistId, collaboratorId, sector, jobTypeId, variationFilters, statusFilter, urgencyFilter]);
+  }, [jobs, startDate, endDate, dateType, dentistId, selectedDentist, patientFilter, collaboratorId, sector, jobTypeId, variationFilters, statusFilter, urgencyFilter]);
 
   // Client Summary Data (Faturamento Total do Período & Quantidade de Casos)
   const clientSummaryData = useMemo(() => {
@@ -644,7 +800,14 @@ export default function Reports() {
       return;
     }
 
-    doc.text(`Filtros: ${filteredJobs.length} trabalhos encontrados`, 14, 36);
+    let filterText = `Filtros: ${filteredJobs.length} trabalhos encontrados`;
+    if (selectedDentist) {
+      filterText += `  |  Cliente: ${selectedDentist.name}`;
+    }
+    if (patientFilter) {
+      filterText += `  |  Paciente: ${patientFilter}`;
+    }
+    doc.text(filterText, 14, 36);
 
     let yPos = 45;
 
@@ -821,6 +984,11 @@ export default function Reports() {
     setStartDate('');
     setEndDate('');
     setDentistId('');
+    setDentistSearchText('');
+    setShowDentistDropdown(false);
+    setPatientFilter('');
+    setPatientSearchText('');
+    setShowPatientDropdown(false);
     setCollaboratorId('');
     setSector('');
     setJobTypeId('');
@@ -829,6 +997,43 @@ export default function Reports() {
     setUrgencyFilter('');
     setClientSearch('');
   };
+
+  // Stats for the active patient extract (continuidade de casos do paciente)
+  const patientExtractStats = useMemo(() => {
+    if (!patientFilter.trim()) return null;
+    const pTerm = patientFilter.toLowerCase().trim();
+    const pJobs = jobs.filter(j => {
+      const matchPatient = j.patientName && j.patientName.toLowerCase().includes(pTerm);
+      if (!matchPatient) return false;
+      if (dentistId && j.dentistId !== dentistId && j.dentistName !== dentistId && (!selectedDentist || j.dentistName !== selectedDentist.name)) return false;
+      return true;
+    }).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+    if (pJobs.length === 0) return null;
+
+    const totalValue = pJobs.reduce((sum, j) => sum + (j.totalValue || 0), 0);
+    const totalItems = pJobs.reduce((sum, j) => sum + (j.items || []).reduce((s, it) => s + (it.quantity || 1), 0), 0);
+    const dentistNames = Array.from(new Set(pJobs.map(j => j.dentistName).filter(Boolean)));
+    const clinicNames = Array.from(new Set(pJobs.map(j => j.clinicName).filter(Boolean)));
+    const statusCounts = {
+      completed: pJobs.filter(j => j.status === 'COMPLETED' || j.status === 'DELIVERED').length,
+      inProgress: pJobs.filter(j => j.status === 'IN_PROGRESS' || j.status === 'PENDING' || j.status === 'SECTOR_TRANSITION' || j.status === 'WAITING_APPROVAL').length,
+      canceled: pJobs.filter(j => j.status === 'CANCELED' || j.status === 'REJECTED').length
+    };
+
+    return {
+      patientName: pJobs[0].patientName,
+      jobs: pJobs,
+      totalJobs: pJobs.length,
+      totalValue,
+      totalItems,
+      dentistNames,
+      clinicNames,
+      statusCounts,
+      firstEntry: pJobs[0].createdAt,
+      lastEntry: pJobs[pJobs.length - 1].createdAt
+    };
+  }, [jobs, patientFilter, dentistId, selectedDentist]);
 
   if (!hasAnyReportView) {
     return (
@@ -1088,19 +1293,249 @@ export default function Reports() {
             />
           </div>
 
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1.5">
-              <Stethoscope size={13} className="text-teal-600" /> {t('reports.clientDentist', 'Cliente / Dentista')}
-            </label>
-            <select 
-              value={dentistId} 
-              onChange={(e) => setDentistId(e.target.value)} 
-              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 focus:ring-2 focus:ring-teal-500 outline-none text-sm"
-            >
-              <option value="">{t('reports.allClientsDentists', 'Todos os Clientes / Dentistas')}</option>
-              {manualDentists.map(d => <option key={d.id} value={d.id}>{d.name} {d.clinicName ? `(${d.clinicName})` : ''}</option>)}
-            </select>
+          {/* CLIENT / DENTIST FILTER WITH SEARCH-AS-YOU-TYPE AND DROPDOWN */}
+          <div className="space-y-1.5" ref={dentistDropdownRef}>
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1.5">
+                <Stethoscope size={13} className="text-teal-600" /> {t('reports.clientDentist', 'Cliente / Dentista')}
+              </label>
+              {dentistId && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDentistId('');
+                    setDentistSearchText('');
+                    setShowDentistDropdown(false);
+                  }}
+                  className="text-[10px] font-bold text-slate-400 hover:text-rose-500 cursor-pointer"
+                >
+                  {t('common.clear', 'Limpar')}
+                </button>
+              )}
+            </div>
+
+            <div className="relative">
+              <div className="relative flex items-center">
+                <input
+                  type="text"
+                  value={dentistSearchText}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setDentistSearchText(val);
+                    setShowDentistDropdown(true);
+                    if (!val.trim()) {
+                      setDentistId('');
+                    } else {
+                      const exact = allClientOptions.find(d => 
+                        d.name.toLowerCase() === val.trim().toLowerCase() ||
+                        `${d.name} (${d.clinicName})`.toLowerCase() === val.trim().toLowerCase()
+                      );
+                      if (exact) setDentistId(exact.id);
+                    }
+                  }}
+                  onFocus={() => setShowDentistDropdown(true)}
+                  onClick={() => setShowDentistDropdown(true)}
+                  placeholder={t('reports.searchClientPlaceholderInput', 'Digite ou selecione cliente...')}
+                  className="w-full pl-9 pr-8 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 focus:bg-white focus:ring-2 focus:ring-teal-500 outline-none text-sm transition-all shadow-sm"
+                />
+                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                {dentistSearchText ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDentistId('');
+                      setDentistSearchText('');
+                      setShowDentistDropdown(true);
+                    }}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+                  >
+                    <X size={14} />
+                  </button>
+                ) : (
+                  <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                )}
+              </div>
+
+              {showDentistDropdown && (
+                <div className="absolute z-30 w-full mt-1 bg-white rounded-2xl shadow-xl border border-slate-100 max-h-64 overflow-y-auto divide-y divide-slate-50 animate-in fade-in zoom-in-95 duration-100">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDentistId('');
+                      setDentistSearchText('');
+                      setShowDentistDropdown(false);
+                    }}
+                    className={`w-full text-left px-3.5 py-2.5 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer text-xs font-bold ${
+                      !dentistId ? 'bg-teal-50/70 text-teal-800' : 'text-slate-600'
+                    }`}
+                  >
+                    <div className="w-6 h-6 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 shrink-0">
+                      <Users size={13} />
+                    </div>
+                    <span>{t('reports.allClientsDentists', 'Todos os Clientes / Dentistas')}</span>
+                  </button>
+
+                  {filteredDentistSuggestions.length === 0 ? (
+                    <div className="px-4 py-4 text-center text-xs text-slate-400 font-medium">
+                      {t('reports.noClientFound', 'Nenhum cliente ou dentista encontrado.')}
+                    </div>
+                  ) : (
+                    filteredDentistSuggestions.map((d) => {
+                      const isSelected = dentistId === d.id || dentistId === d.name;
+                      return (
+                        <button
+                          key={d.id}
+                          type="button"
+                          onClick={() => {
+                            setDentistId(d.id);
+                            setDentistSearchText(d.name + (d.clinicName ? ` (${d.clinicName})` : ''));
+                            setShowDentistDropdown(false);
+                          }}
+                          className={`w-full text-left px-3.5 py-2.5 hover:bg-teal-50/50 flex items-center justify-between gap-2 cursor-pointer transition-colors ${
+                            isSelected ? 'bg-teal-50 text-teal-900 font-black' : 'text-slate-700'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="w-7 h-7 rounded-xl bg-teal-50 text-teal-700 font-black flex items-center justify-center text-xs shrink-0 border border-teal-100/80">
+                              {d.name.charAt(0).toUpperCase()}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-xs font-bold text-slate-900 truncate">{d.name}</p>
+                              {d.clinicName && (
+                                <p className="text-[10px] text-slate-400 font-medium truncate">{d.clinicName}</p>
+                              )}
+                            </div>
+                          </div>
+                          {isSelected && <CheckCircle2 size={15} className="text-teal-600 shrink-0" />}
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+            </div>
           </div>
+
+          {/* PATIENT / CASE CONTINUITY FILTER WITH SEARCH-AS-YOU-TYPE AND DROPDOWN */}
+          {(dentistId || reportType === 'DETAILED_ORDERS' || patientFilter) && (
+            <div className="space-y-1.5" ref={patientDropdownRef}>
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1.5">
+                  <UserIcon size={13} className="text-amber-600" /> {t('reports.patientCaseFilter', 'Paciente / Extrato')}
+                </label>
+                {patientFilter && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPatientFilter('');
+                      setPatientSearchText('');
+                      setShowPatientDropdown(false);
+                    }}
+                    className="text-[10px] font-bold text-slate-400 hover:text-rose-500 cursor-pointer"
+                  >
+                    {t('common.clear', 'Limpar')}
+                  </button>
+                )}
+              </div>
+
+              <div className="relative">
+                <div className="relative flex items-center">
+                  <input
+                    type="text"
+                    value={patientSearchText}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setPatientSearchText(val);
+                      setPatientFilter(val);
+                      setShowPatientDropdown(true);
+                    }}
+                    onFocus={() => setShowPatientDropdown(true)}
+                    onClick={() => setShowPatientDropdown(true)}
+                    placeholder={dentistId ? t('reports.searchPatientOfClient', 'Buscar paciente deste cliente...') : t('reports.searchPatientAll', 'Buscar paciente...')}
+                    className={`w-full pl-9 pr-8 py-3 bg-slate-50 border rounded-xl font-bold text-slate-700 focus:bg-white focus:ring-2 outline-none text-sm transition-all shadow-sm ${
+                      patientFilter ? 'border-amber-300 ring-1 ring-amber-200 bg-amber-50/20' : 'border-slate-200 focus:ring-teal-500'
+                    }`}
+                  />
+                  <UserIcon size={15} className={`absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none ${patientFilter ? 'text-amber-600' : 'text-slate-400'}`} />
+                  {patientSearchText ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPatientFilter('');
+                        setPatientSearchText('');
+                        setShowPatientDropdown(true);
+                      }}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+                    >
+                      <X size={14} />
+                    </button>
+                  ) : (
+                    <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  )}
+                </div>
+
+                {showPatientDropdown && (
+                  <div className="absolute z-30 w-full mt-1 bg-white rounded-2xl shadow-xl border border-slate-100 max-h-64 overflow-y-auto divide-y divide-slate-50 animate-in fade-in zoom-in-95 duration-100">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPatientFilter('');
+                        setPatientSearchText('');
+                        setShowPatientDropdown(false);
+                      }}
+                      className={`w-full text-left px-3.5 py-2.5 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer text-xs font-bold ${
+                        !patientFilter ? 'bg-amber-50/70 text-amber-900' : 'text-slate-600'
+                      }`}
+                    >
+                      <div className="w-6 h-6 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 shrink-0">
+                        <Users size={13} />
+                      </div>
+                      <span>{t('reports.allPatients', 'Todos os Pacientes')}</span>
+                    </button>
+
+                    {filteredPatientSuggestions.length === 0 ? (
+                      <div className="px-4 py-4 text-center text-xs text-slate-400 font-medium">
+                        {patientSearchText 
+                          ? t('reports.useTypedPatientName', 'Filtrar por "{{name}}"', { name: patientSearchText }) 
+                          : t('reports.noPatientsFoundForClient', 'Nenhum paciente registrado para este cliente.')}
+                      </div>
+                    ) : (
+                      filteredPatientSuggestions.map((p) => {
+                        const isSelected = patientFilter.toLowerCase().trim() === p.name.toLowerCase().trim();
+                        return (
+                          <button
+                            key={p.name}
+                            type="button"
+                            onClick={() => {
+                              setPatientFilter(p.name);
+                              setPatientSearchText(p.name);
+                              setShowPatientDropdown(false);
+                            }}
+                            className={`w-full text-left px-3.5 py-2.5 hover:bg-amber-50/50 flex items-center justify-between gap-2 cursor-pointer transition-colors ${
+                              isSelected ? 'bg-amber-50 text-amber-900 font-black' : 'text-slate-700'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div className="w-7 h-7 rounded-xl bg-amber-50 text-amber-700 font-black flex items-center justify-center text-xs shrink-0 border border-amber-200/60">
+                                {p.name.charAt(0).toUpperCase()}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-xs font-bold text-slate-900 truncate">{p.name}</p>
+                                <p className="text-[10px] text-slate-400 font-medium truncate">
+                                  {p.totalJobs} {p.totalJobs === 1 ? 'caso / OS' : 'casos / OSs'} • R$ {p.totalValue.toFixed(2)}
+                                </p>
+                              </div>
+                            </div>
+                            {isSelected && <CheckCircle2 size={15} className="text-amber-600 shrink-0" />}
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {reportType !== 'CLIENT_SUMMARY' && (
             <>
@@ -1442,6 +1877,120 @@ export default function Reports() {
         ) : (
           /* --- VIEW 3: PRODUCTION / DETAILED_ORDERS --- */
           <div className="p-5 sm:p-6 space-y-8">
+            {/* PATIENT CONTINUITY STATEMENT BANNER (EXTRATO POR PACIENTE) */}
+            {patientExtractStats && (
+              <div className="bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent border-2 border-amber-300 rounded-3xl p-5 sm:p-6 shadow-sm space-y-4">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-amber-200/60 pb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-amber-500 text-white font-black flex items-center justify-center text-xl shadow-md shadow-amber-200">
+                      <UserIcon size={24} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h4 className="text-xl font-black text-slate-900 tracking-tight">
+                          {patientExtractStats.patientName}
+                        </h4>
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1">
+                          <History size={11} /> {t('reports.continuityBadge', 'Extrato de Continuidade de Casos')}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-600 font-medium mt-0.5">
+                        {t('reports.dentistResponsible', 'Dentista / Clínica:')} <strong className="text-slate-800">{patientExtractStats.dentistNames.join(', ') || 'Geral'}</strong>
+                        {patientExtractStats.clinicNames.length > 0 && ` • ${patientExtractStats.clinicNames.join(', ')}`}
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setPatientFilter('');
+                      setPatientSearchText('');
+                    }}
+                    className="px-3 py-1.5 bg-white hover:bg-amber-50 text-amber-800 border border-amber-200 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm"
+                  >
+                    <X size={14} />
+                    <span>{t('reports.clearPatientFilter', 'Remover Filtro do Paciente')}</span>
+                  </button>
+                </div>
+
+                {/* KPI Metrics for this patient */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="bg-white/90 backdrop-blur-sm p-4 rounded-2xl border border-amber-100 shadow-sm">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-700 block mb-1">
+                      {t('reports.totalInvested', 'Valor Total Acumulado')}
+                    </span>
+                    <p className="text-lg sm:text-xl font-black text-teal-700">
+                      R$ {patientExtractStats.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                  </div>
+
+                  <div className="bg-white/90 backdrop-blur-sm p-4 rounded-2xl border border-amber-100 shadow-sm">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-indigo-700 block mb-1">
+                      {t('reports.casesAndStages', 'Ordens / Etapas')}
+                    </span>
+                    <p className="text-lg sm:text-xl font-black text-slate-900">
+                      {patientExtractStats.totalJobs} <span className="text-xs font-bold text-slate-400">{patientExtractStats.totalJobs === 1 ? 'caso' : 'etapas vinculadas'}</span>
+                    </p>
+                  </div>
+
+                  <div className="bg-white/90 backdrop-blur-sm p-4 rounded-2xl border border-amber-100 shadow-sm">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-purple-700 block mb-1">
+                      {t('reports.totalElements', 'Elementos Produzidos')}
+                    </span>
+                    <p className="text-lg sm:text-xl font-black text-slate-900">
+                      {patientExtractStats.totalItems} <span className="text-xs font-bold text-slate-400">itens</span>
+                    </p>
+                  </div>
+
+                  <div className="bg-white/90 backdrop-blur-sm p-4 rounded-2xl border border-amber-100 shadow-sm">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 block mb-1">
+                      {t('reports.statusOverview', 'Status das Etapas')}
+                    </span>
+                    <div className="text-xs font-bold text-slate-700 space-y-0.5 mt-0.5">
+                      {patientExtractStats.statusCounts.completed > 0 && (
+                        <div className="text-emerald-700 flex items-center gap-1 font-bold">
+                          <CheckCircle2 size={12} /> {patientExtractStats.statusCounts.completed} Finalizado(s)
+                        </div>
+                      )}
+                      {patientExtractStats.statusCounts.inProgress > 0 && (
+                        <div className="text-amber-700 flex items-center gap-1 font-bold">
+                          <Clock size={12} /> {patientExtractStats.statusCounts.inProgress} Em Produção
+                        </div>
+                      )}
+                      {patientExtractStats.statusCounts.canceled > 0 && (
+                        <div className="text-rose-600 flex items-center gap-1 font-bold">
+                          <AlertCircle size={12} /> {patientExtractStats.statusCounts.canceled} Cancelado(s)
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Timeline stages badge chips */}
+                {patientExtractStats.jobs.length > 1 && (
+                  <div className="bg-white/70 p-3 rounded-2xl border border-amber-100 flex items-center gap-2 overflow-x-auto">
+                    <span className="text-[10px] font-black text-slate-400 uppercase shrink-0 flex items-center gap-1">
+                      <Layers size={13} /> {t('reports.continuitySequence', 'Sequência de Etapas:')}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      {patientExtractStats.jobs.map((pj, idx) => (
+                        <React.Fragment key={pj.id}>
+                          {idx > 0 && <ChevronRight size={14} className="text-slate-300 shrink-0" />}
+                          <div className="px-3 py-1 bg-amber-50 border border-amber-200 rounded-xl text-xs font-bold text-slate-800 flex items-center gap-1.5 shrink-0">
+                            <span className="font-mono text-amber-800 font-black">OS #{pj.osNumber || '-'}</span>
+                            <span className="text-[10px] text-slate-400">({new Date(pj.createdAt).toLocaleDateString()})</span>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-white text-teal-700 font-bold">
+                              R$ {(pj.totalValue || 0).toFixed(2)}
+                            </span>
+                          </div>
+                        </React.Fragment>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="border-b border-slate-100 pb-3 flex justify-between items-center">
               <h3 className="font-bold text-slate-800">{t('reports.resultsCount', 'Resultados ({{count}} trabalhos)', { count: filteredJobs.length })}</h3>
             </div>

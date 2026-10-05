@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   X, Download, FileText, Image as ImageIcon, Video as VideoIcon, 
-  AlertTriangle, ExternalLink, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCcw, Globe
+  AlertTriangle, ExternalLink, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCcw, Globe,
+  MessageSquare, Edit2, Check, Clock
 } from 'lucide-react';
 import { STLViewer } from './STLViewer';
 import { Attachment } from '../types';
@@ -12,6 +13,7 @@ interface AttachmentPreviewModalProps {
   file: Attachment;
   allAttachments?: Attachment[];
   onClose: () => void;
+  onUpdateComment?: (attId: string, comment: string) => Promise<void>;
 }
 
 export const handleDownloadFile = async (url: string, name: string) => {
@@ -47,10 +49,10 @@ export const handleDownloadFile = async (url: string, name: string) => {
   }
 };
 
-export const AttachmentPreviewModal: React.FC<AttachmentPreviewModalProps> = ({ file, allAttachments = [], onClose }) => {
+export const AttachmentPreviewModal: React.FC<AttachmentPreviewModalProps> = ({ file, allAttachments = [], onClose, onUpdateComment }) => {
   const getFileType = (fileName: string): 'stl' | 'image' | 'video' | 'html' | 'other' => {
     const ext = fileName.split('.').pop()?.toLowerCase();
-    if (ext === 'stl') return 'stl';
+    if (ext === 'stl' || ext === 'ply' || ext === 'obj') return 'stl';
     if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'].includes(ext || '')) return 'image';
     if (['mp4', 'webm', 'ogg', 'mov'].includes(ext || '')) return 'video';
     if (['html', 'htm'].includes(ext || '')) return 'html';
@@ -69,6 +71,28 @@ export const AttachmentPreviewModal: React.FC<AttachmentPreviewModalProps> = ({ 
   const fileType = getFileType(activeFile.name);
 
   const [resolvedDownloadUrl, setResolvedDownloadUrl] = React.useState(activeFile.url);
+  const [isEditingComment, setIsEditingComment] = React.useState(false);
+  const [commentDraft, setCommentDraft] = React.useState(activeFile.comment || '');
+  const [isSavingComment, setIsSavingComment] = React.useState(false);
+
+  React.useEffect(() => {
+    setCommentDraft(activeFile.comment || '');
+    setIsEditingComment(false);
+  }, [activeFile]);
+
+  const handleSaveModalComment = async () => {
+    if (!onUpdateComment || !activeFile.id) return;
+    setIsSavingComment(true);
+    try {
+      await onUpdateComment(activeFile.id, commentDraft);
+      activeFile.comment = commentDraft.trim() || undefined;
+      setIsEditingComment(false);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsSavingComment(false);
+    }
+  };
 
   React.useEffect(() => {
     let active = true;
@@ -191,15 +215,19 @@ export const AttachmentPreviewModal: React.FC<AttachmentPreviewModalProps> = ({ 
             <h4 className="text-sm font-black text-slate-100 truncate max-w-[250px] sm:max-w-md md:max-w-xs leading-tight" title={activeFile.name}>
               {activeFile.name}
             </h4>
-            <div className="flex items-center gap-2 mt-0.5">
+            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
               {allAttachments.length > 1 && (
                 <span className="text-[10px] bg-indigo-500/20 text-indigo-300 font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider">
                   Foto {currentIndex + 1} de {allAttachments.length}
                 </span>
               )}
               {activeFile.uploadedAt && (
-                <span className="text-[10px] text-slate-500 font-bold">
-                  {new Date(activeFile.uploadedAt).toLocaleDateString('pt-BR')}
+                <span className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
+                  <Clock size={11} className="text-slate-500" />
+                  {(() => {
+                    const d = activeFile.uploadedAt instanceof Date ? activeFile.uploadedAt : (activeFile.uploadedAt as any).seconds ? new Date((activeFile.uploadedAt as any).seconds * 1000) : new Date(activeFile.uploadedAt);
+                    return isNaN(d.getTime()) ? '' : `${d.toLocaleDateString('pt-BR')} às ${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+                  })()}
                 </span>
               )}
             </div>
@@ -380,6 +408,68 @@ export const AttachmentPreviewModal: React.FC<AttachmentPreviewModalProps> = ({ 
           </button>
         )}
 
+      </div>
+
+      {/* Comment section bar */}
+      <div className="bg-slate-900/95 border-t border-slate-800 px-4 sm:px-6 py-3 z-50 shrink-0">
+        <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
+          {isEditingComment ? (
+            <div className="flex-1 flex items-center gap-2">
+              <input 
+                type="text" 
+                value={commentDraft}
+                onChange={e => setCommentDraft(e.target.value)}
+                placeholder="Escreva um comentário ou observação sobre este anexo..."
+                className="flex-1 px-3.5 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white placeholder:text-slate-500 font-medium outline-none focus:border-blue-500"
+                autoFocus
+                onKeyDown={e => {
+                  if (e.key === 'Enter') handleSaveModalComment();
+                  if (e.key === 'Escape') setIsEditingComment(false);
+                }}
+              />
+              <button
+                type="button"
+                onClick={handleSaveModalComment}
+                disabled={isSavingComment}
+                className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center gap-1 shrink-0"
+              >
+                <Check size={14} /> Salvar
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsEditingComment(false)}
+                className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold shrink-0"
+              >
+                Cancelar
+              </button>
+            </div>
+          ) : (
+            <div className="flex-1 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 min-w-0">
+                <MessageSquare size={14} className="text-blue-400 shrink-0" />
+                {activeFile.comment ? (
+                  <p className="text-xs text-slate-200 font-medium truncate italic">
+                    "{activeFile.comment}"
+                  </p>
+                ) : (
+                  <p className="text-xs text-slate-500 italic">
+                    Nenhum comentário adicionado para este anexo.
+                  </p>
+                )}
+              </div>
+              {onUpdateComment && (
+                <button
+                  type="button"
+                  onClick={() => setIsEditingComment(true)}
+                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-bold flex items-center gap-1.5 transition shrink-0"
+                >
+                  <Edit2 size={12} />
+                  <span>{activeFile.comment ? 'Editar Comentário' : '+ Adicionar Comentário'}</span>
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Multiple attachment carousel grid selection */}
