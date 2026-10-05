@@ -30,8 +30,65 @@ export const getJobOriginInfo = (job: any) => {
     default:
       return { label: i18n.t('orders.origins.MANUAL', 'Manual'), color: 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300' }
   }
-
 }
+
+// Helper to obtain completion date and time for finalized jobs
+export const getJobCompletionInfo = (job: Job) => {
+  const isFinalized = job.status === JobStatus.COMPLETED || job.status === JobStatus.DELIVERED;
+  if (!isFinalized) {
+    return { isFinalized: false, dateStr: '', timeStr: '' };
+  }
+
+  let completionDate: Date | null = null;
+
+  // 1. Direct fields
+  if ((job as any).completedAt) {
+    const ca = (job as any).completedAt;
+    completionDate = ca instanceof Date ? ca : new Date(ca?.seconds ? ca.seconds * 1000 : ca);
+  } else if ((job as any).finalizedAt) {
+    const fa = (job as any).finalizedAt;
+    completionDate = fa instanceof Date ? fa : new Date(fa?.seconds ? fa.seconds * 1000 : fa);
+  }
+
+  // 2. Search history for finalization action
+  if (!completionDate && job.history && job.history.length > 0) {
+    const finalHistory = [...job.history].reverse().find(h => {
+      if (!h) return false;
+      const act = (h.action || '').toLowerCase();
+      return act.includes('finaliz') || act.includes('conclu') || act.includes('conferido') || act.includes('entregue') || act.includes('completed') || act.includes('delivered');
+    });
+
+    if (finalHistory && finalHistory.timestamp) {
+      const ts = finalHistory.timestamp;
+      completionDate = ts instanceof Date ? ts : new Date((ts as any)?.seconds ? (ts as any).seconds * 1000 : ts);
+    }
+  }
+
+  // 3. Fallback to last history timestamp
+  if (!completionDate && job.history && job.history.length > 0) {
+    const lastItem = job.history[job.history.length - 1];
+    if (lastItem && lastItem.timestamp) {
+      const ts = lastItem.timestamp;
+      completionDate = ts instanceof Date ? ts : new Date((ts as any)?.seconds ? (ts as any).seconds * 1000 : ts);
+    }
+  }
+
+  // 4. Fallback to dueDate
+  if (!completionDate && job.dueDate) {
+    const dd = job.dueDate;
+    completionDate = dd instanceof Date ? dd : new Date((dd as any)?.seconds ? (dd as any).seconds * 1000 : dd);
+  }
+
+  if (completionDate && !isNaN(completionDate.getTime())) {
+    const dateStr = completionDate.toLocaleDateString('pt-BR');
+    const hours = completionDate.getHours().toString().padStart(2, '0');
+    const minutes = completionDate.getMinutes().toString().padStart(2, '0');
+    const timeStr = `${hours}:${minutes}`;
+    return { isFinalized: true, dateStr, timeStr };
+  }
+
+  return { isFinalized: true, dateStr: '-', timeStr: '' };
+};
 
 // Componente de Linha Memoizado para evitar re-renders desnecessários
 const JobRow = memo(({ isJobOverdue, 
@@ -71,11 +128,14 @@ const JobRow = memo(({ isJobOverdue,
 
     return (
         <tr className={`hover:bg-blue-50/30 dark:hover:bg-blue-950/20 transition-colors ${showAttention ? 'bg-yellow-50/50 dark:bg-yellow-950/20' : ''}`}>
+            {/* 1. OS # ou Orçamento # */}
             <td className="p-4 font-mono font-bold text-sm">
                 <button onClick={() => navigate(`/jobs/${job.id}`)} className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline text-left">
                     {job.osNumber || '---'}
                 </button>
             </td>
+
+            {/* 2. Caixa */}
             {!isClient && !isBudgetMode && (
                 <td className="p-4">
                     {job.boxNumber ? (
@@ -89,23 +149,23 @@ const JobRow = memo(({ isJobOverdue,
                 </td>
             )}
             
-            {!isBudgetMode && (
-                <td className="p-4">
-                    <div className="font-bold text-slate-900 dark:text-slate-100 text-sm">{job.patientName}</div>
-                    {(job.status === 'REJECTED' || (job.status as any) === 'REJECTED_REQUISITION') && job.rejectionReason && (
-                        <div className="mt-1 text-[11px] font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-900/50 rounded px-2 py-1 max-w-xs">
-                            <span className="font-black text-[9px] uppercase tracking-wider block text-red-700 dark:text-red-300">{t('orders.rejectionReasonLabel', 'Motivo da Recusa:')}</span>
-                            {job.rejectionReason}
-                        </div>
-                    )}
-                </td>
-            )}
-            {isBudgetMode && (
-                <td className="p-4">
-                    <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-tight">{job.dentistName}</div>
-                </td>
-            )}
+            {/* 3. Dentista (logo após Caixa, antes de Paciente) */}
+            <td className="p-4">
+                <div className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-tight">{job.dentistName}</div>
+            </td>
+
+            {/* 4. Paciente */}
+            <td className="p-4">
+                <div className="font-bold text-slate-900 dark:text-slate-100 text-sm">{job.patientName}</div>
+                {!isBudgetMode && (job.status === 'REJECTED' || (job.status as any) === 'REJECTED_REQUISITION') && job.rejectionReason && (
+                    <div className="mt-1 text-[11px] font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-900/50 rounded px-2 py-1 max-w-xs">
+                        <span className="font-black text-[9px] uppercase tracking-wider block text-red-700 dark:text-red-300">{t('orders.rejectionReasonLabel', 'Motivo da Recusa:')}</span>
+                        {job.rejectionReason}
+                    </div>
+                )}
+            </td>
             
+            {/* 5. Origem */}
             {!isBudgetMode && (
                 <td className="p-4 text-xs font-bold">
                     {(() => {
@@ -119,30 +179,7 @@ const JobRow = memo(({ isJobOverdue,
                 </td>
             )}
             
-            {!isBudgetMode && (
-                <td className="p-4">
-                    <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-tight">{job.dentistName}</div>
-                </td>
-            )}
-            {isBudgetMode && (
-                <td className="p-4">
-                    <div className="font-bold text-slate-900 dark:text-slate-100 text-sm">{job.patientName}</div>
-                </td>
-            )}
-            
-            {!isBudgetMode && (
-                <td className="p-4">
-                    {revealJobStatus ? (
-                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase border ${getStatusColor(job.status, typeof isJobOverdue === "function" ? isJobOverdue(job) : false)}`}>
-                            {getTranslatedStatus(job.status, typeof isJobOverdue === "function" ? isJobOverdue(job) : false)}
-                        </span>
-                    ) : (
-                        <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase border bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border-slate-200 dark:border-slate-700" title={t('orders.statusUnavailableNotice', 'Função de andamento indisponível no momento')}>
-                            {t('common.unavailable', 'Indisponível')}
-                        </span>
-                    )}
-                </td>
-            )}
+            {/* 6. Setor / Tempo (antes de Status) */}
             {!isBudgetMode && (
                 <td className="p-4">
                     <div className="flex flex-col">
@@ -158,44 +195,82 @@ const JobRow = memo(({ isJobOverdue,
                     </div>
                 </td>
             )}
+
+            {/* 7. Status (depois de Setor/Tempo) */}
+            {!isBudgetMode && (
+                <td className="p-4">
+                    {revealJobStatus ? (
+                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase border ${getStatusColor(job.status, typeof isJobOverdue === "function" ? isJobOverdue(job) : false)}`}>
+                            {getTranslatedStatus(job.status, typeof isJobOverdue === "function" ? isJobOverdue(job) : false)}
+                        </span>
+                    ) : (
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase border bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border-slate-200 dark:border-slate-700" title={t('orders.statusUnavailableNotice', 'Função de andamento indisponível no momento')}>
+                            {t('common.unavailable', 'Indisponível')}
+                        </span>
+                    )}
+                </td>
+            )}
             
-            {isBudgetMode && (
+            {/* 8. Entrega / Data de Criação */}
+            {isBudgetMode ? (
                 <td className="p-4 text-slate-600 dark:text-slate-300 text-xs font-bold">
                     {job.createdAt ? (
                         job.createdAt instanceof Date 
-                            ? job.createdAt.toLocaleDateString()
-                            : new Date((job.createdAt as any).seconds ? (job.createdAt as any).seconds * 1000 : job.createdAt).toLocaleDateString()
+                            ? job.createdAt.toLocaleDateString('pt-BR')
+                            : new Date((job.createdAt as any).seconds ? (job.createdAt as any).seconds * 1000 : job.createdAt).toLocaleDateString('pt-BR')
                     ) : '-'}
                 </td>
-            )}
-            {!isBudgetMode && (
-                <td className="p-4 text-slate-600 dark:text-slate-300 text-xs font-bold">{(job.dueDate ? new Date(job.dueDate).toLocaleDateString() : "-")}</td>
-            )}
-            
-            {!isBudgetMode && (
-                <td className="p-4 text-right">
-                    <div className="flex justify-end gap-1">
-                        {canFinalize && <button onClick={() => handleFinalizeJob(job)} className="p-2 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-950/40 rounded-lg" title={t('orders.actionFinalize', 'Finalizar')}><CheckCircle2 size={18} /></button>}
-                        {canReopen && <button onClick={() => handleReopenJob(job)} className="p-2 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-950/40 rounded-lg" title={t('orders.actionReopen', 'Reabrir')}><RotateCcw size={18} /></button>}
-                        {canRoute && <button onClick={() => setRouteModalJob(job)} className="p-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-950/40 rounded-lg" title={t('orders.scaleForDelivery', 'Escalar p/ Entrega')}><Truck size={18} /></button>}
-                        <button onClick={() => navigate(`/jobs/${job.id}`)} className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-950/40 rounded-lg" title={t('common.view', 'Visualizar')}><Eye size={18} /></button>
-                    </div>
+            ) : (
+                <td className="p-4">
+                    {(() => {
+                        const completionInfo = getJobCompletionInfo(job);
+                        if (completionInfo.isFinalized) {
+                            return (
+                                <div className="flex flex-col">
+                                    <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
+                                        <CheckCircle2 size={13} className="shrink-0 text-emerald-600 dark:text-emerald-400" />
+                                        {completionInfo.dateStr}
+                                    </span>
+                                    {completionInfo.timeStr && (
+                                        <span className="text-[10px] font-semibold text-emerald-600/80 dark:text-emerald-400/80 ml-4">
+                                            às {completionInfo.timeStr}
+                                        </span>
+                                    )}
+                                </div>
+                            );
+                        }
+
+                        return (
+                            <div className="flex flex-col">
+                                <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                                    {job.dueDate ? new Date(job.dueDate).toLocaleDateString('pt-BR') : '-'}
+                                </span>
+                                {job.dueTime && (
+                                    <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500">
+                                        às {job.dueTime}
+                                    </span>
+                                )}
+                            </div>
+                        );
+                    })()}
                 </td>
             )}
+            
+            {/* 9. Valor Final (Orçamento) & Ações */}
             {isBudgetMode && (
                 <td className="p-4 text-right font-bold text-xs text-slate-800 dark:text-slate-100">
                     {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(job.totalValue || 0)}
                 </td>
             )}
-            {isBudgetMode && (
-                <td className="p-4 text-right">
-                    <div className="flex justify-end gap-1">
-                        <button onClick={() => navigate(`/jobs/${job.id}`)} className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-950/40 rounded-lg" title={t('orders.viewBudget', 'Ver Orçamento')}>
-                            <Eye size={18} />
-                        </button>
-                    </div>
-                </td>
-            )}
+            
+            <td className="p-4 text-right">
+                <div className="flex justify-end gap-1">
+                    {!isBudgetMode && canFinalize && <button onClick={() => handleFinalizeJob(job)} className="p-2 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-950/40 rounded-lg" title={t('orders.actionFinalize', 'Finalizar')}><CheckCircle2 size={18} /></button>}
+                    {!isBudgetMode && canReopen && <button onClick={() => handleReopenJob(job)} className="p-2 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-950/40 rounded-lg" title={t('orders.actionReopen', 'Reabrir')}><RotateCcw size={18} /></button>}
+                    {!isBudgetMode && canRoute && <button onClick={() => setRouteModalJob(job)} className="p-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-950/40 rounded-lg" title={t('orders.scaleForDelivery', 'Escalar p/ Entrega')}><Truck size={18} /></button>}
+                    <button onClick={() => navigate(`/jobs/${job.id}`)} className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-950/40 rounded-lg" title={isBudgetMode ? t('orders.viewBudget', 'Ver Orçamento') : t('common.view', 'Visualizar')}><Eye size={18} /></button>
+                </div>
+            </td>
         </tr>
     );
 });
@@ -247,13 +322,25 @@ const JobCard = memo(({ isJobOverdue,
                     )}
                 </div>
                 <div className="text-right">
-                    <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase leading-none">{isBudgetMode ? t('orders.table.createdAt', 'Criado em') : t('orders.table.dueDate', 'Entrega')}</p>
-                    <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                        {isBudgetMode 
-                            ? (job.createdAt ? (job.createdAt instanceof Date ? job.createdAt.toLocaleDateString() : new Date((job.createdAt as any).seconds ? (job.createdAt as any).seconds * 1000 : job.createdAt).toLocaleDateString()) : '-')
-                            : (job.dueDate ? new Date(job.dueDate).toLocaleDateString() : '-')
-                        }
+                    <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase leading-none">
+                        {isBudgetMode ? t('orders.table.createdAt', 'Criado em') : (job.status === JobStatus.COMPLETED || job.status === JobStatus.DELIVERED ? 'Finalizado' : t('orders.table.dueDate', 'Entrega'))}
                     </p>
+                    <div className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                        {(() => {
+                            if (isBudgetMode) {
+                                return job.createdAt ? (job.createdAt instanceof Date ? job.createdAt.toLocaleDateString('pt-BR') : new Date((job.createdAt as any).seconds ? (job.createdAt as any).seconds * 1000 : job.createdAt).toLocaleDateString('pt-BR')) : '-';
+                            }
+                            const compInfo = getJobCompletionInfo(job);
+                            if (compInfo.isFinalized) {
+                                return (
+                                    <span className="text-emerald-700 dark:text-emerald-400">
+                                        {compInfo.dateStr} {compInfo.timeStr ? `às ${compInfo.timeStr}` : ''}
+                                    </span>
+                                );
+                            }
+                            return `${job.dueDate ? new Date(job.dueDate).toLocaleDateString('pt-BR') : '-'}${job.dueTime ? ` às ${job.dueTime}` : ''}`;
+                        })()}
+                    </div>
                 </div>
             </div>
 
@@ -589,6 +676,7 @@ const handleUpdateStatus = async (jobId: string, status: JobStatus) => {
       if (!window.confirm(t('orders.confirmFinalizeJob', { name: job.patientName, defaultValue: `Deseja finalizar o caso de ${job.patientName}?` }))) return;
       await updateJob(job.id, {
           status: JobStatus.COMPLETED,
+          completedAt: new Date(),
           history: [...(job.history || []).filter(Boolean), {
               id: `hist_fin_${Date.now()}`,
               timestamp: new Date(),
@@ -1001,21 +1089,17 @@ const handleUpdateStatus = async (jobId: string, status: JobStatus) => {
                         <th className="p-4">{isBudgetMode ? t('orders.table.budgetNumber', 'Orçamento #') : t('orders.table.osNumber', 'OS #')}</th>
                         {!isClient && !isBudgetMode && <th className="p-4">{t('orders.table.box', 'Caixa')}</th>}
                         
-                        {!isBudgetMode && <th className="p-4">{t('orders.table.patient', 'Paciente')}</th>}
-                        {isBudgetMode && <th className="p-4">{t('orders.table.dentist', 'Dentista')}</th>}
+                        <th className="p-4">{t('orders.table.dentist', 'Dentista')}</th>
+                        <th className="p-4">{t('orders.table.patient', 'Paciente')}</th>
                         
                         {!isBudgetMode && <th className="p-4">{t('orders.table.origin', 'Origem')}</th>}
-                        
-                        {!isBudgetMode && <th className="p-4">{t('orders.table.dentist', 'Dentista')}</th>}
-                        {isBudgetMode && <th className="p-4">{t('orders.table.patient', 'Paciente')}</th>}
 
-                        {!isBudgetMode && <th className="p-4">{t('orders.table.status', 'Status')}</th>}
                         {!isBudgetMode && <th className="p-4">{isClient ? t('orders.table.sector', 'Setor') : t('orders.table.sectorTime', 'Setor/Tempo')}</th>}
+                        {!isBudgetMode && <th className="p-4">{t('orders.table.status', 'Status')}</th>}
                         
                         <th className="p-4">{isBudgetMode ? t('orders.table.createdAt', 'Data de Criação') : t('orders.table.dueDate', 'Entrega')}</th>
                         {isBudgetMode && <th className="p-4 text-right">{t('orders.table.finalValue', 'Valor Final')}</th>}
-                        {!isBudgetMode && <th className="p-4 text-right">{t('orders.table.actions', 'Ações')}</th>}
-                        {isBudgetMode && <th className="p-4 text-right">{t('orders.table.actions', 'Ações')}</th>}
+                        <th className="p-4 text-right">{t('orders.table.actions', 'Ações')}</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">

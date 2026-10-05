@@ -682,6 +682,8 @@ export interface Job {
   createdAt: Date;
   dueDate: Date;
   dueTime?: string;
+  completedAt?: Date;
+  finalizedAt?: Date;
   boxNumber?: string;
   boxColor?: BoxColor;
   receivedMaterials?: string[];
