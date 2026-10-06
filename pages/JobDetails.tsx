@@ -746,10 +746,42 @@ export const JobDetails = () => {
   const [newItemNature, setNewItemNature] = useState<JobNature>('NORMAL');
   const [newItemVariationIds, setNewItemVariationIds] = useState<string[]>([]);
   const [newItemTeeth, setNewItemTeeth] = useState<string[]>([]);
+  const [newItemTeethInput, setNewItemTeethInput] = useState('');
   const [newItemColor, setNewItemColor] = useState('');
+  const [editingModalTeethInput, setEditingModalTeethInput] = useState('');
+
+  useEffect(() => {
+    if (editingModalItemId) {
+      const item = editItems.find(i => i.id === editingModalItemId);
+      if (item && item.selectedTeeth && item.selectedTeeth.length > 0) {
+        setEditingModalTeethInput(item.selectedTeeth.join(', '));
+      } else {
+        setEditingModalTeethInput('');
+      }
+    } else {
+      setEditingModalTeethInput('');
+    }
+  }, [editingModalItemId]);
   const [newItemDiscountType, setNewItemDiscountType] = useState<'PERCENTAGE' | 'FIXED'>('PERCENTAGE');
   const [newItemDiscount, setNewItemDiscount] = useState<number | string>(0);
   const [newItemCustomPrice, setNewItemCustomPrice] = useState<number | string>('');
+  const [serviceTypeCatalogFilter, setServiceTypeCatalogFilter] = useState<'DENTIST' | 'LABORATORY' | 'ALL'>('DENTIST');
+
+  const availableJobTypesForEdit = useMemo(() => {
+    if (serviceTypeCatalogFilter === 'ALL') return jobTypes;
+    if (serviceTypeCatalogFilter === 'LABORATORY') {
+      return jobTypes.filter(t => t.isVisibleInternallyLabs === true);
+    }
+    return jobTypes.filter(t => t.isVisibleInternally !== false);
+  }, [jobTypes, serviceTypeCatalogFilter]);
+
+  useEffect(() => {
+    if (availableJobTypesForEdit.length > 0) {
+      if (!availableJobTypesForEdit.some(t => t.id === newItemTypeId)) {
+        setNewItemTypeId(availableJobTypesForEdit[0].id);
+      }
+    }
+  }, [serviceTypeCatalogFilter, availableJobTypesForEdit]);
 
   const newItemCalculatedBasePrice = useMemo(() => {
     const type = jobTypes.find(t => t.id === newItemTypeId);
@@ -784,6 +816,7 @@ export const JobDetails = () => {
       setNewItemVariationIds([]);
     }
     setNewItemTeeth([]);
+    setNewItemTeethInput('');
     setNewItemColor('');
     setNewItemQty(1);
     setNewItemDiscount(0);
@@ -855,7 +888,9 @@ export const JobDetails = () => {
         setEditDentistName(job.dentistName || '');
         setEditSubDentistName(job.subDentistName || '');
         setDentistSearchQuery(job.dentistName || '');
-        const visibleTypes = jobTypes.filter(t => job.clientOrigin === 'LABORATORY' ? t.isVisibleInternallyLabs === true : t.isVisibleInternally !== false);
+        const defaultFilter = job.clientOrigin === 'LABORATORY' ? 'LABORATORY' : 'DENTIST';
+        setServiceTypeCatalogFilter(defaultFilter);
+        const visibleTypes = jobTypes.filter(t => defaultFilter === 'LABORATORY' ? t.isVisibleInternallyLabs === true : t.isVisibleInternally !== false);
         if (visibleTypes.length > 0) setNewItemTypeId(visibleTypes[0].id);
         else if (jobTypes.length > 0) setNewItemTypeId(jobTypes[0].id);
     }
@@ -1055,6 +1090,7 @@ export const JobDetails = () => {
       setNewItemNature('NORMAL');
       setNewItemVariationIds([]);
       setNewItemTeeth([]);
+      setNewItemTeethInput('');
       setNewItemColor('');
       setNewItemDiscount(0);
       setNewItemDiscountType('PERCENTAGE');
@@ -2727,17 +2763,72 @@ export const JobDetails = () => {
                                               </div>
                                               <div className="space-y-2">
                                                   <div>
-                                                      <label className="block text-[9px] font-black text-slate-500 uppercase mb-1">Tipo de Serviço</label>
+                                                      <div className="flex justify-between items-center mb-1 flex-wrap gap-1">
+                                                          <label className="text-[9px] font-black text-slate-500 uppercase">Tipo de Serviço</label>
+                                                          <div className="flex items-center gap-1 bg-white border border-blue-200 p-0.5 rounded-lg shadow-xs">
+                                                              <button
+                                                                  type="button"
+                                                                  onClick={() => setServiceTypeCatalogFilter('DENTIST')}
+                                                                  className={`px-2 py-0.5 rounded-md text-[8.5px] font-black uppercase transition-all ${
+                                                                      serviceTypeCatalogFilter === 'DENTIST'
+                                                                          ? 'bg-blue-600 text-white shadow-xs'
+                                                                          : 'text-slate-500 hover:text-slate-800'
+                                                                  }`}
+                                                              >
+                                                                  Dentista
+                                                              </button>
+                                                              <button
+                                                                  type="button"
+                                                                  onClick={() => setServiceTypeCatalogFilter('LABORATORY')}
+                                                                  className={`px-2 py-0.5 rounded-md text-[8.5px] font-black uppercase transition-all ${
+                                                                      serviceTypeCatalogFilter === 'LABORATORY'
+                                                                          ? 'bg-blue-600 text-white shadow-xs'
+                                                                          : 'text-slate-500 hover:text-slate-800'
+                                                                  }`}
+                                                              >
+                                                                  Laboratório
+                                                              </button>
+                                                              <button
+                                                                  type="button"
+                                                                  onClick={() => setServiceTypeCatalogFilter('ALL')}
+                                                                  className={`px-2 py-0.5 rounded-md text-[8.5px] font-black uppercase transition-all ${
+                                                                      serviceTypeCatalogFilter === 'ALL'
+                                                                          ? 'bg-blue-600 text-white shadow-xs'
+                                                                          : 'text-slate-500 hover:text-slate-800'
+                                                                  }`}
+                                                              >
+                                                                  Todos
+                                                              </button>
+                                                          </div>
+                                                      </div>
                                                       <select value={item.jobTypeId} onChange={e => handleUpdateEditItem(item.id, { jobTypeId: e.target.value })} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-blue-500">
-                                                          {jobTypes.filter(t => (job.clientOrigin === 'LABORATORY' ? t.isVisibleInternallyLabs === true : t.isVisibleInternally !== false) || t.id === item.jobTypeId).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                                          {jobTypes.filter(t => (serviceTypeCatalogFilter === 'ALL' || (serviceTypeCatalogFilter === 'LABORATORY' ? t.isVisibleInternallyLabs === true : t.isVisibleInternally !== false)) || t.id === item.jobTypeId).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                                                       </select>
                                                   </div>
                                                   <div className="flex gap-2 items-end">
-                                                      <div className={(item.selectedTeeth && item.selectedTeeth.length > 0) ? "w-20 opacity-50 pointer-events-none" : "w-20"}>
+                                                      <div className={(item.selectedTeeth && item.selectedTeeth.length > 0) ? "w-16 sm:w-20 opacity-50 pointer-events-none shrink-0" : "w-16 sm:w-20 shrink-0"}>
                                                           <label className="block text-[9px] font-black text-slate-500 uppercase mb-1">Qtd</label>
                                                           <input type="number" min="1" value={(item.quantity as any) === '' ? '' : (item.quantity ?? 1)} readOnly={!!(item.selectedTeeth && item.selectedTeeth.length > 0)} onChange={e => handleUpdateEditItem(item.id, { quantity: e.target.value === '' ? '' : (parseInt(e.target.value) || '') as any })} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-center" />
                                                       </div>
-                                                      <div className="flex-1">
+                                                      <div className="flex-1 min-w-0">
+                                                          <label className="block text-[9px] font-black text-slate-500 uppercase mb-1">Dentes</label>
+                                                          <input 
+                                                              type="text" 
+                                                              value={editingModalTeethInput} 
+                                                              onChange={e => {
+                                                                  const raw = e.target.value;
+                                                                  setEditingModalTeethInput(raw);
+                                                                  const parsed = raw.split(/[,;\s]+/).map(s => s.trim()).filter(s => s.length > 0);
+                                                                  handleUpdateEditItem(item.id, {
+                                                                      selectedTeeth: parsed.length > 0 ? parsed : undefined,
+                                                                      quantity: parsed.length > 0 ? parsed.length : (item.quantity || 1)
+                                                                  });
+                                                              }} 
+                                                              placeholder="Ex: 11, 21, 16" 
+                                                              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold focus:border-blue-500 outline-none" 
+                                                          />
+                                                      </div>
+                                                      <div className="w-24 sm:w-28 shrink-0">
                                                           <label className="block text-[9px] font-black text-slate-500 uppercase mb-1">Cor</label>
                                                           <input type="text" value={item.color || ''} onChange={e => handleUpdateEditItem(item.id, { color: e.target.value })} placeholder="Ex: A3" className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold" />
                                                       </div>
@@ -2810,8 +2901,9 @@ export const JobDetails = () => {
                                                   <Odontogram 
                                                       selectedTeeth={item.selectedTeeth || []}
                                                       onChange={(teeth) => {
+                                                          setEditingModalTeethInput(teeth.sort().join(', '));
                                                           handleUpdateEditItem(item.id, {
-                                                              selectedTeeth: teeth,
+                                                              selectedTeeth: teeth.length > 0 ? teeth : undefined,
                                                               quantity: teeth.length > 0 ? teeth.length : 1
                                                           });
                                                       }}
@@ -2934,17 +3026,72 @@ export const JobDetails = () => {
                                </h5>
                                <div className="space-y-2">
                                    <div>
-                                       <label className="block text-[9px] font-black text-slate-400 uppercase mb-1">Tipo de Serviço</label>
-                                       <select value={newItemTypeId} onChange={e => setNewItemTypeId(e.target.value)} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none">
-                                           {jobTypes.filter(t => job.clientOrigin === 'LABORATORY' ? t.isVisibleInternallyLabs === true : t.isVisibleInternally !== false).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                       <div className="flex justify-between items-center mb-1 flex-wrap gap-1">
+                                           <label className="text-[9px] font-black text-slate-400 uppercase">Tipo de Serviço</label>
+                                           <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200/60 shadow-xs">
+                                               <button
+                                                   type="button"
+                                                   onClick={() => setServiceTypeCatalogFilter('DENTIST')}
+                                                   className={`px-2 py-0.5 rounded-md text-[8.5px] font-black uppercase transition-all ${
+                                                       serviceTypeCatalogFilter === 'DENTIST'
+                                                           ? 'bg-white text-blue-700 shadow-xs'
+                                                           : 'text-slate-500 hover:text-slate-800'
+                                                   }`}
+                                               >
+                                                   Dentista
+                                               </button>
+                                               <button
+                                                   type="button"
+                                                   onClick={() => setServiceTypeCatalogFilter('LABORATORY')}
+                                                   className={`px-2 py-0.5 rounded-md text-[8.5px] font-black uppercase transition-all ${
+                                                       serviceTypeCatalogFilter === 'LABORATORY'
+                                                           ? 'bg-white text-blue-700 shadow-xs'
+                                                           : 'text-slate-500 hover:text-slate-800'
+                                                   }`}
+                                               >
+                                                   Laboratório
+                                               </button>
+                                               <button
+                                                   type="button"
+                                                   onClick={() => setServiceTypeCatalogFilter('ALL')}
+                                                   className={`px-2 py-0.5 rounded-md text-[8.5px] font-black uppercase transition-all ${
+                                                       serviceTypeCatalogFilter === 'ALL'
+                                                           ? 'bg-white text-blue-700 shadow-xs'
+                                                           : 'text-slate-500 hover:text-slate-800'
+                                                   }`}
+                                               >
+                                                   Todos
+                                               </button>
+                                           </div>
+                                       </div>
+                                       <select value={newItemTypeId} onChange={e => setNewItemTypeId(e.target.value)} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-blue-500">
+                                           {availableJobTypesForEdit.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                                        </select>
                                    </div>
                                    <div className="flex gap-2 items-end">
-                                      <div className={newItemTeeth.length > 0 ? "w-20 opacity-50 pointer-events-none" : "w-20"}>
+                                      <div className={newItemTeeth.length > 0 ? "w-16 sm:w-20 opacity-50 pointer-events-none shrink-0" : "w-16 sm:w-20 shrink-0"}>
                                            <label className="block text-[9px] font-black text-slate-400 uppercase mb-1">Qtd</label>
                                            <input type="number" min="1" value={newItemQty} readOnly={newItemTeeth.length > 0} onChange={e => setNewItemQty(e.target.value === '' ? '' : parseInt(e.target.value))} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-center" />
                                        </div>
-                                       <div className="flex-1">
+                                       <div className="flex-1 min-w-0">
+                                           <label className="block text-[9px] font-black text-slate-400 uppercase mb-1">Dentes</label>
+                                           <input 
+                                               type="text" 
+                                               value={newItemTeethInput} 
+                                               onChange={e => {
+                                                   const raw = e.target.value;
+                                                   setNewItemTeethInput(raw);
+                                                   const parsed = raw.split(/[,;\s]+/).map(s => s.trim()).filter(s => s.length > 0);
+                                                   setNewItemTeeth(parsed);
+                                                   if (parsed.length > 0) {
+                                                       setNewItemQty(parsed.length);
+                                                   }
+                                               }} 
+                                               placeholder="Ex: 11, 21, 16" 
+                                               className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold focus:border-blue-500 outline-none" 
+                                           />
+                                       </div>
+                                       <div className="w-24 sm:w-28 shrink-0">
                                            <label className="block text-[9px] font-black text-slate-400 uppercase mb-1">Cor</label>
                                            <input type="text" value={newItemColor} onChange={e => setNewItemColor(e.target.value)} placeholder="Ex: A3" className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold" />
                                        </div>
@@ -3005,6 +3152,7 @@ export const JobDetails = () => {
                                        selectedTeeth={newItemTeeth}
                                        onChange={(teeth) => {
                                            setNewItemTeeth(teeth);
+                                           setNewItemTeethInput(teeth.sort().join(', '));
                                            if (teeth.length > 0) setNewItemQty(teeth.length);
                                            else setNewItemQty(1);
                                        }}

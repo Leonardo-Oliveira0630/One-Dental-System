@@ -218,7 +218,7 @@ export const PrintOverlay = () => {
                                       {formatTeethRange(item.selectedTeeth) || '-'}
                                   </td>
                                   <td className="py-1 px-1.5 border border-gray-400 font-bold align-top text-[11px] text-slate-800 text-center whitespace-nowrap">{item.color || (item as any).cor || '-'}</td>
-                                  <td className="py-1 px-2 border border-gray-400 align-top font-normal text-[10pt] text-gray-900"><div><span className="font-bold">{getNaturePrefix(item.nature)}</span>{formatItemNameWithVariations(item, jobTypes)}</div></td>
+                                  <td className="py-1 px-2 border border-gray-400 align-top font-normal text-[7.5pt] leading-tight text-gray-900"><div><span className="font-bold">{getNaturePrefix(item.nature)}</span>{formatItemNameWithVariations(item, jobTypes)}</div></td>
                               </tr>
                           ))}
                       </tbody>
@@ -233,7 +233,7 @@ export const PrintOverlay = () => {
                           <thead><tr className="border-b border-gray-400"><th className="py-1 px-1 border border-gray-400 w-12">Qtd</th><th className="py-1 px-1 border border-gray-400">Descrição</th><th className="py-1 px-1 border border-gray-400 w-24">Origem</th></tr></thead>
                           <tbody className="divide-y divide-gray-400">
                               {job.products.map((prod, idx) => (
-                                  <tr key={`prod-${idx}`}><td className="py-1 px-1 border border-gray-400 font-bold align-top text-sm">{prod.quantity}x</td><td className="py-1 px-1 border border-gray-400 align-top font-bold text-sm"><div>{prod.name}</div></td><td className="py-1 px-1 border border-gray-400 align-top text-gray-600 uppercase text-[10px] font-bold">{prod.dentistOwnerId ? 'CLI' : 'LAB'}</td></tr>
+                                  <tr key={`prod-${idx}`}><td className="py-1 px-1 border border-gray-400 font-bold align-top text-sm">{prod.quantity}x</td><td className="py-1 px-1 border border-gray-400 align-top font-bold text-[7.5pt] leading-tight"><div>{prod.name}</div></td><td className="py-1 px-1 border border-gray-400 align-top text-gray-600 uppercase text-[10px] font-bold">{prod.dentistOwnerId ? 'CLI' : 'LAB'}</td></tr>
                               ))}
                           </tbody>
                       </table>
@@ -397,7 +397,7 @@ export const PrintOverlay = () => {
                       <thead><tr className="border-b border-gray-400"><th className="py-1 px-1 border border-gray-400 w-[4ch]">Qtd</th><th className="py-1 px-1 border border-gray-400">Descrição</th><th className="py-1 px-1 border border-gray-400 w-24 text-right">Valor Unit.</th><th className="py-1 px-1 border border-gray-400 w-24 text-right">Total</th></tr></thead>
                       <tbody className="divide-y divide-gray-400">
                           {job.items.filter(i => !i.isInternalStep).map((item, idx) => (
-                              <tr key={`item-${idx}`}><td className="py-1 px-1 border border-gray-400 font-bold align-top text-sm text-center">{item.quantity}</td><td className="py-1 px-1 border border-gray-400 align-top font-normal text-[10pt] text-gray-900"><div><span className="font-bold">{getNaturePrefix(item.nature)}</span>{formatItemNameWithVariations(item, jobTypes)} {item.selectedTeeth?.length ? ` - Dentes: ${formatTeethRange(item.selectedTeeth)}` : ''}</div></td><td className="py-1 px-1 border border-gray-400 align-top text-right text-gray-700 text-sm">{(item.price || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td><td className="py-1 px-1 border border-gray-400 align-top font-bold text-right text-sm">{((item.price || 0) * item.quantity).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td></tr>
+                              <tr key={`item-${idx}`}><td className="py-1 px-1 border border-gray-400 font-bold align-top text-sm text-center">{item.quantity}</td><td className="py-1 px-1 border border-gray-400 align-top font-normal text-[7.5pt] leading-tight text-gray-900"><div><span className="font-bold">{getNaturePrefix(item.nature)}</span>{formatItemNameWithVariations(item, jobTypes)} {item.selectedTeeth?.length ? ` - Dentes: ${formatTeethRange(item.selectedTeeth)}` : ''}</div></td><td className="py-1 px-1 border border-gray-400 align-top text-right text-gray-700 text-sm">{(item.price || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td><td className="py-1 px-1 border border-gray-400 align-top font-bold text-right text-sm">{((item.price || 0) * item.quantity).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td></tr>
                           ))}
                       </tbody>
                   </table>
@@ -411,7 +411,7 @@ export const PrintOverlay = () => {
                           <thead><tr className="border-b border-gray-400"><th className="py-1 px-1 border border-gray-400 w-12">Qtd</th><th className="py-1 px-1 border border-gray-400">Descrição</th><th className="py-1 px-1 border border-gray-400 w-24 text-right">Valor Unit.</th><th className="py-1 px-1 border border-gray-400 w-24 text-right">Total</th></tr></thead>
                           <tbody className="divide-y divide-gray-400">
                               {job.products.map((prod, idx) => (
-                                  <tr key={`prod-${idx}`}><td className="py-1 px-1 border border-gray-400 font-bold align-top text-sm">{prod.quantity}x</td><td className="py-1 px-1 border border-gray-400 align-top font-bold text-sm"><div>{prod.name}</div></td><td className="py-1 px-1 border border-gray-400 align-top text-right text-gray-700 text-sm">{(prod.unitPrice || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td><td className="py-1 px-1 border border-gray-400 align-top font-bold text-right text-sm">{((prod.unitPrice || 0) * prod.quantity).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td></tr>
+                                  <tr key={`prod-${idx}`}><td className="py-1 px-1 border border-gray-400 font-bold align-top text-sm">{prod.quantity}x</td><td className="py-1 px-1 border border-gray-400 align-top font-bold text-[7.5pt] leading-tight"><div>{prod.name}</div></td><td className="py-1 px-1 border border-gray-400 align-top text-right text-gray-700 text-sm">{(prod.unitPrice || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td><td className="py-1 px-1 border border-gray-400 align-top font-bold text-right text-sm">{((prod.unitPrice || 0) * prod.quantity).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td></tr>
                               ))}
                           </tbody>
                       </table>
