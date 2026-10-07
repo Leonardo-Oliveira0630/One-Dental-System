@@ -30,7 +30,7 @@ import { getCarrierBadgeConfig } from '../services/frenetService';
 import { LabServiceReviewModal } from '../components/LabServiceReviewModal';
 import { WebcamModal } from '../components/WebcamModal';
 import { capturePhotoWithNativePreference } from '../utils/cameraUtils';
-import { filterAndSortClients, matchesSearchQuery, normalizeText } from '../utils/stringUtils';
+import { filterAndSortClients, filterAndSortProducts, matchesSearchQuery, normalizeText } from '../utils/stringUtils';
 
 const { doc, onSnapshot } = firestorePkg as any;
 
@@ -836,6 +836,51 @@ export const JobDetails = () => {
   const [showProductDropdown, setShowProductDropdown] = useState(false);
   const productDropdownRef = useRef<HTMLDivElement>(null);
 
+  // Job Type Search in Edit Modal (New Item and Edit Item)
+  const [jobTypeSearchQuery, setJobTypeSearchQuery] = useState('');
+  const [showJobTypeSuggestions, setShowJobTypeSuggestions] = useState(false);
+  const [isSearchingJobType, setIsSearchingJobType] = useState(false);
+  const jobTypeDropdownRef = useRef<HTMLDivElement>(null);
+
+  const [editingJobTypeSearchQuery, setEditingJobTypeSearchQuery] = useState('');
+  const [showEditingJobTypeSuggestions, setShowEditingJobTypeSuggestions] = useState(false);
+  const [isSearchingEditingJobType, setIsSearchingEditingJobType] = useState(false);
+  const editingJobTypeDropdownRef = useRef<HTMLDivElement>(null);
+
+  const activeJobTypeForEdit = useMemo(() => {
+    return jobTypes.find(t => t.id === newItemTypeId);
+  }, [jobTypes, newItemTypeId]);
+
+  const filteredJobTypesForEdit = useMemo(() => {
+    if (!jobTypeSearchQuery || !jobTypeSearchQuery.trim()) {
+      return availableJobTypesForEdit;
+    }
+    const query = normalizeText(jobTypeSearchQuery);
+    return availableJobTypesForEdit.filter(t => 
+      normalizeText(t.name).includes(query) ||
+      (t.category && normalizeText(t.category).includes(query)) ||
+      (t.description && normalizeText(t.description).includes(query))
+    );
+  }, [availableJobTypesForEdit, jobTypeSearchQuery]);
+
+  const activeEditingJobType = useMemo(() => {
+    const item = editItems.find(i => i.id === editingModalItemId);
+    return jobTypes.find(t => t.id === item?.jobTypeId);
+  }, [editItems, editingModalItemId, jobTypes]);
+
+  const filteredEditingJobTypes = useMemo(() => {
+    const list = jobTypes.filter(t => (serviceTypeCatalogFilter === 'ALL' || (serviceTypeCatalogFilter === 'LABORATORY' ? t.isVisibleInternallyLabs === true : t.isVisibleInternally !== false)) || (editingModalItemId && t.id === editItems.find(i => i.id === editingModalItemId)?.jobTypeId));
+    if (!editingJobTypeSearchQuery || !editingJobTypeSearchQuery.trim()) {
+      return list;
+    }
+    const query = normalizeText(editingJobTypeSearchQuery);
+    return list.filter(t => 
+      normalizeText(t.name).includes(query) ||
+      (t.category && normalizeText(t.category).includes(query)) ||
+      (t.description && normalizeText(t.description).includes(query))
+    );
+  }, [jobTypes, serviceTypeCatalogFilter, editingModalItemId, editItems, editingJobTypeSearchQuery]);
+
   const connectedDentists = useMemo(() => allUsers.filter(u => u.role === UserRole.CLIENT), [allUsers]);
 
   const suggestions = useMemo(() => {
@@ -853,6 +898,14 @@ export const JobDetails = () => {
       }
       if (productDropdownRef.current && !productDropdownRef.current.contains(event.target as Node)) {
         setShowProductDropdown(false);
+      }
+      if (jobTypeDropdownRef.current && !jobTypeDropdownRef.current.contains(event.target as Node)) {
+        setShowJobTypeSuggestions(false);
+        setIsSearchingJobType(false);
+      }
+      if (editingJobTypeDropdownRef.current && !editingJobTypeDropdownRef.current.contains(event.target as Node)) {
+        setShowEditingJobTypeSuggestions(false);
+        setIsSearchingEditingJobType(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -902,9 +955,7 @@ export const JobDetails = () => {
     }
 
     if (!productSearchQuery || !productSearchQuery.trim()) return pool;
-    return pool.filter(item => 
-      matchesSearchQuery(productSearchQuery, item.name, item.code, item.description, item.type)
-    );
+    return filterAndSortProducts(pool, productSearchQuery);
   }, [stockSourceFilter, labStockItems, clientStockItems, inventoryItems, editDentistId, job?.dentistId, job?.clientId, matchedDentist, productSearchQuery]);
 
   const selectedProductObj = useMemo(() => {
@@ -2897,9 +2948,78 @@ export const JobDetails = () => {
                                                               </button>
                                                           </div>
                                                       </div>
-                                                      <select value={item.jobTypeId} onChange={e => handleUpdateEditItem(item.id, { jobTypeId: e.target.value })} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-blue-500">
-                                                          {jobTypes.filter(t => (serviceTypeCatalogFilter === 'ALL' || (serviceTypeCatalogFilter === 'LABORATORY' ? t.isVisibleInternallyLabs === true : t.isVisibleInternally !== false)) || t.id === item.jobTypeId).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                                                      </select>
+                                                      <div className="relative" ref={editingJobTypeDropdownRef}>
+                                                          <div className="relative">
+                                                              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                                                                  <Search size={14} />
+                                                              </div>
+                                                              <input 
+                                                                  type="text" 
+                                                                  value={isSearchingEditingJobType ? editingJobTypeSearchQuery : (activeEditingJobType?.name || '')} 
+                                                                  onChange={e => {
+                                                                      setEditingJobTypeSearchQuery(e.target.value);
+                                                                      setShowEditingJobTypeSuggestions(true);
+                                                                  }}
+                                                                  onFocus={() => {
+                                                                      setEditingJobTypeSearchQuery(activeEditingJobType?.name || '');
+                                                                      setShowEditingJobTypeSuggestions(true);
+                                                                      setIsSearchingEditingJobType(true);
+                                                                  }}
+                                                                  placeholder="Digite para buscar tipo de serviço..."
+                                                                  className="w-full pl-8 pr-9 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-xs text-slate-800"
+                                                              />
+                                                              {(item.jobTypeId || editingJobTypeSearchQuery || isSearchingEditingJobType) && (
+                                                                  <button 
+                                                                      type="button"
+                                                                      onClick={(e) => {
+                                                                          e.stopPropagation();
+                                                                          setEditingJobTypeSearchQuery('');
+                                                                          setIsSearchingEditingJobType(false);
+                                                                          setShowEditingJobTypeSuggestions(false);
+                                                                      }}
+                                                                      className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 p-0.5 rounded"
+                                                                      title="Limpar campo"
+                                                                  >
+                                                                      <X size={13} />
+                                                                  </button>
+                                                              )}
+                                                          </div>
+
+                                                          {showEditingJobTypeSuggestions && (
+                                                              <div className="absolute z-[120] left-0 right-0 mt-1 bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-1">
+                                                                  <div className="max-h-48 overflow-y-auto">
+                                                                      {filteredEditingJobTypes.length > 0 ? (
+                                                                          filteredEditingJobTypes.map(type => (
+                                                                              <button 
+                                                                                  key={type.id} 
+                                                                                  type="button"
+                                                                                  onClick={() => {
+                                                                                      handleUpdateEditItem(item.id, { jobTypeId: type.id });
+                                                                                      setEditingJobTypeSearchQuery(type.name);
+                                                                                      setShowEditingJobTypeSuggestions(false);
+                                                                                      setIsSearchingEditingJobType(false);
+                                                                                  }} 
+                                                                                  className={`w-full text-left px-3 py-2 hover:bg-blue-50 flex items-center justify-between group transition-colors border-b border-slate-50 last:border-0 ${item.jobTypeId === type.id ? 'bg-blue-50' : ''}`}
+                                                                              >
+                                                                                  <div className="flex items-center gap-2">
+                                                                                      <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${item.jobTypeId === type.id ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                                                                                          <Layers size={13} />
+                                                                                      </div>
+                                                                                      <div>
+                                                                                          <div className={`text-xs font-bold ${item.jobTypeId === type.id ? 'text-blue-700' : 'text-slate-700'}`}>{type.name}</div>
+                                                                                          <div className="text-[9px] font-bold text-slate-400 uppercase">R$ {type.basePrice.toFixed(2)}</div>
+                                                                                      </div>
+                                                                                  </div>
+                                                                                  {item.jobTypeId === type.id && <Check size={13} className="text-blue-600" />}
+                                                                              </button>
+                                                                          ))
+                                                                      ) : (
+                                                                          <div className="p-3 text-center text-slate-400 text-xs font-bold">Nenhum serviço encontrado</div>
+                                                                      )}
+                                                                  </div>
+                                                              </div>
+                                                          )}
+                                                      </div>
                                                   </div>
                                                   <div className="flex gap-2 items-end">
                                                       <div className={(item.selectedTeeth && item.selectedTeeth.length > 0) ? "w-16 sm:w-20 opacity-50 pointer-events-none shrink-0" : "w-16 sm:w-20 shrink-0"}>
@@ -3160,9 +3280,80 @@ export const JobDetails = () => {
                                                </button>
                                            </div>
                                        </div>
-                                       <select value={newItemTypeId} onChange={e => setNewItemTypeId(e.target.value)} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-blue-500">
-                                           {availableJobTypesForEdit.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                                       </select>
+                                       <div className="relative" ref={jobTypeDropdownRef}>
+                                           <div className="relative">
+                                               <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                                                   <Search size={14} />
+                                               </div>
+                                               <input 
+                                                   type="text" 
+                                                   value={isSearchingJobType ? jobTypeSearchQuery : (activeJobTypeForEdit?.name || '')} 
+                                                   onChange={e => {
+                                                       setJobTypeSearchQuery(e.target.value);
+                                                       setShowJobTypeSuggestions(true);
+                                                       if (!e.target.value) setNewItemTypeId('');
+                                                   }}
+                                                   onFocus={() => {
+                                                       setJobTypeSearchQuery(activeJobTypeForEdit?.name || '');
+                                                       setShowJobTypeSuggestions(true);
+                                                       setIsSearchingJobType(true);
+                                                   }}
+                                                   placeholder="Digite para buscar tipo de serviço..."
+                                                   className="w-full pl-8 pr-9 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-xs text-slate-800"
+                                               />
+                                               {(newItemTypeId || jobTypeSearchQuery || isSearchingJobType) && (
+                                                   <button 
+                                                       type="button"
+                                                       onClick={(e) => {
+                                                           e.stopPropagation();
+                                                           setNewItemTypeId('');
+                                                           setJobTypeSearchQuery('');
+                                                           setIsSearchingJobType(false);
+                                                           setShowJobTypeSuggestions(false);
+                                                       }}
+                                                       className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 p-0.5 rounded"
+                                                       title="Limpar campo"
+                                                   >
+                                                       <X size={13} />
+                                                   </button>
+                                               )}
+                                           </div>
+
+                                           {showJobTypeSuggestions && (
+                                               <div className="absolute z-[120] left-0 right-0 mt-1 bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-1">
+                                                   <div className="max-h-48 overflow-y-auto">
+                                                       {filteredJobTypesForEdit.length > 0 ? (
+                                                           filteredJobTypesForEdit.map(type => (
+                                                               <button 
+                                                                   key={type.id} 
+                                                                   type="button"
+                                                                   onClick={() => {
+                                                                       setNewItemTypeId(type.id);
+                                                                       setJobTypeSearchQuery(type.name);
+                                                                       setShowJobTypeSuggestions(false);
+                                                                       setIsSearchingJobType(false);
+                                                                   }} 
+                                                                   className={`w-full text-left px-3 py-2 hover:bg-blue-50 flex items-center justify-between group transition-colors border-b border-slate-50 last:border-0 ${newItemTypeId === type.id ? 'bg-blue-50' : ''}`}
+                                                               >
+                                                                   <div className="flex items-center gap-2">
+                                                                       <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${newItemTypeId === type.id ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                                                                           <Layers size={13} />
+                                                                       </div>
+                                                                       <div>
+                                                                           <div className={`text-xs font-bold ${newItemTypeId === type.id ? 'text-blue-700' : 'text-slate-700'}`}>{type.name}</div>
+                                                                           <div className="text-[9px] font-bold text-slate-400 uppercase">R$ {type.basePrice.toFixed(2)}</div>
+                                                                       </div>
+                                                                   </div>
+                                                                   {newItemTypeId === type.id && <Check size={13} className="text-blue-600" />}
+                                                               </button>
+                                                           ))
+                                                       ) : (
+                                                           <div className="p-3 text-center text-slate-400 text-xs font-bold">Nenhum serviço encontrado</div>
+                                                       )}
+                                                   </div>
+                                               </div>
+                                           )}
+                                       </div>
                                    </div>
                                    <div className="flex gap-2 items-end">
                                       <div className={newItemTeeth.length > 0 ? "w-16 sm:w-20 opacity-50 pointer-events-none shrink-0" : "w-16 sm:w-20 shrink-0"}>
@@ -3387,7 +3578,7 @@ export const JobDetails = () => {
                                                       setShowProductDropdown(true);
                                                   }}
                                                   onFocus={() => setShowProductDropdown(true)}
-                                                  placeholder="Digite para pesquisar no estoque..."
+                                                  placeholder="Buscar por nome ou código SKU..."
                                                   className="w-full pl-8 pr-7 py-2 text-xs font-bold rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800"
                                               />
                                               {(productSearchQuery || selectedProductId) && (

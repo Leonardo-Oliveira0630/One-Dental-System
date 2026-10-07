@@ -9,7 +9,7 @@ import { formatTeethRange } from '../utils/toothUtils';
 // Added Crown to the lucide-react imports to fix line 404 error
 import { Odontogram } from "../components/Odontogram";
 import { Plus, Trash2, Save, User as UserIcon, Box, FileText, CheckCircle, Search, RefreshCw, ArrowRight, Printer, X, FileCheck, DollarSign, Check, Calendar, AlertTriangle, Stethoscope, ChevronDown, Layers, Percent, Edit3, ShieldAlert, SearchIcon, Tag, AlertCircle, Crown, Package, MapPin } from 'lucide-react';
-import { filterAndSortClients, matchesSearchQuery, normalizeText } from '../utils/stringUtils';
+import { filterAndSortClients, filterAndSortProducts, matchesSearchQuery, normalizeText } from '../utils/stringUtils';
 
 import * as api from '../services/firebaseService';
 
@@ -304,9 +304,7 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
     }
 
     if (!productSearchQuery || !productSearchQuery.trim()) return pool;
-    return pool.filter(item => 
-      matchesSearchQuery(productSearchQuery, item.name, item.code, item.description, item.type)
-    );
+    return filterAndSortProducts(pool, productSearchQuery);
   }, [stockSourceFilter, labStockItems, clientStockItems, inventoryItems, selectedDentistId, selectedDentistMatched, productSearchQuery]);
 
   const selectedProductObj = useMemo(() => {
@@ -1701,7 +1699,7 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                                                 setShowProductDropdown(true);
                                             }}
                                             onFocus={() => setShowProductDropdown(true)}
-                                            placeholder="Digite para pesquisar no estoque..."
+                                            placeholder="Buscar por nome ou código SKU..."
                                             className="w-full pl-9 pr-8 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs font-bold text-slate-800"
                                         />
                                         {(productSearchQuery || selectedProductId) && (

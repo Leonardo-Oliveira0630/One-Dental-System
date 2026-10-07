@@ -352,6 +352,157 @@ export function filterAndSortClients<T extends SearchableClient>(
   return scored.map(s => s.item);
 }
 
+export interface SearchableProduct {
+  id?: string;
+  name?: string | null;
+  code?: string | null; // Código SKU
+  sku?: string | null;
+  description?: string | null;
+  category?: string | null;
+  categoryId?: string | null;
+  type?: string | null;
+  dentistOwnerId?: string | null;
+  currentStock?: number;
+  sellPrice?: number;
+  costPrice?: number;
+  [key: string]: any;
+}
+
+/**
+ * Calcula a pontuação de relevância de um produto do estoque para a busca digitada.
+ * Menor pontuação = maior prioridade / mais perto do que foi pesquisado.
+ * 
+ * Prioridade:
+ * 1. Correspondência exata no Código SKU (score 1)
+ * 2. SKU começa com o termo pesquisado (score 5 + diferença de tamanho)
+ * 3. SKU contém o termo pesquisado (score 20)
+ * 4. Correspondência exata no Nome do Produto (score 10)
+ * 5. Nome do produto começa com o termo pesquisado (score 15 + diferença de tamanho)
+ * 6. Alguma palavra do nome começa com o termo pesquisado (score 20-35)
+ * 7. Nome contém o termo pesquisado (score 50)
+ * 8. Descrição ou categoria contém o termo (score 120-140)
+ * 9. Tolerância a pequenos erros ortográficos/digitação (Levenshtein)
+ * 
+ * Retorna `null` se o produto não corresponder à busca.
+ */
+export function calculateProductSearchScore(query: string, product: SearchableProduct): number | null {
+  const normQuery = normalizeText(query);
+  if (!normQuery) return 0;
+
+  const cleanQuery = removePunctuation(normQuery);
+  const rawCode = product.code || product.sku || '';
+  const normSku = normalizeText(rawCode);
+  const cleanSku = removePunctuation(rawCode);
+  const normName = normalizeText(product.name || '');
+  const normDesc = normalizeText(product.description || '');
+  const normCategory = normalizeText(product.category || product.categoryId || '');
+
+  let bestScore: number | null = null;
+
+  // 1. Busca no Código SKU (máxima prioridade se bater com o código)
+  if (normSku) {
+    if (normSku === normQuery || (cleanSku && cleanQuery && cleanSku === cleanQuery)) {
+      bestScore = 1;
+    } else if (normSku.startsWith(normQuery) || (cleanSku && cleanQuery && cleanSku.startsWith(cleanQuery))) {
+      const lenDiff = (cleanSku || normSku).length - (cleanQuery || normQuery).length;
+      bestScore = 5 + Math.min(lenDiff * 0.5, 20);
+    } else if (normSku.includes(normQuery) || (cleanSku && cleanQuery.length >= 2 && cleanSku.includes(cleanQuery))) {
+      bestScore = 20;
+    }
+  }
+
+  // 2. Busca no Nome do Produto
+  if (normName) {
+    const nameWords = normName.split(/[\s,.\-_/\\()]+/).filter(w => w.length > 0);
+    
+    if (normName === normQuery) {
+      const score = 10;
+      if (bestScore === null || score < bestScore) bestScore = score;
+    } else if (normName.startsWith(normQuery)) {
+      const lenDiff = normName.length - normQuery.length;
+      const score = 15 + Math.min(lenDiff * 0.4, 25);
+      if (bestScore === null || score < bestScore) bestScore = score;
+    } else {
+      // Verificar cada palavra do nome
+      for (let idx = 0; idx < nameWords.length; idx++) {
+        const w = nameWords[idx];
+        if (w === normQuery) {
+          const score = idx === 0 ? 12 : 25 + idx * 5;
+          if (bestScore === null || score < bestScore) bestScore = score;
+        } else if (w.startsWith(normQuery)) {
+          const lenDiff = w.length - normQuery.length;
+          const score = (idx === 0 ? 20 : 35 + idx * 5) + Math.min(lenDiff * 0.4, 20);
+          if (bestScore === null || score < bestScore) bestScore = score;
+        } else if (w.includes(normQuery)) {
+          const score = 50 + idx * 5;
+          if (bestScore === null || score < bestScore) bestScore = score;
+        } else if (normQuery.length >= 4 && levenshteinDistance(normQuery, w) <= 1) {
+          const score = 200 + (idx === 0 ? 0 : 50);
+          if (bestScore === null || score < bestScore) bestScore = score;
+        }
+      }
+
+      // Verificação de múltiplos tokens
+      const queryTokens = normQuery.split(/\s+/).filter(Boolean);
+      if (queryTokens.length > 1) {
+        const allTokensFound = queryTokens.every(qToken => 
+          normName.includes(qToken) || nameWords.some(w => w.startsWith(qToken) || (qToken.length >= 4 && levenshteinDistance(qToken, w) <= 1))
+        );
+        if (allTokensFound) {
+          const score = 40;
+          if (bestScore === null || score < bestScore) bestScore = score;
+        }
+      }
+    }
+  }
+
+  // 3. Busca em Descrição ou Categoria
+  if (bestScore === null) {
+    if (normDesc.includes(normQuery)) {
+      bestScore = 120;
+    } else if (normCategory.includes(normQuery)) {
+      bestScore = 140;
+    }
+  }
+
+  return bestScore;
+}
+
+/**
+ * Filtra e ordena produtos de estoque trazendo os mais próximos da pesquisa (SKU ou Nome) no topo.
+ */
+export function filterAndSortProducts<T extends SearchableProduct>(
+  products: T[],
+  query: string
+): T[] {
+  const normQuery = normalizeText(query);
+  if (!normQuery) {
+    return products;
+  }
+
+  const scored: { item: T; score: number }[] = [];
+
+  for (const product of products) {
+    const score = calculateProductSearchScore(query, product);
+    if (score !== null) {
+      scored.push({ item: product, score });
+    }
+  }
+
+  scored.sort((a, b) => {
+    // 1. Menor pontuação = mais perto do que foi pesquisado
+    if (Math.abs(a.score - b.score) > 0.001) {
+      return a.score - b.score;
+    }
+    // 2. Desempate alfabético
+    const nameA = a.item.name || '';
+    const nameB = b.item.name || '';
+    return nameA.localeCompare(nameB, 'pt-BR');
+  });
+
+  return scored.map(s => s.item);
+}
+
 /**
  * Converte qualquer valor monetário (seja número, string no formato brasileiro "1.550,00" ou internacional "1550.00")
  * em um número de ponto flutuante válido.
