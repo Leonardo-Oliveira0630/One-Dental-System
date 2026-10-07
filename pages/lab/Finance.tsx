@@ -195,10 +195,14 @@ export const Finance = () => {
         });
     });
 
-    // Process all jobs
+    // Process all jobs (apenas casos concluídos são faturados aos clientes; exceção: loja online paga no ato)
     jobs.forEach(job => {
         if (job.status === JobStatus.CANCELED || job.status === JobStatus.REJECTED) return;
         
+        const isOnline = job.origin === 'ONLINE_ORDER' || job.origin === 'ONLINE_REQUISITION';
+        const isCompleted = job.status === JobStatus.COMPLETED || job.status === JobStatus.DELIVERED;
+        if (!isOnline && !isCompleted) return; // Em andamento: não gera débito de faturamento até ser concluído
+
         let entry = map.get(job.dentistId);
         if (!entry) {
             entry = {
@@ -353,17 +357,31 @@ export const Finance = () => {
     const sDate = reportStartDate ? new Date(`${reportStartDate}T00:00:00`) : new Date(0);
     const eDate = reportEndDate ? new Date(`${reportEndDate}T23:59:59`) : new Date(8640000000000000);
 
-    // 1. Lab Jobs within period
+    // 1. Lab Jobs within period (Apenas casos concluídos/entregues para faturamento laboratorial; exceção: loja online)
     const periodJobs = jobs.filter(j => {
       if (j.status === JobStatus.CANCELED || j.status === JobStatus.REJECTED) return false;
+      const isOnline = j.origin === 'ONLINE_ORDER' || j.origin === 'ONLINE_REQUISITION';
+      const isCompleted = j.status === JobStatus.COMPLETED || j.status === JobStatus.DELIVERED;
+      if (!isOnline && !isCompleted) return false;
       const jDate = safeDate((j as any).completedAt || j.deliveredAt || j.createdAt);
       return jDate >= sDate && jDate <= eDate;
     });
 
+    // Métrica de previsão a faturar no período (OSs em produção não concluídas)
+    const periodInProgressJobs = jobs.filter(j => {
+      if (j.status === JobStatus.CANCELED || j.status === JobStatus.REJECTED) return false;
+      if (j.origin === 'ONLINE_ORDER' || j.origin === 'ONLINE_REQUISITION') return false;
+      if (j.status === JobStatus.COMPLETED || j.status === JobStatus.DELIVERED) return false;
+      const jDate = safeDate(j.createdAt);
+      return jDate >= sDate && jDate <= eDate;
+    });
+    const inProgressGrossForecast = periodInProgressJobs.reduce((sum, j) => sum + (Number(j.totalValue) || 0), 0);
+    const inProgressJobsCount = periodInProgressJobs.length;
+
     const labProductionGross = periodJobs
-      .filter(j => j.origin !== 'ONLINE_ORDER')
+      .filter(j => j.origin !== 'ONLINE_ORDER' && j.origin !== 'ONLINE_REQUISITION')
       .reduce((sum, j) => sum + (Number(j.totalValue) || 0), 0);
-    const labJobsCount = periodJobs.filter(j => j.origin !== 'ONLINE_ORDER').length;
+    const labJobsCount = periodJobs.filter(j => j.origin !== 'ONLINE_ORDER' && j.origin !== 'ONLINE_REQUISITION').length;
 
     const storeGross = periodJobs
       .filter(j => j.origin === 'ONLINE_ORDER' || j.origin === 'ONLINE_REQUISITION')
@@ -456,7 +474,9 @@ export const Finance = () => {
       cashInflows,
       cashOutflows,
       cashBalance,
-      pendingToReceive
+      pendingToReceive,
+      inProgressGrossForecast,
+      inProgressJobsCount
     };
   }, [jobs, expenses, dentistPayments, reportStartDate, reportEndDate]);
 
@@ -532,25 +552,33 @@ export const Finance = () => {
         dentistName: j.dentistName || '---'
       }));
 
-    // 4. Laboratory Jobs / Internal Services (Débitos dos Dentistas por Serviços Laboratoriais)
+    // 4. Laboratory Jobs / Internal Services (Débitos dos Dentistas por Serviços Laboratoriais Concluídos)
+    // Regra: O trabalho só pode ser faturado após a conclusão do caso (COMPLETED ou DELIVERED).
+    // Casos em andamento ficam como métricas de valores a faturar.
     const movementsFromLabJobs = jobs
-      .filter(j => j.origin !== 'ONLINE_ORDER' && j.status !== JobStatus.CANCELED && j.status !== JobStatus.REJECTED && (j.totalValue && j.totalValue > 0))
+      .filter(j => 
+        j.origin !== 'ONLINE_ORDER' && 
+        j.origin !== 'ONLINE_REQUISITION' && 
+        j.status !== JobStatus.CANCELED && 
+        j.status !== JobStatus.REJECTED && 
+        (j.status === JobStatus.COMPLETED || j.status === JobStatus.DELIVERED) &&
+        (j.totalValue && j.totalValue > 0)
+      )
       .map(j => {
         const isPaid = j.paymentStatus === 'PAID' || j.paymentStatus === 'VOUCHER';
         const dObj = manualDentists.find(d => d.id === j.dentistId) || allUsers.find(u => u.id === j.dentistId);
         const dentistName = j.dentistName || dObj?.name || 'Cliente';
         const jobDate = safeDate((j as any).completedAt || j.deliveredAt || j.createdAt);
 
-        let statusLabel = 'Em Produção';
+        let statusLabel = 'Concluído';
         if (j.status === JobStatus.DELIVERED) statusLabel = 'Entregue';
-        else if (j.status === JobStatus.COMPLETED) statusLabel = 'Concluído';
 
         return {
           id: `job-${j.id}`,
           date: jobDate,
           description: `Trabalho OS #${j.osNumber || j.id.substring(0, 6)} - Paciente: ${j.patientName || '---'} (${statusLabel})`,
           type: 'DEBITO' as const,
-          category: 'Serviço Laboratorial (OS)',
+          category: 'Serviço Laboratorial (OS Concluída)',
           amount: Number(j.totalValue || 0),
           paymentMethod: isPaid ? (j.paymentMethod || 'Pago') : (j.batchId ? 'Faturado em Boleto' : 'Aguardando Cobrança'),
           status: isPaid ? ('PAID' as const) : ('PENDING' as const),
@@ -631,15 +659,47 @@ export const Finance = () => {
       }
     });
 
+    const sDate = reportStartDate ? new Date(`${reportStartDate}T00:00:00`) : new Date(0);
+    const eDate = reportEndDate ? new Date(`${reportEndDate}T23:59:59`) : new Date(8640000000000000);
+
+    // Métricas de valores a serem faturados (OSs em produção não concluídas no período que aguardam conclusão)
+    const inProgressJobs = jobs.filter(j => {
+      if (j.status === JobStatus.CANCELED || j.status === JobStatus.REJECTED) return false;
+      if (j.origin === 'ONLINE_ORDER' || j.origin === 'ONLINE_REQUISITION') return false;
+      if (j.status === JobStatus.COMPLETED || j.status === JobStatus.DELIVERED) return false;
+      const jDate = safeDate(j.createdAt);
+      return jDate >= sDate && jDate <= eDate;
+    });
+    const pendingToInvoiceValue = inProgressJobs.reduce((sum, j) => sum + (Number(j.totalValue) || 0), 0);
+    const pendingToInvoiceCount = inProgressJobs.length;
+
+    // Casos concluídos/faturados no período (internos concluídos + loja online)
+    const completedJobs = jobs.filter(j => {
+      if (j.status === JobStatus.CANCELED || j.status === JobStatus.REJECTED) return false;
+      const isOnline = j.origin === 'ONLINE_ORDER' || j.origin === 'ONLINE_REQUISITION';
+      const isCompleted = j.status === JobStatus.COMPLETED || j.status === JobStatus.DELIVERED;
+      if (!isOnline && !isCompleted) return false;
+      const jDate = safeDate((j as any).completedAt || j.deliveredAt || j.createdAt);
+      return jDate >= sDate && jDate <= eDate;
+    });
+    const completedJobsCount = completedJobs.length;
+    const totalCompletedBilled = completedJobs.reduce((sum, j) => sum + (Number(j.totalValue) || 0), 0);
+    const averageCompletedTicket = completedJobsCount > 0 ? (totalCompletedBilled / completedJobsCount) : 0;
+
     return {
       totalInflows,
       totalOutflows,
       totalDebitsBilled,
       pendingInflows,
       pendingOutflows,
-      netBalance: totalInflows - totalOutflows
+      netBalance: totalInflows - totalOutflows,
+      pendingToInvoiceValue,
+      pendingToInvoiceCount,
+      completedJobsCount,
+      totalCompletedBilled,
+      averageCompletedTicket
     };
-  }, [reportMovements]);
+  }, [reportMovements, jobs, reportStartDate, reportEndDate]);
 
   const exportReportCSV = () => {
     if (!currentOrg) return;
@@ -2112,7 +2172,7 @@ export const Finance = () => {
                                       setShowDebtsEmailModal(true);
                                   }}
                                   className="flex-1 md:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white hover:bg-blue-700 rounded-xl text-xs font-black uppercase transition-all shadow-md shadow-blue-500/20 cursor-pointer"
-                                  title="Enviar extratos individuais em PDF por e-mail via Brevo"
+                                  title="Enviar extratos individuais em PDF por e-mail"
                               >
                                   <Mail size={16} /> Enviar Extratos por E-mail
                               </button>
@@ -2222,17 +2282,17 @@ export const Finance = () => {
               {/* Statistics Row */}
               {reportType === 'DRE' ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                      <div className="bg-white p-5 rounded-2xl border border-blue-100 shadow-sm bg-gradient-to-br from-white to-blue-50/20">
-                          <p className="text-[10px] font-black text-blue-600 uppercase mb-1">Receita Bruta Total</p>
+                      <div className="bg-white p-5 rounded-2xl border border-blue-100 shadow-sm bg-gradient-to-br from-white to-blue-50/30">
+                          <p className="text-[10px] font-black text-blue-600 uppercase mb-1">Receita Bruta Faturada</p>
                           <h4 className="text-xl font-black text-slate-800">R$ {dreData.grossRevenue.toFixed(2)}</h4>
-                          <span className="text-[10px] text-slate-400 font-bold block mt-1">{dreData.labJobsCount + dreData.storeOrdersCount} OSs no período</span>
+                          <span className="text-[10px] text-slate-400 font-bold block mt-1">{dreData.labJobsCount + dreData.storeOrdersCount} OSs faturadas / loja</span>
                       </div>
-                      <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-                          <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Receita Líquida</p>
+                      <div className="bg-white p-5 rounded-2xl border border-emerald-100 shadow-sm bg-gradient-to-br from-white to-emerald-50/20">
+                          <p className="text-[10px] font-black text-emerald-700 uppercase mb-1">Receita Líquida</p>
                           <h4 className="text-xl font-black text-emerald-600">R$ {dreData.netRevenue.toFixed(2)}</h4>
                           <span className="text-[10px] text-slate-400 font-bold block mt-1">Desc: R$ {dreData.discountsGiven.toFixed(2)}</span>
                       </div>
-                      <div className="bg-white p-5 rounded-2xl border border-rose-100 shadow-sm bg-gradient-to-br from-white to-rose-50/20">
+                      <div className="bg-white p-5 rounded-2xl border border-rose-100 shadow-sm bg-gradient-to-br from-white to-rose-50/30">
                           <p className="text-[10px] font-black text-rose-500 uppercase mb-1">Despesas Operacionais</p>
                           <h4 className="text-xl font-black text-rose-600">R$ {dreData.totalExpenses.toFixed(2)}</h4>
                           <span className="text-[10px] text-slate-400 font-bold block mt-1">{dreData.periodExpensesCount} lançamento(s)</span>
@@ -2246,38 +2306,42 @@ export const Finance = () => {
                           </h4>
                           <span className="text-[10px] font-black block mt-1 opacity-80">Margem: {dreData.profitMargin.toFixed(1)}%</span>
                       </div>
-                      <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-                          <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Saldo Caixa Realizado</p>
+                      <div className="bg-white p-5 rounded-2xl border border-indigo-100 shadow-sm bg-gradient-to-br from-white to-indigo-50/30">
+                          <p className="text-[10px] font-black text-indigo-700 uppercase mb-1">Saldo Caixa Realizado</p>
                           <h4 className={`text-xl font-black ${dreData.cashBalance >= 0 ? 'text-slate-800' : 'text-rose-600'}`}>
                               R$ {dreData.cashBalance.toFixed(2)}
                           </h4>
-                          <span className="text-[10px] text-slate-400 font-bold block mt-1">A receber: R$ {dreData.pendingToReceive.toFixed(2)}</span>
+                          <span className="text-[10px] text-slate-400 font-bold block mt-1">A faturar (produção): R$ {dreData.inProgressGrossForecast.toFixed(2)}</span>
                       </div>
                   </div>
               ) : reportType === 'DEBITOS' ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                      <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-                          <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Clientes em Débito</p>
-                          <h4 className="text-xl font-black text-slate-800">{reportDebtStats.totalClientsWithDebt}</h4>
+                      <div className="bg-white p-5 rounded-2xl border border-blue-200 shadow-sm bg-gradient-to-br from-white to-blue-50/30">
+                          <p className="text-[10px] font-black text-blue-600 uppercase mb-1">Clientes em Débito</p>
+                          <h4 className="text-xl font-black text-blue-900">{reportDebtStats.totalClientsWithDebt}</h4>
+                          <span className="text-[10px] text-blue-600/70 font-bold block mt-1">Clientes com saldo devedor</span>
                       </div>
-                      <div className="bg-white p-5 rounded-2xl border border-rose-100 shadow-sm bg-gradient-to-br from-white to-rose-50/30">
+                      <div className="bg-white p-5 rounded-2xl border border-rose-200 shadow-sm bg-gradient-to-br from-white to-rose-50/40">
                           <p className="text-[10px] font-black text-rose-500 uppercase mb-1">Saldo Total Devedor</p>
                           <h4 className="text-xl font-black text-rose-600">R$ {reportDebtStats.totalDebtAmount.toFixed(2)}</h4>
+                          <span className="text-[10px] text-rose-500/70 font-bold block mt-1">Débito total consolidado</span>
                       </div>
-                      <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-                          <p className="text-[10px] font-black text-slate-400 uppercase mb-1">OSs Pendentes</p>
+                      <div className="bg-white p-5 rounded-2xl border border-amber-200 shadow-sm bg-gradient-to-br from-white to-amber-50/40">
+                          <p className="text-[10px] font-black text-amber-700 uppercase mb-1">OSs Pendentes Concluídas</p>
                           <h4 className="text-xl font-black text-amber-600">{reportDebtStats.totalPendingJobs}</h4>
+                          <span className="text-[10px] text-amber-600/70 font-bold block mt-1">Aguardando cobrança/pagamento</span>
                       </div>
-                      <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-                          <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Média por Devedor</p>
-                          <h4 className="text-xl font-black text-slate-700">R$ {reportDebtStats.avgDebt.toFixed(2)}</h4>
+                      <div className="bg-white p-5 rounded-2xl border border-violet-200 shadow-sm bg-gradient-to-br from-white to-violet-50/40">
+                          <p className="text-[10px] font-black text-violet-700 uppercase mb-1">Média por Devedor</p>
+                          <h4 className="text-xl font-black text-violet-700">R$ {reportDebtStats.avgDebt.toFixed(2)}</h4>
+                          <span className="text-[10px] text-violet-600/70 font-bold block mt-1">Ticket médio em débito</span>
                       </div>
-                      <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-                          <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Maior Débito</p>
+                      <div className="bg-white p-5 rounded-2xl border border-orange-200 shadow-sm bg-gradient-to-br from-white to-orange-50/30">
+                          <p className="text-[10px] font-black text-orange-700 uppercase mb-1">Maior Débito</p>
                           <h4 className="text-sm font-black text-slate-800 truncate" title={reportDebtStats.maxDebtClient ? reportDebtStats.maxDebtClient.name : '---'}>
                               {reportDebtStats.maxDebtClient ? (
                                   <>
-                                      <span className="text-rose-600 block">R$ {reportDebtStats.maxDebtClient.balanceUpToEndDate.toFixed(2)}</span>
+                                      <span className="text-orange-600 block text-base font-black">R$ {reportDebtStats.maxDebtClient.balanceUpToEndDate.toFixed(2)}</span>
                                       <span className="text-xs text-slate-500 font-bold truncate block">{reportDebtStats.maxDebtClient.name}</span>
                                   </>
                               ) : (
@@ -2287,28 +2351,65 @@ export const Finance = () => {
                       </div>
                   </div>
               ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                      <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-                          <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Recebimentos Realizados</p>
-                          <h4 className="text-xl font-black text-green-600">R$ {reportStats.totalInflows.toFixed(2)}</h4>
+                  <div className="space-y-4">
+                      {/* LINHA 1: Fluxo Realizado & Faturamento Concluído */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                          <div className="bg-white p-5 rounded-2xl border border-emerald-200 shadow-sm bg-gradient-to-br from-white to-emerald-50/40">
+                              <p className="text-[10px] font-black text-emerald-700 uppercase mb-1">Recebimentos Realizados</p>
+                              <h4 className="text-xl font-black text-emerald-600">R$ {reportStats.totalInflows.toFixed(2)}</h4>
+                              <span className="text-[10px] text-emerald-600/80 font-bold block mt-1">Entradas quitadas no período</span>
+                          </div>
+                          <div className="bg-white p-5 rounded-2xl border border-rose-200 shadow-sm bg-gradient-to-br from-white to-rose-50/40">
+                              <p className="text-[10px] font-black text-rose-700 uppercase mb-1">Despesas Pagas</p>
+                              <h4 className="text-xl font-black text-rose-600">R$ {reportStats.totalOutflows.toFixed(2)}</h4>
+                              <span className="text-[10px] text-rose-600/80 font-bold block mt-1">Saídas operacionais quitadas</span>
+                          </div>
+                          <div className={`p-5 rounded-2xl border shadow-sm ${reportStats.netBalance >= 0 ? 'bg-gradient-to-br from-white to-blue-50/50 border-blue-200' : 'bg-gradient-to-br from-white to-rose-50/50 border-rose-200'}`}>
+                              <p className={`text-[10px] font-black uppercase mb-1 ${reportStats.netBalance >= 0 ? 'text-blue-700' : 'text-rose-700'}`}>Saldo Líquido Realizado</p>
+                              <h4 className={`text-xl font-black ${reportStats.netBalance >= 0 ? 'text-blue-700' : 'text-rose-600'}`}>
+                                  R$ {reportStats.netBalance.toFixed(2)}
+                              </h4>
+                              <span className="text-[10px] font-bold block mt-1 opacity-80 text-slate-500">Recebimentos menos despesas</span>
+                          </div>
+                          <div className="bg-white p-5 rounded-2xl border border-violet-200 shadow-sm bg-gradient-to-br from-white to-violet-50/40">
+                              <p className="text-[10px] font-black text-violet-700 uppercase mb-1">Faturamento Concluído</p>
+                              <h4 className="text-xl font-black text-violet-700">R$ {reportStats.totalCompletedBilled.toFixed(2)}</h4>
+                              <span className="text-[10px] text-violet-600/80 font-bold block mt-1">{reportStats.completedJobsCount} trabalhos concluídos / loja</span>
+                          </div>
+                          <div className="bg-white p-5 rounded-2xl border border-amber-200 shadow-sm bg-gradient-to-br from-white to-amber-50/50">
+                              <p className="text-[10px] font-black text-amber-800 uppercase mb-1">A Faturar (Em Produção)</p>
+                              <h4 className="text-xl font-black text-amber-700">R$ {reportStats.pendingToInvoiceValue.toFixed(2)}</h4>
+                              <span className="text-[10px] text-amber-700/80 font-bold block mt-1">{reportStats.pendingToInvoiceCount} OSs aguardando conclusão</span>
+                          </div>
                       </div>
-                      <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-                          <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Despesas Pagas</p>
-                          <h4 className="text-xl font-black text-red-500">R$ {reportStats.totalOutflows.toFixed(2)}</h4>
-                      </div>
-                      <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-                          <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Saldo Líquido Período</p>
-                          <h4 className={`text-xl font-black ${reportStats.netBalance >= 0 ? 'text-blue-600' : 'text-rose-600'}`}>
-                              R$ {reportStats.netBalance.toFixed(2)}
-                          </h4>
-                      </div>
-                      <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-                          <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Débitos OSs Faturados/Trabalhos</p>
-                          <h4 className="text-xl font-black text-orange-600">R$ {reportStats.totalDebitsBilled.toFixed(2)}</h4>
-                      </div>
-                      <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-                          <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Aguardando Cobrança/Gaveta</p>
-                          <h4 className="text-xl font-black text-amber-600">R$ {reportStats.pendingInflows.toFixed(2)}</h4>
+
+                      {/* LINHA 2: Pendências, Previsões e Indicadores Operacionais com cores e métricas diferentes */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                          <div className="bg-white p-5 rounded-2xl border border-orange-200 shadow-sm bg-gradient-to-br from-white to-orange-50/40">
+                              <p className="text-[10px] font-black text-orange-700 uppercase mb-1">Cobranças Pendentes (Gaveta)</p>
+                              <h4 className="text-xl font-black text-orange-600">R$ {reportStats.pendingInflows.toFixed(2)}</h4>
+                              <span className="text-[10px] text-orange-600/80 font-bold block mt-1">Casos concluídos não quitados</span>
+                          </div>
+                          <div className="bg-white p-5 rounded-2xl border border-red-200 shadow-sm bg-gradient-to-br from-white to-red-50/40">
+                              <p className="text-[10px] font-black text-red-700 uppercase mb-1">Despesas Pendentes</p>
+                              <h4 className="text-xl font-black text-red-600">R$ {reportStats.pendingOutflows.toFixed(2)}</h4>
+                              <span className="text-[10px] text-red-600/80 font-bold block mt-1">Contas a pagar em aberto</span>
+                          </div>
+                          <div className="bg-white p-5 rounded-2xl border border-cyan-200 shadow-sm bg-gradient-to-br from-white to-cyan-50/40">
+                              <p className="text-[10px] font-black text-cyan-700 uppercase mb-1">Casos Concluídos no Período</p>
+                              <h4 className="text-xl font-black text-cyan-700">{reportStats.completedJobsCount} OSs</h4>
+                              <span className="text-[10px] text-cyan-600/80 font-bold block mt-1">Finalizados e faturáveis</span>
+                          </div>
+                          <div className="bg-white p-5 rounded-2xl border border-indigo-200 shadow-sm bg-gradient-to-br from-white to-indigo-50/40">
+                              <p className="text-[10px] font-black text-indigo-700 uppercase mb-1">Casos em Andamento</p>
+                              <h4 className="text-xl font-black text-indigo-700">{reportStats.pendingToInvoiceCount} OSs</h4>
+                              <span className="text-[10px] text-indigo-600/80 font-bold block mt-1">Faturamento após a entrega</span>
+                          </div>
+                          <div className="bg-white p-5 rounded-2xl border border-teal-200 shadow-sm bg-gradient-to-br from-white to-teal-50/40">
+                              <p className="text-[10px] font-black text-teal-700 uppercase mb-1">Ticket Médio (Faturado)</p>
+                              <h4 className="text-xl font-black text-teal-700">R$ {reportStats.averageCompletedTicket.toFixed(2)}</h4>
+                              <span className="text-[10px] text-teal-600/80 font-bold block mt-1">Média por trabalho faturado</span>
+                          </div>
                       </div>
                   </div>
               )}
@@ -2489,66 +2590,6 @@ export const Finance = () => {
                       </div>
                   </div>
               ) : reportType === 'DEBITOS' ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                      <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-                          <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Clientes em Débito</p>
-                          <h4 className="text-xl font-black text-slate-800">{reportDebtStats.totalClientsWithDebt}</h4>
-                      </div>
-                      <div className="bg-white p-5 rounded-2xl border border-rose-100 shadow-sm bg-gradient-to-br from-white to-rose-50/30">
-                          <p className="text-[10px] font-black text-rose-500 uppercase mb-1">Saldo Total Devedor</p>
-                          <h4 className="text-xl font-black text-rose-600">R$ {reportDebtStats.totalDebtAmount.toFixed(2)}</h4>
-                      </div>
-                      <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-                          <p className="text-[10px] font-black text-slate-400 uppercase mb-1">OSs Pendentes</p>
-                          <h4 className="text-xl font-black text-amber-600">{reportDebtStats.totalPendingJobs}</h4>
-                      </div>
-                      <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-                          <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Média por Devedor</p>
-                          <h4 className="text-xl font-black text-slate-700">R$ {reportDebtStats.avgDebt.toFixed(2)}</h4>
-                      </div>
-                      <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-                          <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Maior Débito</p>
-                          <h4 className="text-sm font-black text-slate-800 truncate" title={reportDebtStats.maxDebtClient ? reportDebtStats.maxDebtClient.name : '---'}>
-                              {reportDebtStats.maxDebtClient ? (
-                                  <>
-                                      <span className="text-rose-600 block">R$ {reportDebtStats.maxDebtClient.balanceUpToEndDate.toFixed(2)}</span>
-                                      <span className="text-xs text-slate-500 font-bold truncate block">{reportDebtStats.maxDebtClient.name}</span>
-                                  </>
-                              ) : (
-                                  '---'
-                              )}
-                          </h4>
-                      </div>
-                  </div>
-              ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                      <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-                          <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Recebimentos Realizados</p>
-                          <h4 className="text-xl font-black text-green-600">R$ {reportStats.totalInflows.toFixed(2)}</h4>
-                      </div>
-                      <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-                          <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Despesas Pagas</p>
-                          <h4 className="text-xl font-black text-red-500">R$ {reportStats.totalOutflows.toFixed(2)}</h4>
-                      </div>
-                      <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-                          <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Saldo Líquido Período</p>
-                          <h4 className={`text-xl font-black ${reportStats.netBalance >= 0 ? 'text-blue-600' : 'text-rose-600'}`}>
-                              R$ {reportStats.netBalance.toFixed(2)}
-                          </h4>
-                      </div>
-                      <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-                          <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Recebimentos Pendentes</p>
-                          <h4 className="text-xl font-black text-orange-600">R$ {reportStats.pendingInflows.toFixed(2)}</h4>
-                      </div>
-                      <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-                          <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Despesas Pendentes</p>
-                          <h4 className="text-xl font-black text-amber-600">R$ {reportStats.pendingOutflows.toFixed(2)}</h4>
-                      </div>
-                  </div>
-              )}
-
-              {/* Table Section */}
-              {reportType === 'DEBITOS' ? (
                   <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
                       <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
                           <div className="flex items-center gap-2">
@@ -2643,7 +2684,7 @@ export const Finance = () => {
                                                               setShowDebtsEmailModal(true);
                                                           }}
                                                           className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white rounded-xl text-xs font-black uppercase transition-all shadow-sm cursor-pointer"
-                                                          title="Enviar Extrato deste Cliente por E-mail (Brevo)"
+                                                          title="Enviar Extrato deste Cliente por E-mail"
                                                       >
                                                           <Mail size={14} /> Enviar E-mail
                                                       </button>
@@ -2974,7 +3015,7 @@ export const Finance = () => {
                                                     }
                                                 }}
                                                 className="w-full sm:w-auto px-4 py-2.5 sm:py-3 bg-blue-600 text-white text-[10px] font-black uppercase rounded-xl sm:rounded-2xl hover:bg-blue-700 transition-all flex items-center justify-center gap-1.5 shadow-md shadow-blue-500/20 whitespace-nowrap"
-                                                title="Enviar este Extrato em PDF por E-mail via Brevo"
+                                                title="Enviar este Extrato em PDF por E-mail"
                                             >
                                                 <Mail size={15} /> Enviar por E-mail
                                             </button>
@@ -4158,7 +4199,7 @@ export const Finance = () => {
           </div>
       )}
 
-      {/* MODAL DE ENVIO DE EXTRATOS POR E-MAIL VIA BREVO */}
+      {/* MODAL DE ENVIO DE EXTRATOS POR E-MAIL */}
       <SendDebtsEmailModal 
           isOpen={showDebtsEmailModal}
           onClose={() => {
@@ -4171,6 +4212,7 @@ export const Finance = () => {
           allJobs={jobs}
           dentistPayments={dentistPayments}
           initialSelectedClientId={selectedEmailClientId}
+          statementClient={statementClient}
           onEmailStatusUpdate={handleEmailStatusUpdate}
       />
     </div>

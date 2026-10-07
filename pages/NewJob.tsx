@@ -9,6 +9,7 @@ import { formatTeethRange } from '../utils/toothUtils';
 // Added Crown to the lucide-react imports to fix line 404 error
 import { Odontogram } from "../components/Odontogram";
 import { Plus, Trash2, Save, User as UserIcon, Box, FileText, CheckCircle, Search, RefreshCw, ArrowRight, Printer, X, FileCheck, DollarSign, Check, Calendar, AlertTriangle, Stethoscope, ChevronDown, Layers, Percent, Edit3, ShieldAlert, SearchIcon, Tag, AlertCircle, Crown, Package, MapPin } from 'lucide-react';
+import { filterAndSortClients, matchesSearchQuery, normalizeText } from '../utils/stringUtils';
 
 import * as api from '../services/firebaseService';
 
@@ -160,6 +161,10 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
   const [productQuantity, setProductQuantity] = useState<number | string>(1);
   const [productManualPrice, setProductManualPrice] = useState<number | string | null>(null);
   const [productDiscountPercent, setProductDiscountPercent] = useState<number | string>(0);
+  const [stockSourceFilter, setStockSourceFilter] = useState<'ALL' | 'LAB' | 'CLIENT'>('ALL');
+  const [productSearchQuery, setProductSearchQuery] = useState('');
+  const [showProductDropdown, setShowProductDropdown] = useState(false);
+  const productDropdownRef = useRef<HTMLDivElement>(null);
 
   const locationKeyRef = useRef<string | null>(null);
 
@@ -237,19 +242,20 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
         setShowJobTypeSuggestions(false);
         setIsSearchingJobType(false);
       }
+      if (productDropdownRef.current && !productDropdownRef.current.contains(event.target as Node)) {
+        setShowProductDropdown(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const suggestions = useMemo(() => {
-    if (!dentistSearchQuery) return [];
-    const query = dentistSearchQuery.toLowerCase();
-    const online = connectedDentists.map(d => ({ ...d, type: 'ONLINE' }));
-    const offline = manualDentists.map(d => ({ ...d, type: 'OFFLINE' }));
-    return [...online, ...offline].filter(d => 
-        d.name.toLowerCase().includes(query) || (d.clinicName && d.clinicName.toLowerCase().includes(query))
-    ).slice(0, 8); 
+    if (!dentistSearchQuery || !dentistSearchQuery.trim()) return [];
+    const online = connectedDentists.map(d => ({ ...d, type: 'ONLINE' as const }));
+    const offline = manualDentists.map(d => ({ ...d, type: 'OFFLINE' as const }));
+    const all = [...online, ...offline];
+    return filterAndSortClients(all, dentistSearchQuery).slice(0, 10);
   }, [dentistSearchQuery, connectedDentists, manualDentists]);
 
   const filteredJobTypes = useMemo(() => {
@@ -260,9 +266,52 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
         visible = jobTypes.filter(t => t.isVisibleInternallyLabs === true);
     }
     if (!jobTypeSearchQuery) return visible.slice(0, 10);
-    const query = jobTypeSearchQuery.toLowerCase();
-    return visible.filter(t => t.name.toLowerCase().includes(query)).slice(0, 10);
+    const query = normalizeText(jobTypeSearchQuery);
+    return visible.filter(t => normalizeText(t.name).includes(query)).slice(0, 10);
   }, [jobTypeSearchQuery, jobTypes, clientOrigin]);
+
+  const selectedDentistMatched = useMemo(() => {
+    if (!selectedDentistId) return null;
+    return manualDentists.find(d => d.id === selectedDentistId || (d as any).userId === selectedDentistId) || allUsers.find(u => u.id === selectedDentistId);
+  }, [selectedDentistId, manualDentists, allUsers]);
+
+  const labStockItems = useMemo(() => {
+    return inventoryItems.filter(item => !item.dentistOwnerId);
+  }, [inventoryItems]);
+
+  const clientStockItems = useMemo(() => {
+    if (!selectedDentistId) return [];
+    const validOwnerIds = new Set<string>();
+    validOwnerIds.add(selectedDentistId);
+    if (selectedDentistMatched?.id) validOwnerIds.add(selectedDentistMatched.id);
+    if ((selectedDentistMatched as any)?.userId) validOwnerIds.add((selectedDentistMatched as any).userId);
+    return inventoryItems.filter(item => item.dentistOwnerId && validOwnerIds.has(item.dentistOwnerId));
+  }, [inventoryItems, selectedDentistId, selectedDentistMatched]);
+
+  const filteredStockItems = useMemo(() => {
+    const validOwnerIds = new Set<string>();
+    if (selectedDentistId) validOwnerIds.add(selectedDentistId);
+    if (selectedDentistMatched?.id) validOwnerIds.add(selectedDentistMatched.id);
+    if ((selectedDentistMatched as any)?.userId) validOwnerIds.add((selectedDentistMatched as any).userId);
+
+    let pool = inventoryItems;
+    if (stockSourceFilter === 'LAB') {
+      pool = labStockItems;
+    } else if (stockSourceFilter === 'CLIENT') {
+      pool = clientStockItems;
+    } else {
+      pool = inventoryItems.filter(item => !item.dentistOwnerId || (validOwnerIds.size > 0 && validOwnerIds.has(item.dentistOwnerId)));
+    }
+
+    if (!productSearchQuery || !productSearchQuery.trim()) return pool;
+    return pool.filter(item => 
+      matchesSearchQuery(productSearchQuery, item.name, item.code, item.description, item.type)
+    );
+  }, [stockSourceFilter, labStockItems, clientStockItems, inventoryItems, selectedDentistId, selectedDentistMatched, productSearchQuery]);
+
+  const selectedProductObj = useMemo(() => {
+    return inventoryItems.find(i => i.id === selectedProductId);
+  }, [inventoryItems, selectedProductId]);
 
   const calculatedBasePrice = useMemo(() => {
     if (!activeJobType) return 0;
@@ -1586,30 +1635,155 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
 
                     {isAddingProduct && (
                         <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4 mb-4">
+                            {/* Stock Source Filter Tabs */}
+                            <div className="flex flex-wrap items-center gap-2 pb-1 border-b border-slate-200">
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-1">Origem do Estoque:</span>
+                                <button
+                                    type="button"
+                                    onClick={() => setStockSourceFilter('ALL')}
+                                    className={`px-3 py-1 rounded-lg text-xs font-black transition-all ${
+                                        stockSourceFilter === 'ALL'
+                                            ? 'bg-blue-600 text-white shadow-xs'
+                                            : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                                    }`}
+                                >
+                                    Todos ({inventoryItems.filter(i => !i.dentistOwnerId || i.dentistOwnerId === selectedDentistId).length})
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setStockSourceFilter('LAB')}
+                                    className={`px-3 py-1 rounded-lg text-xs font-black transition-all flex items-center gap-1.5 ${
+                                        stockSourceFilter === 'LAB'
+                                            ? 'bg-blue-600 text-white shadow-xs'
+                                            : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                                    }`}
+                                >
+                                    <Box size={12} />
+                                    Laboratório ({labStockItems.length})
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setStockSourceFilter('CLIENT')}
+                                    className={`px-3 py-1 rounded-lg text-xs font-black transition-all flex items-center gap-1.5 ${
+                                        stockSourceFilter === 'CLIENT'
+                                            ? 'bg-amber-500 text-white shadow-xs'
+                                            : 'bg-white text-amber-700 border border-amber-200 hover:bg-amber-50'
+                                    }`}
+                                >
+                                    <Stethoscope size={12} />
+                                    Estoque do Cliente {selectedDentistObj ? `(${selectedDentistObj.name})` : ''} ({clientStockItems.length})
+                                </button>
+                            </div>
+
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="space-y-1">
-                                    <label className="text-[10px] font-black text-slate-500 uppercase">{t('newJob.productOrImplant', 'Produto / Implante')}</label>
-                                    <select value={selectedProductId} onChange={e => {
-                                        setSelectedProductId(e.target.value);
-                                        const prod = inventoryItems.find(i => i.id === e.target.value);
-                                        if (prod) setProductManualPrice(prod.sellPrice);
-                                    }} className="w-full p-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                        <option value="">{t('newJob.selectProductFromStock', 'Selecione um item no estoque...')}</option>
-                                        {inventoryItems.filter(item => !item.dentistOwnerId || item.dentistOwnerId === selectedDentistId).map(item => (
-                                            <option key={item.id} value={item.id} disabled={item.currentStock <= 0}>
-                                                {item.name} ({item.currentStock > 0 ? `${item.currentStock} un.` : t('newJob.outOfStock', 'Sem Estoque')}) {item.dentistOwnerId ? `- ${t('newJob.clientOwnStock', 'ESTOQUE DO CLIENTE')}` : ''}
-                                            </option>
-                                        ))}
-                                    </select>
+                                <div className="space-y-1 relative" ref={productDropdownRef}>
+                                    <label className="text-[10px] font-black text-slate-500 uppercase flex items-center justify-between">
+                                        <span>{t('newJob.productOrImplant', 'Produto / Implante')}</span>
+                                        {selectedProductObj && (
+                                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
+                                                selectedProductObj.dentistOwnerId 
+                                                    ? 'bg-amber-100 text-amber-800' 
+                                                    : 'bg-blue-100 text-blue-800'
+                                            }`}>
+                                                {selectedProductObj.dentistOwnerId ? 'Estoque do Cliente' : 'Estoque do Laboratório'}
+                                            </span>
+                                        )}
+                                    </label>
+                                    <div className="relative">
+                                        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                                            <SearchIcon size={16} />
+                                        </div>
+                                        <input
+                                            type="text"
+                                            value={productSearchQuery}
+                                            onChange={e => {
+                                                setProductSearchQuery(e.target.value);
+                                                setShowProductDropdown(true);
+                                            }}
+                                            onFocus={() => setShowProductDropdown(true)}
+                                            placeholder="Digite para pesquisar no estoque..."
+                                            className="w-full pl-9 pr-8 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs font-bold text-slate-800"
+                                        />
+                                        {(productSearchQuery || selectedProductId) && (
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setProductSearchQuery('');
+                                                    setSelectedProductId('');
+                                                    setProductManualPrice(null);
+                                                    setShowProductDropdown(false);
+                                                }}
+                                                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 p-0.5 rounded"
+                                            >
+                                                <X size={14} />
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    {/* Dropdown list */}
+                                    {showProductDropdown && (
+                                        <div className="absolute z-50 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden max-h-56 overflow-y-auto animate-in fade-in slide-in-from-top-2">
+                                            {filteredStockItems.length > 0 ? (
+                                                filteredStockItems.map(item => {
+                                                    const isSelected = selectedProductId === item.id;
+                                                    const isOutOfStock = item.currentStock <= 0;
+                                                    return (
+                                                        <button
+                                                            key={item.id}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setSelectedProductId(item.id);
+                                                                setProductManualPrice(item.sellPrice);
+                                                                setProductSearchQuery(item.name);
+                                                                setShowProductDropdown(false);
+                                                            }}
+                                                            className={`w-full text-left px-3 py-2.5 border-b border-slate-100 last:border-0 hover:bg-blue-50 transition-colors flex items-center justify-between group ${
+                                                                isSelected ? 'bg-blue-50' : ''
+                                                            }`}
+                                                        >
+                                                            <div className="min-w-0 pr-2">
+                                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                                    <p className="text-xs font-bold text-slate-800 truncate">{item.name}</p>
+                                                                    {item.dentistOwnerId ? (
+                                                                        <span className="text-[8px] font-black uppercase px-1.5 py-0.2 bg-amber-100 text-amber-800 rounded">
+                                                                            Cliente
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span className="text-[8px] font-black uppercase px-1.5 py-0.2 bg-blue-100 text-blue-700 rounded">
+                                                                            Laboratório
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                                <div className="flex items-center gap-3 text-[10px] text-slate-500 mt-0.5">
+                                                                    <span className={isOutOfStock ? 'text-red-500 font-bold' : 'text-emerald-600 font-bold'}>
+                                                                        {item.currentStock > 0 ? `${item.currentStock} un. em estoque` : 'Sem estoque'}
+                                                                    </span>
+                                                                    {item.code && <span>Cód: {item.code}</span>}
+                                                                </div>
+                                                            </div>
+                                                            <div className="text-right shrink-0">
+                                                                <span className="text-xs font-black text-slate-700">R$ {Number(item.sellPrice || 0).toFixed(2)}</span>
+                                                                {isSelected && <Check size={14} className="text-blue-600 ml-auto mt-0.5" />}
+                                                            </div>
+                                                        </button>
+                                                    );
+                                                })
+                                            ) : (
+                                                <div className="p-4 text-center text-slate-400 text-xs font-bold">
+                                                    Nenhum produto encontrado neste filtro
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="flex gap-2">
                                     <div className="space-y-1 flex-1">
                                         <label className="text-[10px] font-black text-slate-500 uppercase">{t('newJob.quantity', 'Qtd.')}</label>
-                                        <input type="number" min="1" value={productQuantity} onChange={e => setProductQuantity(e.target.value === '' ? '' : Number(e.target.value))} className="w-full p-2.5 rounded-xl border border-slate-200 bg-white" />
+                                        <input type="number" min="1" value={productQuantity} onChange={e => setProductQuantity(e.target.value === '' ? '' : Number(e.target.value))} className="w-full p-2.5 rounded-xl border border-slate-200 bg-white text-xs font-bold" />
                                     </div>
                                     <div className="space-y-1 flex-[1.5]">
                                         <label className="text-[10px] font-black text-slate-500 uppercase">{t('newJob.unitValue', 'Valor Un. (R$)')}</label>
-                                        <input type="number" step="0.01" value={productManualPrice !== null ? productManualPrice : ''} onChange={e => setProductManualPrice(e.target.value === '' ? '' : Number(e.target.value))} className="w-full p-2.5 rounded-xl border border-slate-200 bg-white" />
+                                        <input type="number" step="0.01" value={productManualPrice !== null ? productManualPrice : ''} onChange={e => setProductManualPrice(e.target.value === '' ? '' : Number(e.target.value))} className="w-full p-2.5 rounded-xl border border-slate-200 bg-white text-xs font-bold" />
                                     </div>
                                     <div className="space-y-1 flex-[1.5]">
                                         <label className="text-[10px] font-black text-slate-500 uppercase flex justify-between items-center">
@@ -1620,12 +1794,13 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                                             <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
                                                 <Percent size={14} />
                                             </div>
-                                            <input type="number" step="0.01" min="0" max="100" value={productDiscountPercent} onChange={e => setProductDiscountPercent(e.target.value === '' ? '' : Number(e.target.value))} className="w-full pl-9 pr-2 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-blue-500 outline-none" />
+                                            <input type="number" step="0.01" min="0" max="100" value={productDiscountPercent} onChange={e => setProductDiscountPercent(e.target.value === '' ? '' : Number(e.target.value))} className="w-full pl-9 pr-2 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-blue-500 outline-none text-xs font-bold" />
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                            <button type="button" onClick={handleAddProduct} disabled={!selectedProductId} className="w-full py-3 bg-blue-600 text-white font-black rounded-xl cursor-pointer hover:bg-blue-700 disabled:opacity-50 transition-all text-xs">
+                            <button type="button" onClick={handleAddProduct} disabled={!selectedProductId} className="w-full py-3 bg-blue-600 text-white font-black rounded-xl cursor-pointer hover:bg-blue-700 disabled:opacity-50 transition-all text-xs flex items-center justify-center gap-2">
+                                <Plus size={16} />
                                 {t('newJob.addProductToCase', 'ADICIONAR PRODUTO AO CASO')}
                             </button>
                         </div>

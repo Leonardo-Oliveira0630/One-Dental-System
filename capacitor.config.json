@@ -5,8 +5,14 @@
   "webDir": "dist",
   "server": {
     "androidScheme": "https",
+    "iosScheme": "capacitor",
     "allowNavigation": ["*"],
     "cleartext": true
+  },
+  "ios": {
+    "contentInset": "always",
+    "allowsLinkPreview": false,
+    "scrollEnabled": true
   },
   "plugins": {
     "Haptics": {

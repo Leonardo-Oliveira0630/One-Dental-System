@@ -30,6 +30,7 @@ import { getCarrierBadgeConfig } from '../services/frenetService';
 import { LabServiceReviewModal } from '../components/LabServiceReviewModal';
 import { WebcamModal } from '../components/WebcamModal';
 import { capturePhotoWithNativePreference } from '../utils/cameraUtils';
+import { filterAndSortClients, matchesSearchQuery, normalizeText } from '../utils/stringUtils';
 
 const { doc, onSnapshot } = firestorePkg as any;
 
@@ -224,6 +225,7 @@ export const JobDetails = () => {
   };
   const [expandedItemIdx, setExpandedItemIdx] = useState<number | null>(null);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [itemEditTeethInput, setItemEditTeethInput] = useState('');
   const [itemEditForm, setItemEditForm] = useState<{
     quantity: number | string;
     nature?: 'NORMAL' | 'REPETITION' | 'ADJUSTMENT';
@@ -829,17 +831,19 @@ export const JobDetails = () => {
   const [productQuantity, setProductQuantity] = useState(1);
   const [productManualPrice, setProductManualPrice] = useState<number | null>(null);
   const [productDiscountPercent, setProductDiscountPercent] = useState(0);
+  const [stockSourceFilter, setStockSourceFilter] = useState<'ALL' | 'LAB' | 'CLIENT'>('ALL');
+  const [productSearchQuery, setProductSearchQuery] = useState('');
+  const [showProductDropdown, setShowProductDropdown] = useState(false);
+  const productDropdownRef = useRef<HTMLDivElement>(null);
 
   const connectedDentists = useMemo(() => allUsers.filter(u => u.role === UserRole.CLIENT), [allUsers]);
 
   const suggestions = useMemo(() => {
-    if (!dentistSearchQuery) return [];
-    const query = dentistSearchQuery.toLowerCase();
-    const online = connectedDentists.map(d => ({ ...d, type: 'ONLINE' }));
-    const offline = manualDentists.map(d => ({ ...d, type: 'OFFLINE' }));
-    return [...online, ...offline].filter(d => 
-        d.name.toLowerCase().includes(query) || (d.clinicName && d.clinicName.toLowerCase().includes(query))
-    ).slice(0, 8); 
+    if (!dentistSearchQuery || !dentistSearchQuery.trim()) return [];
+    const online = connectedDentists.map(d => ({ ...d, type: 'ONLINE' as const }));
+    const offline = manualDentists.map(d => ({ ...d, type: 'OFFLINE' as const }));
+    const all = [...online, ...offline];
+    return filterAndSortClients(all, dentistSearchQuery).slice(0, 10);
   }, [dentistSearchQuery, connectedDentists, manualDentists]);
 
   useEffect(() => {
@@ -847,10 +851,65 @@ export const JobDetails = () => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setShowDentistSuggestions(false);
       }
+      if (productDropdownRef.current && !productDropdownRef.current.contains(event.target as Node)) {
+        setShowProductDropdown(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const effectiveDentistId = editDentistId || job?.dentistId || job?.clientId || '';
+  const effectiveDentistName = editDentistName || job?.dentistName || 'Cliente';
+
+  const matchedDentist = useMemo(() => {
+    const id = editDentistId || job?.dentistId || job?.clientId;
+    if (!id) return null;
+    return manualDentists.find(d => d.id === id || (d as any).userId === id) || allUsers.find(u => u.id === id);
+  }, [editDentistId, job?.dentistId, job?.clientId, manualDentists, allUsers]);
+
+  const labStockItems = useMemo(() => {
+    return inventoryItems.filter(item => !item.dentistOwnerId);
+  }, [inventoryItems]);
+
+  const clientStockItems = useMemo(() => {
+    const validOwnerIds = new Set<string>();
+    if (editDentistId) validOwnerIds.add(editDentistId);
+    if (job?.dentistId) validOwnerIds.add(job.dentistId);
+    if (job?.clientId) validOwnerIds.add(job.clientId);
+    if (matchedDentist?.id) validOwnerIds.add(matchedDentist.id);
+    if ((matchedDentist as any)?.userId) validOwnerIds.add((matchedDentist as any).userId);
+
+    if (validOwnerIds.size === 0) return [];
+    return inventoryItems.filter(item => item.dentistOwnerId && validOwnerIds.has(item.dentistOwnerId));
+  }, [inventoryItems, editDentistId, job?.dentistId, job?.clientId, matchedDentist]);
+
+  const filteredStockItems = useMemo(() => {
+    const validOwnerIds = new Set<string>();
+    if (editDentistId) validOwnerIds.add(editDentistId);
+    if (job?.dentistId) validOwnerIds.add(job.dentistId);
+    if (job?.clientId) validOwnerIds.add(job.clientId);
+    if (matchedDentist?.id) validOwnerIds.add(matchedDentist.id);
+    if ((matchedDentist as any)?.userId) validOwnerIds.add((matchedDentist as any).userId);
+
+    let pool = inventoryItems;
+    if (stockSourceFilter === 'LAB') {
+      pool = labStockItems;
+    } else if (stockSourceFilter === 'CLIENT') {
+      pool = clientStockItems;
+    } else {
+      pool = inventoryItems.filter(item => !item.dentistOwnerId || (validOwnerIds.size > 0 && validOwnerIds.has(item.dentistOwnerId)));
+    }
+
+    if (!productSearchQuery || !productSearchQuery.trim()) return pool;
+    return pool.filter(item => 
+      matchesSearchQuery(productSearchQuery, item.name, item.code, item.description, item.type)
+    );
+  }, [stockSourceFilter, labStockItems, clientStockItems, inventoryItems, editDentistId, job?.dentistId, job?.clientId, matchedDentist, productSearchQuery]);
+
+  const selectedProductObj = useMemo(() => {
+    return inventoryItems.find(i => i.id === selectedProductId);
+  }, [inventoryItems, selectedProductId]);
 
   const selectDentist = (dentist: any) => {
     setEditDentistId(dentist.id);
@@ -1298,14 +1357,39 @@ export const JobDetails = () => {
             notes: editNotes,
             receivedMaterials: editReceivedMaterials,
             receivedMaterialQuantities: editReceivedMaterialQuantities,
-            items: editItems.map(i => ({ 
-                ...i, 
-                quantity: Number(i.quantity) || 1,
-                price: Number(i.price) || 0,
-                basePriceBeforeDiscount: i.basePriceBeforeDiscount !== undefined ? (Number(i.basePriceBeforeDiscount) || 0) : (Number(i.price) || 0),
-                appliedDiscount: Number(i.appliedDiscount) || 0,
-                appliedDiscountFixed: Number(i.appliedDiscountFixed) || 0
-            })),
+            items: editItems.map(i => {
+                const oldItem = job.items.find((orig: any) => orig.id === i.id);
+                const oldQty = oldItem ? (Number(oldItem.quantity) || 1) : 1;
+                const newQty = Number(i.quantity) || 1;
+                let nextSecQuantities: Record<string, number> | undefined = undefined;
+                if (i.sectorQuantities) {
+                    nextSecQuantities = {};
+                    Object.entries(i.sectorQuantities).forEach(([sec, q]) => {
+                        nextSecQuantities![sec] = (Number(q) === oldQty || Number(q) === 1) ? newQty : Number(q);
+                    });
+                }
+                let nextStageQuantities = i.stageQuantities;
+                if (nextStageQuantities && oldQty !== newQty) {
+                    const updatedSQ: Record<string, Record<string, number>> = {};
+                    Object.entries(nextStageQuantities).forEach(([sec, stgs]) => {
+                        updatedSQ[sec] = {};
+                        Object.entries(stgs as Record<string, number>).forEach(([stg, q]) => {
+                            updatedSQ[sec][stg] = (Number(q) === 1 || Number(q) === oldQty) ? newQty : q;
+                        });
+                    });
+                    nextStageQuantities = updatedSQ;
+                }
+                return {
+                    ...i, 
+                    quantity: newQty,
+                    price: Number(i.price) || 0,
+                    basePriceBeforeDiscount: i.basePriceBeforeDiscount !== undefined ? (Number(i.basePriceBeforeDiscount) || 0) : (Number(i.price) || 0),
+                    appliedDiscount: Number(i.appliedDiscount) || 0,
+                    appliedDiscountFixed: Number(i.appliedDiscountFixed) || 0,
+                    sectorQuantities: nextSecQuantities,
+                    stageQuantities: nextStageQuantities
+                };
+            }),
             products: editProducts.map(p => ({ ...p, quantity: Number(p.quantity) || 1, basePriceBeforeDiscount: Number(p.basePriceBeforeDiscount) || p.unitPrice, appliedDiscount: Number(p.appliedDiscount) || 0 })),
             totalValue: Number(editTotalValue) || 0,
             history: [...(job.history || []).filter(Boolean), {
@@ -1864,7 +1948,7 @@ export const JobDetails = () => {
       }
   };
 
-  const handleSectorQuantityChange = async (itemId: string, sectorName: string, newQty: number) => {
+  const handleSectorQuantityChange = async (itemId: string, sectorName: string, newQty: number | string) => {
       if (!canManageCommissions) return;
       const updatedItems = job.items.map((item: any) => {
           if (item.id === itemId) {
@@ -1881,7 +1965,9 @@ export const JobDetails = () => {
       });
 
       await updateJob(job.id, { items: updatedItems });
-      await recalculateAllCommissions(updatedItems, job.itemExecutions || []);
+      if (newQty !== '' && !isNaN(Number(newQty))) {
+          await recalculateAllCommissions(updatedItems, job.itemExecutions || []);
+      }
   };
 
   const handleSectorCommissionToggle = async (itemId: string, sectorName: string, disabled: boolean) => {
@@ -1906,8 +1992,10 @@ export const JobDetails = () => {
 
   const startEditingItem = (item: JobItem) => {
       setEditingItemId(item.id);
+      const teeth = item.selectedTeeth || [];
+      setItemEditTeethInput(teeth.join(', '));
       setItemEditForm({
-          quantity: item.quantity,
+          quantity: item.quantity || 1,
           nature: item.nature || 'NORMAL',
           price: item.basePriceBeforeDiscount ?? item.price,
           appliedDiscount: item.appliedDiscount || 0,
@@ -1919,7 +2007,7 @@ export const JobDetails = () => {
           selectedVariationIds: item.selectedVariationIds || [],
           variationValues: item.variationValues || {},
           sectorCommissionDisabled: item.sectorCommissionDisabled || {},
-          selectedTeeth: item.selectedTeeth || [],
+          selectedTeeth: teeth,
           color: item.color || ''
       });
   };
@@ -1929,7 +2017,7 @@ export const JobDetails = () => {
   };
 
   const handleSaveItemEdit = async (item: JobItem) => {
-      const parsedQty = Math.max(1, parseInt(String(itemEditForm.quantity)) || 1);
+      const parsedQty = Math.max(1, parseInt(String(itemEditForm.quantity)) || (itemEditForm.selectedTeeth.length > 0 ? itemEditForm.selectedTeeth.length : 1));
       const newBasePrice = Math.max(0, parseFloat(String(itemEditForm.price)) || 0);
       const appliedDiscount = Math.max(0, parseFloat(String(itemEditForm.appliedDiscount)) || 0);
       const appliedDiscountFixed = Math.max(0, parseFloat(String(itemEditForm.appliedDiscountFixed)) || 0);
@@ -1943,6 +2031,13 @@ export const JobDetails = () => {
       
       const updatedItems = job.items.map((i: any) => {
           if (i.id === item.id) {
+              const oldQty = i.quantity || 1;
+              const nextSectorQuantities: Record<string, number> = {};
+              if (i.sectorQuantities) {
+                  Object.entries(i.sectorQuantities).forEach(([sec, q]: [string, any]) => {
+                      nextSectorQuantities[sec] = (Number(q) === oldQty || Number(q) === 1) ? parsedQty : Number(q);
+                  });
+              }
               return {
                   ...i,
                   quantity: parsedQty,
@@ -1959,12 +2054,13 @@ export const JobDetails = () => {
                   sectorCommissionDisabled: itemEditForm.sectorCommissionDisabled,
                   selectedTeeth: itemEditForm.selectedTeeth.length > 0 ? itemEditForm.selectedTeeth : undefined,
                   color: itemEditForm.color || undefined,
+                  sectorQuantities: Object.keys(nextSectorQuantities).length > 0 ? nextSectorQuantities : undefined,
                   stageQuantities: i.stageQuantities ? (() => {
                       const nextSQ: Record<string, Record<string, number>> = {};
                       Object.entries(i.stageQuantities).forEach(([sec, stgs]) => {
                           nextSQ[sec] = {};
                           Object.entries(stgs as Record<string, number>).forEach(([stg, q]) => {
-                              nextSQ[sec][stg] = (q === 1 || q === i.quantity) ? parsedQty : q;
+                              nextSQ[sec][stg] = (Number(q) === 1 || Number(q) === oldQty) ? parsedQty : q;
                           });
                       });
                       return nextSQ;
@@ -3224,36 +3320,193 @@ export const JobDetails = () => {
                               </div>
 
                               {isAddingProduct && (
-                                  <div className="bg-amber-50/50 p-3 rounded-xl border border-amber-100 space-y-3 mb-3">
-                                      <div className="space-y-1">
-                                          <select value={selectedProductId} onChange={e => {
-                                              setSelectedProductId(e.target.value);
-                                              const prod = inventoryItems.find(i => i.id === e.target.value);
-                                              if (prod) setProductManualPrice(prod.sellPrice);
-                                          }} className="w-full p-2 text-xs font-bold rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                              <option value="">Selecione um item no estoque...</option>
-                                              {inventoryItems.filter(item => !item.dentistOwnerId || item.dentistOwnerId === job.clientId).map(item => (
-                                                  <option key={item.id} value={item.id} disabled={item.currentStock <= 0}>
-                                                      {item.name} ({item.currentStock > 0 ? `${item.currentStock} un.` : 'Sem Estoque'}) {item.dentistOwnerId ? '- ESTOQUE DO CLIENTE' : ''}
-                                                  </option>
-                                              ))}
-                                          </select>
+                                  <div className="bg-amber-50/60 p-3.5 rounded-2xl border border-amber-200/80 space-y-3 mb-3 shadow-xs animate-in fade-in slide-in-from-top-2">
+                                      {/* Stock Source Filter Tabs */}
+                                      <div className="flex flex-wrap items-center gap-1.5 pb-2 border-b border-amber-200/60">
+                                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mr-1">Estoque:</span>
+                                          <button
+                                              type="button"
+                                              onClick={() => setStockSourceFilter('ALL')}
+                                              className={`px-2.5 py-1 rounded-lg text-[11px] font-black transition-all ${
+                                                  stockSourceFilter === 'ALL'
+                                                      ? 'bg-blue-600 text-white shadow-xs'
+                                                      : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                                              }`}
+                                          >
+                                              Todos ({inventoryItems.filter(i => !i.dentistOwnerId || i.dentistOwnerId === effectiveDentistId).length})
+                                          </button>
+                                          <button
+                                              type="button"
+                                              onClick={() => setStockSourceFilter('LAB')}
+                                              className={`px-2.5 py-1 rounded-lg text-[11px] font-black transition-all flex items-center gap-1 ${
+                                                  stockSourceFilter === 'LAB'
+                                                      ? 'bg-blue-600 text-white shadow-xs'
+                                                      : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                                              }`}
+                                          >
+                                              <Box size={11} />
+                                              Laboratório ({labStockItems.length})
+                                          </button>
+                                          <button
+                                              type="button"
+                                              onClick={() => setStockSourceFilter('CLIENT')}
+                                              className={`px-2.5 py-1 rounded-lg text-[11px] font-black transition-all flex items-center gap-1 ${
+                                                  stockSourceFilter === 'CLIENT'
+                                                      ? 'bg-amber-500 text-white shadow-xs'
+                                                      : 'bg-white text-amber-800 border border-amber-200 hover:bg-amber-50'
+                                              }`}
+                                          >
+                                              <Stethoscope size={11} />
+                                              Cliente: {effectiveDentistName} ({clientStockItems.length})
+                                          </button>
                                       </div>
-                                      <div className="flex gap-2">
+
+                                      {/* Product Search & Dropdown */}
+                                      <div className="space-y-1 relative" ref={productDropdownRef}>
+                                          <div className="flex items-center justify-between">
+                                              <label className="text-[9px] font-black text-slate-500 uppercase">Produto / Implante</label>
+                                              {selectedProductObj && (
+                                                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
+                                                      selectedProductObj.dentistOwnerId 
+                                                          ? 'bg-amber-100 text-amber-800' 
+                                                          : 'bg-blue-100 text-blue-800'
+                                                  }`}>
+                                                      {selectedProductObj.dentistOwnerId ? `Estoque de ${effectiveDentistName}` : 'Estoque do Laboratório'}
+                                                  </span>
+                                              )}
+                                          </div>
+                                          <div className="relative">
+                                              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                                                  <Search size={14} />
+                                              </div>
+                                              <input
+                                                  type="text"
+                                                  value={productSearchQuery}
+                                                  onChange={e => {
+                                                      setProductSearchQuery(e.target.value);
+                                                      setShowProductDropdown(true);
+                                                  }}
+                                                  onFocus={() => setShowProductDropdown(true)}
+                                                  placeholder="Digite para pesquisar no estoque..."
+                                                  className="w-full pl-8 pr-7 py-2 text-xs font-bold rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800"
+                                              />
+                                              {(productSearchQuery || selectedProductId) && (
+                                                  <button
+                                                      type="button"
+                                                      onClick={() => {
+                                                          setProductSearchQuery('');
+                                                          setSelectedProductId('');
+                                                          setProductManualPrice(null);
+                                                          setShowProductDropdown(false);
+                                                      }}
+                                                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 p-0.5 rounded"
+                                                  >
+                                                      <X size={13} />
+                                                  </button>
+                                              )}
+                                          </div>
+
+                                          {/* Dropdown list of filtered products */}
+                                          {showProductDropdown && (
+                                              <div className="absolute z-50 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden max-h-52 overflow-y-auto animate-in fade-in slide-in-from-top-1">
+                                                  {filteredStockItems.length > 0 ? (
+                                                      filteredStockItems.map(item => {
+                                                          const isSelected = selectedProductId === item.id;
+                                                          const isOutOfStock = item.currentStock <= 0;
+                                                          return (
+                                                              <button
+                                                                  key={item.id}
+                                                                  type="button"
+                                                                  onClick={() => {
+                                                                      setSelectedProductId(item.id);
+                                                                      setProductManualPrice(item.sellPrice);
+                                                                      setProductSearchQuery(item.name);
+                                                                      setShowProductDropdown(false);
+                                                                  }}
+                                                                  className={`w-full text-left px-3 py-2 border-b border-slate-100 last:border-0 hover:bg-blue-50 transition-colors flex items-center justify-between group ${
+                                                                      isSelected ? 'bg-blue-50' : ''
+                                                                  }`}
+                                                              >
+                                                                  <div className="min-w-0 pr-2">
+                                                                      <div className="flex items-center gap-1.5 flex-wrap">
+                                                                          <p className="text-xs font-bold text-slate-800 truncate">{item.name}</p>
+                                                                          {item.dentistOwnerId ? (
+                                                                              <span className="text-[8px] font-black uppercase px-1.5 py-0.2 bg-amber-100 text-amber-800 rounded">
+                                                                                  Cliente
+                                                                              </span>
+                                                                          ) : (
+                                                                              <span className="text-[8px] font-black uppercase px-1.5 py-0.2 bg-blue-100 text-blue-700 rounded">
+                                                                                  Laboratório
+                                                                              </span>
+                                                                          )}
+                                                                      </div>
+                                                                      <div className="flex items-center gap-2 text-[10px] text-slate-500 mt-0.5">
+                                                                          <span className={isOutOfStock ? 'text-red-500 font-bold' : 'text-emerald-600 font-bold'}>
+                                                                              {item.currentStock > 0 ? `${item.currentStock} un.` : 'Sem estoque'}
+                                                                          </span>
+                                                                          {item.code && <span>Cód: {item.code}</span>}
+                                                                      </div>
+                                                                  </div>
+                                                                  <div className="text-right shrink-0">
+                                                                      <span className="text-xs font-black text-slate-700">R$ {Number(item.sellPrice || 0).toFixed(2)}</span>
+                                                                      {isSelected && <Check size={13} className="text-blue-600 ml-auto mt-0.5" />}
+                                                                  </div>
+                                                              </button>
+                                                          );
+                                                      })
+                                                  ) : (
+                                                      <div className="p-3.5 text-center text-slate-400 text-xs font-bold">
+                                                          Nenhum produto encontrado neste estoque
+                                                      </div>
+                                                  )}
+                                              </div>
+                                          )}
+                                      </div>
+
+                                      {/* Quantity, Price, Discount inputs */}
+                                      <div className="flex gap-2 items-end">
                                           <div className="flex-1">
                                               <label className="text-[9px] font-black text-slate-500 uppercase">Qtd</label>
-                                              <input type="number" min="1" value={productQuantity} onChange={e => setProductQuantity(Number(e.target.value))} className="w-full text-xs font-bold p-1.5 bg-white border border-slate-200 rounded outline-none" />
+                                              <input 
+                                                  type="number" 
+                                                  min="1" 
+                                                  value={productQuantity} 
+                                                  onChange={e => setProductQuantity(Math.max(1, Number(e.target.value) || 1))} 
+                                                  className="w-full text-xs font-bold p-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" 
+                                              />
                                           </div>
                                           <div className="flex-[1.5]">
-                                              <label className="text-[9px] font-black text-slate-500 uppercase">Val. Unit</label>
-                                              <input type="number" step="0.01" value={productManualPrice !== null ? productManualPrice : ''} onChange={e => setProductManualPrice(Number(e.target.value))} className="w-full text-xs font-bold p-1.5 bg-white border border-slate-200 rounded outline-none" />
+                                              <label className="text-[9px] font-black text-slate-500 uppercase">Val. Unit (R$)</label>
+                                              <input 
+                                                  type="number" 
+                                                  step="0.01" 
+                                                  value={productManualPrice !== null ? productManualPrice : ''} 
+                                                  onChange={e => setProductManualPrice(e.target.value === '' ? null : Number(e.target.value))} 
+                                                  className="w-full text-xs font-bold p-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" 
+                                              />
                                           </div>
                                           <div className="flex-[1.5]">
                                               <label className="text-[9px] font-black text-slate-500 uppercase">Desc (%)</label>
-                                              <input type="number" step="0.01" min="0" max="100" value={productDiscountPercent} onChange={e => setProductDiscountPercent(Number(e.target.value))} className="w-full text-xs font-bold p-1.5 bg-white border border-slate-200 rounded outline-none" />
+                                              <input 
+                                                  type="number" 
+                                                  step="0.01" 
+                                                  min="0" 
+                                                  max="100" 
+                                                  value={productDiscountPercent} 
+                                                  onChange={e => setProductDiscountPercent(Math.min(100, Math.max(0, Number(e.target.value) || 0)))} 
+                                                  className="w-full text-xs font-bold p-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" 
+                                              />
                                           </div>
-                                          <div className="pt-4 shrink-0">
-                                            <button type="button" onClick={handleAddProductToJob} disabled={!selectedProductId} className="h-[28px] px-3 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"><Check size={14}/></button>
+                                          <div className="shrink-0">
+                                            <button 
+                                                type="button" 
+                                                onClick={handleAddProductToJob} 
+                                                disabled={!selectedProductId} 
+                                                className="h-[36px] px-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl disabled:opacity-50 transition-all font-black text-xs flex items-center gap-1 shadow-sm cursor-pointer"
+                                                title="Adicionar Produto ao Caso"
+                                            >
+                                                <Plus size={15}/> Add
+                                            </button>
                                           </div>
                                       </div>
                                   </div>
@@ -3484,9 +3737,18 @@ export const JobDetails = () => {
             </div>
             
             <div className="flex flex-col xs:flex-row lg:flex-col lg:items-end gap-3 w-full lg:w-auto mt-2 lg:mt-0 pt-4 lg:pt-0 border-t lg:border-t-0 border-slate-50">
-                <div className="lg:text-right shrink-0">
-                    <p className="text-[8px] md:text-[10px] text-slate-400 uppercase font-black tracking-widest leading-none mb-1">{t('jobDetails.estimatedDelivery', 'Previsão de Saída')}</p>
-                    <div className="flex items-center lg:justify-end gap-1.5 text-sm md:text-lg font-black text-slate-800"><Calendar size={18} className="text-blue-600 shrink-0" /> {(job.dueDate ? new Date(job.dueDate).toLocaleDateString() : "-")}</div>
+                <div className="flex flex-wrap xs:flex-nowrap gap-4 lg:flex-col lg:items-end shrink-0">
+                    <div className="lg:text-right shrink-0">
+                        <p className="text-[8px] md:text-[10px] text-slate-400 uppercase font-black tracking-widest leading-none mb-1">Data / Hora de Cadastro</p>
+                        <div className="flex items-center lg:justify-end gap-1.5 text-xs md:text-sm font-extrabold text-slate-700">
+                            <Clock size={16} className="text-indigo-600 shrink-0" />
+                            {parseDateSafely(job.createdAt)?.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) || '-'}
+                        </div>
+                    </div>
+                    <div className="lg:text-right shrink-0">
+                        <p className="text-[8px] md:text-[10px] text-slate-400 uppercase font-black tracking-widest leading-none mb-1">{t('jobDetails.estimatedDelivery', 'Previsão de Saída')}</p>
+                        <div className="flex items-center lg:justify-end gap-1.5 text-sm md:text-lg font-black text-slate-800"><Calendar size={18} className="text-blue-600 shrink-0" /> {(job.dueDate ? new Date(job.dueDate).toLocaleDateString() : "-")}</div>
+                    </div>
                 </div>
                 
                 <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 flex-1 lg:justify-end w-full">
@@ -3601,7 +3863,16 @@ export const JobDetails = () => {
         {activeTab === 'SUMMARY' && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-4 sm:p-8 animate-in fade-in duration-300 w-full pb-8">
                 {/* KPI BOXES - Responsive Layout */}
-                <div className={`lg:col-span-3 grid grid-cols-1 ${isClient ? 'sm:grid-cols-2' : 'sm:grid-cols-3'} gap-3 md:gap-4`}>
+                <div className={`lg:col-span-3 grid grid-cols-1 ${isClient ? 'sm:grid-cols-3' : 'sm:grid-cols-2 lg:grid-cols-4'} gap-3 md:gap-4`}>
+                    <div className="bg-white p-4 md:p-5 rounded-2xl md:rounded-[32px] shadow-sm border border-slate-100 flex items-center gap-4">
+                        <div className="p-3 bg-amber-50 text-amber-600 rounded-xl shrink-0"><Clock size={24} /></div>
+                        <div className="min-w-0">
+                            <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest truncate">Data de Cadastro</p>
+                            <p className="font-black text-xs sm:text-sm text-slate-800 truncate">
+                                {parseDateSafely(job.createdAt)?.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) || '-'}
+                            </p>
+                        </div>
+                    </div>
                     {!job.isBudget && !isClient && (
                         <div className="bg-white p-4 md:p-5 rounded-2xl md:rounded-[32px] shadow-sm border border-slate-100 flex items-center gap-4">
                             <div className="p-3 bg-blue-50 text-blue-600 rounded-xl shrink-0"><Box size={24} /></div>
@@ -3906,7 +4177,8 @@ export const JobDetails = () => {
                                                                 </button>
                                                             </div>
                                                         </div>
-                                                        <div>
+
+                                                        <div className="col-span-1 sm:col-span-2">
                                                             <label className="block text-[10px] uppercase font-black text-slate-500 mb-1">Tabela de Preço</label>
                                                             <select 
                                                                 className="w-full text-sm font-bold border border-slate-300 p-2.5 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -3920,16 +4192,72 @@ export const JobDetails = () => {
                                                                 ))}
                                                             </select>
                                                         </div>
-                                                        <div>
-                                                            <label className="block text-[10px] uppercase font-black text-slate-500 mb-1">Quantidade</label>
-                                                            <input 
-                                                                type="number" min={1}
-                                                                className="w-full text-sm font-bold border border-slate-300 p-2.5 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                                value={itemEditForm.quantity}
-                                                                onChange={(e) => setItemEditForm({...itemEditForm, quantity: e.target.value === '' ? '' : (parseInt(e.target.value) || '')})}
-                                                            />
+
+                                                        <div className="col-span-1 sm:col-span-2 flex gap-2 items-end">
+                                                            <div className={(itemEditForm.selectedTeeth && itemEditForm.selectedTeeth.length > 0) ? "w-16 sm:w-20 opacity-50 pointer-events-none shrink-0" : "w-16 sm:w-20 shrink-0"}>
+                                                                <label className="block text-[10px] uppercase font-black text-slate-500 mb-1">Qtd</label>
+                                                                <input 
+                                                                    type="number" 
+                                                                    min={1}
+                                                                    readOnly={!!(itemEditForm.selectedTeeth && itemEditForm.selectedTeeth.length > 0)}
+                                                                    className="w-full text-sm font-bold border border-slate-300 p-2.5 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-center"
+                                                                    value={itemEditForm.quantity}
+                                                                    onChange={(e) => setItemEditForm({...itemEditForm, quantity: e.target.value === '' ? '' : (parseInt(e.target.value) || '')})}
+                                                                />
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <label className="block text-[10px] uppercase font-black text-slate-500 mb-1">Dentes</label>
+                                                                <input 
+                                                                    type="text" 
+                                                                    value={itemEditTeethInput}
+                                                                    onChange={(e) => {
+                                                                        const raw = e.target.value;
+                                                                        setItemEditTeethInput(raw);
+                                                                        const parsed = raw.split(/[,;\s]+/).map(s => s.trim()).filter(s => s.length > 0);
+                                                                        setItemEditForm(prev => ({
+                                                                            ...prev,
+                                                                            selectedTeeth: parsed,
+                                                                            quantity: parsed.length > 0 ? parsed.length : (prev.quantity || 1)
+                                                                        }));
+                                                                    }}
+                                                                    placeholder="Ex: 11, 21, 16" 
+                                                                    className="w-full text-sm font-bold border border-slate-300 p-2.5 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                                                                />
+                                                            </div>
+                                                            <div className="w-24 sm:w-28 shrink-0">
+                                                                <label className="block text-[10px] uppercase font-black text-slate-500 mb-1">Cor</label>
+                                                                <input 
+                                                                    type="text" 
+                                                                    value={itemEditForm.color || ''} 
+                                                                    onChange={(e) => setItemEditForm({...itemEditForm, color: e.target.value})} 
+                                                                    placeholder="Ex: A3" 
+                                                                    className="w-full text-sm font-bold border border-slate-300 p-2.5 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                                                                />
+                                                            </div>
                                                         </div>
-                                                        <div>
+
+                                                        {/* Odontograma interativo */}
+                                                        <div className="col-span-1 sm:col-span-2 lg:col-span-4 bg-white border border-slate-200 rounded-2xl p-4 flex flex-col items-center justify-center gap-2">
+                                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Odontograma (Seleção de Elementos)</span>
+                                                            <Odontogram 
+                                                                selectedTeeth={itemEditForm.selectedTeeth || []}
+                                                                onChange={(teeth) => {
+                                                                    const sorted = [...teeth].sort();
+                                                                    setItemEditTeethInput(sorted.join(', '));
+                                                                    setItemEditForm(prev => ({
+                                                                        ...prev,
+                                                                        selectedTeeth: sorted,
+                                                                        quantity: sorted.length > 0 ? sorted.length : 1
+                                                                    }));
+                                                                }}
+                                                                className="w-full max-w-[280px] h-auto"
+                                                            />
+                                                            {itemEditForm.selectedTeeth && itemEditForm.selectedTeeth.length > 0 && (
+                                                                <p className="text-[10px] text-indigo-600 font-bold">Dentes selecionados ({itemEditForm.selectedTeeth.length}): {itemEditForm.selectedTeeth.join(', ')}</p>
+                                                            )}
+                                                        </div>
+
+                                                        <div className="col-span-1 sm:col-span-2">
                                                             <label className="block text-[10px] uppercase font-black text-slate-500 mb-1">Valor Unitário (Base)</label>
                                                             <div className="relative">
                                                                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">R$</span>
@@ -3941,6 +4269,7 @@ export const JobDetails = () => {
                                                                 />
                                                             </div>
                                                         </div>
+
                                                         <div className="col-span-1 sm:col-span-2">
                                                             <label className="block text-[10px] uppercase font-black text-slate-500 mb-1">Desconto Extra</label>
                                                             <div className="flex gap-2">
@@ -3969,6 +4298,30 @@ export const JobDetails = () => {
                                                                     }}
                                                                 />
                                                             </div>
+                                                        </div>
+
+                                                        {/* Resumo do Valor Total do Item */}
+                                                        <div className="col-span-1 sm:col-span-2 lg:col-span-4 flex items-center justify-between bg-blue-100/70 p-3 rounded-xl text-xs font-bold text-blue-900">
+                                                            <span>
+                                                                {itemEditForm.nature === 'REPETITION' ? '(Repetição: R$ 0,00)' : itemEditForm.nature === 'ADJUSTMENT' ? '(Ajuste: R$ 0,00)' : (() => {
+                                                                    const base = parseFloat(String(itemEditForm.price)) || 0;
+                                                                    const dPerc = itemEditForm.discountType === 'PERCENTAGE' ? (parseFloat(String(itemEditForm.appliedDiscount)) || 0) : 0;
+                                                                    const dFix = itemEditForm.discountType === 'FIXED' ? (parseFloat(String(itemEditForm.appliedDiscountFixed)) || 0) : 0;
+                                                                    const unitFinal = Math.max(0, (base * (1 - dPerc / 100)) - dFix);
+                                                                    return `Preço Final Unit.: R$ ${unitFinal.toFixed(2)}`;
+                                                                })()}
+                                                            </span>
+                                                            <span className="font-black text-sm">
+                                                                Total: R$ {(() => {
+                                                                    if (itemEditForm.nature === 'REPETITION' || itemEditForm.nature === 'ADJUSTMENT') return '0.00';
+                                                                    const base = parseFloat(String(itemEditForm.price)) || 0;
+                                                                    const dPerc = itemEditForm.discountType === 'PERCENTAGE' ? (parseFloat(String(itemEditForm.appliedDiscount)) || 0) : 0;
+                                                                    const dFix = itemEditForm.discountType === 'FIXED' ? (parseFloat(String(itemEditForm.appliedDiscountFixed)) || 0) : 0;
+                                                                    const unitFinal = Math.max(0, (base * (1 - dPerc / 100)) - dFix);
+                                                                    const q = Number(itemEditForm.quantity) || (itemEditForm.selectedTeeth.length > 0 ? itemEditForm.selectedTeeth.length : 1);
+                                                                    return (unitFinal * q).toFixed(2);
+                                                                })()}
+                                                            </span>
                                                         </div>
                                                     </div>
                                                     
@@ -4112,7 +4465,8 @@ export const JobDetails = () => {
                                                             <p className="text-[10px] text-slate-500 leading-tight">Defina a quantidade de unidades para fins de comissão em cada setor (padrão é igual à quantidade original da OS).</p>
                                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                                                 {allowedSecs.map(secName => {
-                                                                    const secQty = item.sectorQuantities?.[secName] ?? item.quantity;
+                                                                    const rawVal = item.sectorQuantities?.[secName];
+                                                                    const secQty = rawVal !== undefined ? rawVal : (item.quantity || 1);
                                                                     const isSectorCommissionDisabled = item.sectorCommissionDisabled?.[secName] ?? (item.nature === 'REPETITION' || item.nature === 'ADJUSTMENT');
                                                                     return (
                                                                         <div key={secName} className="flex flex-col gap-2 bg-white p-2 md:p-3 rounded-xl border border-slate-200">
@@ -4122,10 +4476,25 @@ export const JobDetails = () => {
                                                                                     <span className="text-[9px] font-black text-slate-400 uppercase">Qtd:</span>
                                                                                     <input 
                                                                                         type="number" 
-                                                                                        min={0.1} 
-                                                                                        step={0.1}
+                                                                                        min={1} 
+                                                                                        step={1}
                                                                                         value={secQty}
-                                                                                        onChange={(e) => handleSectorQuantityChange(item.id, secName, e.target.value === '' ? (item.quantity || 1) : (parseFloat(e.target.value) || item.quantity || 1))}
+                                                                                        onChange={(e) => {
+                                                                                            const val = e.target.value;
+                                                                                            if (val === '') {
+                                                                                                handleSectorQuantityChange(item.id, secName, '');
+                                                                                            } else {
+                                                                                                const parsed = parseInt(val, 10);
+                                                                                                if (!isNaN(parsed)) {
+                                                                                                    handleSectorQuantityChange(item.id, secName, Math.max(1, parsed));
+                                                                                                }
+                                                                                            }
+                                                                                        }}
+                                                                                        onBlur={() => {
+                                                                                            if (secQty === '' || isNaN(Number(secQty)) || Number(secQty) < 1) {
+                                                                                                handleSectorQuantityChange(item.id, secName, item.quantity || 1);
+                                                                                            }
+                                                                                        }}
                                                                                         className="w-16 p-1 text-center text-xs font-bold border border-slate-300 bg-slate-50 focus:bg-white rounded outline-none focus:border-blue-500"
                                                                                     />
                                                                                 </div>

@@ -662,6 +662,10 @@ const handleUpdateStatus = async (jobId: string, status: JobStatus) => {
         }
 
         return true;
+      }).sort((a, b) => {
+        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return timeB - timeA;
       });
   }, [combinedJobs, isBudgetMode, isClient, currentUser?.id, currentUser?.manualDentistId, activeManualDentistId, filterText, statusFilter, selectedStatuses, startDate, endDate, selectedDentists, selectedSectors, selectedCollaborators, filterUrgency, filterAttention, filterOrigin]);
 
@@ -1031,6 +1035,7 @@ const handleUpdateStatus = async (jobId: string, status: JobStatus) => {
                     selectedValues={selectedStatuses} 
                     onChange={setSelectedStatuses} 
                     placeholder={t('orders.filterStatusPlaceholder', 'Filtrar Status')}
+                    searchPlaceholder="Pesquisar status..."
                 />
                 <select value={filterUrgency} onChange={e => setFilterUrgency(e.target.value)} className="px-3 py-2 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-bold outline-none bg-slate-50 dark:bg-[#0B0F17] text-slate-800 dark:text-slate-100">
                     <option value="">{t('orders.allPriorities', 'Todas Prioridades')}</option>
@@ -1044,18 +1049,21 @@ const handleUpdateStatus = async (jobId: string, status: JobStatus) => {
                             selectedValues={selectedDentists} 
                             onChange={setSelectedDentists} 
                             placeholder={t('orders.filterDentistsPlaceholder', 'Filtrar Dentistas')}
+                            searchPlaceholder="Pesquisar nome do dentista..."
                         />
                         <MultiSelect 
                             options={collaboratorOptions} 
                             selectedValues={selectedCollaborators} 
                             onChange={setSelectedCollaborators} 
                             placeholder={t('orders.filterCollaboratorsPlaceholder', 'Filtrar Colaboradores')}
+                            searchPlaceholder="Pesquisar colaborador..."
                         />
                         <MultiSelect 
                             options={sectorOptions} 
                             selectedValues={selectedSectors} 
                             onChange={setSelectedSectors} 
                             placeholder={t('orders.filterSectorsPlaceholder', 'Filtrar Setores')}
+                            searchPlaceholder="Pesquisar setor..."
                         />
                     </>
                 )}

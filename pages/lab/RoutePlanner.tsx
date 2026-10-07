@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import * as api from '../../services/firebaseService';
 import { notifyJobLogistics } from '../../services/ycloudService';
+import { filterAndSortClients } from '../../utils/stringUtils';
 
 export const RoutePlanner = () => {
     const { t } = useTranslation();
@@ -256,9 +257,9 @@ export const RoutePlanner = () => {
     };
 
     const filteredDentists = useMemo(() => {
-        if (!dentistSearch) return [];
+        if (!dentistSearch || !dentistSearch.trim()) return [];
         const combined = [...manualDentists, ...allUsers.filter(u => u.role === 'CLIENT')];
-        return combined.filter(d => d.name.toLowerCase().includes(dentistSearch.toLowerCase())).slice(0, 5);
+        return filterAndSortClients(combined, dentistSearch).slice(0, 8);
     }, [dentistSearch, manualDentists, allUsers]);
 
     // Active couriers helper

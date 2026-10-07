@@ -144,7 +144,14 @@ export const CameraBarcodeScannerModal: React.FC<CameraBarcodeScannerModalProps>
           const { Camera } = await import('@capacitor/camera');
           const status = await Camera.checkPermissions();
           if (status.camera !== 'granted') {
-            await Camera.requestPermissions({ permissions: ['camera'] });
+            const req = await Camera.requestPermissions({ permissions: ['camera'] });
+            if (req.camera === 'denied') {
+              if (isMounted) {
+                setCameraError('Permissão de câmera negada. Vá em Ajustes > Labprox no seu dispositivo e ative o acesso à Câmera.');
+                setIsLoading(false);
+              }
+              return;
+            }
           }
         } catch (permErr) {
           console.warn('[CameraScanner] Native permission check error:', permErr);
@@ -230,8 +237,39 @@ export const CameraBarcodeScannerModal: React.FC<CameraBarcodeScannerModalProps>
           return;
         }
 
+        // Set critical iOS Safari / WKWebView inline playback attributes
+        videoElement.setAttribute('playsinline', 'true');
+        videoElement.setAttribute('webkit-playsinline', 'true');
+        videoElement.setAttribute('autoplay', 'true');
+        videoElement.muted = true;
         videoElement.srcObject = stream;
-        await videoElement.play();
+
+        // On iOS WebKit, play() can reject if called before loadedmetadata or during gesture transitions
+        try {
+          await videoElement.play();
+        } catch (playErr) {
+          console.warn('[CameraScanner] Direct play() interrupted, awaiting loadedmetadata on iOS:', playErr);
+          await new Promise<void>((resolve) => {
+            let done = false;
+            const finish = () => {
+              if (!done) {
+                done = true;
+                resolve();
+              }
+            };
+            const onMeta = async () => {
+              videoElement.removeEventListener('loadedmetadata', onMeta);
+              try {
+                await videoElement.play();
+              } catch (e) {
+                console.warn('[CameraScanner] Play retry failed:', e);
+              }
+              finish();
+            };
+            videoElement.addEventListener('loadedmetadata', onMeta);
+            setTimeout(finish, 1000);
+          });
+        }
 
         if (isMounted) {
           setIsLoading(false);
@@ -246,11 +284,21 @@ export const CameraBarcodeScannerModal: React.FC<CameraBarcodeScannerModalProps>
             setMaxHardwareZoom(1);
           }
 
-          // Start continuous high-speed scan loop (20-30 FPS)
-          const runScanLoop = () => {
+          // Start continuous high-speed scan loop (16-20 FPS)
+          // Throttled to ~60ms to keep 60/120 FPS iOS UI silky smooth while decoding in <80ms
+          let lastScanTime = 0;
+          const SCAN_INTERVAL_MS = 60;
+
+          const runScanLoop = (timestamp: number) => {
             if (!isMounted || hasScannedRef.current) return;
 
-            if (!isScanningFrameRef.current && videoElement && videoElement.readyState >= 2) {
+            if (
+              !isScanningFrameRef.current &&
+              videoElement &&
+              videoElement.readyState >= 2 &&
+              timestamp - lastScanTime >= SCAN_INTERVAL_MS
+            ) {
+              lastScanTime = timestamp;
               isScanningFrameRef.current = true;
 
               engine.scanFrame(videoElement)
@@ -455,6 +503,15 @@ export const CameraBarcodeScannerModal: React.FC<CameraBarcodeScannerModalProps>
               <SwitchCamera size={18} />
             </button>
           )}
+
+          {/* Quick Photo Capture (iOS Native / Gallery Fallback) */}
+          <button
+            onClick={Capacitor.isNativePlatform() ? handleNativeCameraSnap : () => fileInputRef.current?.click()}
+            className="p-2.5 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all"
+            title="Tirar foto com câmera de alta definição"
+          >
+            <Camera size={18} />
+          </button>
 
           {/* Close */}
           <button

@@ -23,6 +23,7 @@ interface SendDebtsEmailModalProps {
   allJobs: Job[];
   dentistPayments: DentistPayment[];
   initialSelectedClientId?: string;
+  statementClient?: any;
   onEmailStatusUpdate?: (results: Array<{ clientId: string; status: 'SUCCESS' | 'ERROR'; message?: string }>) => void;
 }
 
@@ -35,17 +36,38 @@ export const SendDebtsEmailModal: React.FC<SendDebtsEmailModalProps> = ({
   allJobs,
   dentistPayments,
   initialSelectedClientId,
+  statementClient,
   onEmailStatusUpdate
 }) => {
   const { currentOrg, updateOrganization, updateManualDentist, manualDentists } = useApp();
 
-  // Brevo Config State
-  const [senderEmail, setSenderEmail] = useState(currentOrg?.brevoSenderEmail || 'contato@labprox.com.br');
-  const [senderName, setSenderName] = useState(currentOrg?.brevoSenderName || 'Labprox Laboratório');
-  const [showConfig, setShowConfig] = useState(false);
-  const [isSavingConfig, setIsSavingConfig] = useState(false);
-  const [testStatus, setTestStatus] = useState<'IDLE' | 'TESTING' | 'VALID' | 'INVALID'>('IDLE');
-  const [testDetails, setTestDetails] = useState<string>('');
+  // Remetente padrão do sistema (automático via organização)
+  const senderEmail = (currentOrg?.brevoSenderEmail || currentOrg?.email || 'contato@labprox.com.br').trim().toLowerCase();
+  const senderName = (currentOrg?.brevoSenderName || currentOrg?.name || 'Labprox Laboratório').trim();
+
+  // Combine clients so statementClient is guaranteed to be present if opened from Extrato
+  const combinedDebts = useMemo(() => {
+    if (!statementClient) return reportDebts;
+    if (reportDebts.some(d => d.id === statementClient.id)) return reportDebts;
+    const synth: ClientDebtItem = {
+      id: statementClient.id,
+      name: statementClient.name,
+      clinicName: statementClient.clinicName || '',
+      phone: statementClient.phone || statementClient.whatsapp || '',
+      cpfCnpj: statementClient.cpfCnpj || '',
+      email: statementClient.email || '',
+      dentistObj: statementClient,
+      totalDebitsUpTo: 0,
+      totalCreditsUpTo: 0,
+      balanceUpToEndDate: 0,
+      periodDebits: 0,
+      periodCredits: 0,
+      pendingJobs: [],
+      allJobsCount: 0,
+      pendingJobsCount: 0
+    };
+    return [synth, ...reportDebts];
+  }, [reportDebts, statementClient]);
 
   // Email Content Customization
   const sDateFormatted = reportStartDate ? new Date(`${reportStartDate}T00:00:00`).toLocaleDateString('pt-BR') : '';
@@ -59,7 +81,7 @@ export const SendDebtsEmailModal: React.FC<SendDebtsEmailModalProps> = ({
   // Selected Clients State
   const [selectedClientIds, setSelectedClientIds] = useState<string[]>(() => {
     if (initialSelectedClientId) return [initialSelectedClientId];
-    return reportDebts.map(d => d.id);
+    return combinedDebts.map(d => d.id);
   });
 
   // Client Emails Map (allows inline editing/override before sending)
@@ -82,10 +104,10 @@ export const SendDebtsEmailModal: React.FC<SendDebtsEmailModalProps> = ({
   // Preview state
   const [previewingClientId, setPreviewingClientId] = useState<string | null>(null);
 
-  // Initialize emails from reportDebts
+  // Initialize emails from combinedDebts
   useEffect(() => {
     const map: Record<string, string> = {};
-    reportDebts.forEach(d => {
+    combinedDebts.forEach(d => {
       const email = d.email || d.dentistObj?.email || '';
       map[d.id] = email;
     });
@@ -94,9 +116,9 @@ export const SendDebtsEmailModal: React.FC<SendDebtsEmailModalProps> = ({
     if (initialSelectedClientId) {
       setSelectedClientIds([initialSelectedClientId]);
     } else {
-      setSelectedClientIds(reportDebts.map(d => d.id));
+      setSelectedClientIds(combinedDebts.map(d => d.id));
     }
-  }, [reportDebts, initialSelectedClientId]);
+  }, [combinedDebts, initialSelectedClientId]);
 
   // Update subject when dates change
   useEffect(() => {
@@ -104,10 +126,10 @@ export const SendDebtsEmailModal: React.FC<SendDebtsEmailModalProps> = ({
   }, [reportStartDate, reportEndDate, currentOrg?.name]);
 
   const handleToggleSelectAll = () => {
-    if (selectedClientIds.length === reportDebts.length) {
+    if (selectedClientIds.length === combinedDebts.length) {
       setSelectedClientIds([]);
     } else {
-      setSelectedClientIds(reportDebts.map(d => d.id));
+      setSelectedClientIds(combinedDebts.map(d => d.id));
     }
   };
 
@@ -116,37 +138,6 @@ export const SendDebtsEmailModal: React.FC<SendDebtsEmailModalProps> = ({
       setSelectedClientIds(selectedClientIds.filter(i => i !== id));
     } else {
       setSelectedClientIds([...selectedClientIds, id]);
-    }
-  };
-
-  const handleSaveBrevoConfig = async () => {
-    if (!currentOrg?.id) return;
-    setIsSavingConfig(true);
-    try {
-      await updateOrganization(currentOrg.id, {
-        brevoSenderEmail: senderEmail.trim().toLowerCase(),
-        brevoSenderName: senderName.trim()
-      });
-      alert('Configurações de remetente do Brevo salvas com sucesso!');
-      setShowConfig(false);
-    } catch (err: any) {
-      console.error(err);
-      alert('Erro ao salvar configurações do Brevo: ' + (err.message || err));
-    } finally {
-      setIsSavingConfig(false);
-    }
-  };
-
-  const handleTestConnection = async () => {
-    setTestStatus('TESTING');
-    setTestDetails('');
-    const res = await testBrevoConnection(currentOrg?.id);
-    if (res.valid) {
-      setTestStatus('VALID');
-      setTestDetails(res.email ? `Conectado: ${res.email}` : 'Conexão validada com sucesso.');
-    } else {
-      setTestStatus('INVALID');
-      setTestDetails(res.message || 'Falha ao autenticar.');
     }
   };
 
@@ -188,14 +179,14 @@ export const SendDebtsEmailModal: React.FC<SendDebtsEmailModalProps> = ({
   };
 
   const filteredDebts = useMemo(() => {
-    if (!searchTerm.trim()) return reportDebts;
+    if (!searchTerm.trim()) return combinedDebts;
     const s = searchTerm.toLowerCase();
-    return reportDebts.filter(d => 
+    return combinedDebts.filter(d => 
       (d.name && d.name.toLowerCase().includes(s)) ||
       (d.clinicName && d.clinicName.toLowerCase().includes(s)) ||
       (clientEmails[d.id] && clientEmails[d.id].toLowerCase().includes(s))
     );
-  }, [reportDebts, searchTerm, clientEmails]);
+  }, [combinedDebts, searchTerm, clientEmails]);
 
   const selectedWithValidEmailCount = useMemo(() => {
     return selectedClientIds.filter(id => {
@@ -205,12 +196,6 @@ export const SendDebtsEmailModal: React.FC<SendDebtsEmailModalProps> = ({
   }, [selectedClientIds, clientEmails]);
 
   const handleStartSending = async () => {
-    if (!senderEmail.trim()) {
-      setShowConfig(true);
-      alert('Por favor, informe o e-mail de remetente configurado no seu Brevo.');
-      return;
-    }
-
     if (!currentOrg) {
       alert('Dados da organização não carregados. Por favor, aguarde ou recarregue a página.');
       return;
@@ -221,7 +206,7 @@ export const SendDebtsEmailModal: React.FC<SendDebtsEmailModalProps> = ({
       return;
     }
 
-    const clientsToSend = reportDebts.filter(d => selectedClientIds.includes(d.id));
+    const clientsToSend = combinedDebts.filter(d => selectedClientIds.includes(d.id));
     const clientsMissingEmail = clientsToSend.filter(d => !clientEmails[d.id] || !clientEmails[d.id].includes('@'));
 
     if (clientsMissingEmail.length === clientsToSend.length) {
@@ -320,7 +305,7 @@ export const SendDebtsEmailModal: React.FC<SendDebtsEmailModalProps> = ({
         if (err.details) {
           errorMsg = err.details;
         } else if (errorMsg.includes('internal') || errorMsg === 'internal') {
-          errorMsg = 'Erro interno no envio. Verifique se a chave de API do Brevo e o e-mail do remetente estão configurados corretamente.';
+          errorMsg = 'Falha no envio do e-mail. Verifique os dados do destinatário e tente novamente.';
         }
         const errItem = {
           clientId: clientItem.id,
@@ -346,8 +331,14 @@ export const SendDebtsEmailModal: React.FC<SendDebtsEmailModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-200">
-      <div className="bg-white w-full max-w-4xl rounded-3xl shadow-2xl border border-slate-100 flex flex-col max-h-[92vh] overflow-hidden my-auto">
+    <div 
+      style={{ zIndex: 99999 }}
+      className="fixed inset-0 z-[99999] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-200"
+    >
+      <div 
+        style={{ zIndex: 100000 }}
+        className="bg-white w-full max-w-4xl rounded-3xl shadow-2xl border border-slate-100 flex flex-col max-h-[92vh] overflow-hidden my-auto"
+      >
         
         {/* MODAL HEADER */}
         <div className="px-6 py-5 bg-gradient-to-r from-slate-900 via-slate-800 to-blue-950 text-white flex items-center justify-between shrink-0">
@@ -358,9 +349,6 @@ export const SendDebtsEmailModal: React.FC<SendDebtsEmailModalProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-base sm:text-lg font-black tracking-tight">Enviar Extratos por E-mail</h3>
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-blue-500/30 text-blue-300 border border-blue-400/30">
-                  Brevo API
-                </span>
               </div>
               <p className="text-xs text-slate-300 font-medium">
                 Período: <strong className="text-white">{sDateFormatted}</strong> até <strong className="text-white">{eDateFormatted}</strong> • PDF do extrato individual anexado
@@ -377,109 +365,6 @@ export const SendDebtsEmailModal: React.FC<SendDebtsEmailModalProps> = ({
         </div>
 
         <div className="p-6 overflow-y-auto space-y-5">
-          
-          {/* BREVO CONFIG ACCORDION */}
-          <div className="bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden transition-all">
-            <div 
-              onClick={() => setShowConfig(!showConfig)}
-              className="px-5 py-3.5 flex items-center justify-between cursor-pointer hover:bg-slate-100/80 transition-colors select-none"
-            >
-              <div className="flex items-center gap-2.5">
-                <ShieldCheck size={18} className="text-blue-600" />
-                <span className="text-xs font-black text-slate-800 uppercase tracking-wider">
-                  Remetente &amp; Conexão Brevo (Google Cloud)
-                </span>
-                {testStatus === 'VALID' ? (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-700">
-                    <CheckCircle2 size={12} /> Conectado
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-blue-700">
-                    <ShieldCheck size={12} /> Protegido no Servidor
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] font-bold text-slate-500">
-                  {showConfig ? 'Ocultar Detalhes' : 'Ver Remetente / Testar'}
-                </span>
-                {showConfig ? <ChevronUp size={16} className="text-slate-400"/> : <ChevronDown size={16} className="text-slate-400"/>}
-              </div>
-            </div>
-
-            {showConfig && (
-              <div className="px-5 pb-5 pt-2 border-t border-slate-200/80 space-y-4 bg-white/60">
-                <div className="bg-emerald-50/80 border border-emerald-100 p-3.5 rounded-xl text-xs text-emerald-900 space-y-1">
-                  <p className="font-bold flex items-center gap-1.5">
-                    <ShieldCheck size={15} className="text-emerald-600 shrink-0" />
-                    Armazenamento Seguro no Google Cloud:
-                  </p>
-                  <p className="text-[11px] text-emerald-700 leading-relaxed">
-                    A chave de API da Brevo reside de forma segura no backend (Cloud Functions / Secret Manager), garantindo que credenciais confidenciais nunca fiquem expostas no navegador.
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="sm:col-span-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-slate-100/70 border border-slate-200 rounded-xl">
-                    <div>
-                      <span className="text-xs font-bold text-slate-700 block">Status da Conexão Brevo no Cloud Functions</span>
-                      <span className="text-[11px] text-slate-500">
-                        {testDetails || 'Clique ao lado para testar a comunicação com a API do Brevo'}
-                      </span>
-                    </div>
-                    <button 
-                      type="button"
-                      onClick={handleTestConnection}
-                      disabled={testStatus === 'TESTING'}
-                      className="px-3.5 py-1.5 text-xs font-black uppercase rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5 shrink-0"
-                    >
-                      {testStatus === 'TESTING' ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
-                      {testStatus === 'TESTING' ? 'Testando...' : 'Testar Conexão'}
-                    </button>
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">
-                      E-mail do Remetente (Brevo Sender) *
-                    </label>
-                    <input 
-                      type="email"
-                      value={senderEmail}
-                      onChange={e => setSenderEmail(e.target.value)}
-                      placeholder="financeiro@seulab.com.br"
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">
-                      Nome de Exibição do Remetente
-                    </label>
-                    <input 
-                      type="text"
-                      value={senderName}
-                      onChange={e => setSenderName(e.target.value)}
-                      placeholder="Ex: Laboratório Sorriso Dental"
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  <div className="flex items-end">
-                    <button 
-                      type="button"
-                      onClick={handleSaveBrevoConfig}
-                      disabled={isSavingConfig}
-                      className="w-full py-2 bg-slate-900 text-white hover:bg-slate-800 rounded-xl text-xs font-black uppercase transition-all shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-50"
-                    >
-                      {isSavingConfig ? <Loader2 size={14} className="animate-spin"/> : <Check size={14}/>}
-                      Salvar Remetente
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
           {/* EMAIL CUSTOMIZATION SECTION */}
           <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
             <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
@@ -529,12 +414,12 @@ export const SendDebtsEmailModal: React.FC<SendDebtsEmailModalProps> = ({
                 <label className="flex items-center gap-2 cursor-pointer select-none">
                   <input 
                     type="checkbox"
-                    checked={selectedClientIds.length > 0 && selectedClientIds.length === reportDebts.length}
+                    checked={selectedClientIds.length > 0 && selectedClientIds.length === combinedDebts.length}
                     onChange={handleToggleSelectAll}
                     className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
                   />
                   <span className="text-xs font-black text-slate-800 uppercase tracking-wider">
-                    Selecionar Todos ({selectedClientIds.length}/{reportDebts.length})
+                    Selecionar Todos ({selectedClientIds.length}/{combinedDebts.length})
                   </span>
                 </label>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-blue-800">
