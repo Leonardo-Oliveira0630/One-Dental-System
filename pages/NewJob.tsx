@@ -8,7 +8,7 @@ import { getContrastColor } from '../services/mockData';
 import { formatTeethRange } from '../utils/toothUtils';
 // Added Crown to the lucide-react imports to fix line 404 error
 import { Odontogram } from "../components/Odontogram";
-import { Plus, Trash2, Save, User as UserIcon, Box, FileText, CheckCircle, Search, RefreshCw, ArrowRight, Printer, X, FileCheck, DollarSign, Check, Calendar, AlertTriangle, Stethoscope, ChevronDown, Layers, Percent, Edit3, ShieldAlert, SearchIcon, Tag, AlertCircle, Crown, Package, MapPin } from 'lucide-react';
+import { Plus, Trash2, Save, User as UserIcon, Box, FileText, CheckCircle, Search, RefreshCw, ArrowRight, Printer, X, FileCheck, DollarSign, Check, Calendar, AlertTriangle, Stethoscope, ChevronDown, Layers, Percent, Edit3, ShieldAlert, SearchIcon, Tag, AlertCircle, Crown, Package, MapPin, Lock } from 'lucide-react';
 import { filterAndSortClients, filterAndSortProducts, matchesSearchQuery, normalizeText } from '../utils/stringUtils';
 
 import * as api from '../services/firebaseService';
@@ -271,9 +271,39 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
   }, [jobTypeSearchQuery, jobTypes, clientOrigin]);
 
   const selectedDentistMatched = useMemo(() => {
-    if (!selectedDentistId) return null;
-    return manualDentists.find(d => d.id === selectedDentistId || (d as any).userId === selectedDentistId) || allUsers.find(u => u.id === selectedDentistId);
-  }, [selectedDentistId, manualDentists, allUsers]);
+    if (selectedDentistId && selectedDentistId !== 'manual-entry') {
+      const match = manualDentists.find(d => d.id === selectedDentistId || (d as any).userId === selectedDentistId) || 
+                    allUsers.find(u => u.id === selectedDentistId);
+      if (match) return match;
+    }
+    if (selectedDentistObj) return selectedDentistObj;
+
+    const queryTrim = (dentistSearchQuery || dentistName || '').trim();
+    if (queryTrim) {
+      const norm = normalizeText(queryTrim);
+      const matchByName = manualDentists.find(d => normalizeText(d.name) === norm) || 
+                          allUsers.find(u => normalizeText(u.name) === norm);
+      if (matchByName) return matchByName;
+    }
+    return null;
+  }, [selectedDentistId, selectedDentistObj, dentistSearchQuery, dentistName, manualDentists, allUsers]);
+
+  const isClientBlocked = useMemo(() => {
+    const d = selectedDentistMatched || selectedDentistObj;
+    if (!d) return false;
+    return Boolean(
+      d.isBlocked || 
+      (d as any).blocked || 
+      (d as any).status === 'BLOCKED' || 
+      (d as any).status === 'SUSPENDED' || 
+      (d as any).financialStatus === 'BLOCKED'
+    );
+  }, [selectedDentistMatched, selectedDentistObj]);
+
+  const clientBlockReason = useMemo(() => {
+    const d = selectedDentistMatched || selectedDentistObj;
+    return d?.blockReason || '';
+  }, [selectedDentistMatched, selectedDentistObj]);
 
   const labStockItems = useMemo(() => {
     return inventoryItems.filter(item => !item.dentistOwnerId);
@@ -1251,20 +1281,92 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                     </div>
 
                     <div className="md:col-span-9 relative" ref={dropdownRef}>
-                      <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">{t('newJob.clientClinic', 'Clínica / Cliente')} <span className="text-red-500">*</span></label>
-                      <div className="relative">
-                        <div className="absolute left-3 top-3 text-slate-400">{selectedDentistId ? <Check size={18} className="text-green-500" /> : <SearchIcon size={18} />}</div>
-                        <input type="text" value={dentistSearchQuery} onChange={e => { setDentistSearchQuery(e.target.value.toUpperCase()); setShowDentistSuggestions(true); }} onFocus={() => setShowDentistSuggestions(true)} placeholder={t('newJob.searchDentistPlaceholder', 'Digite o nome do dentista ou clínica...')} className={`w-full pl-10 pr-4 py-2.5 bg-white border rounded-xl outline-none transition-all focus:ring-2 font-bold uppercase ${selectedDentistId ? 'border-green-200 bg-green-50/30' : 'border-slate-200 focus:ring-blue-500'}`} />
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                          {t('newJob.clientClinic', 'Clínica / Cliente')} <span className="text-red-500">*</span>
+                        </label>
+                        {isClientBlocked && (
+                          <span className="flex items-center gap-1 text-[10px] font-black uppercase text-red-600 bg-red-100 px-2 py-0.5 rounded-md border border-red-200 animate-pulse">
+                            <Lock size={12} /> Cliente Bloqueado
+                          </span>
+                        )}
                       </div>
+                      <div className="flex items-center gap-2">
+                        <div className="relative flex-1">
+                          <div className="absolute left-3 top-3 text-slate-400">
+                            {isClientBlocked ? (
+                              <Lock size={18} className="text-red-600 animate-pulse" />
+                            ) : selectedDentistId ? (
+                              <Check size={18} className="text-green-500" />
+                            ) : (
+                              <SearchIcon size={18} />
+                            )}
+                          </div>
+                          <input 
+                            type="text" 
+                            value={dentistSearchQuery} 
+                            onChange={e => { setDentistSearchQuery(e.target.value.toUpperCase()); setShowDentistSuggestions(true); }} 
+                            onFocus={() => setShowDentistSuggestions(true)} 
+                            placeholder={t('newJob.searchDentistPlaceholder', 'Digite o nome do dentista ou clínica...')} 
+                            className={`w-full pl-10 pr-4 py-2.5 bg-white border ${isClientBlocked ? 'border-2 border-red-500 bg-red-50/50 text-red-900 focus:ring-red-400' : selectedDentistId ? 'pr-4 border-green-200 bg-green-50/30 focus:ring-green-400' : 'pr-4 border-slate-200 focus:ring-blue-500'} rounded-xl outline-none transition-all focus:ring-2 font-bold uppercase`} 
+                          />
+                        </div>
+
+                        {/* Cadeado Indicativo ao lado do input */}
+                        {isClientBlocked && (
+                          <div 
+                            className="shrink-0 flex items-center gap-1.5 px-3 py-2.5 bg-red-600 text-white rounded-xl shadow-md border border-red-700 animate-pulse transition-all cursor-help select-none"
+                            title={`Cliente Bloqueado: Este cliente possui restrições financeiras ou administrativas e não pode receber novos casos. ${clientBlockReason ? `(Motivo: ${clientBlockReason})` : ''}`}
+                          >
+                            <Lock size={18} className="shrink-0 stroke-[2.5]" />
+                            <span className="text-[11px] font-black uppercase tracking-wider hidden sm:inline">Bloqueado</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {isClientBlocked && (
+                        <div className="mt-2.5 p-3.5 bg-red-50 border-2 border-red-200 rounded-2xl flex items-start gap-3 text-red-800 animate-in fade-in slide-in-from-top-1 shadow-xs">
+                          <div className="p-1.5 bg-red-100 text-red-600 rounded-xl shrink-0 mt-0.5">
+                            <Lock size={18} className="stroke-[2.5]" />
+                          </div>
+                          <div>
+                            <p className="text-xs font-black uppercase tracking-wider text-red-700 flex items-center gap-1.5">
+                              Atenção: Cliente Bloqueado para Novos Casos
+                            </p>
+                            <p className="text-[11px] font-bold text-red-600 mt-0.5 leading-snug">
+                              Este cliente possui restrição no sistema {clientBlockReason === 'DEBT' ? '(inadimplência / limite de fatura)' : clientBlockReason === 'FINANCIAL_APPROVAL' ? '(aguardando aprovação financeira)' : '(bloqueio administrativo)'}. O cadastro de novos casos está impedido até a regularização.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
                       {showDentistSuggestions && dentistSearchQuery.length > 0 && (
                           <div className="absolute z-50 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2">
                              <div className="max-h-60 overflow-y-auto">
-                                {suggestions.map(d => (
-                                    <button key={d.id} type="button" onClick={() => selectDentist(d)} className="w-full text-left p-4 hover:bg-blue-50 flex items-center justify-between border-b border-slate-50 last:border-0 group">
-                                        <div className="flex items-center gap-3"><div className={`p-2 rounded-lg ${d.type === 'ONLINE' ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500'}`}><Stethoscope size={16} /></div><div><p className="font-black text-slate-800 text-sm">{d.name}</p>{d.clinicName && <p className="text-[9px] text-slate-400 uppercase font-black">{d.clinicName}</p>}</div></div>
-                                        <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${d.type === 'ONLINE' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-600'}`}>{d.type === 'ONLINE' ? 'WEB' : 'INTERNO'}</span>
-                                    </button>
-                                ))}
+                                {suggestions.map(d => {
+                                    const isThisBlocked = Boolean(d.isBlocked);
+                                    return (
+                                        <button key={d.id} type="button" onClick={() => selectDentist(d)} className="w-full text-left p-4 hover:bg-blue-50 flex items-center justify-between border-b border-slate-50 last:border-0 group">
+                                            <div className="flex items-center gap-3">
+                                                <div className={`p-2 rounded-lg ${isThisBlocked ? 'bg-red-100 text-red-600' : d.type === 'ONLINE' ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500'}`}>
+                                                    {isThisBlocked ? <Lock size={16} /> : <Stethoscope size={16} />}
+                                                </div>
+                                                <div>
+                                                    <div className="flex items-center gap-2">
+                                                        <p className={`font-black text-sm ${isThisBlocked ? 'text-red-800' : 'text-slate-800'}`}>{d.name}</p>
+                                                        {isThisBlocked && (
+                                                            <span className="flex items-center gap-1 text-[9px] font-black uppercase bg-red-100 text-red-700 border border-red-200 px-1.5 py-0.5 rounded">
+                                                                <Lock size={10} /> Bloqueado
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    {d.clinicName && <p className="text-[9px] text-slate-400 uppercase font-black">{d.clinicName}</p>}
+                                                </div>
+                                            </div>
+                                            <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${isThisBlocked ? 'bg-red-600 text-white' : d.type === 'ONLINE' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-600'}`}>{isThisBlocked ? 'BLOQUEADO' : d.type === 'ONLINE' ? 'WEB' : 'INTERNO'}</span>
+                                        </button>
+                                    );
+                                })}
                                 <button type="button" onClick={handleManualDentistEntry} className="w-full text-left p-4 bg-slate-50 hover:bg-blue-600 hover:text-white transition-all group flex items-center gap-3 border-t"><div className="p-2 rounded-lg bg-white shadow-sm"><Plus size={16} className="text-blue-600" /></div><p className="text-xs font-black uppercase tracking-wider">{t('newJob.useManualName', { query: dentistSearchQuery, defaultValue: `Usar Nome Avulso: "${dentistSearchQuery}"` })}</p></button>
                              </div>
                           </div>
@@ -1413,9 +1515,25 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                                 </div>
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
-                                <div className={`w-full ${itemSelectedTeeth.length > 0 ? 'opacity-50 pointer-events-none' : ''}`}>
-                                    <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">{t('newJob.quantity', 'Qtd')}</label>
-                                    <input type="number" min="1" value={quantity} readOnly={itemSelectedTeeth.length > 0} onChange={e => setQuantity(e.target.value === '' ? '' : parseInt(e.target.value))} className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl outline-none text-center font-black" />
+                                <div className="w-full">
+                                    <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest flex items-center justify-between">
+                                        <span>{t('newJob.quantity', 'Qtd')}</span>
+                                        {itemSelectedTeeth.length > 0 && quantity !== itemSelectedTeeth.length && (
+                                            <span className="text-[8px] text-amber-600 font-bold">Manual</span>
+                                        )}
+                                    </label>
+                                    <input 
+                                        type="number" 
+                                        min="1" 
+                                        value={quantity} 
+                                        onChange={e => setQuantity(e.target.value === '' ? '' : parseInt(e.target.value) || 1)} 
+                                        onBlur={() => {
+                                            if ((quantity as any) === '' || isNaN(Number(quantity)) || Number(quantity) < 1) {
+                                                setQuantity(itemSelectedTeeth.length > 0 ? itemSelectedTeeth.length : 1);
+                                            }
+                                        }}
+                                        className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl outline-none text-center font-black" 
+                                    />
                                 </div>
                                 <div className="w-full">
                                     <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">{t('newJob.color', 'Cor')}</label>

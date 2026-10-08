@@ -921,6 +921,15 @@ export const JobDetails = () => {
     return manualDentists.find(d => d.id === id || (d as any).userId === id) || allUsers.find(u => u.id === id);
   }, [editDentistId, job?.dentistId, job?.clientId, manualDentists, allUsers]);
 
+  const isDentistBlocked = useMemo(() => {
+    return Boolean(
+      matchedDentist?.isBlocked || 
+      (matchedDentist as any)?.blocked || 
+      (matchedDentist as any)?.status === 'BLOCKED' || 
+      (matchedDentist as any)?.financialStatus === 'BLOCKED'
+    );
+  }, [matchedDentist]);
+
   const labStockItems = useMemo(() => {
     return inventoryItems.filter(item => !item.dentistOwnerId);
   }, [inventoryItems]);
@@ -2931,19 +2940,37 @@ export const JobDetails = () => {
                   <div className="flex-1 overflow-y-auto p-4 md:p-4 sm:p-6 space-y-6 no-scrollbar">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="md:col-span-2 relative" ref={dropdownRef}>
-                              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Dentista / Clínica</label>
-                              <div className="relative">
-                                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
-                                      <Search size={18} />
+                              <div className="flex items-center justify-between mb-1.5 ml-1">
+                                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Dentista / Clínica</label>
+                                  {isDentistBlocked && (
+                                      <span className="flex items-center gap-1 text-[10px] font-black uppercase text-red-600 bg-red-100 px-2 py-0.5 rounded-md border border-red-200 animate-pulse">
+                                          <Lock size={12} /> Cliente Bloqueado
+                                      </span>
+                                  )}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                  <div className="relative flex-1">
+                                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                                          {isDentistBlocked ? <Lock size={18} className="text-red-600 animate-pulse" /> : <Search size={18} />}
+                                      </div>
+                                      <input 
+                                          type="text" 
+                                          value={dentistSearchQuery} 
+                                          onChange={e => { setDentistSearchQuery(e.target.value.toUpperCase()); setShowDentistSuggestions(true); }}
+                                          onFocus={() => setShowDentistSuggestions(true)}
+                                          placeholder="Buscar cliente ou clínica..."
+                                          className={`w-full pl-12 pr-4 py-3 ${isDentistBlocked ? 'border-2 border-red-500 bg-red-50/50 text-red-900 focus:ring-red-400' : 'bg-slate-50 border border-slate-200 focus:ring-blue-500'} rounded-xl outline-none focus:ring-2 font-bold text-sm transition-all uppercase`}
+                                      />
                                   </div>
-                                  <input 
-                                      type="text" 
-                                      value={dentistSearchQuery} 
-                                      onChange={e => { setDentistSearchQuery(e.target.value.toUpperCase()); setShowDentistSuggestions(true); }}
-                                      onFocus={() => setShowDentistSuggestions(true)}
-                                      placeholder="Buscar cliente ou clínica..."
-                                      className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-sm transition-all uppercase"
-                                  />
+                                  {isDentistBlocked && (
+                                      <div 
+                                          className="shrink-0 flex items-center gap-1.5 px-3 py-3 bg-red-600 text-white rounded-xl shadow-md border border-red-700 animate-pulse transition-all cursor-help select-none"
+                                          title="Cliente Bloqueado: Este cliente possui restrições financeiras ou administrativas."
+                                      >
+                                          <Lock size={18} className="shrink-0 stroke-[2.5]" />
+                                          <span className="text-[11px] font-black uppercase tracking-wider hidden sm:inline">Bloqueado</span>
+                                      </div>
+                                  )}
                               </div>
 
                               {showDentistSuggestions && (
@@ -3206,9 +3233,34 @@ export const JobDetails = () => {
                                                       </div>
                                                   </div>
                                                   <div className="flex gap-2 items-end">
-                                                      <div className={(item.selectedTeeth && item.selectedTeeth.length > 0) ? "w-16 sm:w-20 opacity-50 pointer-events-none shrink-0" : "w-16 sm:w-20 shrink-0"}>
-                                                          <label className="block text-[9px] font-black text-slate-500 uppercase mb-1">Qtd</label>
-                                                          <input type="number" min="1" value={(item.quantity as any) === '' ? '' : (item.quantity ?? 1)} readOnly={!!(item.selectedTeeth && item.selectedTeeth.length > 0)} onChange={e => handleUpdateEditItem(item.id, { quantity: e.target.value === '' ? '' : (parseInt(e.target.value) || '') as any })} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-center" />
+                                                      <div className="w-20 sm:w-24 shrink-0">
+                                                          <label className="block text-[9px] font-black text-slate-500 uppercase mb-1 flex items-center justify-between">
+                                                              <span>Qtd</span>
+                                                              {item.selectedTeeth && item.selectedTeeth.length > 0 && item.quantity !== item.selectedTeeth.length && (
+                                                                  <span className="text-[8px] text-amber-600 font-bold" title="Quantidade definida manualmente">Manual</span>
+                                                              )}
+                                                          </label>
+                                                          <input 
+                                                              type="number" 
+                                                              min="1" 
+                                                              value={(item.quantity as any) === '' ? '' : (item.quantity ?? 1)} 
+                                                              onChange={e => {
+                                                                  const val = e.target.value;
+                                                                  if (val === '') {
+                                                                      handleUpdateEditItem(item.id, { quantity: '' as any });
+                                                                  } else {
+                                                                      const parsed = parseInt(val, 10);
+                                                                      handleUpdateEditItem(item.id, { quantity: isNaN(parsed) ? 1 : Math.max(1, parsed) });
+                                                                  }
+                                                              }} 
+                                                              onBlur={() => {
+                                                                  if ((item.quantity as any) === '' || isNaN(Number(item.quantity)) || Number(item.quantity) < 1) {
+                                                                      handleUpdateEditItem(item.id, { quantity: item.selectedTeeth?.length || 1 });
+                                                                  }
+                                                              }}
+                                                              className="w-full px-2.5 py-2 bg-white border border-slate-300 rounded-xl text-xs font-black text-slate-800 text-center focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all shadow-xs" 
+                                                              title="Quantidade manual do serviço"
+                                                          />
                                                       </div>
                                                       <div className="flex-1 min-w-0">
                                                           <label className="block text-[9px] font-black text-slate-500 uppercase mb-1">Dentes</label>
@@ -3361,9 +3413,48 @@ export const JobDetails = () => {
                                       );
                                   }
                                   return (
-                                      <div key={item.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100 hover:border-blue-200 transition-colors">
-                                          <div className="flex flex-col min-w-0 mr-2">
-                                              <div className="text-xs font-bold text-slate-700 truncate">{item.quantity}x {getNaturePrefix(item.nature)}{formatItemNameWithVariations(item, jobTypes)}</div>
+                                      <div key={item.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100 hover:border-blue-200 transition-colors gap-2">
+                                          <div className="flex items-center gap-1.5 shrink-0">
+                                              <button 
+                                                  type="button" 
+                                                  onClick={() => handleUpdateEditItem(item.id, { quantity: Math.max(1, (Number(item.quantity) || 1) - 1) })}
+                                                  className="w-7 h-7 flex items-center justify-center text-slate-600 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg font-black text-xs transition-colors shadow-xs active:scale-95"
+                                                  title="Diminuir quantidade"
+                                              >
+                                                  -
+                                              </button>
+                                              <input 
+                                                  type="number" 
+                                                  min="1" 
+                                                  value={(item.quantity as any) === '' ? '' : (item.quantity ?? 1)}
+                                                  onChange={(e) => {
+                                                      const val = e.target.value;
+                                                      if (val === '') {
+                                                          handleUpdateEditItem(item.id, { quantity: '' as any });
+                                                      } else {
+                                                          const parsed = parseInt(val, 10);
+                                                          handleUpdateEditItem(item.id, { quantity: isNaN(parsed) ? 1 : Math.max(1, parsed) });
+                                                      }
+                                                  }}
+                                                  onBlur={() => {
+                                                      if ((item.quantity as any) === '' || isNaN(Number(item.quantity)) || Number(item.quantity) < 1) {
+                                                          handleUpdateEditItem(item.id, { quantity: 1 });
+                                                      }
+                                                  }}
+                                                  className="w-11 h-7 text-center font-black text-xs text-slate-800 border border-slate-200 rounded-lg outline-none bg-white focus:border-blue-500 shadow-xs"
+                                                  title="Alterar quantidade manualmente"
+                                              />
+                                              <button 
+                                                  type="button" 
+                                                  onClick={() => handleUpdateEditItem(item.id, { quantity: (Number(item.quantity) || 1) + 1 })}
+                                                  className="w-7 h-7 flex items-center justify-center text-slate-600 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg font-black text-xs transition-colors shadow-xs active:scale-95"
+                                                  title="Aumentar quantidade"
+                                              >
+                                                  +
+                                              </button>
+                                          </div>
+                                          <div className="flex flex-col min-w-0 flex-1">
+                                              <div className="text-xs font-bold text-slate-700 truncate">{getNaturePrefix(item.nature)}{formatItemNameWithVariations(item, jobTypes)}</div>
                                               <div className="flex items-center gap-2 mt-1 flex-wrap text-[10px]">
                                                   <span className="font-black text-slate-500 uppercase tracking-wider">
                                                       {item.nature === 'REPETITION' ? 'REPETIÇÃO (R$ 0)' : item.nature === 'ADJUSTMENT' ? 'AJUSTE (R$ 0)' : `R$ ${(item.basePriceBeforeDiscount !== undefined ? item.basePriceBeforeDiscount : item.price).toFixed(2)}/un.`}
@@ -3540,9 +3631,9 @@ export const JobDetails = () => {
                                        </div>
                                    </div>
                                    <div className="flex gap-2 items-end">
-                                      <div className={newItemTeeth.length > 0 ? "w-16 sm:w-20 opacity-50 pointer-events-none shrink-0" : "w-16 sm:w-20 shrink-0"}>
+                                      <div className="w-16 sm:w-20 shrink-0">
                                            <label className="block text-[9px] font-black text-slate-400 uppercase mb-1">Qtd</label>
-                                           <input type="number" min="1" value={newItemQty} readOnly={newItemTeeth.length > 0} onChange={e => setNewItemQty(e.target.value === '' ? '' : parseInt(e.target.value))} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-center" />
+                                           <input type="number" min="1" value={newItemQty} onChange={e => setNewItemQty(e.target.value === '' ? '' : parseInt(e.target.value) || 1)} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-center" />
                                        </div>
                                        <div className="flex-1 min-w-0">
                                            <label className="block text-[9px] font-black text-slate-400 uppercase mb-1">Dentes</label>
@@ -4569,15 +4660,25 @@ export const JobDetails = () => {
                                                         </div>
 
                                                         <div className="col-span-1 sm:col-span-2 flex gap-2 items-end">
-                                                            <div className={(itemEditForm.selectedTeeth && itemEditForm.selectedTeeth.length > 0) ? "w-16 sm:w-20 opacity-50 pointer-events-none shrink-0" : "w-16 sm:w-20 shrink-0"}>
-                                                                <label className="block text-[10px] uppercase font-black text-slate-500 mb-1">Qtd</label>
+                                                            <div className="w-20 sm:w-24 shrink-0">
+                                                                <label className="block text-[10px] uppercase font-black text-slate-500 mb-1 flex items-center justify-between">
+                                                                    <span>Qtd</span>
+                                                                    {itemEditForm.selectedTeeth && itemEditForm.selectedTeeth.length > 0 && itemEditForm.quantity !== itemEditForm.selectedTeeth.length && (
+                                                                        <span className="text-[8px] text-amber-600 font-bold" title="Quantidade definida manualmente">Manual</span>
+                                                                    )}
+                                                                </label>
                                                                 <input 
                                                                     type="number" 
                                                                     min={1}
-                                                                    readOnly={!!(itemEditForm.selectedTeeth && itemEditForm.selectedTeeth.length > 0)}
-                                                                    className="w-full text-sm font-bold border border-slate-300 p-2.5 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-center"
+                                                                    className="w-full text-sm font-bold border border-slate-300 p-2.5 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-center shadow-xs"
                                                                     value={itemEditForm.quantity}
-                                                                    onChange={(e) => setItemEditForm({...itemEditForm, quantity: e.target.value === '' ? '' : (parseInt(e.target.value) || '')})}
+                                                                    onChange={(e) => setItemEditForm(prev => ({...prev, quantity: e.target.value === '' ? '' : (parseInt(e.target.value) || 1)}))}
+                                                                    onBlur={() => {
+                                                                        if ((itemEditForm.quantity as any) === '' || isNaN(Number(itemEditForm.quantity)) || Number(itemEditForm.quantity) < 1) {
+                                                                            setItemEditForm(prev => ({...prev, quantity: prev.selectedTeeth && prev.selectedTeeth.length > 0 ? prev.selectedTeeth.length : 1}));
+                                                                        }
+                                                                    }}
+                                                                    title="Quantidade manual do serviço"
                                                                 />
                                                             </div>
                                                             <div className="flex-1 min-w-0">
@@ -4589,11 +4690,15 @@ export const JobDetails = () => {
                                                                         const raw = e.target.value;
                                                                         setItemEditTeethInput(raw);
                                                                         const parsed = raw.split(/[,;\s]+/).map(s => s.trim()).filter(s => s.length > 0);
-                                                                        setItemEditForm(prev => ({
-                                                                            ...prev,
-                                                                            selectedTeeth: parsed,
-                                                                            quantity: parsed.length > 0 ? parsed.length : (prev.quantity || 1)
-                                                                        }));
+                                                                        setItemEditForm(prev => {
+                                                                            const oldTeethCount = prev.selectedTeeth ? prev.selectedTeeth.length : 0;
+                                                                            const wasDefaultQty = Number(prev.quantity) === oldTeethCount || Number(prev.quantity) === 1 || !prev.quantity;
+                                                                            return {
+                                                                                ...prev,
+                                                                                selectedTeeth: parsed,
+                                                                                quantity: wasDefaultQty ? (parsed.length > 0 ? parsed.length : 1) : prev.quantity
+                                                                            };
+                                                                        });
                                                                     }}
                                                                     placeholder="Ex: 11, 21, 16" 
                                                                     className="w-full text-sm font-bold border border-slate-300 p-2.5 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" 
@@ -4619,11 +4724,15 @@ export const JobDetails = () => {
                                                                 onChange={(teeth) => {
                                                                     const sorted = [...teeth].sort();
                                                                     setItemEditTeethInput(sorted.join(', '));
-                                                                    setItemEditForm(prev => ({
-                                                                        ...prev,
-                                                                        selectedTeeth: sorted,
-                                                                        quantity: sorted.length > 0 ? sorted.length : 1
-                                                                    }));
+                                                                    setItemEditForm(prev => {
+                                                                        const oldTeethCount = prev.selectedTeeth ? prev.selectedTeeth.length : 0;
+                                                                        const wasDefaultQty = Number(prev.quantity) === oldTeethCount || Number(prev.quantity) === 1 || !prev.quantity;
+                                                                        return {
+                                                                            ...prev,
+                                                                            selectedTeeth: sorted,
+                                                                            quantity: wasDefaultQty ? (sorted.length > 0 ? sorted.length : 1) : prev.quantity
+                                                                        };
+                                                                    });
                                                                 }}
                                                                 className="w-full max-w-[280px] h-auto"
                                                             />
