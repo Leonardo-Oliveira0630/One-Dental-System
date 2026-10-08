@@ -773,6 +773,7 @@ export interface JobType {
   id: string;
   name: string;
   category: string;
+  description?: string;
   basePrice: number;
   baseCommission?: number;
   productionTimeDays?: number;

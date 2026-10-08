@@ -1941,18 +1941,38 @@ export const JobDetails = () => {
       }
   };
 
-  const recalculateAllCommissions = async (itemsToUse: any[], executionsToUse: any[]) => {
+  const recalculateAllCommissions = async (itemsToUse: any[], executionsToUse: any[], extraUserId?: string, extraSector?: string) => {
+      if (!job) return;
       const sectorUserPairs = new Map<string, { sector: string; userId: string }>();
       (executionsToUse || []).forEach((e: any) => {
           if (e.sector && e.userId) {
               sectorUserPairs.set(`${e.sector}_${e.userId}`, { sector: e.sector, userId: e.userId });
           }
+          if (e.stageTimes && e.sector) {
+              Object.values(e.stageTimes).forEach((st: any) => {
+                  const uid = st?.exitUserId || st?.entryUserId;
+                  if (uid) {
+                      sectorUserPairs.set(`${e.sector}_${uid}`, { sector: e.sector, userId: uid });
+                  }
+              });
+          }
       });
+
+      // Gather from existing commissions on this job so any user whose stages were cleared gets checked & disregarded!
+      (commissions || []).filter(c => c.jobId === job.id).forEach(c => {
+          if (c.sector && c.userId) {
+              sectorUserPairs.set(`${c.sector}_${c.userId}`, { sector: c.sector, userId: c.userId });
+          }
+      });
+
+      if (extraUserId && extraSector) {
+          sectorUserPairs.set(`${extraSector}_${extraUserId}`, { sector: extraSector, userId: extraUserId });
+      }
 
       for (const { sector, userId } of sectorUserPairs.values()) {
           const selectedUser = labUsers.find(u => u.id === userId);
           const userItemsInSector = (executionsToUse || [])
-              .filter((e: any) => e.userId === userId && e.sector === sector)
+              .filter((e: any) => e.sector === sector && (e.userId === userId || (e.stageTimes && Object.values(e.stageTimes).some((st: any) => st?.exitUserId === userId || st?.entryUserId === userId))))
               .map((e: any) => e.itemId);
           
           let totalUserComm = 0;
@@ -1960,12 +1980,35 @@ export const JobDetails = () => {
               if (userItemsInSector.includes(item.id) && !item.commissionDisabled) {
                   const sectorDisabled = item.sectorCommissionDisabled?.[sector];
                   if (!sectorDisabled) {
-                      const secQty = (item.sectorQuantities && item.sectorQuantities[sector]) !== undefined 
+                      const secQty = (item.sectorQuantities && item.sectorQuantities[sector] !== undefined) 
                           ? item.sectorQuantities[sector] 
                           : item.quantity;
                       const jt = jobTypes.find(t => t.id === item.jobTypeId);
-                      const exec = (executionsToUse || []).find((e: any) => e.itemId === item.id && e.sector === sector && e.userId === userId);
-                      totalUserComm += calculateItemCommission(item, jt, selectedUser, secQty, sector, exec?.executedStages, exec?.isBaseChecked !== false, commissionGroups);
+                      const exec = (executionsToUse || []).find((e: any) => e.itemId === item.id && e.sector === sector);
+                      if (exec) {
+                          // Filter stages executed specifically by this user
+                          let stagesForThisUser = exec.executedStages || [];
+                          if (exec.stageTimes) {
+                              stagesForThisUser = (exec.executedStages || []).filter((stg: string) => {
+                                  const stData = exec.stageTimes?.[stg];
+                                  if (stData?.exitUserId) return stData.exitUserId === userId;
+                                  return exec.userId === userId;
+                              });
+                          }
+                          const isBaseForThisUser = (exec.isBaseChecked !== false) && 
+                              (!exec.stageTimes?.['BASE']?.exitUserId || exec.stageTimes?.['BASE']?.exitUserId === userId || exec.userId === userId);
+
+                          totalUserComm += calculateItemCommission(
+                              item, 
+                              jt, 
+                              selectedUser, 
+                              Number(secQty) || 1, 
+                              sector, 
+                              stagesForThisUser, 
+                              isBaseForThisUser, 
+                              commissionGroups
+                          );
+                      }
                   }
               }
           });
@@ -1999,17 +2042,144 @@ export const JobDetails = () => {
       }
   };
 
+  const handleClearStageExecution = async (item: JobItem, sector: string, stageName: string) => {
+      if (!job) return;
+      if (!canEditProduction && !canManageCommissions) {
+          alert("Você não possui permissão para gerenciar a produção ou comissões.");
+          return;
+      }
+
+      const displayName = stageName === 'BASE' ? sector : `${sector} - ${stageName}`;
+      const confirmed = window.confirm(
+          `Deseja realmente limpar a etapa "${displayName}" no item "${item.name}"?\n\n` +
+          `• Os horários de entrada e saída serão removidos desta etapa.\n` +
+          `• Caso um colaborador tenha dado saída e tido a comissão contabilizada, ela será AUTOMATICAMENTE DESCONSIDERADA.`
+      );
+      if (!confirmed) return;
+
+      setIsUpdatingStatus(true);
+      try {
+          const execution = (job.itemExecutions || []).find((e: any) => e.itemId === item.id && e.sector === sector);
+          if (!execution) return;
+
+          const stageData = execution.stageTimes?.[stageName];
+          const affectedUserId = stageData?.exitUserId || stageData?.entryUserId || execution.userId;
+          const affectedUser = labUsers.find(u => u.id === affectedUserId);
+          const affectedUserName = affectedUser?.name || execution.userName || 'Colaborador';
+
+          let newExecutions: any[] = [];
+          (job.itemExecutions || []).forEach((e: any) => {
+              if (e.itemId === item.id && e.sector === sector) {
+                  const newStageTimes = { ...(e.stageTimes || {}) };
+                  delete newStageTimes[stageName];
+
+                  const newExecutedStages = (e.executedStages || []).filter((s: string) => s !== stageName);
+                  let isBaseChecked = e.isBaseChecked;
+                  let entryTime = e.entryTime;
+                  let timestamp = e.timestamp;
+                  let userId = e.userId;
+                  let userName = e.userName;
+
+                  if (stageName === 'BASE') {
+                      isBaseChecked = false;
+                      entryTime = undefined;
+                      timestamp = undefined;
+                  }
+
+                  const remainingStageEntries = Object.entries(newStageTimes);
+                  if (remainingStageEntries.length > 0) {
+                      const [lastStgName, lastStgData]: [string, any] = remainingStageEntries[remainingStageEntries.length - 1];
+                      if (lastStgData?.exitUserId || lastStgData?.entryUserId) {
+                          const fallbackUid = lastStgData.exitUserId || lastStgData.entryUserId;
+                          userId = fallbackUid;
+                          userName = labUsers.find(u => u.id === fallbackUid)?.name || userName;
+                      }
+                      if (lastStgData?.exitTime || lastStgData?.entryTime) {
+                          timestamp = lastStgData.exitTime || lastStgData.entryTime;
+                      }
+                  } else if (!isBaseChecked && !entryTime && !timestamp) {
+                      userId = '';
+                      userName = '';
+                  }
+
+                  const hasStagesLeft = remainingStageEntries.length > 0;
+                  const hasExecutedStagesLeft = newExecutedStages.length > 0;
+                  const hasBaseLeft = isBaseChecked || !!entryTime || !!timestamp;
+
+                  if (hasStagesLeft || hasExecutedStagesLeft || hasBaseLeft) {
+                      newExecutions.push({
+                          ...e,
+                          stageTimes: newStageTimes,
+                          executedStages: newExecutedStages,
+                          isBaseChecked,
+                          entryTime,
+                          timestamp,
+                          userId,
+                          userName
+                      });
+                  }
+              } else {
+                  newExecutions.push(e);
+              }
+          });
+
+          // Ajustar movimentações de setor caso não sobre nada ativo neste setor
+          let newMovements = [...(job.sectorMovements || [])];
+          const anyActiveInSector = newExecutions.some((e: any) => e.sector === sector);
+          if (!anyActiveInSector) {
+              newMovements = newMovements.filter(m => m.sector !== sector || (m.entryTime && !m.exitTime));
+          }
+
+          const historyAction = `LIMPEZA DE ETAPA: Etapa "${displayName}" no item "${item.name}" foi limpa pelo gestor.\n` +
+                                `- Entrada e saída resetadas.\n` +
+                                `- Comissão desconsiderada para ${affectedUserName}.`;
+
+          const newHistory = [...(job.history || []).filter(Boolean), {
+              id: `hist_exec_clear_${Date.now()}`,
+              timestamp: new Date(),
+              action: historyAction,
+              userId: currentUser?.id || '',
+              userName: currentUser?.name || 'Sistema',
+              sector: currentUser?.sector || 'Gestão'
+          }];
+
+          await updateJob(job.id, {
+              itemExecutions: newExecutions,
+              sectorMovements: newMovements,
+              history: newHistory
+          });
+
+          // Desconsidera automaticamente a comissão do colaborador nesta etapa
+          await recalculateAllCommissions(job.items, newExecutions, affectedUserId, sector);
+
+      } catch (err) {
+          console.error("Erro ao limpar etapa:", err);
+          alert("Erro ao limpar a etapa.");
+      } finally {
+          setIsUpdatingStatus(false);
+      }
+  };
+
   const handleSectorQuantityChange = async (itemId: string, sectorName: string, newQty: number | string) => {
-      if (!canManageCommissions) return;
+      if (!canManageCommissions && !canEditProduction) return;
       const updatedItems = job.items.map((item: any) => {
           if (item.id === itemId) {
               const currentQuantities = item.sectorQuantities || {};
+              const currentStageQuantities = item.stageQuantities || {};
+              const updatedStageQuantitiesForSec = { ...(currentStageQuantities[sectorName] || {}) };
+              Object.keys(updatedStageQuantitiesForSec).forEach(stg => {
+                  updatedStageQuantitiesForSec[stg] = typeof newQty === 'number' ? newQty : Number(newQty) || 1;
+              });
               return {
                   ...item,
                   sectorQuantities: {
                       ...currentQuantities,
                       [sectorName]: newQty
-                  }
+                  },
+                  stageQuantities: Object.keys(updatedStageQuantitiesForSec).length > 0 ? {
+                      ...currentStageQuantities,
+                      [sectorName]: updatedStageQuantitiesForSec
+                  } : currentStageQuantities
               };
           }
           return item;
@@ -2724,7 +2894,21 @@ export const JobDetails = () => {
                       </div>
                   </div>
 
-                  <div className="mt-8 flex gap-3">
+                  <div className="mt-8 flex gap-2">
+                      <button 
+                          type="button" 
+                          onClick={() => {
+                              const targetItem = editingExecution.item;
+                              const targetSec = editingExecution.sector;
+                              const targetStg = editingExecution.stageName || 'BASE';
+                              setShowExecutionModal(false);
+                              handleClearStageExecution(targetItem, targetSec, targetStg);
+                          }} 
+                          className="py-3 px-3.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl font-black text-xs uppercase tracking-wider transition-colors flex items-center justify-center gap-1.5 shrink-0"
+                          title="Limpar etapa (resetar ponto e desconsiderar comissão)"
+                      >
+                          <RotateCcw size={14} /> Limpar
+                      </button>
                       <button onClick={() => setShowExecutionModal(false)} className="flex-1 py-3 text-slate-500 font-black text-xs uppercase tracking-widest hover:bg-slate-50 rounded-xl transition-colors">
                           Cancelar
                       </button>
@@ -5510,6 +5694,14 @@ export const JobDetails = () => {
             const displayName = stageName === 'BASE' ? sector : `${sector} - ${stageName}`;
             const activeUser = exitUserName || entryUserName;
             
+            const secQty = (item.sectorQuantities && item.sectorQuantities[sector] !== undefined)
+                ? item.sectorQuantities[sector]
+                : (item.quantity || 1);
+            const stageCustomQty = item.stageQuantities?.[sector]?.[stageName];
+            const effectiveQty = (stageCustomQty !== undefined && stageCustomQty !== '')
+                ? Number(stageCustomQty)
+                : Number(secQty);
+
             return (
                 <tr key={`${sector}-${stageName}`} className="hover:bg-slate-50/50 transition-colors group">
                     <td className="px-5 py-3">
@@ -5519,7 +5711,36 @@ export const JobDetails = () => {
                         </div>
                     </td>
                     <td className="px-5 py-3 text-center">
-                        <span className="text-xs font-black text-slate-800">{stageIdx === 0 ? item.quantity : ''}</span>
+                        {(canManageCommissions || canEditProduction) ? (
+                            <div className="flex items-center justify-center">
+                                <input 
+                                    type="number" 
+                                    min={1} 
+                                    step={1}
+                                    value={effectiveQty}
+                                    title="Quantidade de elementos para este setor (sincronizada com Setores Permitidos e Comissão)"
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        if (val === '') {
+                                            handleSectorQuantityChange(item.id, sector, '');
+                                        } else {
+                                            const parsed = parseInt(val, 10);
+                                            if (!isNaN(parsed)) {
+                                                handleSectorQuantityChange(item.id, sector, Math.max(1, parsed));
+                                            }
+                                        }
+                                    }}
+                                    onBlur={() => {
+                                        if (isNaN(Number(effectiveQty)) || Number(effectiveQty) < 1) {
+                                            handleSectorQuantityChange(item.id, sector, item.quantity || 1);
+                                        }
+                                    }}
+                                    className="w-14 h-7 text-center text-xs font-black text-slate-800 bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 focus:border-blue-500 rounded-lg shadow-sm outline-none transition-all"
+                                />
+                            </div>
+                        ) : (
+                            <span className="text-xs font-black text-slate-800 bg-slate-100 px-2 py-0.5 rounded-md">{effectiveQty}</span>
+                        )}
                     </td>
                     <td className="px-5 py-3">
                         {activeUser ? (
@@ -5564,13 +5785,26 @@ export const JobDetails = () => {
                     </td>
                     {isLabStaff && canEditProduction && (
                         <td className="px-5 py-3 text-right">
-                            <div className="flex items-center justify-end gap-2">
+                            <div className="flex items-center justify-end gap-1.5">
                                 <button
                                     onClick={() => handleOpenEditExecution(item, sector, execution, null, stageName)}
                                     title="Editar ou registrar manualmente no setor"
                                     className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                                 >
                                     <Edit size={14} />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleClearStageExecution(item, sector, stageName)}
+                                    disabled={isUpdatingStatus || (!finalStarted && !finalFinished && !execution?.stageTimes?.[stageName] && !execution)}
+                                    title="Limpar etapa (remover entrada/saída e desconsiderar comissão)"
+                                    className={`p-2 rounded-lg transition-all flex items-center justify-center ${
+                                        (finalStarted || finalFinished || execution?.stageTimes?.[stageName] || execution)
+                                            ? 'text-red-500 hover:text-red-700 hover:bg-red-50 cursor-pointer active:scale-95'
+                                            : 'text-slate-200 cursor-not-allowed opacity-30'
+                                    }`}
+                                >
+                                    <RotateCcw size={14} />
                                 </button>
                             </div>
                         </td>
