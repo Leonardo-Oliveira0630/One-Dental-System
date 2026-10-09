@@ -8,7 +8,7 @@ import { getContrastColor } from '../services/mockData';
 import { formatTeethRange } from '../utils/toothUtils';
 // Added Crown to the lucide-react imports to fix line 404 error
 import { Odontogram } from "../components/Odontogram";
-import { Plus, Trash2, Save, User as UserIcon, Box, FileText, CheckCircle, Search, RefreshCw, ArrowRight, Printer, X, FileCheck, DollarSign, Check, Calendar, AlertTriangle, Stethoscope, ChevronDown, Layers, Percent, Edit3, ShieldAlert, SearchIcon, Tag, AlertCircle, Crown, Package, MapPin, Lock } from 'lucide-react';
+import { Plus, Trash2, Save, User as UserIcon, Box, FileText, CheckCircle, Search, RefreshCw, ArrowRight, Printer, X, FileCheck, DollarSign, Check, Calendar, AlertTriangle, Stethoscope, ChevronDown, Layers, Percent, Edit3, ShieldAlert, SearchIcon, Tag, AlertCircle, Crown, Package, MapPin, Lock, Pin } from 'lucide-react';
 import { filterAndSortClients, filterAndSortProducts, matchesSearchQuery, normalizeText } from '../utils/stringUtils';
 
 import * as api from '../services/firebaseService';
@@ -98,7 +98,7 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
   }, [boxNumber, jobs]);
   const [selectedColorId, setSelectedColorId] = useState('');
   const [urgency, setUrgency] = useState<UrgencyLevel>(UrgencyLevel.NORMAL);
-  const [notes, setNotes] = useState(location.state?.notes || '');
+  const [notes, setNotes] = useState<string>(location.state?.notes || '');
   const [receivedMaterials, setReceivedMaterials] = useState<string[]>([]);
   const [materialQuantities, setMaterialQuantities] = useState<Record<string, number>>({});
   const [isAddingMaterial, setIsAddingMaterial] = useState(false);
@@ -196,6 +196,14 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
         setSelectedDentistObj(dentist);
         setDentistName(dentist.name.toUpperCase());
         setDentistSearchQuery(dentist.name.toUpperCase());
+        if (dentist.externalNotes?.trim()) {
+          const ext = dentist.externalNotes.trim();
+          setNotes((prev: string) => {
+            if (!prev || !prev.trim()) return ext;
+            if (!prev.includes(ext)) return `${ext}\n\n${prev.trim()}`;
+            return prev;
+          });
+        }
       } else if (location.state.dentistName) {
         setDentistName(location.state.dentistName.toUpperCase());
         setDentistSearchQuery(location.state.dentistName.toUpperCase());
@@ -679,6 +687,16 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
     setDentistName(dentist.name.toUpperCase()); 
     setDentistSearchQuery(dentist.name.toUpperCase()); 
     setShowDentistSuggestions(false);
+
+    // Auto-fix external notes into the job's notes field
+    if (dentist.externalNotes?.trim()) {
+      const ext = dentist.externalNotes.trim();
+      setNotes((prev: string) => {
+        if (!prev || !prev.trim()) return ext;
+        if (!prev.includes(ext)) return `${ext}\n\n${prev.trim()}`;
+        return prev;
+      });
+    }
   };
 
   const handleManualDentistEntry = () => {
@@ -710,6 +728,14 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
         setSelectedDentistObj(dentist);
         setDentistName(dentist.name.toUpperCase());
         setDentistSearchQuery(dentist.name.toUpperCase());
+        if (dentist.externalNotes?.trim()) {
+          const ext = dentist.externalNotes.trim();
+          setNotes((prev: string) => {
+            if (!prev || !prev.trim()) return ext;
+            if (!prev.includes(ext)) return `${ext}\n\n${prev.trim()}`;
+            return prev;
+          });
+        }
       } else {
         setDentistName(prevJob.dentistName.toUpperCase());
         setDentistSearchQuery(prevJob.dentistName.toUpperCase());
@@ -1045,6 +1071,13 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
             ((selectedDentistObj as any).role === 'CLIENT' ? selectedDentistObj.id : '')
           ) : '');
 
+    // Ensure client fixed external notes are attached to job observations
+    const clientFixedNotes = (selectedDentistMatched?.externalNotes || selectedDentistObj?.externalNotes || '').trim();
+    let finalJobNotes = notes || '';
+    if (clientFixedNotes && !finalJobNotes.includes(clientFixedNotes)) {
+        finalJobNotes = finalJobNotes.trim() ? `${clientFixedNotes}\n\n${finalJobNotes.trim()}` : clientFixedNotes;
+    }
+
     setIsSubmitting(true);
     try {
         if (isBudget) {
@@ -1057,7 +1090,7 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                 items: addedItems,
                 products: addedProducts,
                 totalValue,
-                notes,
+                notes: finalJobNotes,
                 status: 'PENDING' as const,
                 createdAt: new Date(),
             };
@@ -1096,7 +1129,7 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
             boxColor, 
             currentSector: initialSector, 
             totalValue, 
-            notes,
+            notes: finalJobNotes,
             receivedMaterials,
             receivedMaterialQuantities: materialQuantities,
             chatEnabled: false
@@ -1950,6 +1983,53 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                     <h2 className="text-sm font-black text-slate-800 mb-4 flex items-center gap-2 uppercase tracking-widest">
                         <FileText size={18} className="text-blue-500" /> {t('newJob.technicalNotesTitle', 'Observações Técnicas / Histórico acumulado')}
                     </h2>
+
+                    {/* Notas Externas Fixas do Cliente */}
+                    {(selectedDentistMatched?.externalNotes || selectedDentistObj?.externalNotes) && (
+                        <div className="mb-3 bg-blue-50/90 border border-blue-200 rounded-2xl p-3.5 flex items-start gap-2.5 animate-in fade-in duration-200 shadow-2xs">
+                            <Pin className="text-blue-600 shrink-0 mt-0.5" size={16} />
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between gap-2 flex-wrap">
+                                    <span className="text-[11px] font-black text-blue-900 uppercase tracking-wider">
+                                        Notas Externas Fixas do Cliente ({selectedDentistMatched?.name || dentistName})
+                                    </span>
+                                    <span className="bg-blue-200/80 text-blue-900 text-[9px] font-black px-2 py-0.5 rounded-full uppercase">
+                                        Fixa nesta OS
+                                    </span>
+                                </div>
+                                <p className="text-xs text-blue-950 font-bold mt-1 whitespace-pre-wrap leading-relaxed">
+                                    {selectedDentistMatched?.externalNotes || selectedDentistObj?.externalNotes}
+                                </p>
+                                <span className="text-[10px] text-blue-600 font-medium block mt-1">
+                                    ✓ Esta nota foi incluída automaticamente no campo de observações abaixo.
+                                </span>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Observações Internas sobre o Dentista (Laboratório) */}
+                    {(selectedDentistMatched?.internalNotes || selectedDentistObj?.internalNotes) && (
+                        <div className="mb-3 bg-amber-50/90 border border-amber-200 rounded-2xl p-3.5 flex items-start gap-2.5 animate-in fade-in duration-200 shadow-2xs">
+                            <Lock className="text-amber-600 shrink-0 mt-0.5" size={16} />
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between gap-2 flex-wrap">
+                                    <span className="text-[11px] font-black text-amber-900 uppercase tracking-wider">
+                                        Observações Internas sobre o Cliente ({selectedDentistMatched?.name || dentistName})
+                                    </span>
+                                    <span className="bg-amber-200/80 text-amber-900 text-[9px] font-black px-2 py-0.5 rounded-full uppercase">
+                                        Apenas Laboratório
+                                    </span>
+                                </div>
+                                <p className="text-xs text-amber-950 font-medium mt-1 whitespace-pre-wrap leading-relaxed">
+                                    {selectedDentistMatched?.internalNotes || selectedDentistObj?.internalNotes}
+                                </p>
+                                <span className="text-[10px] text-amber-700 font-medium block mt-1">
+                                    🔒 Visível apenas internamente para a equipe do laboratório.
+                                </span>
+                            </div>
+                        </div>
+                    )}
+
                     <textarea 
                         value={notes} 
                         onChange={e => setNotes(e.target.value)} 

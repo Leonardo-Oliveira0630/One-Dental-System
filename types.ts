@@ -348,7 +348,7 @@ export enum UserRole {
 
 export type PermissionKey = 
   | 'dashboard:view'
-  | 'jobs:view' | 'jobs:create' | 'jobs:edit' | 'jobs:delete' | 'jobs:return' | 'jobs:finish' | 'jobs:alert' | 'jobs:print' | 'jobs:chat_toggle' | 'jobs:approval' | 'jobs:change_status' | 'jobs:production_view' | 'jobs:production_edit'
+  | 'jobs:view' | 'jobs:create' | 'jobs:edit' | 'jobs:delete' | 'jobs:return' | 'jobs:finish' | 'jobs:alert' | 'jobs:print' | 'jobs:chat_toggle' | 'jobs:approval' | 'jobs:change_status' | 'jobs:production_view' | 'jobs:production_edit' | 'jobs:service_details_view' | 'jobs:service_details_edit'
   | 'budgets:view' | 'budgets:create' | 'budgets:edit' | 'budgets:delete'
   | 'reports:view'
   | 'reports:export'
@@ -389,7 +389,7 @@ export type PermissionKey =
 
 export const ALL_SYSTEM_PERMISSIONS: PermissionKey[] = [
   'dashboard:view',
-  'jobs:view', 'jobs:create', 'jobs:edit', 'jobs:delete', 'jobs:return', 'jobs:finish', 'jobs:alert', 'jobs:print', 'jobs:chat_toggle', 'jobs:approval', 'jobs:change_status', 'jobs:production_view', 'jobs:production_edit',
+  'jobs:view', 'jobs:create', 'jobs:edit', 'jobs:delete', 'jobs:return', 'jobs:finish', 'jobs:alert', 'jobs:print', 'jobs:chat_toggle', 'jobs:approval', 'jobs:change_status', 'jobs:production_view', 'jobs:production_edit', 'jobs:service_details_view', 'jobs:service_details_edit',
   'budgets:view', 'budgets:create', 'budgets:edit', 'budgets:delete',
   'reports:view',
   'reports:export',
@@ -896,6 +896,8 @@ export interface User {
   blockReason?: 'DEBT' | 'FINANCIAL_APPROVAL';
   temporaryUnblockUntil?: Date;
   subDentists?: any[];
+  internalNotes?: string;
+  externalNotes?: string;
   croUf?: string;
   croNumero?: string;
   croCategoria?: string;
@@ -1254,6 +1256,8 @@ export interface ManualDentist {
   blockReason?: 'DEBT' | 'FINANCIAL_APPROVAL';
   temporaryUnblockUntil?: Date;
   subDentists?: any[];
+  internalNotes?: string;
+  externalNotes?: string;
 }
 
 export interface Receipt {

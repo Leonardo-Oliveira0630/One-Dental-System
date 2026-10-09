@@ -11,7 +11,7 @@ import {
   FileText, DollarSign, CheckCircle, AlertTriangle, 
   Printer, Box, Layers, ListChecks, Bell, Edit, Save, X, Plus, Trash2, Settings,
   LogIn, LogOut, Flag, CheckSquare, File as FileIcon, Download, Loader2, CreditCard, ExternalLink, Copy, Check, Star, UploadCloud, ChevronDown, CheckCircle2, Truck, Navigation, RotateCcw, MessageCircle, MessageSquare, Lock, Crown, FileCode, FileSpreadsheet, FileWarning, XCircle, ArrowLeftCircle, ScanBarcode, Briefcase, Search, ArrowRightCircle, RefreshCw, Edit3, Package,
-  Eye, Edit2, LayoutGrid, List as ListIcon, Image as ImageLucide
+  Eye, Edit2, LayoutGrid, List as ListIcon, Image as ImageLucide, Pin
 } from 'lucide-react';
 import { CreateAlertModal } from '../components/AlertSystem';
 import { ChatSystem } from '../components/ChatSystem';
@@ -684,6 +684,8 @@ export const JobDetails = () => {
   const canChangeStatus = isAdmin || isManager || (isTech && currentUser?.permissions?.includes('jobs:change_status'));
   const canViewProduction = isAdmin || isManager || (isTech && currentUser?.permissions?.includes('jobs:production_view'));
   const canEditProduction = isAdmin || isManager || (isTech && currentUser?.permissions?.includes('jobs:production_edit'));
+  const canViewServiceDetails = isAdmin || isManager || (isClient ? true : Boolean(currentUser?.permissions?.includes('jobs:service_details_view')));
+  const canEditServiceDetails = isLabStaff && (isAdmin || isManager || Boolean(currentUser?.permissions?.includes('jobs:service_details_edit')));
 
   // Buyer / Client Delivery Confirmation & Shopee-style Service Review
   const [showReviewModal, setShowReviewModal] = useState(false);
@@ -1150,6 +1152,10 @@ export const JobDetails = () => {
   };
 
   const handleAddItemToJob = () => {
+      if (!canEditServiceDetails) {
+          alert("Você não tem permissão para editar os detalhes do serviço.");
+          return;
+      }
       const type = jobTypes.find(t => t.id === newItemTypeId);
       if (!type) return;
 
@@ -1217,6 +1223,10 @@ export const JobDetails = () => {
   };
 
   const handleRemoveItemFromJob = (itemId: string) => {
+      if (!canEditServiceDetails) {
+          alert("Você não tem permissão para editar os detalhes do serviço.");
+          return;
+      }
       const newItems = editItems.filter(i => i.id !== itemId);
       setEditItems(newItems);
       const productsTotal = (editProducts || []).reduce((acc: number, p: any) => acc + (p.unitPrice * p.quantity), 0);
@@ -1224,6 +1234,10 @@ export const JobDetails = () => {
   };
 
   const handleUpdateEditItem = (itemId: string, updates: Record<string, any>) => {
+      if (!canEditServiceDetails) {
+          alert("Você não tem permissão para editar os detalhes do serviço.");
+          return;
+      }
       let itemsTotal = 0;
       const newItems = editItems.map(item => {
           if (item.id === itemId) {
@@ -2221,6 +2235,10 @@ export const JobDetails = () => {
   };
 
   const startEditingItem = (item: JobItem) => {
+      if (!canEditServiceDetails) {
+          alert("Você não tem permissão para editar os detalhes do serviço.");
+          return;
+      }
       setEditingItemId(item.id);
       const teeth = item.selectedTeeth || [];
       setItemEditTeethInput(teeth.join(', '));
@@ -2247,6 +2265,10 @@ export const JobDetails = () => {
   };
 
   const handleSaveItemEdit = async (item: JobItem) => {
+      if (!canEditServiceDetails) {
+          alert("Você não tem permissão para editar os detalhes do serviço.");
+          return;
+      }
       const parsedQty = Math.max(1, parseInt(String(itemEditForm.quantity)) || (itemEditForm.selectedTeeth.length > 0 ? itemEditForm.selectedTeeth.length : 1));
       const newBasePrice = Math.max(0, parseFloat(String(itemEditForm.price)) || 0);
       const appliedDiscount = Math.max(0, parseFloat(String(itemEditForm.appliedDiscount)) || 0);
@@ -2486,6 +2508,34 @@ export const JobDetails = () => {
                   <p className="text-slate-700 text-xs font-semibold whitespace-pre-wrap">{job.notes}</p>
                 ) : (
                   <p className="text-slate-400 text-xs italic">{t("job.noAdditionalNotes", "Nenhuma observação ou instrução adicional informada.")}</p>
+                )}
+
+                {/* Notas Externas Fixas do Cliente */}
+                {matchedDentist?.externalNotes && (
+                  <div className="mt-3 bg-blue-50/80 border border-blue-200/80 rounded-xl p-3 flex items-start gap-2.5 text-xs shadow-2xs">
+                    <Pin size={14} className="text-blue-600 shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[10px] font-black text-blue-900 uppercase tracking-wider flex items-center justify-between">
+                        <span>Notas Externas Fixas do Cliente ({matchedDentist.name})</span>
+                        <span className="bg-blue-200/70 text-blue-900 text-[8px] font-black px-1.5 py-0.2 rounded-full uppercase">Fixa nos Trabalhos</span>
+                      </div>
+                      <p className="text-blue-950 font-bold mt-1 whitespace-pre-wrap leading-relaxed">{matchedDentist.externalNotes}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Observações Internas sobre o Dentista (Laboratório) */}
+                {matchedDentist?.internalNotes && (
+                  <div className="mt-2.5 bg-amber-50/80 border border-amber-200/80 rounded-xl p-3 flex items-start gap-2.5 text-xs shadow-2xs">
+                    <Lock size={14} className="text-amber-600 shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[10px] font-black text-amber-900 uppercase tracking-wider flex items-center justify-between">
+                        <span>Observações Internas sobre o Cliente ({matchedDentist.name})</span>
+                        <span className="bg-amber-200/70 text-amber-900 text-[8px] font-black px-1.5 py-0.2 rounded-full uppercase">Apenas Laboratório</span>
+                      </div>
+                      <p className="text-amber-950 font-medium mt-1 whitespace-pre-wrap leading-relaxed">{matchedDentist.internalNotes}</p>
+                    </div>
+                  </div>
                 )}
               </div>
             )}
@@ -4559,8 +4609,12 @@ export const JobDetails = () => {
                                 return (
                                 <div key={idx} className="py-4 flex flex-col min-w-0">
                                     <div 
-                                      className="flex justify-between items-center gap-4 cursor-pointer hover:bg-slate-50 p-2 -mx-2 rounded-xl transition-colors"
-                                      onClick={() => setExpandedItemIdx(isExpanded ? null : idx)}
+                                      className={`flex justify-between items-center gap-4 ${canViewServiceDetails ? 'cursor-pointer hover:bg-slate-50' : ''} p-2 -mx-2 rounded-xl transition-colors`}
+                                      onClick={() => {
+                                        if (canViewServiceDetails) {
+                                          setExpandedItemIdx(isExpanded ? null : idx);
+                                        }
+                                      }}
                                     >
                                         <div className="min-w-0 flex-1">
                                             <p className="font-black text-slate-800 text-sm md:text-base leading-tight truncate"><span className="text-blue-600 mr-1">{item.quantity}x</span> {getNaturePrefix(item.nature)}{formatItemNameWithVariations(item, jobTypes)}</p>
@@ -4600,11 +4654,13 @@ export const JobDetails = () => {
                                             ) : (
                                                 <p className="font-black text-slate-600 text-sm md:text-base">R$ {(item.price * item.quantity).toFixed(2)}</p>
                                             )}
-                                            <ChevronDown size={18} className={`text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                                            {canViewServiceDetails && (
+                                                <ChevronDown size={18} className={`text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                                            )}
                                         </div>
                                     </div>
                                     
-                                    {isExpanded && (
+                                    {canViewServiceDetails && isExpanded && (
                                         <div className="mt-4 p-4 bg-slate-50 border border-slate-100 rounded-2xl animate-in fade-in slide-in-from-top-2">
                                             {editingItemId === item.id ? (
                                                 <div className="space-y-4">
@@ -4912,7 +4968,7 @@ export const JobDetails = () => {
                                                                 )}
                                                             </div>
                                                         </div>
-                                                        {isLabStaff && (
+                                                        {isLabStaff && canEditServiceDetails && (
                                                             <div className="flex flex-col gap-2 shrink-0 ml-4 items-end">
                                                                 <button 
                                                                     onClick={() => startEditingItem(item)}

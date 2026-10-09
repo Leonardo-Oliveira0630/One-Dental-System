@@ -2,12 +2,13 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '../../context/AppContext';
 import { UserRole, ManualDentist, Job, JobStatus, DentistPayment, BillingBatch } from '../../types';
-import { Stethoscope, Building, Search, Loader2, ArrowRight, Tag, Percent, Save, X, DollarSign, Globe, HardDrive, UserCheck, Package, Table, FileText, Lock, Unlock, RefreshCw, Check, Calendar, ArrowUpCircle, ArrowDownCircle, Receipt, History, CreditCard, Banknote, Wallet, FileSpreadsheet, Plus, Info, MinusCircle, Printer, Download, ChevronLeft, ChevronRight, Users, Filter, RotateCcw, Trash2 } from 'lucide-react';
+import { Stethoscope, Building, Search, Loader2, ArrowRight, Tag, Percent, Save, X, DollarSign, Globe, HardDrive, UserCheck, Package, Table, FileText, Lock, Unlock, RefreshCw, Check, Calendar, ArrowUpCircle, ArrowDownCircle, Receipt, History, CreditCard, Banknote, Wallet, FileSpreadsheet, Plus, Info, MinusCircle, Printer, Download, ChevronLeft, ChevronRight, Users, Filter, RotateCcw, Trash2, Pin } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getDentistJobs, subscribeDentistJobs } from '../../services/firebaseService';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { matchesSearchQuery, filterAndSortClients, parseBrazilianCurrency, formatCurrencyInputMask } from '../../utils/stringUtils';
+import { usePageFilterCache } from '../../utils/pageCache';
 
 const translatePaymentMethod = (method: string) => {
     switch (method) {
@@ -31,11 +32,43 @@ export const Dentists = () => {
         cardMachines, bankAccounts, currentOrg
     } = useApp();
     const navigate = useNavigate();
-    const [searchTerm, setSearchTerm] = useState('');
-    const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'BLOCKED' | 'DEBT' | 'FINANCIAL_APPROVAL'>('ALL');
-    const [clientTypeFilter, setClientTypeFilter] = useState<'ALL' | 'PESSOA_FISICA' | 'CLINICA' | 'LABORATORIO'>('ALL');
-    const [priceTableFilter, setPriceTableFilter] = useState<string>('ALL');
-    const [customPricingFilter, setCustomPricingFilter] = useState<'ALL' | 'CUSTOM' | 'NOT_CUSTOM'>('ALL');
+    
+    const defaultFilters = useMemo(() => ({
+        searchTerm: '',
+        statusFilter: 'ALL' as 'ALL' | 'ACTIVE' | 'BLOCKED' | 'DEBT' | 'FINANCIAL_APPROVAL',
+        clientTypeFilter: 'ALL' as 'ALL' | 'PESSOA_FISICA' | 'CLINICA' | 'LABORATORIO',
+        priceTableFilter: 'ALL',
+        customPricingFilter: 'ALL' as 'ALL' | 'CUSTOM' | 'NOT_CUSTOM'
+    }), []);
+
+    const {
+        filters,
+        setFilter,
+        resetFilters,
+        saveScroll,
+        restoreScroll
+    } = usePageFilterCache('lab_dentists_cache', defaultFilters);
+
+    const {
+        searchTerm,
+        statusFilter,
+        clientTypeFilter,
+        priceTableFilter,
+        customPricingFilter
+    } = filters;
+
+    const setSearchTerm = (val: string) => setFilter('searchTerm', val);
+    const setStatusFilter = (val: any) => setFilter('statusFilter', val);
+    const setClientTypeFilter = (val: any) => setFilter('clientTypeFilter', val);
+    const setPriceTableFilter = (val: string) => setFilter('priceTableFilter', val);
+    const setCustomPricingFilter = (val: any) => setFilter('customPricingFilter', val);
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            restoreScroll();
+        }, 100);
+        return () => clearTimeout(timer);
+    }, [restoreScroll]);
 
     const hasPerm = (perm: string) => {
         if (currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.SUPER_ADMIN) return true;
@@ -63,6 +96,43 @@ export const Dentists = () => {
     const [technicalManagerCpf, setTechnicalManagerCpf] = useState('');
     const [technicalManagerCro, setTechnicalManagerCro] = useState('');
     const [showTechnicalManager, setShowTechnicalManager] = useState(false);
+    
+    // Client Notes States
+    const [clientInternalNotes, setClientInternalNotes] = useState('');
+    const [clientExternalNotes, setClientExternalNotes] = useState('');
+    const [notesModalClient, setNotesModalClient] = useState<any | null>(null);
+    const [quickInternalNotes, setQuickInternalNotes] = useState('');
+    const [quickExternalNotes, setQuickExternalNotes] = useState('');
+    const [isSavingQuickNotes, setIsSavingQuickNotes] = useState(false);
+
+    const openNotesModal = (client: any) => {
+        setNotesModalClient(client);
+        setQuickInternalNotes(client.internalNotes || '');
+        setQuickExternalNotes(client.externalNotes || '');
+    };
+
+    const handleSaveQuickNotes = async () => {
+        if (!notesModalClient) return;
+        setIsSavingQuickNotes(true);
+        try {
+            const updates = {
+                internalNotes: quickInternalNotes.trim(),
+                externalNotes: quickExternalNotes.trim()
+            };
+            if (notesModalClient.isManual) {
+                await updateManualDentist(notesModalClient.id, updates);
+            } else {
+                await updateUser(notesModalClient.id, updates);
+            }
+            alert("Notas do cliente atualizadas com sucesso!");
+            setNotesModalClient(null);
+        } catch (err) {
+            console.error(err);
+            alert("Erro ao salvar notas do cliente.");
+        } finally {
+            setIsSavingQuickNotes(false);
+        }
+    };
     
     // Extrato State
     const [showStatement, setShowStatement] = useState(false);
@@ -221,6 +291,8 @@ export const Dentists = () => {
         setShowTechnicalManager(
             Boolean(client.technicalManagerName || client.technicalManagerEmail || client.technicalManagerCpf || client.technicalManagerCro)
         );
+        setClientInternalNotes(client.internalNotes || '');
+        setClientExternalNotes(client.externalNotes || '');
     };
 
     const handleSavePricing = async () => {
@@ -242,6 +314,8 @@ export const Dentists = () => {
                 technicalManagerEmail: technicalManagerEmail || '',
                 technicalManagerCpf: technicalManagerCpf || '',
                 technicalManagerCro: technicalManagerCro || '',
+                internalNotes: (clientInternalNotes || '').trim(),
+                externalNotes: (clientExternalNotes || '').trim(),
             };
 
             // STRICT PERMISSION CHECK
@@ -882,11 +956,7 @@ export const Dentists = () => {
     const hasActiveFilters = Boolean(searchTerm.trim()) || clientTypeFilter !== 'ALL' || priceTableFilter !== 'ALL' || customPricingFilter !== 'ALL' || statusFilter !== 'ALL';
 
     const handleClearFilters = () => {
-        setSearchTerm('');
-        setClientTypeFilter('ALL');
-        setPriceTableFilter('ALL');
-        setCustomPricingFilter('ALL');
-        setStatusFilter('ALL');
+        resetFilters();
     };
 
     return (
@@ -1093,6 +1163,32 @@ export const Dentists = () => {
                                                             <Building size={11} className="shrink-0" />
                                                             <span className="truncate">{client.clinicName || t('dentists.privatePractice', 'Consultório Particular')}</span>
                                                         </div>
+
+                                                        {/* Client Notes Badges */}
+                                                        {(client.internalNotes || client.externalNotes) && (
+                                                            <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                                                                {client.internalNotes && (
+                                                                    <button 
+                                                                        type="button" 
+                                                                        onClick={() => openNotesModal(client)}
+                                                                        className="bg-amber-100/90 hover:bg-amber-200 text-amber-800 text-[9px] font-black px-1.5 py-0.5 rounded-md inline-flex items-center gap-1 transition-colors cursor-pointer shadow-2xs" 
+                                                                        title={`Nota Interna: ${client.internalNotes}`}
+                                                                    >
+                                                                        <Lock size={9} /> Nota Interna
+                                                                    </button>
+                                                                )}
+                                                                {client.externalNotes && (
+                                                                    <button 
+                                                                        type="button" 
+                                                                        onClick={() => openNotesModal(client)}
+                                                                        className="bg-blue-100/90 hover:bg-blue-200 text-blue-800 text-[9px] font-black px-1.5 py-0.5 rounded-md inline-flex items-center gap-1 transition-colors cursor-pointer shadow-2xs" 
+                                                                        title={`Nota Fixa OS: ${client.externalNotes}`}
+                                                                    >
+                                                                        <Pin size={9} /> Nota Fixa OS
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </td>
@@ -1152,6 +1248,18 @@ export const Dentists = () => {
                                             {/* Ações */}
                                             <td className="py-3 px-4 sm:px-5 text-right whitespace-nowrap">
                                                 <div className="flex items-center justify-end gap-1.5">
+                                                    <button 
+                                                        onClick={() => openNotesModal(client)}
+                                                        className={`px-2.5 py-1.5 font-bold rounded-xl transition-all inline-flex items-center gap-1 text-xs border cursor-pointer shadow-2xs ${
+                                                            (client.internalNotes || client.externalNotes)
+                                                                ? 'bg-amber-50 hover:bg-amber-100 text-amber-700 border-amber-300'
+                                                                : 'bg-slate-100 hover:bg-amber-50 text-slate-700 hover:text-amber-600 border-slate-200/80'
+                                                        }`}
+                                                        title="Notas do Cliente (Internas e Externas)"
+                                                    >
+                                                        <FileText size={13} className="text-amber-600 shrink-0" />
+                                                        <span>Notas</span>
+                                                    </button>
                                                     {canViewPrices && (
                                                         <button 
                                                             onClick={() => handleOpenPricing(client)}
@@ -1164,7 +1272,10 @@ export const Dentists = () => {
                                                     )}
                                                     {hasPerm('jobs:view') && (
                                                         <button 
-                                                            onClick={() => navigate(`/jobs?dentist=${client.id}`)}
+                                                            onClick={() => {
+                                                                saveScroll();
+                                                                navigate(`/jobs?dentist=${client.id}`);
+                                                            }}
                                                             className="px-2.5 py-1.5 bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-600 font-bold rounded-xl transition-all inline-flex items-center gap-1 text-xs border border-slate-200/80 cursor-pointer shadow-2xs"
                                                             title={t('dentists.jobsBtn', 'Trabalhos do Cliente')}
                                                         >
@@ -1446,6 +1557,69 @@ export const Dentists = () => {
                                         )}
                                     </div>
                                 )}
+
+                                {/* NOTAS E OBSERVAÇÕES DO CLIENTE (INTERNAS & EXTERNAS) */}
+                                <div className="space-y-4 col-span-1 md:col-span-2 pt-4 border-t border-slate-100">
+                                    <div className="flex items-center justify-between">
+                                        <label className="text-[10px] font-black text-blue-600 uppercase tracking-widest px-1 flex items-center gap-1.5">
+                                            <FileText size={14} className="text-blue-500" />
+                                            <span>Notas do Cliente (Internas & Externas)</span>
+                                        </label>
+                                        <span className="text-[9px] font-bold text-slate-400">Observações e diretrizes de trabalho</span>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {/* NOTAS INTERNAS */}
+                                        <div className="bg-amber-50/70 border border-amber-200/90 rounded-2xl p-4 flex flex-col justify-between">
+                                            <div>
+                                                <div className="flex items-center justify-between mb-1.5">
+                                                    <label className="text-xs font-black text-amber-950 uppercase flex items-center gap-1.5 tracking-wide">
+                                                        <Lock size={13} className="text-amber-600" />
+                                                        Notas Internas (Privadas)
+                                                    </label>
+                                                    <span className="bg-amber-200/80 text-amber-900 text-[9px] font-black px-2 py-0.5 rounded-full uppercase">
+                                                        Apenas Equipe
+                                                    </span>
+                                                </div>
+                                                <p className="text-[11px] text-amber-800/90 font-medium mb-2.5 leading-relaxed">
+                                                    Observações internas sobre o dentista. Visíveis ao acessar o cadastro e nos detalhes dos trabalhos pela equipe técnica.
+                                                </p>
+                                            </div>
+                                            <textarea
+                                                rows={3}
+                                                value={clientInternalNotes}
+                                                onChange={e => setClientInternalNotes(e.target.value)}
+                                                placeholder="Ex: Dentista prefere contato por WhatsApp após às 14h; muito exigente na cor A2; verificar oclusão..."
+                                                className="w-full px-3.5 py-2.5 bg-white border border-amber-200 rounded-xl outline-none focus:ring-2 focus:ring-amber-500 text-xs font-semibold text-slate-700 placeholder:text-slate-400 resize-none transition-all"
+                                            />
+                                        </div>
+
+                                        {/* NOTAS EXTERNAS */}
+                                        <div className="bg-blue-50/70 border border-blue-200/90 rounded-2xl p-4 flex flex-col justify-between">
+                                            <div>
+                                                <div className="flex items-center justify-between mb-1.5">
+                                                    <label className="text-xs font-black text-blue-950 uppercase flex items-center gap-1.5 tracking-wide">
+                                                        <Pin size={13} className="text-blue-600" />
+                                                        Notas Externas (Fixas na OS)
+                                                    </label>
+                                                    <span className="bg-blue-200/80 text-blue-900 text-[9px] font-black px-2 py-0.5 rounded-full uppercase">
+                                                        Fixa nos Trabalhos
+                                                    </span>
+                                                </div>
+                                                <p className="text-[11px] text-blue-800/90 font-medium mb-2.5 leading-relaxed">
+                                                    Observações técnicas que sairão <strong>fixas no campo de observações</strong> de todos os trabalhos cadastrados deste cliente.
+                                                </p>
+                                            </div>
+                                            <textarea
+                                                rows={3}
+                                                value={clientExternalNotes}
+                                                onChange={e => setClientExternalNotes(e.target.value)}
+                                                placeholder="Ex: Articulador próprio do cliente Bio-Art; sempre utilizar resina bisacrílica; enviar caixas identificadas..."
+                                                className="w-full px-3.5 py-2.5 bg-white border border-blue-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-xs font-semibold text-slate-700 placeholder:text-slate-400 resize-none transition-all"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
 
                                 <div className="space-y-4">
                                     {canViewPrices && (
@@ -1841,6 +2015,98 @@ export const Dentists = () => {
                     </div>
                 </div>
             )}
+
+            {/* MODAL: VISUALIZAÇÃO / EDIÇÃO RÁPIDA DE NOTAS DO CLIENTE */}
+            {notesModalClient && (
+                <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-xl animate-in zoom-in duration-200 overflow-hidden border border-slate-100 flex flex-col">
+                        <div className="p-4 sm:px-6 sm:py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
+                            <div className="flex items-center gap-2.5">
+                                <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold">
+                                    <FileText size={20} />
+                                </div>
+                                <div>
+                                    <h3 className="text-base font-black text-slate-800">
+                                        Notas do Cliente: {notesModalClient.name}
+                                    </h3>
+                                    <p className="text-xs text-slate-500 font-medium">
+                                        Observações internas do laboratório e notas fixas nos trabalhos.
+                                    </p>
+                                </div>
+                            </div>
+                            <button onClick={() => setNotesModalClient(null)} className="text-slate-400 hover:text-slate-600 p-2 rounded-full hover:bg-slate-200/60 transition-colors shrink-0">
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <div className="p-4 sm:p-6 space-y-5 overflow-y-auto max-h-[75vh]">
+                            {/* Bloco Notas Internas */}
+                            <div className="bg-amber-50/70 border border-amber-200 rounded-2xl p-4">
+                                <div className="flex items-center justify-between mb-2">
+                                    <label className="text-xs font-black text-amber-900 uppercase flex items-center gap-1.5 tracking-wide">
+                                        <Lock size={13} className="text-amber-600" /> Notas Internas (Privadas do Laboratório)
+                                    </label>
+                                    <span className="bg-amber-200/80 text-amber-900 text-[9px] font-black px-2 py-0.5 rounded-full uppercase">
+                                        Apenas Equipe
+                                    </span>
+                                </div>
+                                <p className="text-[11px] text-amber-800/90 font-medium mb-2.5 leading-relaxed">
+                                    Observações internas sobre o perfil ou histórico do dentista. Visíveis ao acessar o cadastro do cliente e nos detalhes de trabalhos.
+                                </p>
+                                <textarea
+                                    rows={3}
+                                    value={quickInternalNotes}
+                                    onChange={e => setQuickInternalNotes(e.target.value)}
+                                    placeholder="Ex: Dentista prefere contato por WhatsApp após às 14h; muito exigente na cor A2..."
+                                    className="w-full px-3.5 py-2.5 bg-white border border-amber-200 rounded-xl outline-none focus:ring-2 focus:ring-amber-500 text-xs font-semibold text-slate-700 placeholder:text-slate-400 resize-none transition-all"
+                                />
+                            </div>
+
+                            {/* Bloco Notas Externas */}
+                            <div className="bg-blue-50/70 border border-blue-200 rounded-2xl p-4">
+                                <div className="flex items-center justify-between mb-2">
+                                    <label className="text-xs font-black text-blue-900 uppercase flex items-center gap-1.5 tracking-wide">
+                                        <Pin size={13} className="text-blue-600" /> Notas Externas (Fixas nos Trabalhos)
+                                    </label>
+                                    <span className="bg-blue-200/80 text-blue-900 text-[9px] font-black px-2 py-0.5 rounded-full uppercase">
+                                        Fixa em todas as OSs
+                                    </span>
+                                </div>
+                                <p className="text-[11px] text-blue-800/90 font-medium mb-2.5 leading-relaxed">
+                                    Observações que saem automaticamente fixas no campo de observações de todos os trabalhos cadastrados deste cliente.
+                                </p>
+                                <textarea
+                                    rows={3}
+                                    value={quickExternalNotes}
+                                    onChange={e => setQuickExternalNotes(e.target.value)}
+                                    placeholder="Ex: Articulador próprio do cliente modelo Bio-Art; sempre utilizar resina bisacrílica..."
+                                    className="w-full px-3.5 py-2.5 bg-white border border-blue-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-xs font-semibold text-slate-700 placeholder:text-slate-400 resize-none transition-all"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="p-4 sm:px-6 sm:py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-end gap-2.5">
+                            <button
+                                type="button"
+                                onClick={() => setNotesModalClient(null)}
+                                className="px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-200/70 rounded-xl transition-colors"
+                            >
+                                Fechar
+                            </button>
+                            <button
+                                type="button"
+                                disabled={isSavingQuickNotes}
+                                onClick={handleSaveQuickNotes}
+                                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs rounded-xl shadow-md transition-all flex items-center gap-1.5 disabled:opacity-50"
+                            >
+                                {isSavingQuickNotes ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                                Salvar Notas
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* MODAL DE EXTRATO (STATEMENT) DASHBOARD FINANCEIRO */}
             {showStatement && statementClient && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-2 sm:p-4">

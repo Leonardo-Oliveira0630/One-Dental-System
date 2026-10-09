@@ -1,14 +1,15 @@
 import logger from "../utils/logger";
 
-import React, { useState, useMemo, memo } from 'react';
+import React, { useState, useMemo, memo, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from '../src/i18n';
 import { useApp } from '../context/AppContext';
 import { JobStatus, UserRole, UrgencyLevel, Job } from '../types';
 import { Search, Filter, FileDown, Eye, Clock, AlertCircle, Printer, X, ChevronRight, MapPin, User, SlidersHorizontal, RefreshCcw, Ban, Building, QrCode, Copy, Check, Globe, HardDrive, CheckCircle2, Truck, Loader2, Box, RotateCcw, Calendar, MoreHorizontal, PlusCircle, Camera } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { getContrastColor } from '../services/mockData';
 import { MultiSelect } from '../components/MultiSelect';
+import { usePageFilterCache, cachedNormalizeText } from '../utils/pageCache';
 
 import { StoreTopMenu } from '../components/StoreTopMenu';
 
@@ -97,6 +98,7 @@ const JobRow = memo(({ isJobOverdue,
     isBudgetMode, 
     isLabStaff, 
     navigate, 
+    onOpenJob,
     handleFinalizeJob, 
     handleReopenJob, 
     setRouteModalJob,
@@ -111,6 +113,7 @@ const JobRow = memo(({ isJobOverdue,
     isBudgetMode?: boolean,
     isLabStaff: boolean, 
     navigate: any, 
+    onOpenJob?: (id: string) => void,
     handleFinalizeJob: any, 
     handleReopenJob: any, 
     setRouteModalJob: any,
@@ -130,7 +133,7 @@ const JobRow = memo(({ isJobOverdue,
         <tr className={`hover:bg-blue-50/30 dark:hover:bg-blue-950/20 transition-colors ${showAttention ? 'bg-yellow-50/50 dark:bg-yellow-950/20' : ''}`}>
             {/* 1. OS # ou Orçamento # */}
             <td className="p-4 font-mono font-bold text-sm">
-                <button onClick={() => navigate(`/jobs/${job.id}`)} className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline text-left">
+                <button onClick={() => onOpenJob ? onOpenJob(job.id) : navigate(`/jobs/${job.id}`)} className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline text-left cursor-pointer">
                     {job.osNumber || '---'}
                 </button>
             </td>
@@ -267,8 +270,8 @@ const JobRow = memo(({ isJobOverdue,
                 <div className="flex justify-end gap-1">
                     {!isBudgetMode && canFinalize && <button onClick={() => handleFinalizeJob(job)} className="p-2 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-950/40 rounded-lg" title={t('orders.actionFinalize', 'Finalizar')}><CheckCircle2 size={18} /></button>}
                     {!isBudgetMode && canReopen && <button onClick={() => handleReopenJob(job)} className="p-2 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-950/40 rounded-lg" title={t('orders.actionReopen', 'Reabrir')}><RotateCcw size={18} /></button>}
-                    {!isBudgetMode && canRoute && <button onClick={() => setRouteModalJob(job)} className="p-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-950/40 rounded-lg" title={t('orders.scaleForDelivery', 'Escalar p/ Entrega')}><Truck size={18} /></button>}
-                    <button onClick={() => navigate(`/jobs/${job.id}`)} className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-950/40 rounded-lg" title={isBudgetMode ? t('orders.viewBudget', 'Ver Orçamento') : t('common.view', 'Visualizar')}><Eye size={18} /></button>
+                    {!isBudgetMode && canRoute && <button onClick={() => setRouteModalJob(job)} className="p-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-950/40 rounded-lg cursor-pointer" title={t('orders.scaleForDelivery', 'Escalar p/ Entrega')}><Truck size={18} /></button>}
+                    <button onClick={() => onOpenJob ? onOpenJob(job.id) : navigate(`/jobs/${job.id}`)} className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-950/40 rounded-lg cursor-pointer" title={isBudgetMode ? t('orders.viewBudget', 'Ver Orçamento') : t('common.view', 'Visualizar')}><Eye size={18} /></button>
                 </div>
             </td>
         </tr>
@@ -279,6 +282,7 @@ const JobRow = memo(({ isJobOverdue,
 const JobCard = memo(({ isJobOverdue, 
     job, 
     navigate, 
+    onOpenJob,
     getStatusColor, 
     getTranslatedStatus, 
     getSectorTimeInfo, 
@@ -289,6 +293,7 @@ const JobCard = memo(({ isJobOverdue,
     isJobOverdue?: any,
     job: Job, 
     navigate: any, 
+    onOpenJob?: (id: string) => void,
     getStatusColor: any, 
     getTranslatedStatus: any, 
     getSectorTimeInfo: any, 
@@ -300,7 +305,7 @@ const JobCard = memo(({ isJobOverdue,
     const timeInfo = getSectorTimeInfo(job);
     const showAttention = !isClient && timeInfo.isAttention;
     return (
-        <div onClick={() => navigate(`/jobs/${job.id}`)} className={`bg-white dark:bg-[#131B2A] rounded-2xl p-4 shadow-sm border transition-transform relative overflow-hidden active:scale-[0.98] ${showAttention ? 'border-amber-300 dark:border-amber-700 bg-amber-50/30 dark:bg-amber-950/20' : 'border-slate-200 dark:border-slate-800'}`}>
+        <div onClick={() => onOpenJob ? onOpenJob(job.id) : navigate(`/jobs/${job.id}`)} className={`bg-white dark:bg-[#131B2A] rounded-2xl p-4 shadow-sm border transition-transform relative overflow-hidden active:scale-[0.98] cursor-pointer ${showAttention ? 'border-amber-300 dark:border-amber-700 bg-amber-50/30 dark:bg-amber-950/20' : 'border-slate-200 dark:border-slate-800'}`}>
             {job.urgency === UrgencyLevel.VIP && <div className="absolute top-0 right-0 w-12 h-12 overflow-hidden"><div className="bg-orange-500 text-white text-[8px] font-black py-1 px-10 transform rotate-45 translate-x-3 -translate-y-1 text-center shadow-sm uppercase">VIP</div></div>}
 
             {showAttention && <div className="absolute top-0 left-0 w-full h-1 bg-amber-400 animate-pulse" />}
@@ -453,19 +458,96 @@ export const JobsList = ({ isStoreContext, isBudgetMode }: { isStoreContext?: bo
   const { jobs, budgets, currentUser, updateJob, sectors, activeOrganization, addJobToRoute, allUsers, manualDentists, couriers, onlineRequisitions, activeManualDentistId, currentPlan, currentOrg } = useApp();
   const navigate = useNavigate();
   
-  const [filterText, setFilterText] = useState('');
-  const [showFilters, setShowFilters] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<string>('ALL');
-  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [filterUrgency, setFilterUrgency] = useState('');
-  const [filterOrigin, setFilterOrigin] = useState<string>('ALL');
-  const [filterAttention, setFilterAttention] = useState(false);
-  
-  const [selectedDentists, setSelectedDentists] = useState<string[]>([]);
-  const [selectedCollaborators, setSelectedCollaborators] = useState<string[]>([]);
-  const [selectedSectors, setSelectedSectors] = useState<string[]>([]);
+  const location = useLocation();
+
+  const cacheKey = isBudgetMode ? 'budgets_list_cache' : 'jobs_list_cache';
+
+  const defaultFilters = useMemo(() => ({
+    filterText: '',
+    showFilters: false,
+    statusFilter: 'ALL',
+    selectedStatuses: [] as string[],
+    startDate: '',
+    endDate: '',
+    filterUrgency: '',
+    filterOrigin: 'ALL',
+    filterAttention: false,
+    selectedDentists: [] as string[],
+    selectedCollaborators: [] as string[],
+    selectedSectors: [] as string[],
+    visibleCount: 20
+  }), []);
+
+  const {
+    filters,
+    setFilter,
+    setFilters,
+    resetFilters,
+    hasActiveFilters,
+    saveScroll,
+    restoreScroll
+  } = usePageFilterCache(cacheKey, defaultFilters);
+
+  const {
+    filterText,
+    showFilters,
+    statusFilter,
+    selectedStatuses,
+    startDate,
+    endDate,
+    filterUrgency,
+    filterOrigin,
+    filterAttention,
+    selectedDentists,
+    selectedCollaborators,
+    selectedSectors,
+    visibleCount
+  } = filters;
+
+  const setFilterText = useCallback((val: string) => setFilter('filterText', val), [setFilter]);
+  const setShowFilters = useCallback((val: boolean | ((prev: boolean) => boolean)) => setFilter('showFilters', val), [setFilter]);
+  const setStatusFilter = useCallback((val: string) => setFilter('statusFilter', val), [setFilter]);
+  const setSelectedStatuses = useCallback((val: string[]) => setFilter('selectedStatuses', val), [setFilter]);
+  const setStartDate = useCallback((val: string) => setFilter('startDate', val), [setFilter]);
+  const setEndDate = useCallback((val: string) => setFilter('endDate', val), [setFilter]);
+  const setFilterUrgency = useCallback((val: string) => setFilter('filterUrgency', val), [setFilter]);
+  const setFilterOrigin = useCallback((val: string) => setFilter('filterOrigin', val), [setFilter]);
+  const setFilterAttention = useCallback((val: boolean) => setFilter('filterAttention', val), [setFilter]);
+  const setSelectedDentists = useCallback((val: string[]) => setFilter('selectedDentists', val), [setFilter]);
+  const setSelectedCollaborators = useCallback((val: string[]) => setFilter('selectedCollaborators', val), [setFilter]);
+  const setSelectedSectors = useCallback((val: string[]) => setFilter('selectedSectors', val), [setFilter]);
+  const setVisibleCount = useCallback((val: number | ((prev: number) => number)) => setFilter('visibleCount', val), [setFilter]);
+
+  // Synchronize URL query parameters (e.g. from Dentists.tsx clicking "Trabalhos" with ?dentist=ID or ?search=term)
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const dentistParam = params.get('dentist');
+    const searchParam = params.get('search');
+    const updates: Partial<typeof defaultFilters> = {};
+    if (dentistParam && (!selectedDentists.includes(dentistParam) || selectedDentists.length !== 1)) {
+      updates.selectedDentists = [dentistParam];
+      updates.showFilters = true;
+    }
+    if (searchParam && searchParam !== filterText) {
+      updates.filterText = searchParam;
+    }
+    if (Object.keys(updates).length > 0) {
+      setFilters(updates);
+    }
+  }, [location.search]);
+
+  // Restore scroll position after mount / render
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      restoreScroll();
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [restoreScroll]);
+
+  const handleOpenJob = useCallback((jobId: string) => {
+    saveScroll();
+    navigate(`/jobs/${jobId}`);
+  }, [navigate, saveScroll]);
 
   const [routeModalJob, setRouteModalJob] = useState<Job | null>(null);
   
@@ -479,7 +561,6 @@ export const JobsList = ({ isStoreContext, isBudgetMode }: { isStoreContext?: bo
   const [routeDate, setRouteDate] = useState(new Date().toISOString().split('T')[0]);
   const [routeObservations, setRouteObservations] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [visibleCount, setVisibleCount] = useState(20);
 
   const handleSaveNotes = async (jobId: string, notes: string) => {
     try {
@@ -578,6 +659,28 @@ const handleUpdateStatus = async (jobId: string, status: JobStatus) => {
   }, [jobs, budgets, onlineRequisitions, isClient, currentUser?.id, currentUser?.manualDentistId, activeManualDentistId, isBudgetMode]);
 
   const filteredJobs = useMemo(() => {
+    const searchLower = cachedNormalizeText(filterText);
+    const hasStatusFilter = statusFilter !== 'ALL';
+    const hasSelectedStatuses = selectedStatuses.length > 0;
+    const hasOverdueSelected = selectedStatuses.includes('OVERDUE');
+    const hasOtherStatuses = selectedStatuses.some(s => s !== 'OVERDUE');
+
+    let startTimestamp: number | null = null;
+    if (startDate) {
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+      startTimestamp = start.getTime();
+    }
+
+    let endTimestamp: number | null = null;
+    if (endDate) {
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      endTimestamp = end.getTime();
+    }
+
+    const nowTime = Date.now();
+
     return combinedJobs.filter(job => {
         if (job.isComboPurchase) return false;
         if (isClient && 
@@ -587,31 +690,29 @@ const handleUpdateStatus = async (jobId: string, status: JobStatus) => {
             job.dentistUserId !== currentUser?.id && 
             !job.isPseudo
         ) return false;
-        const searchLower = normalizeText(filterText);
-        const matchText = 
-          normalizeText(job.osNumber || '').includes(searchLower) ||
-          normalizeText(job.boxNumber || '').includes(searchLower) ||
-          normalizeText(job.patientName).includes(searchLower) ||
-          normalizeText(job.dentistName).includes(searchLower);
-        if (!matchText) return false;
-        if (selectedStatuses.length > 0) {
-            const hasOverdueSelected = selectedStatuses.includes('OVERDUE');
-            const hasOtherStatuses = selectedStatuses.some(s => s !== 'OVERDUE');
-            
+
+        if (searchLower) {
+          const matchText = 
+            cachedNormalizeText(job.osNumber || '').includes(searchLower) ||
+            cachedNormalizeText(job.boxNumber || '').includes(searchLower) ||
+            cachedNormalizeText(job.patientName || '').includes(searchLower) ||
+            cachedNormalizeText(job.dentistName || '').includes(searchLower);
+          if (!matchText) return false;
+        }
+
+        if (hasSelectedStatuses) {
             let matchesStatus = false;
             
             if (hasOverdueSelected && isJobOverdue(job)) {
                 matchesStatus = true;
             }
 
-            
             if (hasOtherStatuses && selectedStatuses.includes(job.status)) {
                 matchesStatus = true;
             }
 
-            
             if (!matchesStatus) return false;
-        } else if (statusFilter !== 'ALL') {
+        } else if (hasStatusFilter) {
             if (statusFilter === 'ACTIVE_JOBS') {
                 const inactive = ['COMPLETED', 'DELIVERED', 'REJECTED', 'REJECTED_REQUISITION', 'CANCELED'];
                 if (inactive.includes(job.status)) return false;
@@ -622,22 +723,18 @@ const handleUpdateStatus = async (jobId: string, status: JobStatus) => {
             } else if (job.status !== statusFilter) {
                 return false;
             }
-
         }
 
-        if (startDate) {
-            const start = new Date(startDate);
-            start.setHours(0,0,0,0);
-            if (new Date(job.createdAt) < start) return false;
+        if (startTimestamp !== null) {
+            const timeVal = job.createdAt ? new Date(job.createdAt).getTime() : 0;
+            if (timeVal < startTimestamp) return false;
         }
 
-        if (endDate) {
-            const end = new Date(endDate);
-            end.setHours(23,59,59,999);
-            if (new Date(job.createdAt) > end) return false;
+        if (endTimestamp !== null) {
+            const timeVal = job.createdAt ? new Date(job.createdAt).getTime() : 0;
+            if (timeVal > endTimestamp) return false;
         }
 
-        
         if (selectedDentists.length > 0 && !selectedDentists.includes(job.dentistId)) return false;
         if (selectedSectors.length > 0 && !selectedSectors.includes(job.currentSector || '')) return false;
         if (selectedCollaborators.length > 0) {
@@ -645,11 +742,10 @@ const handleUpdateStatus = async (jobId: string, status: JobStatus) => {
             if (!hasCollaborator) return false;
         }
 
-
         if (filterUrgency && job.urgency !== filterUrgency) return false;
         if (filterAttention) {
             if (!job.sectorEntryTime) return false;
-            const hours = (new Date().getTime() - new Date(job.sectorEntryTime).getTime()) / (1000 * 60 * 60);
+            const hours = (nowTime - new Date(job.sectorEntryTime).getTime()) / (1000 * 60 * 60);
             if (hours < 18) return false;
         }
 
@@ -1015,18 +1111,48 @@ const handleUpdateStatus = async (jobId: string, status: JobStatus) => {
                     placeholder={t('orders.searchPlaceholder', 'Buscar OS, Caixa, Paciente, Dentista...')}
                     value={filterText}
                     onChange={(e) => setFilterText(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0B0F17] text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 outline-none text-sm placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                    className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0B0F17] text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 outline-none text-sm placeholder:text-slate-400 dark:placeholder:text-slate-500"
                 />
+                {filterText && (
+                    <button 
+                        onClick={() => setFilterText('')}
+                        className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                        title="Limpar texto da pesquisa"
+                    >
+                        <X size={16} />
+                    </button>
+                )}
             </div>
             <button 
                 onClick={() => setShowFilters(!showFilters)}
-                className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border transition-all text-sm font-bold ${
+                className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border transition-all text-sm font-bold cursor-pointer ${
                     showFilters ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white dark:bg-[#0B0F17] border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
                 }`}
             >
                 <SlidersHorizontal size={18} /> {t('common.filters', 'Filtros')}
             </button>
         </div>
+
+        {hasActiveFilters && (
+            <div className="flex items-center justify-between bg-blue-50/80 dark:bg-blue-950/30 border border-blue-200/80 dark:border-blue-900/60 rounded-xl px-3.5 py-2 text-xs text-blue-900 dark:text-blue-200 animate-in fade-in duration-200">
+                <div className="flex items-center gap-2 flex-wrap">
+                    <Filter size={14} className="text-blue-600 dark:text-blue-400 shrink-0" />
+                    <span>
+                        Filtros e pesquisa ativos: exibindo <strong>{filteredJobs.length}</strong> de <strong>{combinedJobs.length}</strong> {isBudgetMode ? 'orçamentos' : 'casos'}
+                    </span>
+                    <span className="hidden sm:inline-block bg-blue-200/80 dark:bg-blue-800/80 text-blue-950 dark:text-blue-100 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
+                        Cache Ativo
+                    </span>
+                </div>
+                <button
+                    onClick={resetFilters}
+                    className="flex items-center gap-1.5 font-bold text-blue-700 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-100 transition-colors cursor-pointer shrink-0 ml-2"
+                >
+                    <RotateCcw size={13} />
+                    <span>Limpar Filtros</span>
+                </button>
+            </div>
+        )}
 
         {showFilters && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 animate-in fade-in slide-in-from-top-2 duration-200 border-t border-slate-100 dark:border-slate-800 pt-3">
@@ -1119,6 +1245,7 @@ const handleUpdateStatus = async (jobId: string, status: JobStatus) => {
                             isBudgetMode={isBudgetMode}
                             isLabStaff={isLabStaff}
                             navigate={navigate}
+                            onOpenJob={handleOpenJob}
                             handleFinalizeJob={handleFinalizeJob}
                             handleReopenJob={handleReopenJob}
                             setRouteModalJob={setRouteModalJob}
@@ -1159,6 +1286,7 @@ const handleUpdateStatus = async (jobId: string, status: JobStatus) => {
                     key={job.id}
                     job={job}
                     navigate={navigate}
+                    onOpenJob={handleOpenJob}
                     getStatusColor={getStatusColor}
                     getTranslatedStatus={getTranslatedStatus}
                     getSectorTimeInfo={getSectorTimeInfo}

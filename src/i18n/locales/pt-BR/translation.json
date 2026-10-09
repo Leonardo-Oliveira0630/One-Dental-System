@@ -2404,6 +2404,8 @@
       },
       "permissionLabels": {
         "dashboard:view": "Ver Painel de Controle (Dashboard)",
+        "jobs:service_details_view": "Ver Detalhes do Tipo de Serviço (Dentes, Valores e Tabela)",
+        "jobs:service_details_edit": "Editar Detalhes do Tipo de Serviço (Preço, Dentes, Natureza)",
         "jobs:production_view": "Ver Aba de Produção e Etapas (Detalhes do Caso)",
         "jobs:production_edit": "Editar Registros e Execuções de Produção (Detalhes do Caso)"
       }

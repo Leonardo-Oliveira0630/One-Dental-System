@@ -1026,8 +1026,21 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       if (!orgId) throw new Error("Nenhum laboratório ativo.");
       const now = new Date();
       const jobId = `job_${Date.now()}`;
+      
+      // Auto-include client's fixed external notes if defined and not already included
+      let finalJobNotes = j.notes || '';
+      const matchedClient = manualDentists.find(d => d.id === j.dentistId || (d as any).userId === j.dentistId) ||
+                            allUsers.find(u => u.id === j.dentistId);
+      if (matchedClient?.externalNotes?.trim()) {
+          const clientFixedNotes = matchedClient.externalNotes.trim();
+          if (!finalJobNotes.includes(clientFixedNotes)) {
+              finalJobNotes = finalJobNotes.trim() ? `${clientFixedNotes}\n\n${finalJobNotes.trim()}` : clientFixedNotes;
+          }
+      }
+
       await api.apiAddJob(orgId, { 
           ...j, 
+          notes: finalJobNotes,
           id: jobId, 
           organizationId: orgId,
           sectorEntryTime: now

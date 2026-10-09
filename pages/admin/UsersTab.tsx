@@ -27,6 +27,8 @@ import * as XLSX from 'xlsx';
 const AVAILABLE_PERMISSIONS: { key: PermissionKey, label: string, category: string }[] = [
     { key: 'dashboard:view', label: 'Ver Painel de Controle (Dashboard)', category: 'Painel de Controle' },
     { key: 'jobs:view', label: 'Ver Lista e Detalhes de Casos', category: 'Produção' },
+    { key: 'jobs:service_details_view', label: 'Ver Detalhes do Tipo de Serviço (Dentes, Valores e Tabela)', category: 'Produção' },
+    { key: 'jobs:service_details_edit', label: 'Editar Detalhes do Tipo de Serviço (Preço, Dentes, Natureza)', category: 'Produção' },
     { key: 'jobs:production_view', label: 'Ver Aba de Produção e Etapas (Detalhes do Caso)', category: 'Produção' },
     { key: 'jobs:production_edit', label: 'Editar Registros e Execuções de Produção (Detalhes do Caso)', category: 'Produção' },
     { key: 'jobs:create', label: 'Criar Novos Casos (OS)', category: 'Produção' },

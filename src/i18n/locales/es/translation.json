@@ -2478,6 +2478,10 @@
       "permissionLabels": {
         "dashboard:view": "Ver Panel de Control (Dashboard)",
         "jobs:view": "Ver Lista y Detalles",
+        "jobs:service_details_view": "Ver Detalles del Tipo de Servicio (Dientes, Valores, Lista de Precios)",
+        "jobs:service_details_edit": "Editar Detalles del Tipo de Servicio (Precio, Dientes, Naturaleza)",
+        "jobs:production_view": "Ver Pestaña de Producción y Etapas (Detalles del Caso)",
+        "jobs:production_edit": "Editar Registros y Ejecuciones de Producción (Detalles del Caso)",
         "jobs:create": "Crear Nuevos Trabajos",
         "jobs:edit": "Editar Datos de Trabajos",
         "jobs:delete": "Eliminar Trabajos",
