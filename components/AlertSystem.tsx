@@ -17,7 +17,15 @@ export const CreateAlertModal: React.FC<CreateAlertModalProps> = ({ job, onClose
     const [selectedSector, setSelectedSector] = useState(job.currentSector || '');
     const [selectedUserId, setSelectedUserId] = useState('');
     
-    const [scheduledDate, setScheduledDate] = useState(new Date().toISOString().split('T')[0]);
+    const getTodayLocalDateStr = () => {
+        const d = new Date();
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
+    const [scheduledDate, setScheduledDate] = useState(getTodayLocalDateStr());
     const [scheduledTime, setScheduledTime] = useState(new Date().toTimeString().split(' ')[0].substring(0, 5));
     const [isRecurring, setIsRecurring] = useState(false);
     const [repeatInterval, setRepeatInterval] = useState(15);

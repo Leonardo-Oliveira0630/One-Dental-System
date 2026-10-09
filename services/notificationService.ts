@@ -179,6 +179,41 @@ export const showSystemNotification = async (title: string, options: Notificatio
 export const canUserReceiveNotification = (user: User | null | undefined, notification: AppNotification): boolean => {
   if (!user) return false;
 
+  // 0. Regra de Cadastro: Novos colaboradores NUNCA recebem notificações/alertas criados antes de seu cadastro
+  if (user.createdAt && notification.createdAt) {
+    const userCreatedAt = user.createdAt instanceof Date 
+      ? user.createdAt 
+      : ((user.createdAt as any)?.toDate ? (user.createdAt as any).toDate() : new Date(user.createdAt));
+    const notifCreatedAt = notification.createdAt instanceof Date 
+      ? notification.createdAt 
+      : ((notification.createdAt as any)?.toDate ? (notification.createdAt as any).toDate() : new Date(notification.createdAt));
+    
+    if (!isNaN(userCreatedAt.getTime()) && !isNaN(notifCreatedAt.getTime())) {
+      if (notifCreatedAt.getTime() < userCreatedAt.getTime()) {
+        return false;
+      }
+    }
+  }
+
+  // Regra de Alerta de Urgência/Gestor: Deve ser emitido apenas na data em que foi designado
+  if (notification.type === 'MANAGER_ALERT' && notification.data?.scheduledFor) {
+    const now = new Date();
+    const scheduledDate = notification.data.scheduledFor instanceof Date 
+      ? notification.data.scheduledFor 
+      : new Date(notification.data.scheduledFor);
+    
+    if (!isNaN(scheduledDate.getTime())) {
+      const isSameDay = (d1: Date, d2: Date) => (
+        d1.getFullYear() === d2.getFullYear() &&
+        d1.getMonth() === d2.getMonth() &&
+        d1.getDate() === d2.getDate()
+      );
+      if (!isSameDay(now, scheduledDate)) {
+        return false;
+      }
+    }
+  }
+
   const isSuperAdmin = user.role === UserRole.SUPER_ADMIN;
   const isAdmin = user.role === UserRole.ADMIN || isSuperAdmin;
   const isClient = user.role === UserRole.CLIENT;

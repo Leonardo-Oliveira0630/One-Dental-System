@@ -488,6 +488,16 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
                 profile.permissions = ALL_SYSTEM_PERMISSIONS;
             }
             
+            if (profile.createdAt) {
+                profile.createdAt = profile.createdAt?.toDate ? profile.createdAt.toDate() : new Date(profile.createdAt);
+            } else if (user.metadata?.creationTime) {
+                profile.createdAt = new Date(user.metadata.creationTime);
+                api.apiUpdateUser(profile.id, { createdAt: profile.createdAt }).catch(() => {});
+            } else {
+                profile.createdAt = new Date();
+                api.apiUpdateUser(profile.id, { createdAt: profile.createdAt }).catch(() => {});
+            }
+
             setCurrentUser(profile);
             const profileOrgId = profile.organizationId;
             if (profileOrgId) {
@@ -818,28 +828,85 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   useEffect(() => {
     if (!currentUser || alerts.length === 0) return;
     
+    // Obter data/timestamp de cadastro do colaborador atual de forma segura e robusta
+    const getUserCreatedAtTime = (): number => {
+      if (currentUser.createdAt) {
+        if (currentUser.createdAt instanceof Date) return currentUser.createdAt.getTime();
+        if (currentUser.createdAt?.toDate && typeof currentUser.createdAt.toDate === 'function') {
+          return currentUser.createdAt.toDate().getTime();
+        }
+        if (currentUser.createdAt?.seconds) {
+          return currentUser.createdAt.seconds * 1000;
+        }
+        const parsed = new Date(currentUser.createdAt).getTime();
+        if (!isNaN(parsed) && parsed > 0) return parsed;
+      }
+      if (auth?.currentUser?.metadata?.creationTime) {
+        const authTime = new Date(auth.currentUser.metadata.creationTime).getTime();
+        if (!isNaN(authTime) && authTime > 0) return authTime;
+      }
+      return 0;
+    };
+
+    const userCreatedTime = getUserCreatedAtTime();
+
     const interval = setInterval(() => {
       const now = new Date();
       
       const alert = alerts.find(a => {
-        // Ignorar se já foi lido por este usuário
+        // 1. Ignorar se já foi lido/dispensado por este usuário
         if (a.readBy && a.readBy.includes(currentUser.id)) return false;
         
-        // Ignorar se a data agendada for no futuro
+        // 2. Validação da data agendada
         if (!a.scheduledFor) return false;
-        const scheduledTime = a.scheduledFor instanceof Date ? a.scheduledFor.getTime() : new Date(a.scheduledFor).getTime();
+        const scheduledDate = a.scheduledFor instanceof Date ? a.scheduledFor : new Date(a.scheduledFor);
+        const scheduledTime = scheduledDate.getTime();
+        if (isNaN(scheduledTime)) return false;
+
+        // 3. Ignorar se o horário agendado ainda está no futuro
         if (scheduledTime > now.getTime()) return false;
+
+        // 4. REGRA: Os alertas só devem ser emitidos no dia em que foi designado, NÃO sendo propagados retroativamente!
+        // Se a data agendada não pertence ao mesmo dia civil de hoje, não emitir retroativamente.
+        const isSameCalendarDay = (d1: Date, d2: Date) => (
+          d1.getFullYear() === d2.getFullYear() &&
+          d1.getMonth() === d2.getMonth() &&
+          d1.getDate() === d2.getDate()
+        );
+
+        if (!isSameCalendarDay(now, scheduledDate)) {
+          return false; // Alerta expirou para o dia designado
+        }
+
+        // 5. REGRA PARA NOVOS COLABORADORES:
+        // Quando um colaborador for cadastrado, ele só deve receber alertas criados POSTERIORMENTE ao seu cadastro!
+        if (userCreatedTime > 0) {
+          const alertCreatedDate = a.createdAt instanceof Date 
+            ? a.createdAt 
+            : ((a.createdAt as any)?.toDate ? (a.createdAt as any).toDate() : new Date(a.createdAt || 0));
+          const alertCreatedTime = alertCreatedDate.getTime();
+
+          // Se o alerta foi criado antes da data de cadastro do colaborador, desconsiderar
+          if (!isNaN(alertCreatedTime) && alertCreatedTime > 0 && alertCreatedTime < userCreatedTime) {
+            return false;
+          }
+
+          // Se o alerta foi agendado para data/hora anterior ao cadastro do colaborador, desconsiderar
+          if (scheduledTime < userCreatedTime) {
+            return false;
+          }
+        }
         
-        // Regras de direcionamento (target)
-        // 1. Se tem targetUserId, só exibe se o targetUserId == currentUser.id
+        // 6. Regras de direcionamento (target)
+        // 6.1 Se tem targetUserId, só exibe se o targetUserId == currentUser.id
         if (a.targetUserId && a.targetUserId !== currentUser.id) return false;
         
-        // 2. Se tem targetSector, só exibe se o targetSector == currentUser.sector
-        if (a.targetSector && a.targetSector !== currentUser.sector) return false;
+        // 6.2 Se tem targetSector, só exibe se o colaborador atua naquele setor
+        if (a.targetSector) {
+          const userSectors = [currentUser.sector, ...(currentUser.sectors || [])].filter(Boolean);
+          if (!userSectors.includes(a.targetSector)) return false;
+        }
         
-        // Se não tem targetUserId nem targetSector, então é geral para toda a org, pode exibir.
-        // Ou se tiver targetUserId e for do currentUser
-        // Ou se tiver targetSector e for do setor do currentUser
         return true;
       });
 
@@ -1271,7 +1338,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
               osNumber: a.osNumber,
               patientName: aAny.patientName,
               targetSector: a.targetSector,
-              targetUserId: a.targetUserId
+              targetUserId: a.targetUserId,
+              scheduledFor: a.scheduledFor
           }
       }).catch((err) => console.warn("Erro ao criar notificação de alerta do gestor:", err));
   }

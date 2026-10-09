@@ -1276,14 +1276,28 @@ export const subscribeOrgUsers = (orgId: string, cb: (u: User[]) => void) => {
     if (!orgId) return () => {};
     const q = query(collection(db, 'users'), where('organizationId', '==', orgId));
     return onSnapshot(q, (snap: any) => {
-        cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any } as User)));
+        cb(snap.docs.map((d: any) => {
+            const data = d.data();
+            return {
+                id: d.id,
+                ...data,
+                createdAt: data.createdAt ? toDate(data.createdAt) : undefined
+            } as User;
+        }));
     }, (error: any) => logger.warn(`[Firestore] Erro em subscribeOrgUsers para ${orgId}: ${error.code}`));
 };
 
 // NOVO: SUBSCRIÇÃO GLOBAL PARA SUPER ADMIN
 export const subscribeAllUsers = (cb: (u: User[]) => void) => {
     return onSnapshot(collection(db, 'users'), (snap: any) => {
-        cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any } as User)));
+        cb(snap.docs.map((d: any) => {
+            const data = d.data();
+            return {
+                id: d.id,
+                ...data,
+                createdAt: data.createdAt ? toDate(data.createdAt) : undefined
+            } as User;
+        }));
     }, (error: any) => logger.warn(`[Firestore] Erro em subscribeAllUsers: ${error.code}`));
 };
 

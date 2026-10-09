@@ -709,6 +709,20 @@ export const DashboardMonitorWidget: React.FC<{ config: ScreenPanelConfig }> = (
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
+  const activeRecentAlerts = useMemo(() => {
+    const now = new Date();
+    const isSameDay = (d1: Date, d2: Date) => (
+      d1.getFullYear() === d2.getFullYear() &&
+      d1.getMonth() === d2.getMonth() &&
+      d1.getDate() === d2.getDate()
+    );
+    return (alerts || []).filter(alert => {
+      if (!alert.scheduledFor) return false;
+      const scheduledDate = alert.scheduledFor instanceof Date ? alert.scheduledFor : new Date(alert.scheduledFor);
+      return !isNaN(scheduledDate.getTime()) && isSameDay(now, scheduledDate);
+    });
+  }, [alerts]);
+
   const stats = useMemo(() => {
     let pending = 0;
     let inProgress = 0;
@@ -767,14 +781,14 @@ export const DashboardMonitorWidget: React.FC<{ config: ScreenPanelConfig }> = (
         </div>
 
         {/* Recent Alerts */}
-        {alerts && alerts.length > 0 && (
+        {activeRecentAlerts && activeRecentAlerts.length > 0 && (
           <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-3 space-y-2">
             <h4 className="text-xs font-black text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
               <ShieldAlert size={14} className="text-amber-400" />
               Alertas Recentes da Produção
             </h4>
             <div className="space-y-1.5">
-              {alerts.slice(0, 4).map(alert => (
+              {activeRecentAlerts.slice(0, 4).map(alert => (
                 <div key={alert.id} className="p-2 bg-slate-900/80 rounded-xl border border-slate-800 text-xs flex items-start gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-amber-400 mt-1.5 shrink-0"></span>
                   <div className="min-w-0 flex-1">

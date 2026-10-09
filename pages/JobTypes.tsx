@@ -163,6 +163,8 @@ export const JobTypes = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [allowedSectors, setAllowedSectors] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
 
   // Main Tabs State (Services vs Promotions)
   const [mainTab, setMainTab] = useState<'SERVICES' | 'PROMOTIONS'>('SERVICES');
@@ -460,6 +462,48 @@ export const JobTypes = () => {
     setActiveTab('BASIC');
   };
 
+  const handleOpenCreateModal = () => {
+    resetForm();
+    setIsPromotion(mainTab === 'PROMOTIONS');
+    setIsEditing(false);
+    setEditingId(null);
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEditModal = (type: JobType) => {
+    handleEdit(type);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    resetForm();
+  };
+
+  const filteredTypes = useMemo(() => {
+    return jobTypes
+      .filter(type => mainTab === 'PROMOTIONS' ? isPromo(type) : !isPromo(type))
+      .filter(type => {
+        if (selectedCategory !== 'ALL' && (type.category || 'Geral') !== selectedCategory) {
+          return false;
+        }
+        if (!searchQuery.trim()) return true;
+        const q = searchQuery.toLowerCase();
+        return (
+          type.name.toLowerCase().includes(q) ||
+          (type.category || '').toLowerCase().includes(q) ||
+          (type.description || '').toLowerCase().includes(q)
+        );
+      });
+  }, [jobTypes, mainTab, selectedCategory, searchQuery]);
+
+  const categories = useMemo(() => {
+    const list = jobTypes
+      .filter(type => mainTab === 'PROMOTIONS' ? isPromo(type) : !isPromo(type))
+      .map(t => t.category || 'Geral');
+    return Array.from(new Set(list)).filter(Boolean).sort();
+  }, [jobTypes, mainTab]);
+
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
       if (e.target.files && e.target.files[0]) {
           const file = e.target.files[0];
@@ -569,6 +613,7 @@ export const JobTypes = () => {
           await addJobType(newType);
       }
       resetForm();
+      setIsModalOpen(false);
     } catch (error) {
         console.error("Failed to save Job Type:", error);
         alert(t('jobTypes.saveJobTypeErrorAlert', 'Falha ao salvar o tipo de trabalho. Verifique se você tem permissão ou está conectado a um laboratório.'));
@@ -692,178 +737,349 @@ export const JobTypes = () => {
                             </button>
                         </>
                     )}
-                    {isEditing && (
-                        <button 
-                            onClick={resetForm}
-                            className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50 text-slate-600 flex items-center gap-2 whitespace-nowrap font-bold transition-colors"
-                        >
-                            <Plus size={18} /> {mainTab === 'PROMOTIONS' ? t('jobTypes.newPromotion', 'Nova Promoção') : t('jobTypes.newService', 'Novo Serviço')}
-                        </button>
-                    )}
+                    <button 
+                        onClick={handleOpenCreateModal}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2 whitespace-nowrap font-bold shadow-sm shadow-blue-500/20 transition-all hover:scale-[1.02] cursor-pointer"
+                    >
+                        <Plus size={18} /> {mainTab === 'PROMOTIONS' ? t('jobTypes.newPromotion', 'Nova Promoção') : t('jobTypes.newService', 'Novo Serviço')}
+                    </button>
                 </div>
             )}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:p-8">
-        {/* Left Column: List */}
-        <div className="space-y-4 lg:col-span-1 order-2 lg:order-1">
-            <h3 className="font-bold text-slate-700 text-sm uppercase tracking-wider mb-2">
-                {mainTab === 'PROMOTIONS' ? t('jobTypes.registeredPromotions', 'Promoções Cadastradas') : t('jobTypes.registeredServices', 'Serviços Cadastrados')}
-            </h3>
-            
-            <div className="mb-3 relative">
-                <input 
-                    type="text"
-                    placeholder={t('jobTypes.searchServices', 'Pesquisar serviços...')}
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium text-sm transition-all text-slate-700"
-                />
-                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-                    <Search size={16} />
-                </div>
+      {/* Full-width Services / Promotions List */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        {/* Toolbar with Search, Category Filter, Count & New Service Button */}
+        <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between bg-slate-50/50">
+          <div className="flex flex-1 flex-col sm:flex-row gap-3 items-center">
+            {/* Search */}
+            <div className="relative flex-1 w-full sm:max-w-xs">
+              <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input 
+                type="text"
+                placeholder={mainTab === 'PROMOTIONS' ? t('jobTypes.searchPromotions', 'Pesquisar promoções...') : t('jobTypes.searchServices', 'Pesquisar serviços...')}
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-8 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-2xs transition-all"
+              />
+              {searchQuery && (
+                <button 
+                  onClick={() => setSearchQuery('')} 
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+                >
+                  <X size={14} />
+                </button>
+              )}
             </div>
 
-            <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-2">
-                {jobTypes.filter(type => mainTab === 'PROMOTIONS' ? isPromo(type) : !isPromo(type)).filter(type => type.name.toLowerCase().includes(searchQuery.toLowerCase()) || (type.category || '').toLowerCase().includes(searchQuery.toLowerCase())).map(type => (
-                    <div 
-                        key={type.id} 
-                        onClick={() => handleEdit(type)}
-                        className={`p-4 rounded-xl border cursor-pointer transition-all ${
-                            editingId === type.id 
-                                ? 'bg-blue-50 border-blue-400 shadow-md' 
-                                : 'bg-white border-slate-100 shadow-sm hover:border-blue-200'
-                        }`}
-                    >
-                        <div className="flex gap-3">
-                            {/* Thumbnail */}
-                            <div className="w-12 h-12 rounded-lg bg-slate-100 shrink-0 overflow-hidden border border-slate-200 flex items-center justify-center">
-                                {type.imageUrl ? (
-                                    <img src={type.imageUrl} alt={type.name} className="w-full h-full object-cover" />
-                                ) : (
-                                    <Package size={20} className="text-slate-300" />
-                                )}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <div className="flex justify-between items-start mb-1 gap-2">
-                                    <h3 className={`font-bold truncate ${editingId === type.id ? 'text-blue-800' : 'text-slate-800'}`}>
-                                        {type.name}
-                                    </h3>
-                                    <div className="flex items-center gap-1.5 shrink-0">
-                                        <button 
-                                            onClick={(e) => { e.stopPropagation(); openStageConfigModal(type); }}
-                                            className="p-1.5 rounded-lg border bg-slate-50 border-slate-100 hover:border-slate-200 text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-all"
-                                            title={t('jobTypes.stageConfigTooltip', 'Configuração de Etapas do Serviço (Catraca)')}
-                                        >
-                                            <Settings size={13} />
-                                        </button>
-                                        <button 
-                                            onClick={(e) => handleShare(type, e)}
-                                            className={`p-1.5 rounded-lg border transition-all ${
-                                                copiedId === type.id 
-                                                    ? 'bg-green-50 border-green-200 text-green-600' 
-                                                    : 'bg-slate-50 border-slate-100 hover:border-slate-200 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50'
-                                            }`}
-                                            title={t('jobTypes.shareLinkTooltip', 'Compartilhar Link')}
-                                        >
-                                            {copiedId === type.id ? <Check size={13} /> : <Share2 size={13} />}
-                                        </button>
-                                        {editingId !== type.id && canDelete && (
-                                            <button 
-                                                onClick={(e) => { e.stopPropagation(); deleteJobType(type.id); }} 
-                                                className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100"
-                                                title={t('jobTypes.deleteTooltip', 'Excluir')}
-                                            >
-                                                <Trash2 size={13} />
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
-                                <div className="flex items-center justify-between text-sm">
-                                    <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-xs font-semibold uppercase truncate max-w-[80px]">{type.category}</span>
-                                    <span className="font-bold text-slate-700">R$ {type.basePrice.toFixed(2)}</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="mt-2 flex items-center justify-between gap-1 flex-wrap">
-                            <div className="flex items-center gap-2">
-                                <div className="text-xs text-slate-400 flex items-center gap-1">
-                                    <Layers size={12} />
-                                    {t('jobTypes.groupsCount', { count: type.variationGroups.length, defaultValue: `${type.variationGroups.length} grupos` })}
-                                </div>
-                                {type.productionTimeDays !== undefined && type.productionTimeDays !== null && Number(type.productionTimeDays) > 0 && (
-                                    <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-100 font-semibold px-1.5 py-0.5 rounded flex items-center gap-1">
-                                        <Clock size={10} /> {type.productionTimeDays === 1 ? t('jobTypes.workDay', { count: 1, defaultValue: '1 dia útil' }) : t('jobTypes.workDays', { count: type.productionTimeDays, defaultValue: `${type.productionTimeDays} dias úteis` })}
-                                    </span>
-                                )}
-                            </div>
-                            <div className="flex gap-1 flex-wrap">
-                                {type.isVisibleInStore === false && (
-                                    <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded flex items-center gap-1">
-                                        <EyeOff size={10} /> {t('jobTypes.hiddenInStore', 'Oculto na Loja')}
-                                    </span>
-                                )}
-                                {type.isVisibleInternally === false && (
-                                    <span className="text-[10px] bg-amber-50 text-amber-600 border border-amber-100 px-1.5 py-0.5 rounded flex items-center gap-1" title={t('jobTypes.hiddenForDentistsTitle', 'Oculto para Dentistas')}>
-                                        <EyeOff size={10} /> {t('jobTypes.hiddenDentists', 'Oculto (Dentistas)')}
-                                    </span>
-                                )}
-                                {type.isVisibleInternallyLabs === false && (
-                                    <span className="text-[10px] bg-red-50 text-red-600 border border-red-100 px-1.5 py-0.5 rounded flex items-center gap-1" title={t('jobTypes.hiddenForLabsTitle', 'Oculto para Laboratórios')}>
-                                        <EyeOff size={10} /> {t('jobTypes.hiddenLabs', 'Oculto (Labs)')}
-                                    </span>
-                                )}
-                            </div>
-                        </div>
-                    </div>
+            {/* Category Filter */}
+            <div className="w-full sm:w-auto">
+              <select
+                value={selectedCategory}
+                onChange={e => setSelectedCategory(e.target.value)}
+                className="w-full sm:w-auto px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-2xs"
+              >
+                <option value="ALL">{t('jobTypes.allCategories', 'Todas as Categorias')}</option>
+                {categories.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
                 ))}
+              </select>
             </div>
+
+            <div className="text-xs font-semibold text-slate-400 whitespace-nowrap">
+              {filteredTypes.length} {filteredTypes.length === 1 ? (mainTab === 'PROMOTIONS' ? 'promoção' : 'serviço') : (mainTab === 'PROMOTIONS' ? 'promoções' : 'serviços')}
+            </div>
+          </div>
+
+          {/* New Service / Promotion Button */}
+          {canCreate && (
+            <button
+              type="button"
+              onClick={handleOpenCreateModal}
+              className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-sm shadow-blue-500/20 transition-all hover:scale-[1.01] active:scale-95 text-sm shrink-0 cursor-pointer"
+            >
+              <Plus size={18} />
+              <span>{mainTab === 'PROMOTIONS' ? t('jobTypes.newPromotion', 'Nova Promoção') : t('jobTypes.newService', 'Novo Serviço')}</span>
+            </button>
+          )}
         </div>
 
-        {/* Right Column: Editor Form */}
-        <div className="lg:col-span-2 order-1 lg:order-2">
-            <div className="bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden">
-                {/* Header / Tabs */}
-                <div className="bg-slate-50 border-b border-slate-200 flex">
-                    <button
-                        type="button"
-                        onClick={() => setActiveTab('BASIC')}
-                        className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 transition-colors ${
-                            activeTab === 'BASIC' ? 'bg-white text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'
-                        }`}
+        {/* Services Table List */}
+        {filteredTypes.length === 0 ? (
+          <div className="py-16 px-4 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3">
+              <Package size={32} />
+            </div>
+            <h3 className="text-base font-bold text-slate-700">
+              {searchQuery || selectedCategory !== 'ALL' 
+                ? t('jobTypes.noSearchResults', 'Nenhum serviço encontrado para estes filtros') 
+                : (mainTab === 'PROMOTIONS' ? t('jobTypes.noPromotionsRegistered', 'Nenhuma promoção cadastrada') : t('jobTypes.noServicesRegistered', 'Nenhum serviço cadastrado'))}
+            </h3>
+            <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+              {searchQuery || selectedCategory !== 'ALL'
+                ? t('jobTypes.tryDifferentFilter', 'Tente pesquisar com outro termo ou selecionar outra categoria.')
+                : t('jobTypes.createFirstServiceDesc', 'Cadastre tipos de serviços, valores e etapas para seu laboratório.')}
+            </p>
+            {canCreate && (
+              <button
+                type="button"
+                onClick={handleOpenCreateModal}
+                className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl inline-flex items-center gap-1.5 shadow-sm transition-all"
+              >
+                <Plus size={16} />
+                {mainTab === 'PROMOTIONS' ? t('jobTypes.newPromotion', 'Nova Promoção') : t('jobTypes.newService', 'Novo Serviço')}
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50/70 text-[11px] font-black uppercase tracking-wider text-slate-400">
+                  <th className="py-3 px-4 w-12 text-center">#</th>
+                  <th className="py-3 px-4">{t('jobTypes.colService', 'Serviço')}</th>
+                  <th className="py-3 px-4">{t('jobTypes.colCategory', 'Categoria')}</th>
+                  <th className="py-3 px-4 text-center">{t('jobTypes.colDelivery', 'Prazo')}</th>
+                  <th className="py-3 px-4">{t('jobTypes.colGroupsAndStages', 'Grupos / Etapas')}</th>
+                  <th className="py-3 px-4">{t('jobTypes.colVisibility', 'Visibilidade')}</th>
+                  <th className="py-3 px-4 text-right">{t('jobTypes.colPrice', 'Preço Base')}</th>
+                  <th className="py-3 px-4 text-center w-36">{t('common.actions', 'Ações')}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-sm">
+                {filteredTypes.map((type) => {
+                  const groupsCount = (type.variationGroups || []).length;
+                  const stageCount = Object.values(type.sectorStages || {}).reduce((acc: number, list: any) => acc + (Array.isArray(list) ? list.length : 0), 0);
+                  
+                  return (
+                    <tr
+                      key={type.id}
+                      onClick={() => handleOpenEditModal(type)}
+                      className="hover:bg-blue-50/50 transition-colors cursor-pointer group"
+                      title={t('jobTypes.clickToEditTooltip', 'Clique para ver detalhes e editar este serviço')}
                     >
-                        <Package size={18} /> {t('jobTypes.generalDataTab', 'Dados Gerais')}
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setActiveTab('VARIATIONS')}
-                        className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 transition-colors ${
-                            activeTab === 'VARIATIONS' ? 'bg-white text-indigo-600 border-b-2 border-indigo-600' : 'text-slate-500 hover:text-slate-700'
-                        }`}
-                    >
-                        <Layers size={18} /> {t('jobTypes.groupsVariationsTab', 'Grupos & Variações')}
-                        <span className="bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded-full text-[10px]">
-                            {variationGroups.length}
-                        </span>
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setActiveTab('STAGES')}
-                        className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 transition-colors ${
-                            activeTab === 'STAGES' ? 'bg-white text-emerald-600 border-b-2 border-emerald-600' : 'text-slate-500 hover:text-slate-700'
-                        }`}
-                    >
-                        <CheckSquare size={18} /> {t('jobTypes.stagesTab', 'Etapas do Serviço')}
-                        <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-                            totalFormSelectedStages > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'
-                        }`}>
-                            {totalFormSelectedStages}
-                        </span>
-                    </button>
-                </div>
+                      {/* Thumbnail */}
+                      <td className="py-3.5 px-4 text-center">
+                        <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center shrink-0 mx-auto group-hover:border-blue-300 transition-colors">
+                          {type.imageUrl ? (
+                            <img src={type.imageUrl} alt={type.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <Package size={18} className="text-slate-400 group-hover:text-blue-500 transition-colors" />
+                          )}
+                        </div>
+                      </td>
 
-                <form onSubmit={handleSave} className="px-4 pb-4 sm:px-6 sm:pb-6">
+                      {/* Name */}
+                      <td className="py-3.5 px-4">
+                        <div className="font-bold text-slate-800 group-hover:text-blue-600 transition-colors">
+                          {type.name}
+                        </div>
+                        {type.description && (
+                          <p className="text-xs text-slate-400 truncate max-w-xs">{type.description}</p>
+                        )}
+                      </td>
+
+                      {/* Category */}
+                      <td className="py-3.5 px-4">
+                        <span className="bg-slate-100 group-hover:bg-blue-50 group-hover:text-blue-700 text-slate-600 px-2.5 py-1 rounded-lg text-xs font-semibold uppercase tracking-wide">
+                          {type.category || t('jobTypes.general', 'Geral')}
+                        </span>
+                      </td>
+
+                      {/* Delivery Time */}
+                      <td className="py-3.5 px-4 text-center">
+                        {type.productionTimeDays !== undefined && type.productionTimeDays !== null && Number(type.productionTimeDays) > 0 ? (
+                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-600 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-md">
+                            <Clock size={11} className="text-blue-500" />
+                            {type.productionTimeDays === 1 
+                              ? t('jobTypes.workDay', { count: 1, defaultValue: '1 dia útil' }) 
+                              : t('jobTypes.workDays', { count: type.productionTimeDays, defaultValue: `${type.productionTimeDays} dias úteis` })}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 text-xs">-</span>
+                        )}
+                      </td>
+
+                      {/* Groups & Stages */}
+                      <td className="py-3.5 px-4">
+                        <div className="flex items-center gap-2 text-xs">
+                          <span className={`inline-flex items-center gap-1 font-medium ${groupsCount > 0 ? 'text-indigo-600 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-md' : 'text-slate-400'}`}>
+                            <Layers size={11} />
+                            {groupsCount} {groupsCount === 1 ? 'grupo' : 'grupos'}
+                          </span>
+                          <span className={`inline-flex items-center gap-1 font-medium ${stageCount > 0 ? 'text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-md' : 'text-slate-400'}`}>
+                            <CheckSquare size={11} />
+                            {stageCount} {stageCount === 1 ? 'etapa' : 'etapas'}
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* Visibility */}
+                      <td className="py-3.5 px-4">
+                        <div className="flex items-center gap-1 flex-wrap">
+                          {type.isVisibleInStore !== false && (
+                            <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-100 px-1.5 py-0.5 rounded font-semibold" title={t('jobTypes.visibleInStore', 'Visível na Loja')}>
+                              Loja
+                            </span>
+                          )}
+                          {type.isVisibleInternally !== false && (
+                            <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-100 px-1.5 py-0.5 rounded font-semibold" title={t('jobTypes.visibleDentists', 'Visível para Dentistas')}>
+                              Dentistas
+                            </span>
+                          )}
+                          {type.isVisibleInternallyLabs === true && (
+                            <span className="text-[10px] bg-purple-50 text-purple-700 border border-purple-100 px-1.5 py-0.5 rounded font-semibold" title={t('jobTypes.visibleLabs', 'Visível para Labs')}>
+                              Labs
+                            </span>
+                          )}
+                          {type.isVisibleInStore === false && type.isVisibleInternally === false && (
+                            <span className="text-[10px] bg-red-50 text-red-600 border border-red-100 px-1.5 py-0.5 rounded font-semibold flex items-center gap-0.5">
+                              <EyeOff size={10} /> Oculto
+                            </span>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* Price */}
+                      <td className="py-3.5 px-4 text-right">
+                        <span className="font-extrabold text-slate-800 text-sm">
+                          R$ {type.basePrice.toFixed(2)}
+                        </span>
+                      </td>
+
+                      {/* Actions */}
+                      <td className="py-3.5 px-4 text-center" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-center gap-1">
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); openStageConfigModal(type); }}
+                            className="p-1.5 rounded-lg border bg-slate-50 border-slate-200 hover:border-blue-300 text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-all"
+                            title={t('jobTypes.stageConfigTooltip', 'Configuração de Etapas do Serviço (Catraca)')}
+                          >
+                            <Settings size={14} />
+                          </button>
+                          <button 
+                            onClick={(e) => handleShare(type, e)}
+                            className={`p-1.5 rounded-lg border transition-all ${
+                              copiedId === type.id 
+                                ? 'bg-emerald-50 border-emerald-300 text-emerald-600' 
+                                : 'bg-slate-50 border-slate-200 hover:border-indigo-300 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50'
+                            }`}
+                            title={t('jobTypes.shareLinkTooltip', 'Compartilhar Link')}
+                          >
+                            {copiedId === type.id ? <Check size={14} /> : <Share2 size={14} />}
+                          </button>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); handleOpenEditModal(type); }}
+                            className="p-1.5 rounded-lg border bg-slate-50 border-slate-200 hover:border-blue-300 text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-all"
+                            title={t('jobTypes.editTooltip', 'Editar Serviço')}
+                          >
+                            <Edit2 size={14} />
+                          </button>
+                          {canDelete && (
+                            <button 
+                              onClick={(e) => { 
+                                e.stopPropagation(); 
+                                if (window.confirm(t('jobTypes.confirmDelete', { name: type.name, defaultValue: `Deseja realmente excluir o serviço "${type.name}"?` }))) {
+                                  deleteJobType(type.id); 
+                                }
+                              }} 
+                              className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100"
+                              title={t('jobTypes.deleteTooltip', 'Excluir')}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* POPUP MODAL COM FORMULÁRIO DO SERVIÇO / PROMOÇÃO */}
+      {isModalOpen && (
+        <div 
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-6 overflow-y-auto animate-in fade-in duration-200"
+          onClick={handleCloseModal}
+        >
+          <div 
+            className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-100"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="px-5 py-4 sm:px-6 sm:py-5 border-b border-slate-200 flex justify-between items-center bg-slate-50/90 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-blue-100 text-blue-600 rounded-2xl">
+                  {mainTab === 'PROMOTIONS' ? <Tag size={22} /> : <Package size={22} />}
+                </div>
+                <div>
+                  <h3 className="text-lg sm:text-xl font-black text-slate-800 tracking-tight">
+                    {isEditing 
+                      ? t('jobTypes.editing', { name, defaultValue: `Editando: ${name || 'Serviço'}` }) 
+                      : (mainTab === 'PROMOTIONS' ? t('jobTypes.newPromotion', 'Nova Promoção') : t('jobTypes.newService', 'Novo Serviço'))}
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium">
+                    {t('jobTypes.modalSubtitle', 'Preencha os dados do serviço, grupos de variações e etapas de produção.')}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleCloseModal}
+                className="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-200/60 transition-colors cursor-pointer"
+                title={t('common.close', 'Fechar')}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Modal Header Tabs */}
+            <div className="bg-slate-50 border-b border-slate-200 flex shrink-0">
+              <button
+                type="button"
+                onClick={() => setActiveTab('BASIC')}
+                className={`flex-1 py-3 sm:py-3.5 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer ${
+                  activeTab === 'BASIC' ? 'bg-white text-blue-600 border-b-2 border-blue-600 shadow-2xs' : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                <Package size={17} /> {t('jobTypes.generalDataTab', 'Dados Gerais')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('VARIATIONS')}
+                className={`flex-1 py-3 sm:py-3.5 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer ${
+                  activeTab === 'VARIATIONS' ? 'bg-white text-indigo-600 border-b-2 border-indigo-600 shadow-2xs' : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                <Layers size={17} /> {t('jobTypes.groupsVariationsTab', 'Grupos & Variações')}
+                <span className="bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded-full text-[10px]">
+                  {variationGroups.length}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('STAGES')}
+                className={`flex-1 py-3 sm:py-3.5 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer ${
+                  activeTab === 'STAGES' ? 'bg-white text-emerald-600 border-b-2 border-emerald-600 shadow-2xs' : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                <CheckSquare size={17} /> {t('jobTypes.stagesTab', 'Etapas do Serviço')}
+                <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                  totalFormSelectedStages > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'
+                }`}>
+                  {totalFormSelectedStages}
+                </span>
+              </button>
+            </div>
+
+            {/* Modal Form */}
+            <form onSubmit={handleSave} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+              <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-6 sm:py-6 space-y-6 min-h-0">
                     {activeTab === 'BASIC' && (
                         <div className="space-y-6 animate-in fade-in slide-in-from-left-4 duration-300">
                              <div className="flex justify-between items-center">
@@ -1529,30 +1745,49 @@ export const JobTypes = () => {
                         </div>
                     )}
 
-                    {/* Footer Actions */}
-                    <div className="mt-8 pt-6 border-t border-slate-100 flex justify-end gap-3">
-                         {isEditing && (
-                            <button 
-                                type="button" 
-                                onClick={resetForm}
-                                className="px-6 py-3 text-slate-500 hover:bg-slate-50 rounded-xl font-medium"
-                            >
-                                {t('common.cancel', 'Cancelar')}
-                            </button>
-                        )}
-                        <button 
-                            type="submit" 
-                            disabled={isSaving || (isEditing ? !canEdit : !canCreate)}
-                            className="px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-xl hover:shadow-lg shadow-blue-200 transition-all transform hover:scale-[1.02] flex items-center gap-2 disabled:opacity-50"
-                        >
-                            <Save size={20} />
-                            {isSaving ? t('jobTypes.savingBtn', 'Salvando...') : (isEditing ? t('jobTypes.updateBtn', 'Atualizar') : t('jobTypes.saveBtn', 'Salvar'))}
-                        </button>
-                    </div>
-                </form>
-            </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="px-4 py-3.5 sm:px-6 sm:py-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between shrink-0">
+                <div>
+                  {isEditing && canDelete && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (window.confirm(t('jobTypes.confirmDelete', { name, defaultValue: `Deseja realmente excluir o serviço "${name}"?` }))) {
+                          if (editingId) deleteJobType(editingId);
+                          handleCloseModal();
+                        }
+                      }}
+                      className="px-3.5 py-2 text-xs font-bold text-red-600 hover:bg-red-50 rounded-xl transition-colors border border-transparent hover:border-red-200 flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Trash2 size={15} />
+                      <span>{t('common.delete', 'Excluir')}</span>
+                    </button>
+                  )}
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handleCloseModal}
+                    className="px-5 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-200/60 rounded-xl transition-colors cursor-pointer"
+                  >
+                    {t('common.cancel', 'Cancelar')}
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSaving || (isEditing ? !canEdit : !canCreate)}
+                    className="px-7 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-sm rounded-xl hover:shadow-lg shadow-blue-200 transition-all transform hover:scale-[1.01] active:scale-95 flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+                  >
+                    <Save size={18} />
+                    {isSaving ? t('jobTypes.savingBtn', 'Salvando...') : (isEditing ? t('jobTypes.updateBtn', 'Atualizar Serviço') : t('jobTypes.saveBtn', 'Salvar Serviço'))}
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* MODAL CATRACA DE CONFIGURAÇÃO DE ETAPAS DO SERVIÇO */}
       {showStageModal && selectedTypeForStages && (
