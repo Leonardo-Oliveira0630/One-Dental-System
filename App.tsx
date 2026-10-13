@@ -264,8 +264,8 @@ const AppContent = () => {
       <Route path="/supplier/settings" element={<ProtectedRoute><SupplierSettings /></ProtectedRoute>} />
 
       <Route path="/calendar" element={<ProtectedRoute><ProductionCalendar /></ProtectedRoute>} />
-      <Route path="/monitoring" element={<ProtectedRoute><MonitoringPage /></ProtectedRoute>} />
-      <Route path="/lab/monitoring" element={<ProtectedRoute><MonitoringPage /></ProtectedRoute>} />
+      <Route path="/monitoring" element={<ProtectedRoute requiredPermission="monitoring:view"><MonitoringPage /></ProtectedRoute>} />
+      <Route path="/lab/monitoring" element={<ProtectedRoute requiredPermission="monitoring:view"><MonitoringPage /></ProtectedRoute>} />
       <Route path="/promised" element={<ProtectedRoute><PromisedJobs /></ProtectedRoute>} />
       <Route path="/subscribe" element={<ProtectedRoute><Subscribe /></ProtectedRoute>} />
       <Route path="/tutorials" element={<ProtectedRoute requiredPermission="tutorials:view"><TutorialsView /></ProtectedRoute>} />

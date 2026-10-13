@@ -381,7 +381,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                             {hasPerm('calendar:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/calendar" icon={<Calendar size={20} />} label={t('navigation.productionCalendar', 'Calendário')} active={location.pathname === '/calendar'} />}
                             {hasPerm('catalog:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/job-types" icon={<Package size={20} />} label={t('navigation.services', 'Serviços')} active={location.pathname === '/job-types'} />}
                             {hasPerm('reports:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/reports" icon={<FileText size={20} />} label={t('navigation.reports', 'Relatórios')} active={location.pathname === '/reports'} />}
-                            <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/monitoring" icon={<Tv size={20} />} label={t('navigation.monitoringScreen', 'Tela de Visualização')} active={location.pathname === '/monitoring' || location.pathname === '/lab/monitoring'} />
+                            {hasPerm('monitoring:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/monitoring" icon={<Tv size={20} />} label={t('navigation.monitoringScreen', 'Tela de Visualização')} active={location.pathname === '/monitoring' || location.pathname === '/lab/monitoring'} />}
                             {(hasPerm('tutorials:view') || hasPerm('helpdesk:view')) && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/tutorials" icon={<HelpCircle size={20} />} label={t('navigation.helpdesk', 'Central de Ajuda')} active={location.pathname === '/tutorials'} />}
                           </>
                         ) : (
@@ -689,7 +689,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
           )}
 
           <div className="flex items-center gap-3 lg:gap-4 shrink-0">
-              {isLab && (
+              {isLab && hasPerm('monitoring:view') && (
                 <Link
                   to="/monitoring"
                   className="w-10 h-10 rounded-xl bg-slate-100 hover:bg-teal-50 border border-slate-200 hover:border-teal-300 flex items-center justify-center text-slate-600 hover:text-teal-600 transition-colors shadow-sm"

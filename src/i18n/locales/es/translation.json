@@ -2477,8 +2477,10 @@
       },
       "permissionLabels": {
         "dashboard:view": "Ver Panel de Control (Dashboard)",
+        "monitoring:view": "Ver Pantalla de Visualización Multipantalla (Panel TV / Monitor)",
         "jobs:view": "Ver Lista y Detalles",
-        "jobs:service_details_view": "Ver Detalles del Tipo de Servicio (Dientes, Valores, Lista de Precios)",
+        "jobs:prices_view": "Ver Valores de Tipos de Servicio y Presupuesto Total (Detalles del Caso)",
+        "jobs:service_details_view": "Ver Detalles del Tipo de Servicio (Dientes, Tabla, Variaciones)",
         "jobs:service_details_edit": "Editar Detalles del Tipo de Servicio (Precio, Dientes, Naturaleza)",
         "jobs:production_view": "Ver Pestaña de Producción y Etapas (Detalles del Caso)",
         "jobs:production_edit": "Editar Registros y Ejecuciones de Producción (Detalles del Caso)",

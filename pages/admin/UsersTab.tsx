@@ -27,7 +27,8 @@ import * as XLSX from 'xlsx';
 const AVAILABLE_PERMISSIONS: { key: PermissionKey, label: string, category: string }[] = [
     { key: 'dashboard:view', label: 'Ver Painel de Controle (Dashboard)', category: 'Painel de Controle' },
     { key: 'jobs:view', label: 'Ver Lista e Detalhes de Casos', category: 'Produção' },
-    { key: 'jobs:service_details_view', label: 'Ver Detalhes do Tipo de Serviço (Dentes, Valores e Tabela)', category: 'Produção' },
+    { key: 'jobs:prices_view', label: 'Ver Valores dos Tipos de Serviço e Orçamento Total (Detalhes do Caso)', category: 'Produção' },
+    { key: 'jobs:service_details_view', label: 'Ver Detalhes do Tipo de Serviço (Dentes, Tabela e Variações)', category: 'Produção' },
     { key: 'jobs:service_details_edit', label: 'Editar Detalhes do Tipo de Serviço (Preço, Dentes, Natureza)', category: 'Produção' },
     { key: 'jobs:production_view', label: 'Ver Aba de Produção e Etapas (Detalhes do Caso)', category: 'Produção' },
     { key: 'jobs:production_edit', label: 'Editar Registros e Execuções de Produção (Detalhes do Caso)', category: 'Produção' },
@@ -59,6 +60,7 @@ const AVAILABLE_PERMISSIONS: { key: PermissionKey, label: string, category: stri
     { key: 'helpdesk:view', label: 'Acessar Atendimento e Suporte (Helpdesk)', category: 'Central de Ajuda' },
     { key: 'vip:view', label: 'Acessar Produção VIP', category: 'Produção' },
     { key: 'calendar:view', label: 'Acessar Calendário', category: 'Produção' },
+    { key: 'monitoring:view', label: 'Ver Tela de Visualização Multitelas (Painel TV / Monitor)', category: 'Produção' },
     { key: 'finance:view', label: 'Ver Dashboard Financeiro', category: 'Financeiro' },
     { key: 'finance:create', label: 'Criar Despesas e Faturas', category: 'Financeiro' },
     { key: 'finance:edit', label: 'Editar Despesas e Faturas', category: 'Financeiro' },

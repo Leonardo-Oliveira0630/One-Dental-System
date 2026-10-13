@@ -2477,8 +2477,10 @@
       },
       "permissionLabels": {
         "dashboard:view": "View Control Panel (Dashboard)",
+        "monitoring:view": "View Multi-Screen Monitoring (TV / Monitor Panel)",
         "jobs:view": "View List & Details",
-        "jobs:service_details_view": "View Service Type Details (Teeth, Values, Price Table)",
+        "jobs:prices_view": "View Service Type Values and Total Case Budget (Case Details)",
+        "jobs:service_details_view": "View Service Type Details (Teeth, Table, Variations)",
         "jobs:service_details_edit": "Edit Service Type Details (Price, Teeth, Nature)",
         "jobs:production_view": "View Production Tab & Stages (Case Details)",
         "jobs:production_edit": "Edit Production Stages & Records (Case Details)",

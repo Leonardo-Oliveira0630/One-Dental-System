@@ -348,7 +348,7 @@ export enum UserRole {
 
 export type PermissionKey = 
   | 'dashboard:view'
-  | 'jobs:view' | 'jobs:create' | 'jobs:edit' | 'jobs:delete' | 'jobs:return' | 'jobs:finish' | 'jobs:alert' | 'jobs:print' | 'jobs:chat_toggle' | 'jobs:approval' | 'jobs:change_status' | 'jobs:production_view' | 'jobs:production_edit' | 'jobs:service_details_view' | 'jobs:service_details_edit'
+  | 'jobs:view' | 'jobs:create' | 'jobs:edit' | 'jobs:delete' | 'jobs:return' | 'jobs:finish' | 'jobs:alert' | 'jobs:print' | 'jobs:chat_toggle' | 'jobs:approval' | 'jobs:change_status' | 'jobs:production_view' | 'jobs:production_edit' | 'jobs:service_details_view' | 'jobs:service_details_edit' | 'jobs:prices_view'
   | 'budgets:view' | 'budgets:create' | 'budgets:edit' | 'budgets:delete'
   | 'reports:view'
   | 'reports:export'
@@ -371,6 +371,7 @@ export type PermissionKey =
   | 'inventory:view' | 'inventory:create' | 'inventory:edit' | 'inventory:delete'
   | 'vip:view'
   | 'calendar:view'
+  | 'monitoring:view'
   | 'store_suppliers:view'
   // CLINIC & DENTIST PERMISSIONS
   | 'patients:view' | 'patients:create' | 'patients:edit' | 'patients:delete' | 'patients:history_edit'
@@ -389,7 +390,7 @@ export type PermissionKey =
 
 export const ALL_SYSTEM_PERMISSIONS: PermissionKey[] = [
   'dashboard:view',
-  'jobs:view', 'jobs:create', 'jobs:edit', 'jobs:delete', 'jobs:return', 'jobs:finish', 'jobs:alert', 'jobs:print', 'jobs:chat_toggle', 'jobs:approval', 'jobs:change_status', 'jobs:production_view', 'jobs:production_edit', 'jobs:service_details_view', 'jobs:service_details_edit',
+  'jobs:view', 'jobs:create', 'jobs:edit', 'jobs:delete', 'jobs:return', 'jobs:finish', 'jobs:alert', 'jobs:print', 'jobs:chat_toggle', 'jobs:approval', 'jobs:change_status', 'jobs:production_view', 'jobs:production_edit', 'jobs:service_details_view', 'jobs:service_details_edit', 'jobs:prices_view',
   'budgets:view', 'budgets:create', 'budgets:edit', 'budgets:delete',
   'reports:view',
   'reports:export',
@@ -412,6 +413,7 @@ export const ALL_SYSTEM_PERMISSIONS: PermissionKey[] = [
   'inventory:view', 'inventory:create', 'inventory:edit', 'inventory:delete',
   'vip:view',
   'calendar:view',
+  'monitoring:view',
   'store_suppliers:view',
   'patients:view', 'patients:create', 'patients:edit', 'patients:delete', 'patients:history_edit',
   'schedule:view', 'schedule:create', 'schedule:edit', 'schedule:delete',
