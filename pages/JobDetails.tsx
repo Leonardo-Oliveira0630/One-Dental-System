@@ -241,7 +241,10 @@ export const JobDetails = () => {
     sectorCommissionDisabled: Record<string, boolean>;
     selectedTeeth: string[];
     color: string;
-  }>({ quantity: 1, nature: 'NORMAL', price: 0, appliedDiscount: 0, appliedDiscountFixed: 0, discountType: 'PERCENTAGE', appliedPriceTable: 'Padrão', commissionDisabled: false, isInternalStep: false, selectedVariationIds: [], variationValues: {}, sectorCommissionDisabled: {}, selectedTeeth: [], color: '' });
+    priceAdjustmentType?: 'DISCOUNT' | 'SURCHARGE';
+    appliedSurcharge?: number | string;
+    appliedSurchargeFixed?: number | string;
+  }>({ quantity: 1, nature: 'NORMAL', price: 0, appliedDiscount: 0, appliedDiscountFixed: 0, priceAdjustmentType: 'DISCOUNT', appliedSurcharge: 0, appliedSurchargeFixed: 0, discountType: 'PERCENTAGE', appliedPriceTable: 'Padrão', commissionDisabled: false, isInternalStep: false, selectedVariationIds: [], variationValues: {}, sectorCommissionDisabled: {}, selectedTeeth: [], color: '' });
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [isSyncingTracking, setIsSyncingTracking] = useState(false);
   const [trackingSyncMsg, setTrackingSyncMsg] = useState<string | null>(null);
@@ -768,6 +771,7 @@ export const JobDetails = () => {
       setEditingModalTeethInput('');
     }
   }, [editingModalItemId]);
+  const [newItemAdjustmentMode, setNewItemAdjustmentMode] = useState<'DISCOUNT' | 'SURCHARGE'>('DISCOUNT');
   const [newItemDiscountType, setNewItemDiscountType] = useState<'PERCENTAGE' | 'FIXED'>('PERCENTAGE');
   const [newItemDiscount, setNewItemDiscount] = useState<number | string>(0);
   const [newItemCustomPrice, setNewItemCustomPrice] = useState<number | string>('');
@@ -801,12 +805,18 @@ export const JobDetails = () => {
     const base = newItemCustomPrice !== '' && !isNaN(Number(newItemCustomPrice)) && Number(newItemCustomPrice) >= 0
       ? Number(newItemCustomPrice)
       : newItemCalculatedBasePrice;
-    const disc = Number(newItemDiscount) || 0;
-    if (newItemDiscountType === 'FIXED') {
-      return Math.max(0, base - disc);
+    const val = Number(newItemDiscount) || 0;
+    if (newItemAdjustmentMode === 'SURCHARGE') {
+      if (newItemDiscountType === 'FIXED') {
+        return base + val;
+      }
+      return base * (1 + (val / 100));
     }
-    return Math.max(0, base * (1 - (disc / 100)));
-  }, [newItemNature, newItemCustomPrice, newItemCalculatedBasePrice, newItemDiscount, newItemDiscountType]);
+    if (newItemDiscountType === 'FIXED') {
+      return Math.max(0, base - val);
+    }
+    return Math.max(0, base * (1 - (val / 100)));
+  }, [newItemNature, newItemCustomPrice, newItemCalculatedBasePrice, newItemDiscount, newItemDiscountType, newItemAdjustmentMode]);
   
   useEffect(() => {
     const type = jobTypes.find(t => t.id === newItemTypeId);
@@ -1170,16 +1180,28 @@ export const JobDetails = () => {
       let finalItemPrice = calculatedBasePrice;
       let appliedPct = 0;
       let appliedFixed = 0;
+      let appliedSurPct = 0;
+      let appliedSurFixed = 0;
 
       if (newItemNature === 'REPETITION' || newItemNature === 'ADJUSTMENT') {
           finalItemPrice = 0;
       } else {
-          if (newItemDiscountType === 'FIXED') {
-              appliedFixed = discVal;
-              finalItemPrice = Math.max(0, calculatedBasePrice - discVal);
+          if (newItemAdjustmentMode === 'SURCHARGE') {
+              if (newItemDiscountType === 'FIXED') {
+                  appliedSurFixed = discVal;
+                  finalItemPrice = calculatedBasePrice + discVal;
+              } else {
+                  appliedSurPct = discVal;
+                  finalItemPrice = calculatedBasePrice * (1 + (discVal / 100));
+              }
           } else {
-              appliedPct = discVal;
-              finalItemPrice = Math.max(0, calculatedBasePrice * (1 - (discVal / 100)));
+              if (newItemDiscountType === 'FIXED') {
+                  appliedFixed = discVal;
+                  finalItemPrice = Math.max(0, calculatedBasePrice - discVal);
+              } else {
+                  appliedPct = discVal;
+                  finalItemPrice = Math.max(0, calculatedBasePrice * (1 - (discVal / 100)));
+              }
           }
       }
 
@@ -1190,8 +1212,11 @@ export const JobDetails = () => {
           quantity: Number(newItemQty) || 1,
           price: finalItemPrice,
           basePriceBeforeDiscount: calculatedBasePrice,
+          priceAdjustmentType: newItemAdjustmentMode,
           appliedDiscount: appliedPct,
           appliedDiscountFixed: appliedFixed,
+          appliedSurcharge: appliedSurPct,
+          appliedSurchargeFixed: appliedSurFixed,
           appliedPriceTable: dentistObj?.priceTableId ? (priceTables.find(t => t.id === dentistObj.priceTableId)?.name || 'Padrão') : 'Padrão',
           selectedVariationIds: newItemVariationIds,
           nature: newItemNature,
@@ -1279,7 +1304,7 @@ export const JobDetails = () => {
                   }
               }
 
-              const requiresPriceRecalc = Object.keys(updates).some(k => ['jobTypeId', 'selectedVariationIds', 'nature', 'quantity', 'basePriceBeforeDiscount', 'appliedDiscount', 'appliedDiscountFixed'].includes(k));
+              const requiresPriceRecalc = Object.keys(updates).some(k => ['jobTypeId', 'selectedVariationIds', 'nature', 'quantity', 'basePriceBeforeDiscount', 'appliedDiscount', 'appliedDiscountFixed', 'priceAdjustmentType', 'appliedSurcharge', 'appliedSurchargeFixed'].includes(k));
 
               if (requiresPriceRecalc) {
                   const type = jobTypes.find(t => t.id === updated.jobTypeId);
@@ -1294,12 +1319,23 @@ export const JobDetails = () => {
                       updated.price = 0;
                   } else {
                       const base = updated.basePriceBeforeDiscount !== undefined ? Number(updated.basePriceBeforeDiscount) : (type?.basePrice || 0);
-                      const pctDisc = Number(updated.appliedDiscount) || 0;
-                      const fixDisc = Number(updated.appliedDiscountFixed) || 0;
-                      if (fixDisc > 0) {
-                          updated.price = Math.max(0, base - fixDisc);
+                      const isSur = updated.priceAdjustmentType === 'SURCHARGE' || (Boolean(updated.appliedSurcharge) && Number(updated.appliedSurcharge) > 0) || (Boolean(updated.appliedSurchargeFixed) && Number(updated.appliedSurchargeFixed) > 0);
+                      if (isSur) {
+                          const pctSur = Number(updated.appliedSurcharge) || 0;
+                          const fixSur = Number(updated.appliedSurchargeFixed) || 0;
+                          if (fixSur > 0) {
+                              updated.price = base + fixSur;
+                          } else {
+                              updated.price = base * (1 + (pctSur / 100));
+                          }
                       } else {
-                          updated.price = Math.max(0, base * (1 - (pctDisc / 100)));
+                          const pctDisc = Number(updated.appliedDiscount) || 0;
+                          const fixDisc = Number(updated.appliedDiscountFixed) || 0;
+                          if (fixDisc > 0) {
+                              updated.price = Math.max(0, base - fixDisc);
+                          } else {
+                              updated.price = Math.max(0, base * (1 - (pctDisc / 100)));
+                          }
                       }
                   }
               }
@@ -2251,13 +2287,18 @@ export const JobDetails = () => {
       setEditingItemId(item.id);
       const teeth = item.selectedTeeth || [];
       setItemEditTeethInput(teeth.join(', '));
+      const isSur = item.priceAdjustmentType === 'SURCHARGE' || (Boolean(item.appliedSurcharge) && Number(item.appliedSurcharge) > 0) || (Boolean(item.appliedSurchargeFixed) && Number(item.appliedSurchargeFixed) > 0);
+      const isFixed = isSur ? (Boolean(item.appliedSurchargeFixed) && Number(item.appliedSurchargeFixed) > 0) : (Boolean(item.appliedDiscountFixed) && Number(item.appliedDiscountFixed) > 0);
       setItemEditForm({
           quantity: item.quantity || 1,
           nature: item.nature || 'NORMAL',
           price: item.basePriceBeforeDiscount ?? item.price,
+          priceAdjustmentType: isSur ? 'SURCHARGE' : 'DISCOUNT',
           appliedDiscount: item.appliedDiscount || 0,
           appliedDiscountFixed: item.appliedDiscountFixed || 0,
-          discountType: (item.appliedDiscountFixed && item.appliedDiscountFixed > 0) ? 'FIXED' : 'PERCENTAGE',
+          appliedSurcharge: item.appliedSurcharge || 0,
+          appliedSurchargeFixed: item.appliedSurchargeFixed || 0,
+          discountType: isFixed ? 'FIXED' : 'PERCENTAGE',
           appliedPriceTable: item.appliedPriceTable || 'Padrão',
           commissionDisabled: item.commissionDisabled || false,
           isInternalStep: item.isInternalStep || false,
@@ -2284,13 +2325,21 @@ export const JobDetails = () => {
       }
       const parsedQty = Math.max(1, parseInt(String(itemEditForm.quantity)) || (itemEditForm.selectedTeeth.length > 0 ? itemEditForm.selectedTeeth.length : 1));
       const newBasePrice = Math.max(0, parseFloat(String(itemEditForm.price)) || 0);
-      const appliedDiscount = Math.max(0, parseFloat(String(itemEditForm.appliedDiscount)) || 0);
-      const appliedDiscountFixed = Math.max(0, parseFloat(String(itemEditForm.appliedDiscountFixed)) || 0);
-      let finalPrice = newBasePrice * (1 - (appliedDiscount / 100));
-      if (appliedDiscountFixed > 0) finalPrice -= appliedDiscountFixed;
+      const isSur = itemEditForm.priceAdjustmentType === 'SURCHARGE';
+      const appliedDiscount = !isSur ? Math.max(0, parseFloat(String(itemEditForm.appliedDiscount)) || 0) : 0;
+      const appliedDiscountFixed = !isSur ? Math.max(0, parseFloat(String(itemEditForm.appliedDiscountFixed)) || 0) : 0;
+      const appliedSurcharge = isSur ? Math.max(0, parseFloat(String(itemEditForm.appliedSurcharge)) || 0) : 0;
+      const appliedSurchargeFixed = isSur ? Math.max(0, parseFloat(String(itemEditForm.appliedSurchargeFixed)) || 0) : 0;
+
+      let finalPrice = newBasePrice;
       if (itemEditForm.nature === 'REPETITION' || itemEditForm.nature === 'ADJUSTMENT') {
           finalPrice = 0;
+      } else if (isSur) {
+          if (appliedSurchargeFixed > 0) finalPrice += appliedSurchargeFixed;
+          else finalPrice = finalPrice * (1 + appliedSurcharge / 100);
       } else {
+          finalPrice = finalPrice * (1 - (appliedDiscount / 100));
+          if (appliedDiscountFixed > 0) finalPrice -= appliedDiscountFixed;
           finalPrice = Math.max(0, finalPrice);
       }
       
@@ -2309,8 +2358,11 @@ export const JobDetails = () => {
                   nature: itemEditForm.nature || 'NORMAL',
                   price: finalPrice,
                   basePriceBeforeDiscount: newBasePrice,
+                  priceAdjustmentType: itemEditForm.priceAdjustmentType || 'DISCOUNT',
                   appliedDiscount: appliedDiscount,
                   appliedDiscountFixed: appliedDiscountFixed,
+                  appliedSurcharge: appliedSurcharge,
+                  appliedSurchargeFixed: appliedSurchargeFixed,
                   appliedPriceTable: itemEditForm.appliedPriceTable,
                   commissionDisabled: itemEditForm.commissionDisabled,
                   isInternalStep: itemEditForm.isInternalStep,
@@ -3166,8 +3218,13 @@ export const JobDetails = () => {
                               {editItems.map(item => {
                                   if (editingModalItemId === item.id) {
                                        const basePriceVal = item.basePriceBeforeDiscount !== undefined ? item.basePriceBeforeDiscount : (item.price || 0);
-                                       const isFixedDisc = (item.appliedDiscountFixed && item.appliedDiscountFixed > 0);
-                                       const currentDiscVal = isFixedDisc ? item.appliedDiscountFixed : (item.appliedDiscount || '');
+                                       const isItemSurcharge = item.priceAdjustmentType === 'SURCHARGE' || (Boolean(item.appliedSurcharge) && Number(item.appliedSurcharge) > 0) || (Boolean(item.appliedSurchargeFixed) && Number(item.appliedSurchargeFixed) > 0);
+                                       const isFixedDisc = isItemSurcharge
+                                           ? (Boolean(item.appliedSurchargeFixed) && Number(item.appliedSurchargeFixed) > 0)
+                                           : (Boolean(item.appliedDiscountFixed) && Number(item.appliedDiscountFixed) > 0);
+                                       const currentDiscVal = isItemSurcharge
+                                           ? (isFixedDisc ? item.appliedSurchargeFixed : (item.appliedSurcharge || ''))
+                                           : (isFixedDisc ? item.appliedDiscountFixed : (item.appliedDiscount || ''));
 
                                        return (
                                            <div key={item.id} className="p-3.5 bg-blue-50/80 border-2 border-blue-300 rounded-2xl space-y-3.5 shadow-sm">
@@ -3373,16 +3430,71 @@ export const JobDetails = () => {
                                                                />
                                                            </div>
                                                            <div>
-                                                               <label className="block text-[9px] font-black text-slate-600 uppercase mb-1">Desconto no Serviço</label>
+                                                               <div className="flex items-center justify-between mb-1">
+                                                                   <label className="block text-[9px] font-black text-slate-600 uppercase">
+                                                                       {isItemSurcharge ? "Acréscimo no Serviço" : "Desconto no Serviço"}
+                                                                   </label>
+                                                                   {/* Chave Seletora: Desconto vs Acréscimo */}
+                                                                   <div className="inline-flex p-0.5 bg-white border border-slate-200 rounded-lg text-[9px] font-black">
+                                                                       <button
+                                                                           type="button"
+                                                                           onClick={() => {
+                                                                               const currentVal = isFixedDisc ? (Number(item.appliedSurchargeFixed) || 0) : (Number(item.appliedSurcharge) || 0);
+                                                                               handleUpdateEditItem(item.id, {
+                                                                                   priceAdjustmentType: 'DISCOUNT',
+                                                                                   appliedDiscount: isFixedDisc ? 0 : currentVal,
+                                                                                   appliedDiscountFixed: isFixedDisc ? currentVal : 0,
+                                                                                   appliedSurcharge: 0,
+                                                                                   appliedSurchargeFixed: 0,
+                                                                               });
+                                                                           }}
+                                                                           className={`px-1.5 py-0.5 rounded transition-all ${
+                                                                               !isItemSurcharge
+                                                                                   ? 'bg-emerald-600 text-white shadow-xs'
+                                                                                   : 'text-slate-600 hover:text-slate-900'
+                                                                           }`}
+                                                                       >
+                                                                           Desconto
+                                                                       </button>
+                                                                       <button
+                                                                           type="button"
+                                                                           onClick={() => {
+                                                                               const currentVal = isFixedDisc ? (Number(item.appliedDiscountFixed) || 0) : (Number(item.appliedDiscount) || 0);
+                                                                               handleUpdateEditItem(item.id, {
+                                                                                   priceAdjustmentType: 'SURCHARGE',
+                                                                                   appliedSurcharge: isFixedDisc ? 0 : currentVal,
+                                                                                   appliedSurchargeFixed: isFixedDisc ? currentVal : 0,
+                                                                                   appliedDiscount: 0,
+                                                                                   appliedDiscountFixed: 0,
+                                                                               });
+                                                                           }}
+                                                                           className={`px-1.5 py-0.5 rounded transition-all ${
+                                                                               isItemSurcharge
+                                                                                   ? 'bg-amber-500 text-white shadow-xs'
+                                                                                   : 'text-slate-600 hover:text-slate-900'
+                                                                           }`}
+                                                                       >
+                                                                           Acréscimo
+                                                                       </button>
+                                                                   </div>
+                                                               </div>
                                                                <div className="flex gap-1.5">
                                                                    <select 
                                                                        value={isFixedDisc ? 'FIXED' : 'PERCENTAGE'}
                                                                        onChange={e => {
                                                                            const mode = e.target.value;
-                                                                           if (mode === 'FIXED') {
-                                                                               handleUpdateEditItem(item.id, { appliedDiscountFixed: Number(item.appliedDiscount) || 0, appliedDiscount: 0 });
+                                                                           if (isItemSurcharge) {
+                                                                               if (mode === 'FIXED') {
+                                                                                   handleUpdateEditItem(item.id, { appliedSurchargeFixed: Number(item.appliedSurcharge) || 0, appliedSurcharge: 0 });
+                                                                               } else {
+                                                                                   handleUpdateEditItem(item.id, { appliedSurcharge: Number(item.appliedSurchargeFixed) || 0, appliedSurchargeFixed: 0 });
+                                                                               }
                                                                            } else {
-                                                                               handleUpdateEditItem(item.id, { appliedDiscount: Number(item.appliedDiscountFixed) || 0, appliedDiscountFixed: 0 });
+                                                                               if (mode === 'FIXED') {
+                                                                                   handleUpdateEditItem(item.id, { appliedDiscountFixed: Number(item.appliedDiscount) || 0, appliedDiscount: 0 });
+                                                                               } else {
+                                                                                   handleUpdateEditItem(item.id, { appliedDiscount: Number(item.appliedDiscountFixed) || 0, appliedDiscountFixed: 0 });
+                                                                               }
                                                                            }
                                                                        }}
                                                                        className="w-18 sm:w-20 px-2 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold focus:border-blue-500 outline-none"
@@ -3394,18 +3506,28 @@ export const JobDetails = () => {
                                                                        type="number" 
                                                                        min="0" 
                                                                        step="0.1" 
-                                                                       max={isFixedDisc ? undefined : 100}
+                                                                       max={isFixedDisc || isItemSurcharge ? undefined : 100}
                                                                        value={currentDiscVal} 
                                                                        placeholder="0"
                                                                        onChange={e => {
                                                                            const val = e.target.value === '' ? '' : (parseFloat(e.target.value) || 0);
-                                                                           if (isFixedDisc) {
-                                                                               handleUpdateEditItem(item.id, { appliedDiscountFixed: val, appliedDiscount: 0 });
+                                                                           if (isItemSurcharge) {
+                                                                               if (isFixedDisc) {
+                                                                                   handleUpdateEditItem(item.id, { appliedSurchargeFixed: val, appliedSurcharge: 0 });
+                                                                               } else {
+                                                                                   handleUpdateEditItem(item.id, { appliedSurcharge: val, appliedSurchargeFixed: 0 });
+                                                                               }
                                                                            } else {
-                                                                               handleUpdateEditItem(item.id, { appliedDiscount: val, appliedDiscountFixed: 0 });
+                                                                               if (isFixedDisc) {
+                                                                                   handleUpdateEditItem(item.id, { appliedDiscountFixed: val, appliedDiscount: 0 });
+                                                                               } else {
+                                                                                   handleUpdateEditItem(item.id, { appliedDiscount: val, appliedDiscountFixed: 0 });
+                                                                               }
                                                                            }
                                                                        }} 
-                                                                       className="flex-1 min-w-0 px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold focus:border-blue-500 outline-none" 
+                                                                       className={`flex-1 min-w-0 px-3 py-2 bg-white border rounded-xl text-xs font-bold focus:border-blue-500 outline-none ${
+                                                                           isItemSurcharge ? 'border-amber-300 text-amber-900' : 'border-slate-300 text-slate-800'
+                                                                       }`} 
                                                                    />
                                                                </div>
                                                            </div>
@@ -3414,7 +3536,7 @@ export const JobDetails = () => {
                                                        {/* Resumo com Preço Final */}
                                                        <div className="flex items-center justify-between bg-blue-100/70 p-2.5 rounded-xl text-xs font-bold text-blue-900 shadow-2xs">
                                                            <span>
-                                                               {item.nature === 'REPETITION' ? '(Repetição: R$ 0,00)' : item.nature === 'ADJUSTMENT' ? '(Ajuste: R$ 0,00)' : `Preço com Desc: R$ ${(item.price || 0).toFixed(2)}/un.`}
+                                                               {item.nature === 'REPETITION' ? '(Repetição: R$ 0,00)' : item.nature === 'ADJUSTMENT' ? '(Ajuste: R$ 0,00)' : isItemSurcharge ? `Preço com Acrésc.: R$ ${(item.price || 0).toFixed(2)}/un.` : `Preço com Desc: R$ ${(item.price || 0).toFixed(2)}/un.`}
                                                            </span>
                                                            <span className="font-black text-sm">
                                                                Total: R$ ${((item.price || 0) * (Number(item.quantity) || 1)).toFixed(2)}
@@ -3595,11 +3717,17 @@ export const JobDetails = () => {
                                                   <span className="font-black text-slate-500 uppercase tracking-wider">
                                                       {item.nature === 'REPETITION' ? 'REPETIÇÃO (R$ 0)' : item.nature === 'ADJUSTMENT' ? 'AJUSTE (R$ 0)' : `R$ ${(item.basePriceBeforeDiscount !== undefined ? item.basePriceBeforeDiscount : item.price).toFixed(2)}/un.`}
                                                   </span>
-                                                  {item.nature === 'NORMAL' && ((item.appliedDiscount && item.appliedDiscount > 0) || (item.appliedDiscountFixed && item.appliedDiscountFixed > 0)) && (
-                                                      <span className="bg-emerald-100 text-emerald-800 font-black px-1.5 py-0.5 rounded text-[9px]">
-                                                          {item.appliedDiscountFixed && item.appliedDiscountFixed > 0 ? `-R$ ${Number(item.appliedDiscountFixed).toFixed(2)} desc` : `-${item.appliedDiscount}% desc`}
-                                                      </span>
-                                                  )}
+                                                   {item.nature === 'NORMAL' && (
+                                                       (item.priceAdjustmentType === 'SURCHARGE' || (Boolean(item.appliedSurcharge) && Number(item.appliedSurcharge) > 0) || (Boolean(item.appliedSurchargeFixed) && Number(item.appliedSurchargeFixed) > 0)) ? (
+                                                           <span className="bg-amber-100 text-amber-800 font-black px-1.5 py-0.5 rounded text-[9px] border border-amber-200">
+                                                               {item.appliedSurchargeFixed && Number(item.appliedSurchargeFixed) > 0 ? `+R$ ${Number(item.appliedSurchargeFixed).toFixed(2)} acrésc.` : `+${item.appliedSurcharge}% acrésc.`}
+                                                           </span>
+                                                       ) : ((item.appliedDiscount && Number(item.appliedDiscount) > 0) || (item.appliedDiscountFixed && Number(item.appliedDiscountFixed) > 0)) ? (
+                                                           <span className="bg-emerald-100 text-emerald-800 font-black px-1.5 py-0.5 rounded text-[9px]">
+                                                               {item.appliedDiscountFixed && Number(item.appliedDiscountFixed) > 0 ? `-R$ ${Number(item.appliedDiscountFixed).toFixed(2)} desc` : `-${item.appliedDiscount}% desc`}
+                                                           </span>
+                                                       ) : null
+                                                   )}
                                                   <span className="font-black text-slate-800">
                                                       Total: R$ {((item.price || 0) * (Number(item.quantity) || 1)).toFixed(2)}
                                                   </span>
@@ -3818,7 +3946,36 @@ export const JobDetails = () => {
                                                 />
                                             </div>
                                             <div>
-                                                <label className="block text-[9px] font-black text-slate-600 uppercase mb-1">Desconto no Serviço</label>
+                                                <div className="flex items-center justify-between mb-1">
+                                                    <label className="block text-[9px] font-black text-slate-600 uppercase">
+                                                        {newItemAdjustmentMode === 'SURCHARGE' ? 'Acréscimo no Serviço' : 'Desconto no Serviço'}
+                                                    </label>
+                                                    {/* Chave Seletora: Desconto vs Acréscimo */}
+                                                    <div className="inline-flex p-0.5 bg-slate-100 border border-slate-200 rounded-lg text-[9px] font-black">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setNewItemAdjustmentMode('DISCOUNT')}
+                                                            className={`px-1.5 py-0.5 rounded transition-all ${
+                                                                newItemAdjustmentMode === 'DISCOUNT'
+                                                                    ? 'bg-emerald-600 text-white shadow-xs'
+                                                                    : 'text-slate-600 hover:text-slate-900'
+                                                            }`}
+                                                        >
+                                                            Desconto
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setNewItemAdjustmentMode('SURCHARGE')}
+                                                            className={`px-1.5 py-0.5 rounded transition-all ${
+                                                                newItemAdjustmentMode === 'SURCHARGE'
+                                                                    ? 'bg-amber-500 text-white shadow-xs'
+                                                                    : 'text-slate-600 hover:text-slate-900'
+                                                            }`}
+                                                        >
+                                                            Acréscimo
+                                                        </button>
+                                                    </div>
+                                                </div>
                                                 <div className="flex gap-1.5">
                                                     <select 
                                                         value={newItemDiscountType}
@@ -3832,11 +3989,13 @@ export const JobDetails = () => {
                                                         type="number" 
                                                         min="0" 
                                                         step={newItemDiscountType === 'PERCENTAGE' ? "0.1" : "0.01"} 
-                                                        max={newItemDiscountType === 'PERCENTAGE' ? 100 : undefined}
+                                                        max={newItemDiscountType === 'PERCENTAGE' && newItemAdjustmentMode === 'DISCOUNT' ? 100 : undefined}
                                                         value={newItemDiscount === 0 ? '' : newItemDiscount} 
                                                         placeholder="0"
-                                                        onChange={e => setNewItemDiscount(e.target.value === '' ? '' : (parseFloat(e.target.value) || 0))} 
-                                                        className="flex-1 min-w-0 px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold focus:border-blue-500 outline-none" 
+                                                        onChange={e => setNewItemDiscount(e.target.value === '' ? '' : (newItemDiscountType === 'PERCENTAGE' && newItemAdjustmentMode === 'DISCOUNT' ? Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)) : Math.max(0, parseFloat(e.target.value) || 0)))} 
+                                                        className={`flex-1 min-w-0 px-3 py-2 bg-white border rounded-xl text-xs font-bold focus:border-blue-500 outline-none ${
+                                                            newItemAdjustmentMode === 'SURCHARGE' ? 'border-amber-300 text-amber-900' : 'border-slate-300 text-slate-800'
+                                                        }`} 
                                                     />
                                                 </div>
                                             </div>
@@ -3845,7 +4004,7 @@ export const JobDetails = () => {
                                         {/* Resumo do Preço com Desconto */}
                                         <div className="flex items-center justify-between bg-emerald-50/70 border border-emerald-100 p-2.5 rounded-xl text-xs font-bold text-emerald-900 shadow-2xs">
                                             <span>
-                                                {newItemNature === 'REPETITION' ? '(Repetição: R$ 0,00)' : newItemNature === 'ADJUSTMENT' ? '(Ajuste: R$ 0,00)' : `Preço com Desc: R$ ${newItemEffectiveUnitPrice.toFixed(2)}/un.`}
+                                                {newItemNature === 'REPETITION' ? '(Repetição: R$ 0,00)' : newItemNature === 'ADJUSTMENT' ? '(Ajuste: R$ 0,00)' : newItemAdjustmentMode === 'SURCHARGE' ? `Preço com Acrésc.: R$ ${newItemEffectiveUnitPrice.toFixed(2)}/un.` : `Preço com Desc: R$ ${newItemEffectiveUnitPrice.toFixed(2)}/un.`}
                                             </span>
                                             <span className="font-black text-sm text-emerald-950">
                                                 Total: R$ ${(newItemEffectiveUnitPrice * (Number(newItemQty) || 1)).toFixed(2)}
@@ -4980,7 +5139,60 @@ export const JobDetails = () => {
                                                         </div>
 
                                                         <div className="col-span-1 sm:col-span-2">
-                                                            <label className="block text-[10px] uppercase font-black text-slate-500 mb-1">Desconto Extra</label>
+                                                            <div className="flex items-center justify-between mb-1">
+                                                                <label className="block text-[10px] uppercase font-black text-slate-500">
+                                                                    {itemEditForm.priceAdjustmentType === 'SURCHARGE' ? 'Acréscimo no Serviço' : 'Desconto Extra'}
+                                                                </label>
+                                                                {/* Chave Seletora: Desconto vs Acréscimo */}
+                                                                <div className="inline-flex p-0.5 bg-slate-100 border border-slate-200 rounded-lg text-[9px] font-black">
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            const curVal = itemEditForm.discountType === 'PERCENTAGE' 
+                                                                                ? (itemEditForm.appliedSurcharge || itemEditForm.appliedDiscount || 0)
+                                                                                : (itemEditForm.appliedSurchargeFixed || itemEditForm.appliedDiscountFixed || 0);
+                                                                            setItemEditForm({
+                                                                                ...itemEditForm,
+                                                                                priceAdjustmentType: 'DISCOUNT',
+                                                                                appliedDiscount: itemEditForm.discountType === 'PERCENTAGE' ? curVal : 0,
+                                                                                appliedDiscountFixed: itemEditForm.discountType === 'FIXED' ? curVal : 0,
+                                                                                appliedSurcharge: 0,
+                                                                                appliedSurchargeFixed: 0,
+                                                                            });
+                                                                        }}
+                                                                        className={`px-1.5 py-0.5 rounded transition-all ${
+                                                                            itemEditForm.priceAdjustmentType !== 'SURCHARGE'
+                                                                                ? 'bg-emerald-600 text-white shadow-xs'
+                                                                                : 'text-slate-600 hover:text-slate-900'
+                                                                        }`}
+                                                                    >
+                                                                        Desconto
+                                                                    </button>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            const curVal = itemEditForm.discountType === 'PERCENTAGE' 
+                                                                                ? (itemEditForm.appliedDiscount || itemEditForm.appliedSurcharge || 0)
+                                                                                : (itemEditForm.appliedDiscountFixed || itemEditForm.appliedSurchargeFixed || 0);
+                                                                            setItemEditForm({
+                                                                                ...itemEditForm,
+                                                                                priceAdjustmentType: 'SURCHARGE',
+                                                                                appliedSurcharge: itemEditForm.discountType === 'PERCENTAGE' ? curVal : 0,
+                                                                                appliedSurchargeFixed: itemEditForm.discountType === 'FIXED' ? curVal : 0,
+                                                                                appliedDiscount: 0,
+                                                                                appliedDiscountFixed: 0,
+                                                                            });
+                                                                        }}
+                                                                        className={`px-1.5 py-0.5 rounded transition-all ${
+                                                                            itemEditForm.priceAdjustmentType === 'SURCHARGE'
+                                                                                ? 'bg-amber-500 text-white shadow-xs'
+                                                                                : 'text-slate-600 hover:text-slate-900'
+                                                                        }`}
+                                                                    >
+                                                                        Acréscimo
+                                                                    </button>
+                                                                </div>
+                                                            </div>
                                                             <div className="flex gap-2">
                                                                 <select 
                                                                     value={itemEditForm.discountType} 
@@ -4994,15 +5206,28 @@ export const JobDetails = () => {
                                                                     type="number" 
                                                                     min={0} 
                                                                     step={itemEditForm.discountType === 'PERCENTAGE' ? "0.1" : "0.01"}
-                                                                    max={itemEditForm.discountType === 'PERCENTAGE' ? 100 : undefined}
-                                                                    className="flex-1 w-full text-sm font-bold border border-slate-300 p-2.5 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                                    value={itemEditForm.discountType === 'PERCENTAGE' ? itemEditForm.appliedDiscount : itemEditForm.appliedDiscountFixed}
+                                                                    max={itemEditForm.discountType === 'PERCENTAGE' && itemEditForm.priceAdjustmentType !== 'SURCHARGE' ? 100 : undefined}
+                                                                    className={`flex-1 w-full text-sm font-bold border p-2.5 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                                                                        itemEditForm.priceAdjustmentType === 'SURCHARGE' ? 'border-amber-300 text-amber-900' : 'border-slate-300 text-slate-800'
+                                                                    }`}
+                                                                    value={itemEditForm.priceAdjustmentType === 'SURCHARGE'
+                                                                        ? (itemEditForm.discountType === 'PERCENTAGE' ? itemEditForm.appliedSurcharge : itemEditForm.appliedSurchargeFixed)
+                                                                        : (itemEditForm.discountType === 'PERCENTAGE' ? itemEditForm.appliedDiscount : itemEditForm.appliedDiscountFixed)
+                                                                    }
                                                                     onChange={(e) => {
                                                                         const val = e.target.value === '' ? '' : e.target.value;
-                                                                        if (itemEditForm.discountType === 'PERCENTAGE') {
-                                                                            setItemEditForm({...itemEditForm, appliedDiscount: val, appliedDiscountFixed: 0});
+                                                                        if (itemEditForm.priceAdjustmentType === 'SURCHARGE') {
+                                                                            if (itemEditForm.discountType === 'PERCENTAGE') {
+                                                                                setItemEditForm({...itemEditForm, appliedSurcharge: val, appliedSurchargeFixed: 0});
+                                                                            } else {
+                                                                                setItemEditForm({...itemEditForm, appliedSurchargeFixed: val, appliedSurcharge: 0});
+                                                                            }
                                                                         } else {
-                                                                            setItemEditForm({...itemEditForm, appliedDiscountFixed: val, appliedDiscount: 0});
+                                                                            if (itemEditForm.discountType === 'PERCENTAGE') {
+                                                                                setItemEditForm({...itemEditForm, appliedDiscount: val, appliedDiscountFixed: 0});
+                                                                            } else {
+                                                                                setItemEditForm({...itemEditForm, appliedDiscountFixed: val, appliedDiscount: 0});
+                                                                            }
                                                                         }
                                                                     }}
                                                                 />
@@ -5014,19 +5239,35 @@ export const JobDetails = () => {
                                                             <span>
                                                                 {itemEditForm.nature === 'REPETITION' ? '(Repetição: R$ 0,00)' : itemEditForm.nature === 'ADJUSTMENT' ? '(Ajuste: R$ 0,00)' : (() => {
                                                                     const base = parseFloat(String(itemEditForm.price)) || 0;
-                                                                    const dPerc = itemEditForm.discountType === 'PERCENTAGE' ? (parseFloat(String(itemEditForm.appliedDiscount)) || 0) : 0;
-                                                                    const dFix = itemEditForm.discountType === 'FIXED' ? (parseFloat(String(itemEditForm.appliedDiscountFixed)) || 0) : 0;
-                                                                    const unitFinal = Math.max(0, (base * (1 - dPerc / 100)) - dFix);
-                                                                    return `Preço Final Unit.: R$ ${unitFinal.toFixed(2)}`;
+                                                                    const isSur = itemEditForm.priceAdjustmentType === 'SURCHARGE';
+                                                                    if (isSur) {
+                                                                        const sPerc = itemEditForm.discountType === 'PERCENTAGE' ? (parseFloat(String(itemEditForm.appliedSurcharge)) || 0) : 0;
+                                                                        const sFix = itemEditForm.discountType === 'FIXED' ? (parseFloat(String(itemEditForm.appliedSurchargeFixed)) || 0) : 0;
+                                                                        const unitFinal = sFix > 0 ? (base + sFix) : (base * (1 + sPerc / 100));
+                                                                        return `Preço com Acrésc.: R$ ${unitFinal.toFixed(2)}`;
+                                                                    } else {
+                                                                        const dPerc = itemEditForm.discountType === 'PERCENTAGE' ? (parseFloat(String(itemEditForm.appliedDiscount)) || 0) : 0;
+                                                                        const dFix = itemEditForm.discountType === 'FIXED' ? (parseFloat(String(itemEditForm.appliedDiscountFixed)) || 0) : 0;
+                                                                        const unitFinal = Math.max(0, (base * (1 - dPerc / 100)) - dFix);
+                                                                        return `Preço Final Unit.: R$ ${unitFinal.toFixed(2)}`;
+                                                                    }
                                                                 })()}
                                                             </span>
                                                             <span className="font-black text-sm">
                                                                 Total: R$ {(() => {
                                                                     if (itemEditForm.nature === 'REPETITION' || itemEditForm.nature === 'ADJUSTMENT') return '0.00';
                                                                     const base = parseFloat(String(itemEditForm.price)) || 0;
-                                                                    const dPerc = itemEditForm.discountType === 'PERCENTAGE' ? (parseFloat(String(itemEditForm.appliedDiscount)) || 0) : 0;
-                                                                    const dFix = itemEditForm.discountType === 'FIXED' ? (parseFloat(String(itemEditForm.appliedDiscountFixed)) || 0) : 0;
-                                                                    const unitFinal = Math.max(0, (base * (1 - dPerc / 100)) - dFix);
+                                                                    const isSur = itemEditForm.priceAdjustmentType === 'SURCHARGE';
+                                                                    let unitFinal = base;
+                                                                    if (isSur) {
+                                                                        const sPerc = itemEditForm.discountType === 'PERCENTAGE' ? (parseFloat(String(itemEditForm.appliedSurcharge)) || 0) : 0;
+                                                                        const sFix = itemEditForm.discountType === 'FIXED' ? (parseFloat(String(itemEditForm.appliedSurchargeFixed)) || 0) : 0;
+                                                                        unitFinal = sFix > 0 ? (base + sFix) : (base * (1 + sPerc / 100));
+                                                                    } else {
+                                                                        const dPerc = itemEditForm.discountType === 'PERCENTAGE' ? (parseFloat(String(itemEditForm.appliedDiscount)) || 0) : 0;
+                                                                        const dFix = itemEditForm.discountType === 'FIXED' ? (parseFloat(String(itemEditForm.appliedDiscountFixed)) || 0) : 0;
+                                                                        unitFinal = Math.max(0, (base * (1 - dPerc / 100)) - dFix);
+                                                                    }
                                                                     const q = Number(itemEditForm.quantity) || (itemEditForm.selectedTeeth.length > 0 ? itemEditForm.selectedTeeth.length : 1);
                                                                     return (unitFinal * q).toFixed(2);
                                                                 })()}
@@ -5118,15 +5359,22 @@ export const JobDetails = () => {
                                                                 </p>
                                                             </div>
                                                             <div>
-                                                                <p className="text-[9px] font-black text-slate-400 uppercase">Desconto</p>
+                                                                <p className="text-[9px] font-black text-slate-400 uppercase">
+                                                                    {item.priceAdjustmentType === 'SURCHARGE' || (Boolean(item.appliedSurcharge) && Number(item.appliedSurcharge) > 0) || (Boolean(item.appliedSurchargeFixed) && Number(item.appliedSurchargeFixed) > 0) ? 'Acréscimo' : 'Desconto'}
+                                                                </p>
                                                                 <p className="text-sm font-bold text-slate-700">
                                                                     {!canViewJobPrices ? (
                                                                         '••••••'
+                                                                    ) : (item.priceAdjustmentType === 'SURCHARGE' || (Boolean(item.appliedSurcharge) && Number(item.appliedSurcharge) > 0) || (Boolean(item.appliedSurchargeFixed) && Number(item.appliedSurchargeFixed) > 0)) ? (
+                                                                        <span className="text-amber-700 font-bold">
+                                                                            {item.appliedSurcharge ? `+${Number(item.appliedSurcharge).toFixed(1)}% ` : ''}
+                                                                            {item.appliedSurchargeFixed ? `(+R$ ${Number(item.appliedSurchargeFixed).toFixed(2)})` : ''}
+                                                                        </span>
                                                                     ) : item.appliedDiscount || item.appliedDiscountFixed ? (
-                                                                        <>
-                                                                            {item.appliedDiscount ? `${item.appliedDiscount.toFixed(1)}% ` : ''}
-                                                                            {item.appliedDiscountFixed ? `(R$ ${item.appliedDiscountFixed.toFixed(2)})` : ''}
-                                                                        </>
+                                                                        <span className="text-emerald-700 font-bold">
+                                                                            {item.appliedDiscount ? `-${Number(item.appliedDiscount).toFixed(1)}% ` : ''}
+                                                                            {item.appliedDiscountFixed ? `(-R$ ${Number(item.appliedDiscountFixed).toFixed(2)})` : ''}
+                                                                        </span>
                                                                     ) : 'Nenhum'}
                                                                 </p>
                                                             </div>

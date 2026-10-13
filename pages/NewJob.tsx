@@ -232,6 +232,7 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
   const [manualTeethText, setManualTeethText] = useState('');
   const [commissionDisabled, setCommissionDisabled] = useState(false);
   const [manualPrice, setManualPrice] = useState<number | string | null>(null);
+  const [priceAdjustmentType, setPriceAdjustmentType] = useState<"DISCOUNT" | "SURCHARGE">("DISCOUNT");
   const [discountType, setDiscountType] = useState<"PERCENTAGE" | "FIXED">("PERCENTAGE");
   const [discountValue, setDiscountValue] = useState<number | string>(0);
   
@@ -553,11 +554,16 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
 
   const finalItemPrice = useMemo(() => {
     let price = manualPrice !== null ? (Number(manualPrice) || 0) : calculatedBasePrice;
-    const numDisc = Number(discountValue) || 0;
-    if (discountType === 'PERCENTAGE' && numDisc > 0) price = price * (1 - numDisc / 100);
-    if (discountType === 'FIXED' && numDisc > 0) price = price - numDisc;
+    const numVal = Number(discountValue) || 0;
+    if (priceAdjustmentType === 'SURCHARGE') {
+      if (discountType === 'PERCENTAGE' && numVal > 0) price = price * (1 + numVal / 100);
+      if (discountType === 'FIXED' && numVal > 0) price = price + numVal;
+    } else {
+      if (discountType === 'PERCENTAGE' && numVal > 0) price = price * (1 - numVal / 100);
+      if (discountType === 'FIXED' && numVal > 0) price = price - numVal;
+    }
     return Math.max(0, price);
-  }, [calculatedBasePrice, manualPrice, discountType, discountValue]);
+  }, [calculatedBasePrice, manualPrice, priceAdjustmentType, discountType, discountValue]);
 
   const disabledOptions = useMemo(() => {
     if (!activeJobType) return new Set<string>();
@@ -908,6 +914,9 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
       });
     }
 
+    const isSurcharge = priceAdjustmentType === 'SURCHARGE';
+    const numVal = Number(discountValue) || 0;
+
     const newItem: JobItem = { 
         id: `item_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`, 
         jobTypeId: activeJobType.id, 
@@ -917,8 +926,11 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
         isInternalStep: isInternalStep,
         price: finalItemPrice, 
         basePriceBeforeDiscount: manualPrice !== null ? (Number(manualPrice) || 0) : calculatedBasePrice,
-        appliedDiscount: discountType === 'PERCENTAGE' ? (Number(discountValue) || 0) : 0,
-        appliedDiscountFixed: discountType === 'FIXED' ? (Number(discountValue) || 0) : 0,
+        priceAdjustmentType: priceAdjustmentType,
+        appliedDiscount: !isSurcharge && discountType === 'PERCENTAGE' ? numVal : 0,
+        appliedDiscountFixed: !isSurcharge && discountType === 'FIXED' ? numVal : 0,
+        appliedSurcharge: isSurcharge && discountType === 'PERCENTAGE' ? numVal : 0,
+        appliedSurchargeFixed: isSurcharge && discountType === 'FIXED' ? numVal : 0,
         appliedPriceTable: appliedTableName,
         selectedVariationIds: allSelectedOptionIds, 
         variationValues: variationTextValues, 
@@ -933,7 +945,7 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
     setJobTypeSearchQuery('');
     setIsSearchingJobType(false);
     setShowJobTypeSuggestions(false);
-    setQuantity(1); setItemColor(''); setSelectedVariations({}); setVariationTextValues({}); setItemSelectedTeeth([]); setManualTeethText(''); setCommissionDisabled(false); setManualPrice(null); setDiscountValue(0); setItemNature('NORMAL'); setIsInternalStep(false);
+    setQuantity(1); setItemColor(''); setSelectedVariations({}); setVariationTextValues({}); setItemSelectedTeeth([]); setManualTeethText(''); setCommissionDisabled(false); setManualPrice(null); setPriceAdjustmentType('DISCOUNT'); setDiscountValue(0); setItemNature('NORMAL'); setIsInternalStep(false);
   };
 
   const handleEditItem = (item: JobItem) => {
@@ -943,12 +955,25 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
     setItemNature(item.nature || 'NORMAL');
     setIsInternalStep(item.isInternalStep || false);
     setManualPrice(item.basePriceBeforeDiscount || null);
-    if (item.appliedDiscountFixed && item.appliedDiscountFixed > 0) {
-        setDiscountType('FIXED');
-        setDiscountValue(item.appliedDiscountFixed);
+    const isSur = item.priceAdjustmentType === 'SURCHARGE' || (Boolean(item.appliedSurcharge) && Number(item.appliedSurcharge) > 0) || (Boolean(item.appliedSurchargeFixed) && Number(item.appliedSurchargeFixed) > 0);
+    if (isSur) {
+        setPriceAdjustmentType('SURCHARGE');
+        if (item.appliedSurchargeFixed && item.appliedSurchargeFixed > 0) {
+            setDiscountType('FIXED');
+            setDiscountValue(item.appliedSurchargeFixed);
+        } else {
+            setDiscountType('PERCENTAGE');
+            setDiscountValue(item.appliedSurcharge || 0);
+        }
     } else {
-        setDiscountType('PERCENTAGE');
-        setDiscountValue(item.appliedDiscount || 0);
+        setPriceAdjustmentType('DISCOUNT');
+        if (item.appliedDiscountFixed && item.appliedDiscountFixed > 0) {
+            setDiscountType('FIXED');
+            setDiscountValue(item.appliedDiscountFixed);
+        } else {
+            setDiscountType('PERCENTAGE');
+            setDiscountValue(item.appliedDiscount || 0);
+        }
     }
     setItemColor(item.color || '');
     if (item.selectedTeeth && item.selectedTeeth.length > 0) {
@@ -1607,7 +1632,36 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                                     <input type="number" step="0.01" value={manualPrice !== null ? manualPrice : calculatedBasePrice.toFixed(2)} onChange={e => setManualPrice(e.target.value === '' ? '' : parseFloat(e.target.value))} className="w-full px-4 py-2.5 border rounded-xl font-black focus:ring-2 outline-none" />
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">{t('newJob.extraDiscount', 'Desconto Extra')}</label>
+                                    <div className="flex items-center justify-between mb-1">
+                                        <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider">
+                                            {priceAdjustmentType === 'SURCHARGE' ? 'Acréscimo (Urgência)' : t('newJob.extraDiscount', 'Desconto Extra')}
+                                        </label>
+                                        {/* Chave Seletora: Desconto vs Acréscimo */}
+                                        <div className="inline-flex p-0.5 bg-slate-100 border border-slate-200 rounded-lg text-[10px] font-black">
+                                            <button
+                                                type="button"
+                                                onClick={() => setPriceAdjustmentType('DISCOUNT')}
+                                                className={`px-2 py-0.5 rounded-md transition-all ${
+                                                    priceAdjustmentType === 'DISCOUNT'
+                                                        ? 'bg-emerald-600 text-white shadow-xs'
+                                                        : 'text-slate-600 hover:text-slate-900'
+                                                }`}
+                                            >
+                                                Desconto
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setPriceAdjustmentType('SURCHARGE')}
+                                                className={`px-2 py-0.5 rounded-md transition-all ${
+                                                    priceAdjustmentType === 'SURCHARGE'
+                                                        ? 'bg-amber-500 text-white shadow-xs'
+                                                        : 'text-slate-600 hover:text-slate-900'
+                                                }`}
+                                            >
+                                                Acréscimo
+                                            </button>
+                                        </div>
+                                    </div>
                                     <div className="flex gap-2">
                                         <select 
                                             value={discountType} 
@@ -1621,10 +1675,12 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                                             type="number" 
                                             min="0" 
                                             step={discountType === 'PERCENTAGE' ? "1" : "0.01"}
-                                            max={discountType === 'PERCENTAGE' ? "100" : undefined}
+                                            max={discountType === 'PERCENTAGE' && priceAdjustmentType === 'DISCOUNT' ? "100" : undefined}
                                             value={discountValue} 
-                                            onChange={e => setDiscountValue(e.target.value === '' ? '' : (discountType === 'PERCENTAGE' ? Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)) : Math.max(0, parseFloat(e.target.value) || 0)))} 
-                                            className="flex-1 px-4 py-2.5 bg-white border border-slate-200 rounded-xl font-black focus:ring-2 outline-none" 
+                                            onChange={e => setDiscountValue(e.target.value === '' ? '' : (discountType === 'PERCENTAGE' && priceAdjustmentType === 'DISCOUNT' ? Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)) : Math.max(0, parseFloat(e.target.value) || 0)))} 
+                                            className={`flex-1 px-4 py-2.5 bg-white border rounded-xl font-black focus:ring-2 outline-none transition-colors ${
+                                                priceAdjustmentType === 'SURCHARGE' ? 'border-amber-300 focus:border-amber-500 text-amber-900' : 'border-slate-200 text-slate-800'
+                                            }`} 
                                             placeholder={discountType === 'PERCENTAGE' ? "0%" : "R$ 0,00"}
                                         />
                                     </div>
@@ -1743,6 +1799,17 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                                                 >
                                                     {!item.commissionDisabled ? t('newJob.commissionActiveBadge', '✅ COMISSÃO ATIVA') : t('newJob.commissionInactiveBadge', '🚫 COMISSÃO INATIVA')}
                                                 </button>
+                                            )}
+                                            {item.nature === 'NORMAL' && (
+                                                (item.priceAdjustmentType === 'SURCHARGE' || (Boolean(item.appliedSurcharge) && Number(item.appliedSurcharge) > 0) || (Boolean(item.appliedSurchargeFixed) && Number(item.appliedSurchargeFixed) > 0)) ? (
+                                                    <span className="text-[8px] font-black uppercase px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 border border-amber-200 inline-block">
+                                                        {item.appliedSurchargeFixed && Number(item.appliedSurchargeFixed) > 0 ? `+R$ ${Number(item.appliedSurchargeFixed).toFixed(2)} acrésc.` : `+${item.appliedSurcharge}% acrésc.`}
+                                                    </span>
+                                                ) : (Boolean(item.appliedDiscount) && Number(item.appliedDiscount) > 0) || (Boolean(item.appliedDiscountFixed) && Number(item.appliedDiscountFixed) > 0) ? (
+                                                    <span className="text-[8px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 border border-emerald-200 inline-block">
+                                                        {item.appliedDiscountFixed && Number(item.appliedDiscountFixed) > 0 ? `-R$ ${Number(item.appliedDiscountFixed).toFixed(2)} desc` : `-${item.appliedDiscount}% desc`}
+                                                    </span>
+                                                ) : null
                                             )}
                                         </div>
                                     </div>

@@ -539,6 +539,9 @@ export interface JobItem {
   basePriceBeforeDiscount?: number;
   appliedDiscount?: number;
   appliedDiscountFixed?: number;
+  priceAdjustmentType?: 'DISCOUNT' | 'SURCHARGE';
+  appliedSurcharge?: number;
+  appliedSurchargeFixed?: number;
   appliedPriceTable?: string;
   nature: JobNature;
   selectedVariationIds: string[];
