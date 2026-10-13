@@ -350,25 +350,25 @@ export const PrintOverlay = () => {
               <div className="flex gap-4 mb-3 items-stretch">
                 <div className="flex flex-col gap-2 flex-1">
                     <div className="border border-gray-300 p-2 rounded flex flex-col items-start">
-                        <div className="w-full mb-1">
+                        <div className="w-full">
                             <p className="text-[10px] uppercase font-bold text-gray-500 mb-0.5 leading-none">Cliente / Clínica</p>
                             <p className="text-[10pt] font-bold leading-tight truncate mt-1">{job.dentistName}</p>
                             {job.subDentistName && (
-                                <div className="mt-2 pt-1 border-t border-gray-100">
+                                <div className="mt-1.5 pt-1 border-t border-gray-100">
                                     <p className="text-[9px] uppercase font-bold text-gray-500 mb-0.5 leading-none">Dentista Solicitante</p>
                                     <p className="text-[10pt] font-bold leading-tight mt-0.5">{job.subDentistName}</p>
                                 </div>
                             )}
                         </div>
-                        <div className="w-full mt-1 pt-1 border-t border-gray-200">
-                            <p className="text-[10px] uppercase font-bold text-gray-500 mb-0.5 leading-none">Endereço Completo</p>
-                            <p className="text-xs font-bold leading-tight mt-1 text-gray-700 break-words">{dentistFullAddress || '-'}</p>
-                        </div>
                     </div>
-                    <div className="border border-gray-300 p-2 rounded relative flex-1 flex items-center justify-between">
-                        <div className="overflow-hidden">
+                    <div className="border border-gray-300 p-2 rounded relative flex-1 flex flex-col justify-between">
+                        <div className="overflow-hidden pb-1 mb-1 border-b border-gray-200">
                             <p className="text-[10px] uppercase font-bold text-gray-500 mb-0.5 leading-none">Paciente</p>
-                            <p className="text-[10pt] font-bold leading-tight truncate mt-1">{job.patientName}</p>
+                            <p className="text-[10pt] font-bold leading-tight truncate mt-1 text-gray-900">{job.patientName}</p>
+                        </div>
+                        <div className="overflow-hidden">
+                            <p className="text-[10px] uppercase font-bold text-gray-500 mb-0.5 leading-none">Endereço do Dentista</p>
+                            <p className="text-xs font-bold leading-tight mt-1 text-gray-700 break-words">{dentistFullAddress || '-'}</p>
                         </div>
                     </div>
                 </div>

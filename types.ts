@@ -449,6 +449,7 @@ export interface ProductCatalogItem {
   categoryId?: string;
   costPrice: number;
   sellPrice: number;
+  profitMarginPercent?: number;
   isPromotion?: boolean;
   promotionalPrice?: number;
   organizationId: string;
@@ -466,6 +467,7 @@ export interface InventoryItem {
   minStock: number;
   costPrice: number;
   sellPrice: number;
+  profitMarginPercent?: number;
   isPromotion?: boolean;
   promotionalPrice?: number;
   dentistOwnerId?: string | null;
@@ -478,6 +480,29 @@ export interface InventoryItem {
   isCombo?: boolean;
   comboItems?: Array<{ productId: string; name: string; quantity: number }>;
   targetAudience?: 'DENTIST' | 'LAB' | 'BOTH';
+}
+
+export type InventoryMovementType = 'ENTRY' | 'EXIT';
+
+export interface InventoryMovement {
+  id: string;
+  itemId: string;
+  itemName: string;
+  itemCode?: string;
+  stockOwnerId?: string | null;
+  stockOwnerName: string;
+  type: InventoryMovementType;
+  quantity: number;
+  totalStockAfter?: number;
+  date: string;
+  unitCostOrPrice?: number;
+  totalValue?: number;
+  jobId?: string;
+  jobOsNumber?: string;
+  jobPatientName?: string;
+  jobDentistName?: string;
+  reason?: string;
+  createdAt?: string;
 }
 
 export interface JobProduct {

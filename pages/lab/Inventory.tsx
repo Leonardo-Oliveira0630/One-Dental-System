@@ -1,8 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '../../context/AppContext';
-import { InventoryCategory, InventoryItem, InventoryItemType } from '../../types';
-import { Package, Plus, Trash2, Edit2, Search, X, Layers, Box, Tag, Key, Info, Check, Save, ArrowLeft, ChevronDown, User as UserIcon, Sparkles, Upload, FileText } from 'lucide-react';
+import { InventoryCategory, InventoryItem, InventoryItemType, InventoryMovement, InventoryMovementType } from '../../types';
+import { 
+    Package, Plus, Trash2, Edit2, Search, X, Layers, Box, Tag, Key, Info, Check, 
+    Save, ArrowLeft, ChevronDown, User as UserIcon, Sparkles, Upload, FileText,
+    Download, FileSpreadsheet, ArrowUpRight, ArrowDownRight, Calendar, Filter, 
+    RefreshCw, TrendingUp, History, ShoppingBag
+} from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 
 export const Inventory = () => {
     const { t } = useTranslation();
@@ -11,10 +19,11 @@ export const Inventory = () => {
         addInventoryCategory, updateInventoryCategory, deleteInventoryCategory,
         addInventoryItem, updateInventoryItem, deleteInventoryItem,
         addProductCatalogItem, updateProductCatalogItem, deleteProductCatalogItem,
-        manualDentists, allUsers, currentUser, globalSettings 
+        manualDentists, allUsers, currentUser, globalSettings,
+        jobs, currentOrg
     } = useApp();
 
-    const [activeTab, setActiveTab] = useState<'ITEMS' | 'CATEGORIES' | 'CATALOG'>('ITEMS');
+    const [activeTab, setActiveTab] = useState<'ITEMS' | 'CATEGORIES' | 'CATALOG' | 'MOVEMENTS'>('ITEMS');
     const [searchQuery, setSearchQuery] = useState('');
     const [activeOwnerGroup, setActiveOwnerGroup] = useState<string | null>(null);
     const [dentistSearch, setDentistSearch] = useState('');
@@ -55,11 +64,68 @@ export const Inventory = () => {
     const [editingCatId, setEditingCatId] = useState<string | null>(null);
     const [catForm, setCatForm] = useState<Partial<InventoryCategory>>({ name: '', type: 'MATERIAL' });
 
+    // Profit margin calculation utilities
+    const calculateProfitPercent = (cost?: number, sell?: number): number => {
+        if (!cost || cost <= 0) return 0;
+        const sellVal = sell || 0;
+        return Number((((sellVal - cost) / cost) * 100).toFixed(1));
+    };
+
+    const calculateSellFromProfit = (cost: number, marginPct: number): number => {
+        if (!cost || cost < 0) return 0;
+        return Number((cost * (1 + (marginPct / 100))).toFixed(2));
+    };
+
+    const [profitMarginInput, setProfitMarginInput] = useState<string>('');
+    const [catalogProfitMarginInput, setCatalogProfitMarginInput] = useState<string>('');
+
+    // Movements & Reports State
+    const [customMovements, setCustomMovements] = useState<InventoryMovement[]>(() => {
+        try {
+            const key = `labprox_inventory_movements_${currentOrg?.id || 'default'}`;
+            const saved = localStorage.getItem(key);
+            return saved ? JSON.parse(saved) : [];
+        } catch {
+            return [];
+        }
+    });
+
+    const saveCustomMovements = (updated: InventoryMovement[]) => {
+        setCustomMovements(updated);
+        try {
+            const key = `labprox_inventory_movements_${currentOrg?.id || 'default'}`;
+            localStorage.setItem(key, JSON.stringify(updated));
+        } catch (e) {
+            console.error("Erro ao salvar movimentações:", e);
+        }
+    };
+
+    const [isEntryModalOpen, setIsEntryModalOpen] = useState(false);
+    const [entryForm, setEntryForm] = useState<{
+        itemId: string;
+        quantity: number | string;
+        unitCost: number | string;
+        date: string;
+        reason: string;
+    }>({
+        itemId: '',
+        quantity: 1,
+        unitCost: '',
+        date: new Date().toISOString().split('T')[0],
+        reason: ''
+    });
+
+    const [movementsFilterType, setMovementsFilterType] = useState<'ALL' | 'ENTRY' | 'EXIT'>('ALL');
+    const [movementsFilterStock, setMovementsFilterStock] = useState<string>('ALL');
+    const [movementsStartDate, setMovementsStartDate] = useState<string>('');
+    const [movementsEndDate, setMovementsEndDate] = useState<string>('');
+    const [movementsSearch, setMovementsSearch] = useState<string>('');
+
     // Item Modal
     const [isItemModalOpen, setIsItemModalOpen] = useState(false);
     const [editingItemId, setEditingItemId] = useState<string | null>(null);
     const [itemForm, setItemForm] = useState<Partial<InventoryItem>>({
-        name: '', description: '', type: 'MATERIAL', categoryId: '', currentStock: 0, minStock: 0, costPrice: 0, sellPrice: 0, dentistOwnerId: ''
+        name: '', description: '', type: 'MATERIAL', categoryId: '', currentStock: 0, minStock: 0, costPrice: 0, sellPrice: 0, profitMarginPercent: 0, dentistOwnerId: ''
     });
     const [showCatalogSuggestions, setShowCatalogSuggestions] = useState(false);
     const [showSkuSuggestions, setShowSkuSuggestions] = useState(false);
@@ -523,22 +589,66 @@ export const Inventory = () => {
         if (item) {
             setEditingCatalogId(item.id);
             setCatalogForm(item);
+            const m = item.costPrice > 0 ? calculateProfitPercent(item.costPrice, item.sellPrice).toString() : '';
+            setCatalogProfitMarginInput(m);
         } else {
             setEditingCatalogId(null);
             setCatalogForm({
-                name: '', description: '', code: '', type: 'MATERIAL', categoryId: '', costPrice: 0, sellPrice: 0
+                name: '', description: '', code: '', type: 'MATERIAL', categoryId: '', costPrice: 0, sellPrice: 0, profitMarginPercent: 0
             });
+            setCatalogProfitMarginInput('');
         }
         setIsCatalogModalOpen(true);
+    };
+
+    const handleCatalogCostChange = (cost: number) => {
+        setCatalogForm(prev => {
+            let nextSell = prev.sellPrice || 0;
+            if (catalogProfitMarginInput !== '') {
+                const margin = parseFloat(catalogProfitMarginInput);
+                if (!isNaN(margin)) {
+                    nextSell = calculateSellFromProfit(cost, margin);
+                }
+            } else if (cost > 0 && nextSell > 0) {
+                setCatalogProfitMarginInput(calculateProfitPercent(cost, nextSell).toString());
+            }
+            return { ...prev, costPrice: cost, sellPrice: nextSell, profitMarginPercent: catalogProfitMarginInput ? parseFloat(catalogProfitMarginInput) : undefined };
+        });
+    };
+
+    const handleCatalogSellChange = (sell: number) => {
+        setCatalogForm(prev => {
+            const cost = prev.costPrice || 0;
+            if (cost > 0) {
+                setCatalogProfitMarginInput(calculateProfitPercent(cost, sell).toString());
+            }
+            return { ...prev, sellPrice: sell, profitMarginPercent: cost > 0 ? calculateProfitPercent(cost, sell) : undefined };
+        });
+    };
+
+    const handleCatalogMarginChange = (marginStr: string) => {
+        setCatalogProfitMarginInput(marginStr);
+        const margin = parseFloat(marginStr);
+        setCatalogForm(prev => {
+            const cost = prev.costPrice || 0;
+            if (!isNaN(margin) && cost > 0) {
+                return { ...prev, sellPrice: calculateSellFromProfit(cost, margin), profitMarginPercent: margin };
+            }
+            return { ...prev, profitMarginPercent: !isNaN(margin) ? margin : undefined };
+        });
     };
 
     const saveCatalogItem = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!catalogForm.name || !catalogForm.type) return;
+        const payload = {
+            ...catalogForm,
+            profitMarginPercent: catalogProfitMarginInput ? parseFloat(catalogProfitMarginInput) : (catalogForm.costPrice && catalogForm.costPrice > 0 ? calculateProfitPercent(catalogForm.costPrice, catalogForm.sellPrice) : 0)
+        };
         if (editingCatalogId) {
-            await updateProductCatalogItem(editingCatalogId, catalogForm);
+            await updateProductCatalogItem(editingCatalogId, payload);
         } else {
-            await addProductCatalogItem(catalogForm as any);
+            await addProductCatalogItem(payload as any);
         }
         setIsCatalogModalOpen(false);
     };
@@ -572,15 +682,55 @@ export const Inventory = () => {
             setEditingItemId(item.id);
             setItemForm({ ...item, dentistOwnerId: item.dentistOwnerId || '' });
             setDentistSearch(getDentistName(item.dentistOwnerId));
+            const m = item.costPrice > 0 ? calculateProfitPercent(item.costPrice, item.sellPrice).toString() : '';
+            setProfitMarginInput(m);
         } else {
             setEditingItemId(null);
             const ownerId = activeOwnerGroup && activeOwnerGroup !== 'LAB' ? activeOwnerGroup : '';
             setItemForm({
-                name: '', code: '', description: '', type: 'MATERIAL', categoryId: '', currentStock: 0, minStock: 0, costPrice: 0, sellPrice: 0, dentistOwnerId: ownerId
+                name: '', code: '', description: '', type: 'MATERIAL', categoryId: '', currentStock: 0, minStock: 0, costPrice: 0, sellPrice: 0, profitMarginPercent: 0, dentistOwnerId: ownerId
             });
             setDentistSearch(ownerId ? getDentistName(ownerId) : '');
+            setProfitMarginInput('');
         }
         setIsItemModalOpen(true);
+    };
+
+    const handleItemCostChange = (cost: number) => {
+        setItemForm(prev => {
+            let nextSell = prev.sellPrice || 0;
+            if (profitMarginInput !== '') {
+                const margin = parseFloat(profitMarginInput);
+                if (!isNaN(margin)) {
+                    nextSell = calculateSellFromProfit(cost, margin);
+                }
+            } else if (cost > 0 && nextSell > 0) {
+                setProfitMarginInput(calculateProfitPercent(cost, nextSell).toString());
+            }
+            return { ...prev, costPrice: cost, sellPrice: nextSell, profitMarginPercent: profitMarginInput ? parseFloat(profitMarginInput) : undefined };
+        });
+    };
+
+    const handleItemSellChange = (sell: number) => {
+        setItemForm(prev => {
+            const cost = prev.costPrice || 0;
+            if (cost > 0) {
+                setProfitMarginInput(calculateProfitPercent(cost, sell).toString());
+            }
+            return { ...prev, sellPrice: sell, profitMarginPercent: cost > 0 ? calculateProfitPercent(cost, sell) : undefined };
+        });
+    };
+
+    const handleItemMarginChange = (marginStr: string) => {
+        setProfitMarginInput(marginStr);
+        const margin = parseFloat(marginStr);
+        setItemForm(prev => {
+            const cost = prev.costPrice || 0;
+            if (!isNaN(margin) && cost > 0) {
+                return { ...prev, sellPrice: calculateSellFromProfit(cost, margin), profitMarginPercent: margin };
+            }
+            return { ...prev, profitMarginPercent: !isNaN(margin) ? margin : undefined };
+        });
     };
 
     const handleSelectCatalogItem = (catItem: {
@@ -592,6 +742,11 @@ export const Inventory = () => {
         costPrice?: number;
         sellPrice?: number;
     }) => {
+        const cost = catItem.costPrice !== undefined ? catItem.costPrice : (itemForm.costPrice || 0);
+        const sell = catItem.sellPrice !== undefined ? catItem.sellPrice : (itemForm.sellPrice || 0);
+        if (cost > 0 && sell > 0) {
+            setProfitMarginInput(calculateProfitPercent(cost, sell).toString());
+        }
         setItemForm(prev => ({
             ...prev,
             name: catItem.name || prev.name,
@@ -599,8 +754,9 @@ export const Inventory = () => {
             description: catItem.description !== undefined ? catItem.description : prev.description,
             categoryId: catItem.categoryId || prev.categoryId,
             type: catItem.type || prev.type || 'MATERIAL',
-            costPrice: catItem.costPrice !== undefined ? catItem.costPrice : prev.costPrice,
-            sellPrice: catItem.sellPrice !== undefined ? catItem.sellPrice : prev.sellPrice,
+            costPrice: cost,
+            sellPrice: sell,
+            profitMarginPercent: cost > 0 ? calculateProfitPercent(cost, sell) : 0,
         }));
         setShowCatalogSuggestions(false);
         setShowSkuSuggestions(false);
@@ -609,14 +765,37 @@ export const Inventory = () => {
     const saveItem = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!itemForm.name || !itemForm.type || !itemForm.categoryId) return;
+        const finalMargin = profitMarginInput ? parseFloat(profitMarginInput) : (itemForm.costPrice && itemForm.costPrice > 0 ? calculateProfitPercent(itemForm.costPrice, itemForm.sellPrice) : 0);
         const data = {
             ...itemForm,
+            profitMarginPercent: finalMargin,
             dentistOwnerId: itemForm.dentistOwnerId || null,
         };
         if (editingItemId) {
             await updateInventoryItem(editingItemId, data);
         } else {
             await addInventoryItem(data as any);
+
+            // Log initial entry movement if new item starts with stock
+            if (Number(data.currentStock) > 0) {
+                const initMovement: InventoryMovement = {
+                    id: `mov_init_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+                    itemId: `inv_item_${Date.now()}`,
+                    itemName: data.name || '',
+                    itemCode: data.code,
+                    stockOwnerId: data.dentistOwnerId,
+                    stockOwnerName: getDentistName(data.dentistOwnerId),
+                    type: 'ENTRY',
+                    quantity: Number(data.currentStock),
+                    totalStockAfter: Number(data.currentStock),
+                    date: new Date().toISOString(),
+                    unitCostOrPrice: Number(data.costPrice) || 0,
+                    totalValue: (Number(data.costPrice) || 0) * Number(data.currentStock),
+                    reason: 'Cadastro Inicial de Produto',
+                    createdAt: new Date().toISOString()
+                };
+                saveCustomMovements([initMovement, ...customMovements]);
+            }
         }
 
         // Garante que todo item cadastrado vai para o banco de dados de produtos do laboratório
@@ -637,6 +816,7 @@ export const Inventory = () => {
                     type: itemForm.type || 'MATERIAL',
                     costPrice: Number(itemForm.costPrice) || 0,
                     sellPrice: Number(itemForm.sellPrice) || 0,
+                    profitMarginPercent: finalMargin,
                 } as any);
             }
         } catch (syncErr) {
@@ -644,6 +824,437 @@ export const Inventory = () => {
         }
 
         setIsItemModalOpen(false);
+    };
+
+    // Handle Manual / Rapid Stock Entry
+    const handleRegisterEntry = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const qty = Number(entryForm.quantity) || 0;
+        if (!entryForm.itemId || qty <= 0) {
+            alert("Selecione o produto e informe uma quantidade válida maior que zero.");
+            return;
+        }
+        const item = inventoryItems.find(i => i.id === entryForm.itemId);
+        if (!item) {
+            alert("Produto selecionado não encontrado.");
+            return;
+        }
+
+        const newTotalStock = (item.currentStock || 0) + qty;
+        const unitCostNum = entryForm.unitCost !== '' && Number(entryForm.unitCost) >= 0 ? Number(entryForm.unitCost) : (item.costPrice || 0);
+
+        await updateInventoryItem(item.id, {
+            currentStock: newTotalStock,
+            costPrice: unitCostNum > 0 ? unitCostNum : item.costPrice
+        });
+
+        const stockOwner = item.dentistOwnerId || null;
+        const stockName = getDentistName(stockOwner);
+        const entryDate = entryForm.date ? new Date(entryForm.date).toISOString() : new Date().toISOString();
+
+        const movement: InventoryMovement = {
+            id: `mov_entry_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+            itemId: item.id,
+            itemName: item.name,
+            itemCode: item.code,
+            stockOwnerId: stockOwner,
+            stockOwnerName: stockName,
+            type: 'ENTRY',
+            quantity: qty,
+            totalStockAfter: newTotalStock,
+            date: entryDate,
+            unitCostOrPrice: unitCostNum,
+            totalValue: unitCostNum * qty,
+            reason: entryForm.reason || 'Entrada / Compra de Estoque',
+            createdAt: new Date().toISOString()
+        };
+
+        saveCustomMovements([movement, ...customMovements]);
+        setIsEntryModalOpen(false);
+        setEntryForm({
+            itemId: '',
+            quantity: 1,
+            unitCost: '',
+            date: new Date().toISOString().split('T')[0],
+            reason: ''
+        });
+        alert(`Entrada de ${qty} un. no item "${item.name}" registrada com sucesso! Estoque atualizado para ${newTotalStock}.`);
+    };
+
+    // Unified movements list: custom movements (Entradas) + job sales (Saídas)
+    const unifiedMovements = useMemo(() => {
+        const list: InventoryMovement[] = [];
+
+        customMovements.forEach(m => list.push(m));
+
+        (jobs || []).forEach(job => {
+            if (!job.products || job.products.length === 0) return;
+            const jobDate = job.createdAt ? new Date(job.createdAt).toISOString() : new Date().toISOString();
+            const osNumber = job.osNumber ? String(job.osNumber) : job.id.substring(0, 8);
+            const patient = job.patientName || 'Não informado';
+            const dentist = job.dentistName || 'Não informado';
+
+            job.products.forEach(p => {
+                const invItem = inventoryItems.find(i => i.id === p.inventoryItemId);
+                const stockOwner = p.dentistOwnerId || invItem?.dentistOwnerId || null;
+                const stockName = getDentistName(stockOwner);
+                const unitPrice = Number(p.unitPrice) || 0;
+                const qty = Number(p.quantity) || 1;
+
+                list.push({
+                    id: `job_exit_${job.id}_${p.id}`,
+                    itemId: p.inventoryItemId,
+                    itemName: p.name,
+                    itemCode: invItem?.code || '',
+                    stockOwnerId: stockOwner,
+                    stockOwnerName: stockName,
+                    type: 'EXIT',
+                    quantity: qty,
+                    date: jobDate,
+                    unitCostOrPrice: unitPrice,
+                    totalValue: unitPrice * qty,
+                    jobId: job.id,
+                    jobOsNumber: osNumber,
+                    jobPatientName: patient,
+                    jobDentistName: dentist,
+                    reason: `Vendido na OS #${osNumber}`,
+                    createdAt: jobDate
+                });
+            });
+        });
+
+        return list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    }, [customMovements, jobs, inventoryItems]);
+
+    const filteredMovements = useMemo(() => {
+        return unifiedMovements.filter(m => {
+            if (movementsFilterType !== 'ALL' && m.type !== movementsFilterType) return false;
+            if (movementsFilterStock !== 'ALL') {
+                const mStock = m.stockOwnerId || 'LAB';
+                if (mStock !== movementsFilterStock) return false;
+            }
+            if (movementsStartDate) {
+                const mDate = m.date.substring(0, 10);
+                if (mDate < movementsStartDate) return false;
+            }
+            if (movementsEndDate) {
+                const mDate = m.date.substring(0, 10);
+                if (mDate > movementsEndDate) return false;
+            }
+            if (movementsSearch.trim()) {
+                const q = movementsSearch.toLowerCase();
+                const matchName = m.itemName.toLowerCase().includes(q);
+                const matchCode = (m.itemCode || '').toLowerCase().includes(q);
+                const matchStock = m.stockOwnerName.toLowerCase().includes(q);
+                const matchOS = (m.jobOsNumber || '').toLowerCase().includes(q);
+                const matchPatient = (m.jobPatientName || '').toLowerCase().includes(q);
+                const matchDentist = (m.jobDentistName || '').toLowerCase().includes(q);
+                const matchReason = (m.reason || '').toLowerCase().includes(q);
+                if (!matchName && !matchCode && !matchStock && !matchOS && !matchPatient && !matchDentist && !matchReason) {
+                    return false;
+                }
+            }
+            return true;
+        });
+    }, [unifiedMovements, movementsFilterType, movementsFilterStock, movementsStartDate, movementsEndDate, movementsSearch]);
+
+    const movementStats = useMemo(() => {
+        let entriesQty = 0;
+        let entriesVal = 0;
+        let exitsQty = 0;
+        let exitsVal = 0;
+        filteredMovements.forEach(m => {
+            if (m.type === 'ENTRY') {
+                entriesQty += m.quantity;
+                entriesVal += (m.totalValue || 0);
+            } else {
+                exitsQty += m.quantity;
+                exitsVal += (m.totalValue || 0);
+            }
+        });
+        return {
+            totalCount: filteredMovements.length,
+            entriesQty,
+            entriesVal,
+            exitsQty,
+            exitsVal,
+            netQty: entriesQty - exitsQty
+        };
+    }, [filteredMovements]);
+
+    // EXPORT FUNCTIONS: EXCEL & PDF
+    const exportStockToExcel = (stockId: string | null, stockName: string, items: InventoryItem[]) => {
+        const rows = items.map(item => {
+            const cat = inventoryCategories.find(c => c.id === item.categoryId)?.name || 'Sem Categoria';
+            const cost = Number(item.costPrice) || 0;
+            const sell = Number(item.sellPrice) || 0;
+            const margin = calculateProfitPercent(cost, sell);
+            return {
+                'SKU / Código': item.code || '-',
+                'Produto': item.name,
+                'Categoria': cat,
+                'Tipo': item.type,
+                'Estoque Atual': item.currentStock,
+                'Estoque Mínimo': item.minStock,
+                'Custo Compra (R$)': cost.toFixed(2),
+                'Preço Venda (R$)': sell.toFixed(2),
+                'Margem Lucro (%)': `${margin.toFixed(1)}%`,
+                'Lucro Unitário (R$)': (sell - cost).toFixed(2),
+                'Estoque': stockName
+            };
+        });
+
+        const ws = XLSX.utils.json_to_sheet(rows);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Estoque");
+        const safeName = stockName.replace(/[^a-zA-Z0-9_-]/g, '_');
+        XLSX.writeFile(wb, `Estoque_${safeName}_${new Date().toISOString().split('T')[0]}.xlsx`);
+    };
+
+    const exportStockToPdf = (stockId: string | null, stockName: string, items: InventoryItem[]) => {
+        const doc = new jsPDF({ orientation: 'portrait' });
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`LABPROX - RELATÓRIO DE ESTOQUE: ${stockName.toUpperCase()}`, 14, 15);
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Laboratório: ${currentOrg?.name || 'Labprox'} | Total de Itens: ${items.length} | Emissão: ${new Date().toLocaleString('pt-BR')}`, 14, 21);
+
+        const tableBody = items.map(item => {
+            const cat = inventoryCategories.find(c => c.id === item.categoryId)?.name || '-';
+            const cost = Number(item.costPrice) || 0;
+            const sell = Number(item.sellPrice) || 0;
+            const margin = calculateProfitPercent(cost, sell);
+            return [
+                item.code || '-',
+                item.name,
+                cat,
+                String(item.currentStock),
+                cost > 0 ? `R$ ${cost.toFixed(2)}` : '-',
+                sell > 0 ? `R$ ${sell.toFixed(2)}` : '-',
+                cost > 0 && sell > 0 ? `${margin > 0 ? '+' : ''}${margin.toFixed(1)}%` : '-'
+            ];
+        });
+
+        autoTable(doc, {
+            startY: 26,
+            head: [['SKU', 'Produto', 'Categoria', 'Estoque', 'Custo (R$)', 'Venda (R$)', 'Lucro (%)']],
+            body: tableBody,
+            theme: 'striped',
+            styles: { fontSize: 8 },
+            headStyles: { fillColor: [79, 70, 229] },
+        });
+
+        const safeName = stockName.replace(/[^a-zA-Z0-9_-]/g, '_');
+        doc.save(`Estoque_${safeName}_${new Date().toISOString().split('T')[0]}.pdf`);
+    };
+
+    const exportCatalogToExcel = () => {
+        const rows = (productCatalogItems || []).map(p => {
+            const cat = inventoryCategories.find(c => c.id === p.categoryId)?.name || 'Sem Categoria';
+            const cost = Number(p.costPrice) || 0;
+            const sell = Number(p.sellPrice) || 0;
+            const margin = calculateProfitPercent(cost, sell);
+            return {
+                'SKU / Código': p.code || '-',
+                'Produto': p.name,
+                'Categoria': cat,
+                'Tipo': p.type,
+                'Custo Compra (R$)': cost.toFixed(2),
+                'Preço Venda (R$)': sell.toFixed(2),
+                'Margem Lucro (%)': `${margin.toFixed(1)}%`,
+                'Lucro Unitário (R$)': (sell - cost).toFixed(2),
+                'Descrição': p.description || '-'
+            };
+        });
+
+        const ws = XLSX.utils.json_to_sheet(rows);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Banco_Produtos");
+        XLSX.writeFile(wb, `Banco_Produtos_Inventario_${new Date().toISOString().split('T')[0]}.xlsx`);
+    };
+
+    const exportCatalogToPdf = () => {
+        const doc = new jsPDF({ orientation: 'portrait' });
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.text('LABPROX - BANCO DE DADOS DE PRODUTOS & INVENTÁRIO', 14, 15);
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Total de Produtos Base: ${productCatalogItems?.length || 0} | Emissão: ${new Date().toLocaleString('pt-BR')}`, 14, 21);
+
+        const tableBody = (productCatalogItems || []).map(p => {
+            const cat = inventoryCategories.find(c => c.id === p.categoryId)?.name || '-';
+            const cost = Number(p.costPrice) || 0;
+            const sell = Number(p.sellPrice) || 0;
+            const margin = calculateProfitPercent(cost, sell);
+            return [
+                p.code || '-',
+                p.name,
+                cat,
+                cost > 0 ? `R$ ${cost.toFixed(2)}` : '-',
+                sell > 0 ? `R$ ${sell.toFixed(2)}` : '-',
+                cost > 0 && sell > 0 ? `${margin > 0 ? '+' : ''}${margin.toFixed(1)}%` : '-'
+            ];
+        });
+
+        autoTable(doc, {
+            startY: 26,
+            head: [['SKU', 'Produto', 'Categoria', 'Custo (R$)', 'Venda (R$)', 'Lucro (%)']],
+            body: tableBody,
+            theme: 'striped',
+            styles: { fontSize: 8 },
+            headStyles: { fillColor: [79, 70, 229] },
+        });
+
+        doc.save(`Banco_Produtos_Inventario_${new Date().toISOString().split('T')[0]}.pdf`);
+    };
+
+    const exportAllInventoryToExcel = () => {
+        const rows = (inventoryItems || []).map(item => {
+            const cat = inventoryCategories.find(c => c.id === item.categoryId)?.name || 'Sem Categoria';
+            const cost = Number(item.costPrice) || 0;
+            const sell = Number(item.sellPrice) || 0;
+            const margin = calculateProfitPercent(cost, sell);
+            const stockName = getDentistName(item.dentistOwnerId);
+            return {
+                'Estoque': stockName,
+                'SKU / Código': item.code || '-',
+                'Produto': item.name,
+                'Categoria': cat,
+                'Tipo': item.type,
+                'Estoque Atual': item.currentStock,
+                'Estoque Mínimo': item.minStock,
+                'Custo Compra (R$)': cost.toFixed(2),
+                'Preço Venda (R$)': sell.toFixed(2),
+                'Margem Lucro (%)': `${margin.toFixed(1)}%`,
+                'Lucro Unitário (R$)': (sell - cost).toFixed(2),
+            };
+        });
+
+        const ws = XLSX.utils.json_to_sheet(rows);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Inventario_Completo");
+        XLSX.writeFile(wb, `Inventario_Todos_Estoques_${new Date().toISOString().split('T')[0]}.xlsx`);
+    };
+
+    const exportAllInventoryToPdf = () => {
+        const doc = new jsPDF({ orientation: 'landscape' });
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.text('LABPROX - INVENTÁRIO CONSOLIDADO DE TODOS OS ESTOQUES', 14, 15);
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Total de Itens: ${inventoryItems?.length || 0} | Emissão: ${new Date().toLocaleString('pt-BR')}`, 14, 21);
+
+        const tableBody = (inventoryItems || []).map(item => {
+            const cat = inventoryCategories.find(c => c.id === item.categoryId)?.name || '-';
+            const cost = Number(item.costPrice) || 0;
+            const sell = Number(item.sellPrice) || 0;
+            const margin = calculateProfitPercent(cost, sell);
+            return [
+                getDentistName(item.dentistOwnerId),
+                item.code || '-',
+                item.name,
+                cat,
+                String(item.currentStock),
+                cost > 0 ? `R$ ${cost.toFixed(2)}` : '-',
+                sell > 0 ? `R$ ${sell.toFixed(2)}` : '-',
+                cost > 0 && sell > 0 ? `${margin > 0 ? '+' : ''}${margin.toFixed(1)}%` : '-'
+            ];
+        });
+
+        autoTable(doc, {
+            startY: 26,
+            head: [['Estoque', 'SKU', 'Produto', 'Categoria', 'Qtd', 'Custo', 'Venda', 'Lucro (%)']],
+            body: tableBody,
+            theme: 'striped',
+            styles: { fontSize: 8 },
+            headStyles: { fillColor: [79, 70, 229] },
+        });
+
+        doc.save(`Inventario_Todos_Estoques_${new Date().toISOString().split('T')[0]}.pdf`);
+    };
+
+    const exportMovementsToExcel = () => {
+        const rows = filteredMovements.map(m => {
+            const isEntry = m.type === 'ENTRY';
+            const targetItem = inventoryItems.find(i => i.id === m.itemId);
+            const currentStockTotal = targetItem ? targetItem.currentStock : (m.totalStockAfter ?? '-');
+            return {
+                'Tipo': isEntry ? 'ENTRADA' : 'SAÍDA',
+                'Data / Hora': new Date(m.date).toLocaleString('pt-BR'),
+                'Produto': m.itemName,
+                'SKU / Código': m.itemCode || '-',
+                'Estoque Pertencente': m.stockOwnerName,
+                'Qtd Movimentada': isEntry ? `+${m.quantity}` : `-${m.quantity}`,
+                'Saldo Total Atual no Estoque': isEntry ? currentStockTotal : '-',
+                'Trabalho Vendido (OS)': !isEntry ? (m.jobOsNumber ? `OS #${m.jobOsNumber}` : '-') : '-',
+                'Paciente': !isEntry ? (m.jobPatientName || '-') : '-',
+                'Dentista / Cliente': !isEntry ? (m.jobDentistName || '-') : '-',
+                'Valor Unitário (R$)': (m.unitCostOrPrice || 0).toFixed(2),
+                'Valor Total (R$)': (m.totalValue || 0).toFixed(2),
+                'Motivo / Descrição': m.reason || '-'
+            };
+        });
+
+        const ws = XLSX.utils.json_to_sheet(rows);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Entradas_e_Saidas");
+        XLSX.writeFile(wb, `Relatorio_Entrada_Saida_${new Date().toISOString().split('T')[0]}.xlsx`);
+    };
+
+    const exportMovementsToPdf = () => {
+        const doc = new jsPDF({ orientation: 'landscape' });
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.text('LABPROX - RELATÓRIO DE ENTRADAS E SAÍDAS DE ESTOQUE', 14, 15);
+        doc.setFontSize(8.5);
+        doc.setFont('helvetica', 'normal');
+        const filterStr = `Filtro: ${movementsFilterType === 'ALL' ? 'Entradas & Saídas' : movementsFilterType === 'ENTRY' ? 'Apenas Entradas' : 'Apenas Saídas'} | Estoque: ${movementsFilterStock === 'ALL' ? 'Todos' : getDentistName(movementsFilterStock === 'LAB' ? null : movementsFilterStock)} | Registros: ${filteredMovements.length}`;
+        doc.text(filterStr, 14, 21);
+
+        const tableBody = filteredMovements.map(m => {
+            const isEntry = m.type === 'ENTRY';
+            const targetItem = inventoryItems.find(i => i.id === m.itemId);
+            const currentStockTotal = targetItem ? targetItem.currentStock : (m.totalStockAfter ?? '-');
+            const workInfo = isEntry 
+                ? (m.reason || 'Entrada / Compra')
+                : (m.jobOsNumber ? `OS #${m.jobOsNumber} - Pac: ${m.jobPatientName || ''} (${m.jobDentistName || ''})` : (m.reason || 'Venda'));
+            
+            return [
+                isEntry ? 'ENTRADA' : 'SAÍDA',
+                new Date(m.date).toLocaleDateString('pt-BR') + ' ' + new Date(m.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+                `${m.itemName}${m.itemCode ? ` (${m.itemCode})` : ''}`,
+                m.stockOwnerName,
+                isEntry ? `+${m.quantity}` : `-${m.quantity}`,
+                isEntry ? String(currentStockTotal) : '-',
+                workInfo,
+                `R$ ${(m.totalValue || 0).toFixed(2)}`
+            ];
+        });
+
+        autoTable(doc, {
+            startY: 26,
+            head: [['Tipo', 'Data/Hora', 'Produto (SKU)', 'Estoque', 'Qtd', 'Saldo Atual', 'Trabalho / Motivo', 'Valor Total']],
+            body: tableBody,
+            theme: 'grid',
+            styles: { fontSize: 7.5 },
+            headStyles: { fillColor: [30, 41, 59] },
+            didParseCell: (data) => {
+                if (data.section === 'body' && data.column.index === 0) {
+                    if (data.cell.raw === 'ENTRADA') {
+                        data.cell.styles.textColor = [16, 185, 129];
+                        data.cell.styles.fontStyle = 'bold';
+                    } else if (data.cell.raw === 'SAÍDA') {
+                        data.cell.styles.textColor = [239, 68, 68];
+                        data.cell.styles.fontStyle = 'bold';
+                    }
+                }
+            }
+        });
+
+        doc.save(`Relatorio_Entrada_Saida_${new Date().toISOString().split('T')[0]}.pdf`);
     };
 
     const handleSelectDentist = (dentistId: string | null, dentistName: string) => {
@@ -756,6 +1367,13 @@ export const Inventory = () => {
                 >
                   {t("inventory.tabCatalog", "BANCO DE PRODUTOS")}
                 </button>
+                <button 
+                  onClick={() => setActiveTab('MOVEMENTS')}
+                  className={`px-4 sm:px-6 py-3 font-bold text-xs sm:text-sm tracking-wide transition-all border-b-2 flex items-center gap-2 ${activeTab === 'MOVEMENTS' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+                >
+                  <TrendingUp size={16} />
+                  {t("inventory.tabMovements", "RELATÓRIO DE ENTRADAS & SAÍDAS")}
+                </button>
             </div>
 
             <div className="flex flex-col xl:flex-row xl:items-center gap-4 mb-6">
@@ -768,16 +1386,24 @@ export const Inventory = () => {
                                 ? t("inventory.searchItemsPlaceholder", "Buscar por nome do item ou código SKU...") 
                                 : activeTab === 'ITEMS' && !activeOwnerGroup
                                 ? t("inventory.searchStocksPlaceholder", "Buscar estoque por nome do dentista/laboratório ou itens...")
+                                : activeTab === 'MOVEMENTS'
+                                ? "Buscar movimentação por produto, SKU, paciente, dentista ou OS..."
                                 : t("inventory.searchPlaceholder", "Buscar...")
                         }
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
+                        value={activeTab === 'MOVEMENTS' ? movementsSearch : searchQuery}
+                        onChange={(e) => {
+                            if (activeTab === 'MOVEMENTS') setMovementsSearch(e.target.value);
+                            else setSearchQuery(e.target.value);
+                        }}
                         className="w-full pl-12 pr-10 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white shadow-sm"
                     />
-                    {searchQuery && (
+                    {(activeTab === 'MOVEMENTS' ? movementsSearch : searchQuery) && (
                         <button 
                             type="button" 
-                            onClick={() => setSearchQuery('')}
+                            onClick={() => {
+                                if (activeTab === 'MOVEMENTS') setMovementsSearch('');
+                                else setSearchQuery('');
+                            }}
                             className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100 transition-colors"
                             title={t("common.clear", "Limpar")}
                         >
@@ -786,6 +1412,70 @@ export const Inventory = () => {
                     )}
                 </div>
                 <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 sm:gap-4 w-full xl:w-auto">
+                    {/* Botões de Exportação Dinâmicos */}
+                    {activeTab === 'CATALOG' && (
+                        <div className="inline-flex rounded-xl shadow-xs border border-slate-200 bg-white p-1 gap-1">
+                            <button 
+                                onClick={exportCatalogToExcel} 
+                                className="px-3 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-50 rounded-lg flex items-center gap-1.5 transition-colors"
+                                title="Exportar Banco de Dados em Planilha Excel"
+                            >
+                                <FileSpreadsheet size={16} /> Excel
+                            </button>
+                            <button 
+                                onClick={exportCatalogToPdf} 
+                                className="px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-50 rounded-lg flex items-center gap-1.5 transition-colors"
+                                title="Exportar Banco de Dados em PDF"
+                            >
+                                <Download size={16} /> PDF
+                            </button>
+                        </div>
+                    )}
+                    {activeTab === 'ITEMS' && activeOwnerGroup === null && (
+                        <div className="inline-flex rounded-xl shadow-xs border border-slate-200 bg-white p-1 gap-1">
+                            <button 
+                                onClick={exportAllInventoryToExcel} 
+                                className="px-3 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-50 rounded-lg flex items-center gap-1.5 transition-colors"
+                                title="Exportar Todos os Estoques Consolidados em Excel"
+                            >
+                                <FileSpreadsheet size={16} /> Todos (Excel)
+                            </button>
+                            <button 
+                                onClick={exportAllInventoryToPdf} 
+                                className="px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-50 rounded-lg flex items-center gap-1.5 transition-colors"
+                                title="Exportar Todos os Estoques Consolidados em PDF"
+                            >
+                                <Download size={16} /> Todos (PDF)
+                            </button>
+                        </div>
+                    )}
+                    {activeTab === 'MOVEMENTS' && (
+                        <>
+                            <button 
+                                onClick={() => setIsEntryModalOpen(true)}
+                                className="w-full sm:flex-1 xl:w-auto justify-center px-4 sm:px-6 py-3 bg-emerald-600 text-white text-sm sm:text-base font-bold rounded-xl hover:bg-emerald-700 shadow-md flex items-center gap-2"
+                            >
+                                <Plus size={20} /> Nova Entrada de Estoque
+                            </button>
+                            <div className="inline-flex rounded-xl shadow-xs border border-slate-200 bg-white p-1 gap-1">
+                                <button 
+                                    onClick={exportMovementsToExcel} 
+                                    className="px-3 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-50 rounded-lg flex items-center gap-1.5 transition-colors"
+                                    title="Exportar Relatório de Entradas/Saídas em Excel"
+                                >
+                                    <FileSpreadsheet size={16} /> Relatório (Excel)
+                                </button>
+                                <button 
+                                    onClick={exportMovementsToPdf} 
+                                    className="px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-50 rounded-lg flex items-center gap-1.5 transition-colors"
+                                    title="Exportar Relatório de Entradas/Saídas em PDF"
+                                >
+                                    <Download size={16} /> Relatório (PDF)
+                                </button>
+                            </div>
+                        </>
+                    )}
+
                     {(activeTab === 'ITEMS' || activeTab === 'CATALOG') && canCreate && (
                         <button onClick={() => setIsBulkModalOpen(true)} className="w-full sm:flex-1 xl:w-auto justify-center px-4 sm:px-6 py-3 bg-emerald-600 text-white text-sm sm:text-base font-bold rounded-xl hover:bg-emerald-700 shadow-md flex items-center gap-2">
                             <Sparkles size={20} /> {t("inventory.smartImport", "Importação Inteligente")}
@@ -816,18 +1506,21 @@ export const Inventory = () => {
 
             {activeTab === 'CATALOG' && (
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-x-auto">
-                    <table className="w-full text-left min-w-[600px]">
+                    <table className="w-full text-left min-w-[650px]">
                         <thead>
                             <tr className="border-b border-slate-100 bg-slate-50/50">
                                 <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-widest">{t("inventory.baseProduct", "Produto Base")}</th>
                                 <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-widest">{t("inventory.category", "Categoria")}</th>
-                                <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-widest">{t("inventory.costSell", "Custo / Venda")}</th>
+                                <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-widest">{t("inventory.costSell", "Custo / Venda / Lucro")}</th>
                                 <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-widest w-24">{t("common.actions", "Ações")}</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                             {filteredCatalogItems.map(item => {
                                 const cat = inventoryCategories.find(c => c.id === item.categoryId);
+                                const cost = Number(item.costPrice) || 0;
+                                const sell = Number(item.sellPrice) || 0;
+                                const margin = calculateProfitPercent(cost, sell);
                                 return (
                                     <tr key={item.id} className="hover:bg-slate-50 transition-colors">
                                         <td className="p-4">
@@ -840,11 +1533,17 @@ export const Inventory = () => {
                                         </td>
                                         <td className="p-4">
                                             <div className="text-sm font-bold text-slate-700">
-                                                C: {(item.costPrice || 0).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}
+                                                C: {cost.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}
                                             </div>
                                             <div className="text-sm font-bold text-emerald-600">
-                                                V: {(item.sellPrice || 0).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}
+                                                V: {sell.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}
                                             </div>
+                                            {cost > 0 && sell > 0 && (
+                                                <div className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-black bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                    <TrendingUp size={10} />
+                                                    Lucro: {margin > 0 ? '+' : ''}{margin}%
+                                                </div>
+                                            )}
                                         </td>
                                         <td className="p-4">
                                             <div className="flex gap-2">
@@ -913,9 +1612,25 @@ export const Inventory = () => {
                                         )}
                                     </div>
                                     <h3 className="text-lg font-black text-slate-800 line-clamp-2">{owner.name}</h3>
-                                    <div className="mt-4 flex justify-between items-center">
+                                    <div className="mt-4 flex justify-between items-center gap-2">
                                         <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-100 text-slate-600 text-xs font-bold rounded-full">
                                             <Package size={12}/> {t("inventory.productsCount", { count: owner.itemCount, defaultValue: `${owner.itemCount} Produtos` })}
+                                        </div>
+                                        <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                                            <button 
+                                                onClick={() => exportStockToExcel(owner.id, owner.name, itemGroups[owner.id] || [])}
+                                                className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                                                title="Exportar este estoque para Excel"
+                                            >
+                                                <FileSpreadsheet size={15} />
+                                            </button>
+                                            <button 
+                                                onClick={() => exportStockToPdf(owner.id, owner.name, itemGroups[owner.id] || [])}
+                                                className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                title="Exportar este estoque para PDF"
+                                            >
+                                                <Download size={15} />
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
@@ -941,6 +1656,22 @@ export const Inventory = () => {
                                 <div className="flex flex-wrap items-center gap-2 mt-4 sm:mt-0">
                                     <div className="text-xs font-bold text-slate-500 bg-white px-3 py-1.5 rounded-lg border border-slate-200 hidden sm:block">
                                         {t("inventory.productsCount", { count: filteredItems.length, defaultValue: `${filteredItems.length} Produtos` })}
+                                    </div>
+                                    <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 gap-0.5 shadow-2xs">
+                                        <button 
+                                            onClick={() => exportStockToExcel(activeOwnerGroup, getDentistName(activeOwnerGroup === 'LAB' ? null : activeOwnerGroup), filteredItems)}
+                                            className="px-2.5 py-1 text-xs font-bold text-emerald-700 hover:bg-emerald-50 rounded flex items-center gap-1 transition-colors"
+                                            title="Exportar estoque para Excel"
+                                        >
+                                            <FileSpreadsheet size={14} /> Excel
+                                        </button>
+                                        <button 
+                                            onClick={() => exportStockToPdf(activeOwnerGroup, getDentistName(activeOwnerGroup === 'LAB' ? null : activeOwnerGroup), filteredItems)}
+                                            className="px-2.5 py-1 text-xs font-bold text-red-700 hover:bg-red-50 rounded flex items-center gap-1 transition-colors"
+                                            title="Exportar estoque para PDF"
+                                        >
+                                            <Download size={14} /> PDF
+                                        </button>
                                     </div>
                                     {isSelectionMode && selectedItems.length > 0 && (
                                         <>
@@ -970,7 +1701,7 @@ export const Inventory = () => {
                                 </div>
                             </div>
                             <div className="overflow-x-auto">
-                                <table className="w-full text-left border-collapse min-w-[800px]">
+                                <table className="w-full text-left border-collapse min-w-[850px]">
                                 <thead>
                                     <tr className="bg-slate-50 border-b border-slate-200">
                                         {isSelectionMode && (
@@ -989,7 +1720,9 @@ export const Inventory = () => {
                                         <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-widest">{t("inventory.product", "Produto")}</th>
                                         <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-widest">{t("inventory.category", "Categoria")}</th>
                                         <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-widest text-right">{t("inventory.stock", "Estoque")}</th>
+                                        <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-widest text-right">{t("inventory.costPrice", "Custo Compra")}</th>
                                         <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-widest text-right">{t("inventory.salePrice", "Preço Venda")}</th>
+                                        <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-widest text-right">{t("inventory.profitMargin", "Lucro (%)")}</th>
                                         <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-widest text-right">{t("common.actions", "Ações")}</th>
                                     </tr>
                                 </thead>
@@ -997,6 +1730,9 @@ export const Inventory = () => {
                                     {filteredItems.map(item => {
                                         const cat = inventoryCategories.find(c => c.id === item.categoryId);
                                         const isLowStock = item.currentStock <= item.minStock;
+                                        const cost = Number(item.costPrice) || 0;
+                                        const sell = Number(item.sellPrice) || 0;
+                                        const margin = calculateProfitPercent(cost, sell);
                                         return (
                                             <tr key={item.id} className={`hover:bg-slate-50 transition-colors ${selectedItems.includes(item.id) ? 'bg-indigo-50/30' : ''}`}>
                                                 {isSelectionMode && (
@@ -1026,11 +1762,30 @@ export const Inventory = () => {
                                                         {item.currentStock}
                                                     </div>
                                                 </td>
-                                                <td className="p-4 text-right font-bold text-slate-800">
-                                                    {item.sellPrice > 0 ? (
-                                                        new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.sellPrice)
+                                                <td className="p-4 text-right font-medium text-slate-700">
+                                                    {cost > 0 ? (
+                                                        new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cost)
                                                     ) : (
                                                         <span className="text-slate-400">R$ 0,00</span>
+                                                    )}
+                                                </td>
+                                                <td className="p-4 text-right font-bold text-slate-800">
+                                                    {sell > 0 ? (
+                                                        new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(sell)
+                                                    ) : (
+                                                        <span className="text-slate-400">R$ 0,00</span>
+                                                    )}
+                                                </td>
+                                                <td className="p-4 text-right">
+                                                    {cost > 0 && sell > 0 ? (
+                                                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-black ${
+                                                            margin > 0 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : margin === 0 ? 'bg-slate-100 text-slate-600' : 'bg-red-50 text-red-700 border border-red-200'
+                                                        }`}>
+                                                            <TrendingUp size={11} />
+                                                            {margin > 0 ? '+' : ''}{margin}%
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-slate-400 text-xs">-</span>
                                                     )}
                                                 </td>
                                                 <td className="p-4 text-right">
@@ -1055,6 +1810,318 @@ export const Inventory = () => {
                         </div>
                     )}
                 </>
+            )}
+
+            {activeTab === 'MOVEMENTS' && (
+                <div className="space-y-6">
+                    {/* KPI Cards */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
+                            <div>
+                                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Total Registros</span>
+                                <span className="text-2xl font-black text-slate-800 mt-1 block">{movementStats.totalCount}</span>
+                                <span className="text-xs text-slate-500 mt-0.5 block">movimentações listadas</span>
+                            </div>
+                            <div className="p-3.5 bg-slate-100 text-slate-600 rounded-2xl">
+                                <History size={24} />
+                            </div>
+                        </div>
+
+                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
+                            <div>
+                                <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider block flex items-center gap-1">
+                                    <ArrowDownRight size={14} /> Entradas (Compras)
+                                </span>
+                                <span className="text-2xl font-black text-emerald-700 mt-1 block">+{movementStats.entriesQty} un.</span>
+                                <span className="text-xs text-emerald-600 font-bold mt-0.5 block">
+                                    Custo: {movementStats.entriesVal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                </span>
+                            </div>
+                            <div className="p-3.5 bg-emerald-50 text-emerald-600 rounded-2xl">
+                                <Package size={24} />
+                            </div>
+                        </div>
+
+                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
+                            <div>
+                                <span className="text-xs font-bold text-rose-600 uppercase tracking-wider block flex items-center gap-1">
+                                    <ArrowUpRight size={14} /> Saídas (Vendas em OS)
+                                </span>
+                                <span className="text-2xl font-black text-rose-700 mt-1 block">-{movementStats.exitsQty} un.</span>
+                                <span className="text-xs text-rose-600 font-bold mt-0.5 block">
+                                    Faturado: {movementStats.exitsVal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                </span>
+                            </div>
+                            <div className="p-3.5 bg-rose-50 text-rose-600 rounded-2xl">
+                                <ShoppingBag size={24} />
+                            </div>
+                        </div>
+
+                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
+                            <div>
+                                <span className="text-xs font-bold text-indigo-600 uppercase tracking-wider block">Saldo do Período</span>
+                                <span className={`text-2xl font-black mt-1 block ${movementStats.netQty >= 0 ? 'text-indigo-700' : 'text-amber-600'}`}>
+                                    {movementStats.netQty >= 0 ? `+${movementStats.netQty}` : movementStats.netQty} un.
+                                </span>
+                                <span className="text-xs text-slate-500 mt-0.5 block">balanço de unidades</span>
+                            </div>
+                            <div className="p-3.5 bg-indigo-50 text-indigo-600 rounded-2xl">
+                                <TrendingUp size={24} />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Filter Bar */}
+                    <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-xs font-bold text-slate-500 uppercase mr-1 flex items-center gap-1">
+                                <Filter size={14} /> Tipo:
+                            </span>
+                            <button 
+                                onClick={() => setMovementsFilterType('ALL')}
+                                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                                    movementsFilterType === 'ALL' 
+                                        ? 'bg-slate-900 text-white shadow-xs' 
+                                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                }`}
+                            >
+                                Todas ({unifiedMovements.length})
+                            </button>
+                            <button 
+                                onClick={() => setMovementsFilterType('ENTRY')}
+                                className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 transition-all ${
+                                    movementsFilterType === 'ENTRY' 
+                                        ? 'bg-emerald-600 text-white shadow-xs' 
+                                        : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                                }`}
+                            >
+                                <ArrowDownRight size={14} /> Apenas Entradas
+                            </button>
+                            <button 
+                                onClick={() => setMovementsFilterType('EXIT')}
+                                className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 transition-all ${
+                                    movementsFilterType === 'EXIT' 
+                                        ? 'bg-rose-600 text-white shadow-xs' 
+                                        : 'bg-rose-50 text-rose-700 hover:bg-rose-100'
+                                }`}
+                            >
+                                <ArrowUpRight size={14} /> Apenas Saídas
+                            </button>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-3">
+                            {/* Filtro por Estoque */}
+                            <div className="flex items-center gap-1.5 min-w-[200px]">
+                                <label className="text-xs font-bold text-slate-500 uppercase shrink-0">Estoque:</label>
+                                <select 
+                                    value={movementsFilterStock} 
+                                    onChange={(e) => setMovementsFilterStock(e.target.value)}
+                                    className="w-full text-xs font-bold bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-700 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                                >
+                                    <option value="ALL">Todos os Estoques</option>
+                                    <option value="LAB">Laboratório (Geral)</option>
+                                    {clients.map(c => (
+                                        <option key={c.id} value={c.id}>{c.clinicName || c.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Filtro de Datas */}
+                            <div className="flex items-center gap-1.5">
+                                <Calendar size={14} className="text-slate-400 shrink-0" />
+                                <input 
+                                    type="date" 
+                                    value={movementsStartDate} 
+                                    onChange={(e) => setMovementsStartDate(e.target.value)} 
+                                    className="text-xs font-medium bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-slate-700 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none" 
+                                    title="Data Inicial"
+                                />
+                                <span className="text-xs text-slate-400">até</span>
+                                <input 
+                                    type="date" 
+                                    value={movementsEndDate} 
+                                    onChange={(e) => setMovementsEndDate(e.target.value)} 
+                                    className="text-xs font-medium bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-slate-700 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none" 
+                                    title="Data Final"
+                                />
+                                {(movementsStartDate || movementsEndDate) && (
+                                    <button 
+                                        onClick={() => { setMovementsStartDate(''); setMovementsEndDate(''); }} 
+                                        className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100" 
+                                        title="Limpar Datas"
+                                    >
+                                        <X size={14} />
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* Ações de Exportação */}
+                            <div className="inline-flex rounded-xl shadow-2xs border border-slate-200 bg-white p-0.5 gap-0.5">
+                                <button 
+                                    onClick={exportMovementsToExcel}
+                                    className="px-2.5 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-50 rounded-lg flex items-center gap-1 transition-colors"
+                                    title="Exportar Relatório para Planilha Excel"
+                                >
+                                    <FileSpreadsheet size={15} /> Excel
+                                </button>
+                                <button 
+                                    onClick={exportMovementsToPdf}
+                                    className="px-2.5 py-1.5 text-xs font-bold text-rose-700 hover:bg-rose-50 rounded-lg flex items-center gap-1 transition-colors"
+                                    title="Exportar Relatório para Documento PDF"
+                                >
+                                    <Download size={15} /> PDF
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Detailed Movements Table */}
+                    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                        <div className="p-4 bg-slate-50/70 border-b border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                            <div className="flex items-center gap-2">
+                                <History className="text-indigo-600" size={20} />
+                                <h3 className="font-black text-slate-800 text-base">
+                                    Movimentações Detalhadas de Estoque
+                                </h3>
+                                <span className="text-xs font-bold bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">
+                                    {filteredMovements.length} registro(s)
+                                </span>
+                            </div>
+                            <button 
+                                onClick={() => setIsEntryModalOpen(true)}
+                                className="px-3.5 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl hover:bg-emerald-700 shadow-xs flex items-center gap-1.5 transition-colors self-stretch sm:self-auto justify-center"
+                            >
+                                <Plus size={16} /> Nova Entrada de Estoque
+                            </button>
+                        </div>
+
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse min-w-[950px]">
+                                <thead>
+                                    <tr className="bg-slate-50 border-b border-slate-200">
+                                        <th className="p-3.5 text-xs font-black text-slate-500 uppercase tracking-widest w-28">Tipo</th>
+                                        <th className="p-3.5 text-xs font-black text-slate-500 uppercase tracking-widest w-36">Data / Hora</th>
+                                        <th className="p-3.5 text-xs font-black text-slate-500 uppercase tracking-widest">Item (Produto)</th>
+                                        <th className="p-3.5 text-xs font-black text-slate-500 uppercase tracking-widest">Estoque Pertencente</th>
+                                        <th className="p-3.5 text-xs font-black text-slate-500 uppercase tracking-widest text-right w-24">Qtd</th>
+                                        <th className="p-3.5 text-xs font-black text-slate-500 uppercase tracking-widest text-center w-28">Qtd Total Estoque</th>
+                                        <th className="p-3.5 text-xs font-black text-slate-500 uppercase tracking-widest">Trabalho Vendido / Motivo</th>
+                                        <th className="p-3.5 text-xs font-black text-slate-500 uppercase tracking-widest text-right w-32">Valor (R$)</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {filteredMovements.map(m => {
+                                        const isEntry = m.type === 'ENTRY';
+                                        const targetItem = inventoryItems.find(i => i.id === m.itemId);
+                                        const totalStockInItem = targetItem ? targetItem.currentStock : (m.totalStockAfter ?? '-');
+
+                                        return (
+                                            <tr key={m.id} className="hover:bg-slate-50/70 transition-colors">
+                                                <td className="p-3.5">
+                                                    {isEntry ? (
+                                                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-black bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                            <ArrowDownRight size={14} /> ENTRADA
+                                                        </span>
+                                                    ) : (
+                                                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-black bg-rose-50 text-rose-700 border border-rose-200">
+                                                            <ArrowUpRight size={14} /> SAÍDA
+                                                        </span>
+                                                    )}
+                                                </td>
+
+                                                <td className="p-3.5 text-xs text-slate-600 whitespace-nowrap">
+                                                    <div className="font-bold text-slate-700">
+                                                        {new Date(m.date).toLocaleDateString('pt-BR')}
+                                                    </div>
+                                                    <div className="text-[11px] text-slate-400">
+                                                        {new Date(m.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                                    </div>
+                                                </td>
+
+                                                <td className="p-3.5">
+                                                    <div className="font-bold text-slate-800 text-sm">{m.itemName}</div>
+                                                    {m.itemCode && (
+                                                        <span className="text-[10px] font-mono font-bold bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded mt-0.5 inline-block">
+                                                            SKU: {m.itemCode}
+                                                        </span>
+                                                    )}
+                                                </td>
+
+                                                <td className="p-3.5">
+                                                    <div className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700">
+                                                        {m.stockOwnerId ? <UserIcon size={14} className="text-amber-600 shrink-0" /> : <Box size={14} className="text-indigo-600 shrink-0" />}
+                                                        <span className="truncate max-w-[160px]">{m.stockOwnerName}</span>
+                                                    </div>
+                                                </td>
+
+                                                <td className="p-3.5 text-right font-black text-sm">
+                                                    {isEntry ? (
+                                                        <span className="text-emerald-600 font-mono">+{m.quantity} un.</span>
+                                                    ) : (
+                                                        <span className="text-rose-600 font-mono">-{m.quantity} un.</span>
+                                                    )}
+                                                </td>
+
+                                                <td className="p-3.5 text-center">
+                                                    {isEntry ? (
+                                                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-black bg-slate-100 text-slate-700 border border-slate-200 font-mono" title="Quantidade total deste item atualmente no estoque">
+                                                            {totalStockInItem} un.
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-slate-300 text-xs">-</span>
+                                                    )}
+                                                </td>
+
+                                                <td className="p-3.5 text-xs">
+                                                    {!isEntry ? (
+                                                        m.jobOsNumber ? (
+                                                            <div className="space-y-0.5">
+                                                                <div className="font-black text-indigo-700 flex items-center gap-1">
+                                                                    OS #{m.jobOsNumber}
+                                                                </div>
+                                                                <div className="text-slate-700 font-medium truncate max-w-[220px]">
+                                                                    Pac: <strong>{m.jobPatientName || 'Não inf.'}</strong>
+                                                                </div>
+                                                                <div className="text-slate-500 text-[11px] truncate max-w-[220px]">
+                                                                    Dr(a): {m.jobDentistName || 'Não inf.'}
+                                                                </div>
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-slate-600">{m.reason || 'Venda em Trabalho'}</span>
+                                                        )
+                                                    ) : (
+                                                        <span className="text-slate-600 font-medium">{m.reason || 'Entrada / Compra de Estoque'}</span>
+                                                    )}
+                                                </td>
+
+                                                <td className="p-3.5 text-right">
+                                                    <div className="font-bold text-slate-800 text-sm">
+                                                        {(m.totalValue || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                    </div>
+                                                    {m.quantity > 1 && (
+                                                        <div className="text-[11px] text-slate-400">
+                                                            un: {(m.unitCostOrPrice || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                        </div>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+
+                                    {filteredMovements.length === 0 && (
+                                        <tr>
+                                            <td colSpan={8} className="p-12 text-center text-slate-400">
+                                                <History size={36} className="mx-auto mb-2 text-slate-300 opacity-60" />
+                                                <p className="font-medium">Nenhuma movimentação de estoque encontrada com os filtros selecionados.</p>
+                                                <p className="text-xs text-slate-400 mt-1">Experimente alterar as datas ou a busca por produto.</p>
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
             )}
 
             {/* Catalog Modal */}
@@ -1101,14 +2168,67 @@ export const Inventory = () => {
                             </div>
 
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">{t("inventory.unitCost", "Custo Unitário (R$)")}</label>
-                                <input required type="number" step="0.01" min="0" value={catalogForm.costPrice || ''} onChange={e => setCatalogForm({...catalogForm, costPrice: parseFloat(e.target.value)})} className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none" />
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">{t("inventory.unitCost", "Custo Unitário / Compra (R$)")}</label>
+                                <input 
+                                    required 
+                                    type="number" 
+                                    step="0.01" 
+                                    min="0" 
+                                    value={catalogForm.costPrice !== undefined ? catalogForm.costPrice : ''} 
+                                    onChange={e => handleCatalogCostChange(parseFloat(e.target.value) || 0)} 
+                                    className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none" 
+                                />
                             </div>
 
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">{t("inventory.salePrice", "Preço de Venda (R$)")}</label>
-                                <input required type="number" step="0.01" min="0" value={catalogForm.sellPrice || ''} onChange={e => setCatalogForm({...catalogForm, sellPrice: parseFloat(e.target.value)})} className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none" />
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex items-center justify-between">
+                                    <span>{t("inventory.profitMargin", "Porcentagem de Lucro (%)")}</span>
+                                    <span className="text-[10px] text-emerald-600 font-bold lowercase">margem s/ compra</span>
+                                </label>
+                                <div className="relative">
+                                    <input 
+                                        type="number" 
+                                        step="0.1" 
+                                        value={catalogProfitMarginInput} 
+                                        onChange={e => handleCatalogMarginChange(e.target.value)} 
+                                        placeholder="Ex: 50"
+                                        className="w-full p-4 pr-10 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-emerald-700" 
+                                    />
+                                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">%</span>
+                                </div>
                             </div>
+
+                            <div className="md:col-span-2">
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">{t("inventory.salePrice", "Preço de Venda (R$)")}</label>
+                                <input 
+                                    required 
+                                    type="number" 
+                                    step="0.01" 
+                                    min="0" 
+                                    value={catalogForm.sellPrice !== undefined ? catalogForm.sellPrice : ''} 
+                                    onChange={e => handleCatalogSellChange(parseFloat(e.target.value) || 0)} 
+                                    className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-slate-800" 
+                                />
+                            </div>
+
+                            {/* Detalhamento de Lucro e Margem */}
+                            {(() => {
+                                const cost = Number(catalogForm.costPrice) || 0;
+                                const sell = Number(catalogForm.sellPrice) || 0;
+                                const profit = sell - cost;
+                                const margin = calculateProfitPercent(cost, sell);
+                                return (
+                                    <div className="md:col-span-2 p-3 bg-emerald-50/70 border border-emerald-200 rounded-xl flex items-center justify-between text-xs">
+                                        <div className="flex items-center gap-2 text-emerald-900 font-medium">
+                                            <TrendingUp size={16} className="text-emerald-600" />
+                                            <span>Custo: <strong>R$ {cost.toFixed(2)}</strong> &rarr; Venda: <strong>R$ {sell.toFixed(2)}</strong></span>
+                                        </div>
+                                        <div className="text-emerald-950 font-black">
+                                            Lucro: R$ {profit.toFixed(2)} ({margin > 0 ? '+' : ''}{margin}%)
+                                        </div>
+                                    </div>
+                                );
+                            })()}
                         </div>
 
                         <div className="mt-8 flex justify-end gap-3">
@@ -1366,14 +2486,68 @@ export const Inventory = () => {
                             </div>
 
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">{t("inventory.unitCost", "Custo Unitário (R$)")}</label>
-                                <input required type="number" step="0.01" value={itemForm.costPrice || 0} onChange={e => setItemForm({...itemForm, costPrice: Number(e.target.value)})} className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none" />
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">{t("inventory.unitCost", "Custo Unitário / Compra (R$)")}</label>
+                                <input 
+                                    required 
+                                    type="number" 
+                                    step="0.01" 
+                                    min="0"
+                                    value={itemForm.costPrice !== undefined ? itemForm.costPrice : ''} 
+                                    onChange={e => handleItemCostChange(parseFloat(e.target.value) || 0)} 
+                                    className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none" 
+                                />
                             </div>
+
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">{t("inventory.extraChargePrice", "Preço de Venda / Cobrança Extra (R$)")}</label>
-                                <input required type="number" step="0.01" value={itemForm.sellPrice || 0} onChange={e => setItemForm({...itemForm, sellPrice: Number(e.target.value)})} className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none" />
-                                <p className="text-[10px] mt-2 text-slate-500">{t("inventory.extraChargeHelp", "Valor cobrado a mais na OS quando este item é utilizado.")}</p>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex items-center justify-between">
+                                    <span>{t("inventory.profitMargin", "Porcentagem de Lucro (%)")}</span>
+                                    <span className="text-[10px] text-emerald-600 font-bold lowercase">margem s/ custo</span>
+                                </label>
+                                <div className="relative">
+                                    <input 
+                                        type="number" 
+                                        step="0.1" 
+                                        value={profitMarginInput} 
+                                        onChange={e => handleItemMarginChange(e.target.value)} 
+                                        placeholder="Ex: 40"
+                                        className="w-full p-4 pr-10 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-emerald-700" 
+                                    />
+                                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">%</span>
+                                </div>
                             </div>
+
+                            <div className="md:col-span-2">
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">{t("inventory.extraChargePrice", "Preço de Venda / Cobrança na OS (R$)")}</label>
+                                <input 
+                                    required 
+                                    type="number" 
+                                    step="0.01" 
+                                    min="0"
+                                    value={itemForm.sellPrice !== undefined ? itemForm.sellPrice : ''} 
+                                    onChange={e => handleItemSellChange(parseFloat(e.target.value) || 0)} 
+                                    className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-slate-800" 
+                                />
+                                <p className="text-[10px] mt-2 text-slate-500">{t("inventory.extraChargeHelp", "Valor cobrado do cliente quando este item é utilizado no trabalho.")}</p>
+                            </div>
+
+                            {/* Detalhamento de Lucro e Margem no Item */}
+                            {(() => {
+                                const cost = Number(itemForm.costPrice) || 0;
+                                const sell = Number(itemForm.sellPrice) || 0;
+                                const profit = sell - cost;
+                                const margin = calculateProfitPercent(cost, sell);
+                                return (
+                                    <div className="md:col-span-2 p-3 bg-emerald-50/70 border border-emerald-200 rounded-xl flex items-center justify-between text-xs">
+                                        <div className="flex items-center gap-2 text-emerald-900 font-medium">
+                                            <TrendingUp size={16} className="text-emerald-600" />
+                                            <span>Compra: <strong>R$ {cost.toFixed(2)}</strong> &rarr; Venda: <strong>R$ {sell.toFixed(2)}</strong></span>
+                                        </div>
+                                        <div className="text-emerald-950 font-black">
+                                            Lucro: R$ {profit.toFixed(2)} ({margin > 0 ? '+' : ''}{margin}%)
+                                        </div>
+                                    </div>
+                                );
+                            })()}
                         </div>
 
                         <div className="mt-8">
@@ -1709,6 +2883,156 @@ export const Inventory = () => {
                             <button onClick={handleDeleteStock} className="flex-1 px-5 py-3 bg-red-600 text-white font-bold rounded-xl shadow-lg hover:bg-red-700 transition-all">{t("inventory.deleteStockBtn", "Excluir Estoque")}</button>
                         </div>
                     </div>
+                </div>
+            )}
+
+            {/* Modal de Registro de Nova Entrada de Estoque */}
+            {isEntryModalOpen && (
+                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                    <form onSubmit={handleRegisterEntry} className="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl relative">
+                        <button 
+                            type="button" 
+                            onClick={() => setIsEntryModalOpen(false)} 
+                            className="absolute top-5 right-5 p-2 bg-slate-100 text-slate-500 hover:text-slate-800 rounded-full transition-colors"
+                        >
+                            <X size={20}/>
+                        </button>
+
+                        <div className="flex items-center gap-2 mb-2">
+                            <div className="p-2.5 bg-emerald-100 text-emerald-700 rounded-xl">
+                                <Plus size={20} />
+                            </div>
+                            <h2 className="text-xl font-black text-slate-800">Nova Entrada de Estoque</h2>
+                        </div>
+                        <p className="text-xs text-slate-500 mb-6">
+                            Registre a compra ou reposição de insumos. O saldo do estoque será incrementado automaticamente e o histórico será registrado no relatório.
+                        </p>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">
+                                    Produto / Item do Estoque *
+                                </label>
+                                <select 
+                                    required
+                                    value={entryForm.itemId}
+                                    onChange={(e) => {
+                                        const selectedId = e.target.value;
+                                        const found = inventoryItems.find(i => i.id === selectedId);
+                                        setEntryForm(prev => ({
+                                            ...prev,
+                                            itemId: selectedId,
+                                            unitCost: found && found.costPrice > 0 ? String(found.costPrice) : prev.unitCost
+                                        }));
+                                    }}
+                                    className="w-full p-3.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-bold text-slate-800"
+                                >
+                                    <option value="" disabled>Selecione o produto...</option>
+                                    {inventoryItems.map(i => {
+                                        const owner = getDentistName(i.dentistOwnerId);
+                                        return (
+                                            <option key={i.id} value={i.id}>
+                                                {i.name} {i.code ? `(${i.code})` : ''} - [Estoque: {owner}] (Atual: {i.currentStock} un.)
+                                            </option>
+                                        );
+                                    })}
+                                </select>
+                            </div>
+
+                            {/* Detalhes do item selecionado */}
+                            {(() => {
+                                const selItem = inventoryItems.find(i => i.id === entryForm.itemId);
+                                if (!selItem) return null;
+                                const qtyNum = Number(entryForm.quantity) || 0;
+                                const newStockCalc = selItem.currentStock + qtyNum;
+                                return (
+                                    <div className="p-3 bg-emerald-50/70 border border-emerald-200 rounded-xl flex items-center justify-between text-xs">
+                                        <div className="text-emerald-900 font-medium">
+                                            Estoque Atual: <strong>{selItem.currentStock} un.</strong> &rarr; Saldo Final: <strong>{newStockCalc} un.</strong>
+                                        </div>
+                                        <div className="text-emerald-700 font-bold">
+                                            {getDentistName(selItem.dentistOwnerId)}
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">
+                                        Quantidade de Entrada *
+                                    </label>
+                                    <input 
+                                        required 
+                                        type="number" 
+                                        min="1" 
+                                        step="1"
+                                        value={entryForm.quantity} 
+                                        onChange={e => setEntryForm({...entryForm, quantity: parseInt(e.target.value) || 1})} 
+                                        className="w-full p-3.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none font-black text-slate-800 text-base" 
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">
+                                        Custo Unitário (R$)
+                                    </label>
+                                    <input 
+                                        type="number" 
+                                        step="0.01" 
+                                        min="0"
+                                        placeholder="Preço pago"
+                                        value={entryForm.unitCost} 
+                                        onChange={e => setEntryForm({...entryForm, unitCost: e.target.value})} 
+                                        className="w-full p-3.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none font-bold text-slate-800 text-sm" 
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">
+                                        Data da Entrada
+                                    </label>
+                                    <input 
+                                        type="date" 
+                                        value={entryForm.date} 
+                                        onChange={e => setEntryForm({...entryForm, date: e.target.value})} 
+                                        className="w-full p-3.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none text-xs font-bold text-slate-800" 
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">
+                                        Motivo / Nota Fiscal (Opcional)
+                                    </label>
+                                    <input 
+                                        type="text" 
+                                        placeholder="Ex: Compra NF 1042"
+                                        value={entryForm.reason} 
+                                        onChange={e => setEntryForm({...entryForm, reason: e.target.value})} 
+                                        className="w-full p-3.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none text-xs text-slate-800" 
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="mt-8 flex justify-end gap-3">
+                            <button 
+                                type="button" 
+                                onClick={() => setIsEntryModalOpen(false)} 
+                                className="px-5 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-100 transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button 
+                                type="submit" 
+                                className="px-6 py-3 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 shadow-md flex items-center gap-2 transition-all"
+                            >
+                                <Save size={18} /> Confirmar Entrada
+                            </button>
+                        </div>
+                    </form>
                 </div>
             )}
 
