@@ -514,6 +514,7 @@ export interface JobProduct {
   basePriceBeforeDiscount?: number;
   appliedDiscount?: number;
   dentistOwnerId?: string | null;
+  addedAt?: string | Date;
 }
 
 export enum JobStatus {

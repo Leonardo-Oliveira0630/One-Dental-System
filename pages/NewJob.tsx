@@ -870,7 +870,8 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
         unitPrice: finalPrice,
         basePriceBeforeDiscount: basePrice,
         appliedDiscount: Number(productDiscountPercent) || 0,
-        dentistOwnerId: invItem.dentistOwnerId
+        dentistOwnerId: invItem.dentistOwnerId,
+        addedAt: new Date().toISOString()
     };
 
     setAddedProducts([...addedProducts, newProd]);
@@ -1205,11 +1206,15 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
 
             // Deduct stock for each added product
             for (const prod of addedProducts) {
-                const invItem = inventoryItems.find(i => i.id === prod.inventoryItemId);
-                if (invItem) {
-                    await updateInventoryItem(prod.inventoryItemId, {
-                        currentStock: invItem.currentStock - prod.quantity
-                    });
+                if (prod.inventoryItemId) {
+                    const invItem = inventoryItems.find(i => i.id === prod.inventoryItemId);
+                    if (invItem) {
+                        const currentStockVal = typeof invItem.currentStock === 'number' ? invItem.currentStock : 0;
+                        const qtyToDeduct = Number(prod.quantity) || 1;
+                        await updateInventoryItem(prod.inventoryItemId, {
+                            currentStock: Math.max(0, currentStockVal - qtyToDeduct)
+                        });
+                    }
                 }
             }
 
@@ -1235,11 +1240,15 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
             
             // Deduct stock for each added product
             for (const prod of addedProducts) {
-                const invItem = inventoryItems.find(i => i.id === prod.inventoryItemId);
-                if (invItem) {
-                    await updateInventoryItem(prod.inventoryItemId, {
-                        currentStock: invItem.currentStock - prod.quantity
-                    });
+                if (prod.inventoryItemId) {
+                    const invItem = inventoryItems.find(i => i.id === prod.inventoryItemId);
+                    if (invItem) {
+                        const currentStockVal = typeof invItem.currentStock === 'number' ? invItem.currentStock : 0;
+                        const qtyToDeduct = Number(prod.quantity) || 1;
+                        await updateInventoryItem(prod.inventoryItemId, {
+                            currentStock: Math.max(0, currentStockVal - qtyToDeduct)
+                        });
+                    }
                 }
             }
 

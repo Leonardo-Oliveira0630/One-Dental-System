@@ -8,7 +8,23 @@ import { formatItemNameWithVariations, getNaturePrefix } from '../pages/JobDetai
 import { formatTeethRange } from '../utils/toothUtils';
 
 export const PrintOverlay = () => {
-  const { printData, clearPrint, currentOrg, jobTypes, manualDentists, allUsers, jobs } = useApp();
+  const { printData, clearPrint, currentOrg, jobTypes, manualDentists, allUsers, jobs, inventoryItems } = useApp();
+
+  const getStockOwnerName = (prod: any) => {
+    const ownerId = prod.dentistOwnerId || inventoryItems?.find(i => i.id === prod.inventoryItemId)?.dentistOwnerId;
+    if (!ownerId || ownerId === 'LAB') {
+      return 'Laboratório';
+    }
+    const manualD = manualDentists?.find(d => d.id === ownerId);
+    if (manualD) {
+      return manualD.clinicName || manualD.name || 'Estoque do Dentista';
+    }
+    const onlineU = allUsers?.find(u => u.id === ownerId);
+    if (onlineU) {
+      return onlineU.clinicName || onlineU.name || 'Estoque do Dentista';
+    }
+    return 'Estoque do Dentista';
+  };
 
   const job = React.useMemo(() => {
     if (!printData?.job) return null;
@@ -233,7 +249,16 @@ export const PrintOverlay = () => {
                           <thead><tr className="border-b border-gray-400"><th className="py-1 px-1 border border-gray-400 w-12">Qtd</th><th className="py-1 px-1 border border-gray-400">Descrição</th><th className="py-1 px-1 border border-gray-400 w-24">Origem</th></tr></thead>
                           <tbody className="divide-y divide-gray-400">
                               {job.products.map((prod, idx) => (
-                                  <tr key={`prod-${idx}`}><td className="py-1 px-1 border border-gray-400 font-bold align-top text-sm">{prod.quantity}x</td><td className="py-1 px-1 border border-gray-400 align-top font-bold text-[7.5pt] leading-tight"><div>{prod.name}</div></td><td className="py-1 px-1 border border-gray-400 align-top text-gray-600 uppercase text-[10px] font-bold">{prod.dentistOwnerId ? 'CLI' : 'LAB'}</td></tr>
+                                  <tr key={`prod-${idx}`}>
+                                      <td className="py-1 px-1 border border-gray-400 font-bold align-top text-sm">{prod.quantity}x</td>
+                                      <td className="py-1 px-1 border border-gray-400 align-top text-[7.5pt] leading-tight">
+                                          <div>
+                                              <div className="text-[7.5pt] font-black uppercase text-indigo-900 tracking-tight">Estoque: {getStockOwnerName(prod)}</div>
+                                              <div className="font-bold text-gray-900">{prod.name}</div>
+                                          </div>
+                                      </td>
+                                      <td className="py-1 px-1 border border-gray-400 align-top text-gray-700 uppercase text-[9px] font-extrabold">{prod.dentistOwnerId ? 'CLI' : 'LAB'}</td>
+                                  </tr>
                               ))}
                           </tbody>
                       </table>
@@ -411,7 +436,17 @@ export const PrintOverlay = () => {
                           <thead><tr className="border-b border-gray-400"><th className="py-1 px-1 border border-gray-400 w-12">Qtd</th><th className="py-1 px-1 border border-gray-400">Descrição</th><th className="py-1 px-1 border border-gray-400 w-24 text-right">Valor Unit.</th><th className="py-1 px-1 border border-gray-400 w-24 text-right">Total</th></tr></thead>
                           <tbody className="divide-y divide-gray-400">
                               {job.products.map((prod, idx) => (
-                                  <tr key={`prod-${idx}`}><td className="py-1 px-1 border border-gray-400 font-bold align-top text-sm">{prod.quantity}x</td><td className="py-1 px-1 border border-gray-400 align-top font-bold text-[7.5pt] leading-tight"><div>{prod.name}</div></td><td className="py-1 px-1 border border-gray-400 align-top text-right text-gray-700 text-sm">{(prod.unitPrice || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td><td className="py-1 px-1 border border-gray-400 align-top font-bold text-right text-sm">{((prod.unitPrice || 0) * prod.quantity).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td></tr>
+                                  <tr key={`prod-${idx}`}>
+                                      <td className="py-1 px-1 border border-gray-400 font-bold align-top text-sm">{prod.quantity}x</td>
+                                      <td className="py-1 px-1 border border-gray-400 align-top text-[7.5pt] leading-tight">
+                                          <div>
+                                              <div className="text-[7.5pt] font-black uppercase text-indigo-900 tracking-tight">Estoque: {getStockOwnerName(prod)}</div>
+                                              <div className="font-bold text-gray-900">{prod.name}</div>
+                                          </div>
+                                      </td>
+                                      <td className="py-1 px-1 border border-gray-400 align-top text-right text-gray-700 text-sm">{(prod.unitPrice || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                                      <td className="py-1 px-1 border border-gray-400 align-top font-bold text-right text-sm">{((prod.unitPrice || 0) * prod.quantity).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                                  </tr>
                               ))}
                           </tbody>
                       </table>
@@ -531,6 +566,7 @@ export const PrintOverlay = () => {
                          {job.products?.map((prod: any) => (
                              <tr key={prod.id} className="border-b border-slate-100">
                                  <td className="py-3">
+                                     <div className="text-[9px] font-black uppercase text-indigo-700 tracking-wider mb-0.5">Estoque: {getStockOwnerName(prod)}</div>
                                      <div className="font-bold text-slate-800">{prod.name}</div>
                                  </td>
                                  <td className="py-3 text-center font-bold text-slate-700">{prod.quantity}</td>

@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '../../context/AppContext';
-import { InventoryCategory, InventoryItem, InventoryItemType, InventoryMovement, InventoryMovementType } from '../../types';
+import { InventoryCategory, InventoryItem, InventoryItemType, InventoryMovement, InventoryMovementType, JobStatus } from '../../types';
 import { 
     Package, Plus, Trash2, Edit2, Search, X, Layers, Box, Tag, Key, Info, Check, 
     Save, ArrowLeft, ChevronDown, User as UserIcon, Sparkles, Upload, FileText,
@@ -120,6 +120,11 @@ export const Inventory = () => {
     const [movementsStartDate, setMovementsStartDate] = useState<string>('');
     const [movementsEndDate, setMovementsEndDate] = useState<string>('');
     const [movementsSearch, setMovementsSearch] = useState<string>('');
+
+    // Reconcile Modal State
+    const [showReconcileModal, setShowReconcileModal] = useState(false);
+    const [selectedReconcileIds, setSelectedReconcileIds] = useState<string[]>([]);
+    const [isReconciling, setIsReconciling] = useState(false);
 
     // Item Modal
     const [isItemModalOpen, setIsItemModalOpen] = useState(false);
@@ -881,6 +886,78 @@ export const Inventory = () => {
         alert(`Entrada de ${qty} un. no item "${item.name}" registrada com sucesso! Estoque atualizado para ${newTotalStock}.`);
     };
 
+    // Reconciliation logic for deducting past uncounted job products
+    const reconcileItemsSummary = useMemo(() => {
+        const usageMap: Record<string, number> = {};
+        (jobs || []).forEach(job => {
+            if (job.status === JobStatus.CANCELED || (job.status as any) === 'CANCELLED') return;
+            (job.products || []).forEach(p => {
+                if (p.inventoryItemId) {
+                    const q = Number(p.quantity) || 1;
+                    usageMap[p.inventoryItemId] = (usageMap[p.inventoryItemId] || 0) + q;
+                }
+            });
+        });
+
+        return inventoryItems.map(item => {
+            const totalUsed = usageMap[item.id] || 0;
+            const currentStock = typeof item.currentStock === 'number' ? item.currentStock : 0;
+            const proposedStock = Math.max(0, currentStock - totalUsed);
+            return {
+                item,
+                currentStock,
+                totalUsed,
+                proposedStock
+            };
+        }).filter(row => row.totalUsed > 0);
+    }, [jobs, inventoryItems]);
+
+    const handleApplyReconciliation = async () => {
+        if (selectedReconcileIds.length === 0) {
+            alert("Selecione pelo menos um item para reconciliar.");
+            return;
+        }
+        setIsReconciling(true);
+        try {
+            const newMovements: InventoryMovement[] = [];
+            for (const itemId of selectedReconcileIds) {
+                const row = reconcileItemsSummary.find(r => r.item.id === itemId);
+                if (row) {
+                    await updateInventoryItem(itemId, { currentStock: row.proposedStock });
+                    
+                    const ownerName = getDentistName(row.item.dentistOwnerId);
+                    newMovements.push({
+                        id: `reconcile_${itemId}_${Date.now()}`,
+                        itemId: row.item.id,
+                        itemName: row.item.name,
+                        itemCode: row.item.code || '',
+                        stockOwnerId: row.item.dentistOwnerId || null,
+                        stockOwnerName: ownerName,
+                        type: 'EXIT',
+                        quantity: row.totalUsed,
+                        totalStockAfter: row.proposedStock,
+                        date: new Date().toISOString(),
+                        unitCostOrPrice: row.item.sellPrice || 0,
+                        totalValue: (row.item.sellPrice || 0) * row.totalUsed,
+                        reason: `Reconciliação e baixa retroativa de ${row.totalUsed} un. usadas em OSs`,
+                        createdAt: new Date().toISOString()
+                    });
+                }
+            }
+            if (newMovements.length > 0) {
+                saveCustomMovements([...newMovements, ...customMovements]);
+            }
+            alert(`Reconciliação concluída com sucesso! Os saldos de ${selectedReconcileIds.length} produtos foram atualizados.`);
+            setShowReconcileModal(false);
+            setSelectedReconcileIds([]);
+        } catch (err) {
+            console.error("Erro na reconciliação de estoque:", err);
+            alert("Erro ao reconciliar estoque. Tente novamente.");
+        } finally {
+            setIsReconciling(false);
+        }
+    };
+
     // Unified movements list: custom movements (Entradas) + job sales (Saídas)
     const unifiedMovements = useMemo(() => {
         const list: InventoryMovement[] = [];
@@ -889,7 +966,6 @@ export const Inventory = () => {
 
         (jobs || []).forEach(job => {
             if (!job.products || job.products.length === 0) return;
-            const jobDate = job.createdAt ? new Date(job.createdAt).toISOString() : new Date().toISOString();
             const osNumber = job.osNumber ? String(job.osNumber) : job.id.substring(0, 8);
             const patient = job.patientName || 'Não informado';
             const dentist = job.dentistName || 'Não informado';
@@ -901,6 +977,11 @@ export const Inventory = () => {
                 const unitPrice = Number(p.unitPrice) || 0;
                 const qty = Number(p.quantity) || 1;
 
+                // Use the exact product addition/edition timestamp if set (p.addedAt), otherwise fallback to job creation timestamp
+                const productDate = p.addedAt 
+                    ? (typeof p.addedAt === 'string' ? p.addedAt : new Date(p.addedAt).toISOString()) 
+                    : (job.createdAt ? new Date(job.createdAt).toISOString() : new Date().toISOString());
+
                 list.push({
                     id: `job_exit_${job.id}_${p.id}`,
                     itemId: p.inventoryItemId,
@@ -910,15 +991,15 @@ export const Inventory = () => {
                     stockOwnerName: stockName,
                     type: 'EXIT',
                     quantity: qty,
-                    date: jobDate,
+                    date: productDate,
                     unitCostOrPrice: unitPrice,
                     totalValue: unitPrice * qty,
                     jobId: job.id,
                     jobOsNumber: osNumber,
                     jobPatientName: patient,
                     jobDentistName: dentist,
-                    reason: `Vendido na OS #${osNumber}`,
-                    createdAt: jobDate
+                    reason: `Saída p/ OS #${osNumber} (${patient})`,
+                    createdAt: productDate
                 });
             });
         });
@@ -1448,6 +1529,21 @@ export const Inventory = () => {
                                 <Download size={16} /> Todos (PDF)
                             </button>
                         </div>
+                    )}
+                    {activeTab === 'ITEMS' && canEdit && reconcileItemsSummary.length > 0 && (
+                        <button 
+                            type="button"
+                            id="reconcile-stock-btn"
+                            onClick={() => {
+                                const initialIds = reconcileItemsSummary.map(r => r.item.id);
+                                setSelectedReconcileIds(initialIds);
+                                setShowReconcileModal(true);
+                            }}
+                            className="px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-black rounded-xl shadow-xs flex items-center gap-1.5 transition-all uppercase tracking-wider shrink-0"
+                            title="Reconciliar e abater automaticamente insumos usados em OSs criadas anteriormente"
+                        >
+                            <RefreshCw size={15} /> Reconciliar Baixas de OSs ({reconcileItemsSummary.length})
+                        </button>
                     )}
                     {activeTab === 'MOVEMENTS' && (
                         <>
@@ -3033,6 +3129,114 @@ export const Inventory = () => {
                             </button>
                         </div>
                     </form>
+                </div>
+            )}
+
+            {/* MODAL: RECONCILIAÇÃO RETROATIVA DE ESTOQUE POR OSs */}
+            {showReconcileModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" id="reconcile-stock-modal">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl p-6 animate-in zoom-in-95 duration-200">
+                        <div className="flex justify-between items-center mb-5 border-b pb-4">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2.5 bg-amber-50 text-amber-600 rounded-2xl">
+                                    <RefreshCw size={22} className={isReconciling ? 'animate-spin' : ''} />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">
+                                        Reconciliação Retroativa de Estoque (OSs)
+                                    </h3>
+                                    <p className="text-xs font-bold text-slate-500">
+                                        Calcula e abate automaticamente do estoque os insumos utilizados em casos anteriores.
+                                    </p>
+                                </div>
+                            </div>
+                            <button 
+                                id="close-reconcile-modal"
+                                onClick={() => setShowReconcileModal(false)} 
+                                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-xl hover:bg-slate-100"
+                            >
+                                <X size={20}/>
+                            </button>
+                        </div>
+
+                        <div className="space-y-4">
+                            <p className="text-xs text-slate-600 font-medium bg-amber-50/70 border border-amber-200/80 p-3.5 rounded-2xl">
+                                ℹ️ Os produtos abaixo foram utilizados em Ordens de Serviço mas seus saldos ainda não tinham sido contabilizados.
+                                Selecione quais deseja atualizar e clique em confirmar para abater automaticamente do estoque.
+                            </p>
+
+                            <div className="max-h-[300px] overflow-y-auto border border-slate-200 rounded-2xl divide-y divide-slate-100">
+                                {reconcileItemsSummary.map(row => {
+                                    const isSelected = selectedReconcileIds.includes(row.item.id);
+                                    return (
+                                        <div 
+                                            key={row.item.id} 
+                                            onClick={() => {
+                                                if (isSelected) {
+                                                    setSelectedReconcileIds(selectedReconcileIds.filter(id => id !== row.item.id));
+                                                } else {
+                                                    setSelectedReconcileIds([...selectedReconcileIds, row.item.id]);
+                                                }
+                                            }}
+                                            className={`p-3.5 flex items-center justify-between gap-3 cursor-pointer transition-colors ${
+                                                isSelected ? 'bg-amber-50/40 hover:bg-amber-50' : 'hover:bg-slate-50'
+                                            }`}
+                                        >
+                                            <div className="flex items-center gap-3 min-w-0">
+                                                <input 
+                                                    type="checkbox" 
+                                                    checked={isSelected}
+                                                    onChange={() => {}} 
+                                                    className="w-4 h-4 text-amber-600 rounded focus:ring-amber-500 cursor-pointer"
+                                                />
+                                                <div className="min-w-0">
+                                                    <p className="font-extrabold text-slate-800 text-xs sm:text-sm truncate">{row.item.name}</p>
+                                                    <p className="text-[10px] text-slate-400 font-bold uppercase">
+                                                        Estoque: {getDentistName(row.item.dentistOwnerId)} {row.item.code ? `• SKU: ${row.item.code}` : ''}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center gap-4 text-right shrink-0">
+                                                <div>
+                                                    <span className="text-[10px] font-black text-slate-400 uppercase block">Estoque Atual</span>
+                                                    <span className="text-xs font-extrabold text-slate-700">{row.currentStock} un.</span>
+                                                </div>
+                                                <div>
+                                                    <span className="text-[10px] font-black text-rose-500 uppercase block">Uso em OSs</span>
+                                                    <span className="text-xs font-black text-rose-600">-{row.totalUsed} un.</span>
+                                                </div>
+                                                <div className="pl-2 border-l border-slate-200">
+                                                    <span className="text-[10px] font-black text-emerald-600 uppercase block">Novo Saldo</span>
+                                                    <span className="text-sm font-black text-emerald-700">{row.proposedStock} un.</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            <div className="pt-3 flex gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowReconcileModal(false)}
+                                    className="flex-1 py-3 bg-slate-100 text-slate-700 font-extrabold text-xs rounded-xl hover:bg-slate-200 transition-all uppercase tracking-wider"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="button"
+                                    id="confirm-reconcile-btn"
+                                    onClick={handleApplyReconciliation}
+                                    disabled={selectedReconcileIds.length === 0 || isReconciling}
+                                    className="flex-1 py-3 bg-amber-500 hover:bg-amber-600 text-white font-black text-xs rounded-xl transition-all disabled:opacity-40 uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-amber-200"
+                                >
+                                    {isReconciling ? <Sparkles size={16} className="animate-spin"/> : <Check size={16}/>}
+                                    APLICAR BAIXA ({selectedReconcileIds.length} ITENS)
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             )}
 

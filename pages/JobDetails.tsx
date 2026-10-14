@@ -171,7 +171,7 @@ export const calculateItemPriceWithDentist = (
 export const JobDetails = () => {
   const { id } = useParams();
   const { t } = useTranslation();
-  const { jobs, budgets, updateJob, updateJobType, triggerPrint, currentUser, jobTypes, sectors, uploadFile, addJobToRoute, currentOrg, activeOrganization, allUsers, manualDentists, priceTables, inventoryItems, couriers, onlineRequisitions, currentPlan, updateOnlineRequisition, boxColors, routes } = useApp();
+  const { jobs, budgets, updateJob, updateJobType, triggerPrint, currentUser, jobTypes, sectors, uploadFile, addJobToRoute, currentOrg, activeOrganization, allUsers, manualDentists, priceTables, inventoryItems, updateInventoryItem, couriers, onlineRequisitions, currentPlan, updateOnlineRequisition, boxColors, routes } = useApp();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -1438,6 +1438,7 @@ export const JobDetails = () => {
           basePriceBeforeDiscount: finalPrice,
           appliedDiscount: discount,
           dentistOwnerId: prod.dentistOwnerId || null,
+          addedAt: new Date().toISOString()
       };
 
       const newProds = [...editProducts, newProduct];
@@ -1547,7 +1548,7 @@ export const JobDetails = () => {
                     stageQuantities: nextStageQuantities
                 };
             }),
-            products: editProducts.map(p => ({ ...p, quantity: Number(p.quantity) || 1, basePriceBeforeDiscount: Number(p.basePriceBeforeDiscount) || p.unitPrice, appliedDiscount: Number(p.appliedDiscount) || 0 })),
+            products: editProducts.map(p => ({ ...p, quantity: Number(p.quantity) || 1, basePriceBeforeDiscount: Number(p.basePriceBeforeDiscount) || p.unitPrice, appliedDiscount: Number(p.appliedDiscount) || 0, addedAt: p.addedAt || new Date().toISOString() })),
             totalValue: Number(editTotalValue) || 0,
             history: [...(job.history || []).filter(Boolean), {
                 id: `hist_edit_${Date.now()}`,
@@ -1558,6 +1559,38 @@ export const JobDetails = () => {
                 sector: 'Gestão'
             }]
         });
+
+        // Synchronize inventory stock for added/modified/removed products
+        const oldQuantitiesByItem: Record<string, number> = {};
+        (job.products || []).forEach((p: any) => {
+            if (p.inventoryItemId) {
+                oldQuantitiesByItem[p.inventoryItemId] = (oldQuantitiesByItem[p.inventoryItemId] || 0) + (Number(p.quantity) || 1);
+            }
+        });
+
+        const newQuantitiesByItem: Record<string, number> = {};
+        (editProducts || []).forEach((p: any) => {
+            if (p.inventoryItemId) {
+                newQuantitiesByItem[p.inventoryItemId] = (newQuantitiesByItem[p.inventoryItemId] || 0) + (Number(p.quantity) || 1);
+            }
+        });
+
+        const allInvItemIds = Array.from(new Set([...Object.keys(oldQuantitiesByItem), ...Object.keys(newQuantitiesByItem)]));
+        for (const itemId of allInvItemIds) {
+            const oldQty = oldQuantitiesByItem[itemId] || 0;
+            const newQty = newQuantitiesByItem[itemId] || 0;
+            const diff = newQty - oldQty;
+
+            if (diff !== 0) {
+                const invItem = inventoryItems.find(i => i.id === itemId);
+                if (invItem) {
+                    const currentStockVal = typeof invItem.currentStock === 'number' ? invItem.currentStock : 0;
+                    const updatedStock = Math.max(0, currentStockVal - diff);
+                    await updateInventoryItem(itemId, { currentStock: updatedStock });
+                }
+            }
+        }
+
         await recalculateAllCommissions(editItems, job.itemExecutions || []);
         setShowEditModal(false);
     } catch (err) {
