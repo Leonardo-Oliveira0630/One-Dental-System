@@ -455,7 +455,7 @@ export const getSectorTimeInfo = (job: any) => {
 
 export const JobsList = ({ isStoreContext, isBudgetMode }: { isStoreContext?: boolean; isBudgetMode?: boolean } = {}) => {
   const { t } = useTranslation();
-  const { jobs, budgets, currentUser, updateJob, sectors, activeOrganization, addJobToRoute, allUsers, manualDentists, couriers, onlineRequisitions, activeManualDentistId, currentPlan, currentOrg } = useApp();
+  const { jobs, budgets, currentUser, updateJob, sectors, activeOrganization, addJobToRoute, allUsers, manualDentists, couriers, onlineRequisitions, activeManualDentistId, currentPlan, currentOrg, routes } = useApp();
   const navigate = useNavigate();
   
   const location = useLocation();
@@ -557,10 +557,20 @@ export const JobsList = ({ isStoreContext, isBudgetMode }: { isStoreContext?: bo
 
   // Route Form State
   const [routeDriver, setRouteDriver] = useState('');
+  const [selectedRouteId, setSelectedRouteId] = useState('');
   const [routeShift, setRouteShift] = useState<'MORNING' | 'AFTERNOON'>('MORNING');
   const [routeDate, setRouteDate] = useState(new Date().toISOString().split('T')[0]);
   const [routeObservations, setRouteObservations] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // Active open routes for selected date and shift
+  const openRoutesForShift = useMemo(() => {
+    if (!routes || !Array.isArray(routes)) return [];
+    return routes.filter(r => {
+      const rDateStr = r.date instanceof Date ? r.date.toISOString().split('T')[0] : String(r.date).split('T')[0];
+      return rDateStr === routeDate && r.shift === routeShift && r.status !== 'COMPLETED';
+    });
+  }, [routes, routeDate, routeShift]);
 
   const handleSaveNotes = async (jobId: string, notes: string) => {
     try {
@@ -807,12 +817,12 @@ const handleUpdateStatus = async (jobId: string, status: JobStatus) => {
     if (!routeModalJob || !routeDriver) return;
     setIsProcessing(true);
     try {
-        await addJobToRoute(routeModalJob, routeDriver, routeShift, new Date(routeDate), routeObservations);
+        await addJobToRoute(routeModalJob, routeDriver, routeShift, new Date(routeDate), routeObservations, selectedRouteId || undefined);
         setRouteModalJob(null);
         setRouteObservations('');
+        setSelectedRouteId('');
         alert(t('orders.addedToRouteSuccess', "Adicionado à rota!"));
     } catch (e) { alert(t('common.errorGeneric', "Erro.")); } finally { setIsProcessing(false); }
-
   }
 
   
@@ -1330,11 +1340,54 @@ const handleUpdateStatus = async (jobId: string, status: JobStatus) => {
                               <option value="AFTERNOON">{t('orders.afternoon', 'Tarde')}</option>
                           </select>
                       </div>
+                      {/* OPEN ROUTES FOR THIS DATE & SHIFT */}
+                      {openRoutesForShift.length > 0 && (
+                          <div className="p-3 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/50 rounded-2xl">
+                              <p className="text-xs font-black text-blue-900 dark:text-blue-200 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                                  <Truck size={14} className="text-blue-600 dark:text-blue-400" /> Rotas Abertas neste Turno:
+                              </p>
+                              <div className="space-y-1.5">
+                                  {openRoutesForShift.map(r => (
+                                      <button
+                                          key={r.id}
+                                          type="button"
+                                          onClick={() => {
+                                              setSelectedRouteId(r.id);
+                                              setRouteDriver(r.driverName);
+                                          }}
+                                          className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-between ${
+                                              selectedRouteId === r.id
+                                                  ? 'bg-blue-600 text-white shadow-sm'
+                                                  : 'bg-white dark:bg-[#0B0F17] text-slate-800 dark:text-slate-200 hover:bg-blue-100/50 border border-blue-100 dark:border-blue-900/30'
+                                          }`}
+                                      >
+                                          <div className="flex items-center gap-2">
+                                              <User size={14} />
+                                              <span>{r.driverName}</span>
+                                          </div>
+                                          <span className="text-[10px] font-black uppercase opacity-90">
+                                              {selectedRouteId === r.id ? 'Selecionada' : 'Usar esta rota'}
+                                          </span>
+                                      </button>
+                                  ))}
+                              </div>
+                          </div>
+                      )}
+
                       <div>
                           <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">{t('orders.courier', 'Motoboy')}</label>
                           {couriers.filter(c => c.active).length > 0 ? (
                               <div className="space-y-2">
-                                  <select value={routeDriver} onChange={e => setRouteDriver(e.target.value)} className="w-full px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-slate-100 bg-slate-50 dark:bg-[#0B0F17]">
+                                  <select 
+                                      value={routeDriver} 
+                                      onChange={e => {
+                                          setRouteDriver(e.target.value);
+                                          const matched = openRoutesForShift.find(r => r.driverName.trim().toLowerCase() === e.target.value.trim().toLowerCase());
+                                          if (matched) setSelectedRouteId(matched.id);
+                                          else setSelectedRouteId('');
+                                      }} 
+                                      className="w-full px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-slate-100 bg-slate-50 dark:bg-[#0B0F17]"
+                                  >
                                       <option value="">{t('orders.selectCourier', 'Selecione um motoboy...')}</option>
                                       {couriers.filter(c => c.active).map(c => (
                                           <option key={c.id} value={c.name}>{c.name} {c.vehicle ? `(${c.vehicle})` : ''}</option>

@@ -254,7 +254,7 @@ interface AppContextType {
   updateCommissionGroup: (id: string, updates: Partial<CommissionGroup>) => Promise<void>;
   deleteCommissionGroup: (id: string) => Promise<void>;
 
-  addJobToRoute: (job: Job, driver: string, shift: 'MORNING' | 'AFTERNOON', date: Date, observations?: string) => Promise<void>;
+  addJobToRoute: (job: Job, driver: string, shift: 'MORNING' | 'AFTERNOON', date: Date, observations?: string, targetRouteId?: string) => Promise<void>;
   generateBatchBoleto: (dentistId: string, jobIds: string[], dueDate: Date, customAmount?: number) => Promise<any>;
   addDentistPayment: (p: Omit<DentistPayment, 'id' | 'organizationId' | 'createdAt'>) => Promise<void>;
   updateDentistPayment: (id: string, updates: Partial<DentistPayment>) => Promise<void>;
@@ -267,6 +267,7 @@ interface AppContextType {
   deleteLabCoupon: (id: string) => Promise<void>;
   validateLabCoupon: (orgId: string, code: string) => Promise<LabCoupon | null>;
 
+  routes: DeliveryRoute[];
   couriers: Courier[];
   addCourier: (c: Omit<Courier, 'id' | 'organizationId' | 'createdAt'>) => Promise<void>;
   updateCourier: (id: string, updates: Partial<Courier>) => Promise<void>;
@@ -351,6 +352,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [patientBillingBatches, setPatientBillingBatches] = useState<import('../types').PatientBillingBatch[]>([]);
   const [activeAlert, setActiveAlert] = useState<JobAlert | null>(null);
   const [couriers, setCouriers] = useState<Courier[]>([]);
+  const [routes, setRoutes] = useState<DeliveryRoute[]>([]);
   const [onlineRequisitions, setOnlineRequisitions] = useState<OnlineRequisition[]>([]);
   const [activeManualDentistId, setActiveManualDentistId] = useState<string | null>(null);
 
@@ -693,6 +695,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         unsubs.push(api.subscribePatients(myOrgId, setPatients));
         unsubs.push(api.subscribeAppointments(myOrgId, setAppointments));
         unsubs.push(api.subscribeCouriers(myOrgId, setCouriers));
+        unsubs.push(api.subscribeRoutes(myOrgId, setRoutes));
         
         if (currentUser.role !== UserRole.CLIENT || currentOrg?.orgType === 'CLINIC') {
             unsubs.push(api.subscribeSectors(myOrgId, setSectors));
@@ -1733,18 +1736,38 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     });
   };
 
-  const addJobToRoute = async (job: Job, driver: string, shift: 'MORNING' | 'AFTERNOON', date: Date, observations?: string) => {
+  const addJobToRoute = async (job: Job, driver: string, shift: 'MORNING' | 'AFTERNOON', date: Date, observations?: string, targetRouteId?: string) => {
       const orgId = currentUser?.organizationId;
       if (!orgId) return;
 
       const dateStr = date.toISOString().split('T')[0];
-      const routeId = `route_${dateStr}_${shift}_${driver.replace(/\s+/g, '_')}`;
-      const routeSnap = await getDoc(doc(db, 'organizations', orgId, 'routes', routeId));
-      if (!routeSnap.exists()) {
-          await api.apiAddRoute(orgId, {
-              id: routeId, organizationId: orgId, date: date, shift: shift, driverName: driver, status: 'OPEN', createdAt: new Date()
+      let routeId = targetRouteId;
+
+      if (!routeId) {
+          // Check for an existing open or in-transit route on that date, shift, and driverName
+          const existingRoute = routes.find(r => {
+              const rDateStr = r.date instanceof Date ? r.date.toISOString().split('T')[0] : String(r.date).split('T')[0];
+              const driverMatch = (r.driverName || '').trim().toLowerCase() === (driver || '').trim().toLowerCase();
+              return rDateStr === dateStr && r.shift === shift && driverMatch && r.status !== 'COMPLETED';
           });
+
+          if (existingRoute) {
+              routeId = existingRoute.id;
+          } else {
+              routeId = `route_${dateStr}_${shift}_${driver.replace(/\s+/g, '_')}_${Date.now().toString(36)}`;
+              await api.apiAddRoute(orgId, {
+                  id: routeId, organizationId: orgId, date: date, shift: shift, driverName: driver, status: 'OPEN', createdAt: new Date()
+              });
+          }
+      } else {
+          const routeSnap = await getDoc(doc(db, 'organizations', orgId, 'routes', routeId));
+          if (!routeSnap.exists()) {
+              await api.apiAddRoute(orgId, {
+                  id: routeId, organizationId: orgId, date: date, shift: shift, driverName: driver, status: 'OPEN', createdAt: new Date()
+              });
+          }
       }
+
       const dentist = manualDentists.find(d => d.id === job.dentistId);
       const onlineDentist = allUsers.find(u => u.id === job.dentistId);
       const targetDentist: any = dentist || onlineDentist;
@@ -2043,7 +2066,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     addPatientPayment, updatePatientPayment, deletePatientPayment,
     addPatientBillingBatch, updatePatientBillingBatchStatus, deletePatientBillingBatch,
     labCoupons, addLabCoupon, updateLabCoupon, deleteLabCoupon, validateLabCoupon,
-    couriers, addCourier, updateCourier, deleteCourier,
+    routes, couriers, addCourier, updateCourier, deleteCourier,
     theme, setTheme, toggleTheme,
     language, setLanguage
   }), [
@@ -2053,7 +2076,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     patientPayments, patientBillingBatches,
     cardMachines, bankAccounts, inventoryCategories, inventoryItems,
     allSuppliers, allSupplierProducts, supplierOrders,
-    allPayments, cart, printData, activeOrganization, userConnections, activeDataId, couriers, onlineRequisitions, nfcBoxes,
+    allPayments, cart, printData, activeOrganization, userConnections, activeDataId, routes, couriers, onlineRequisitions, nfcBoxes,
     notifications, unreadNotificationCount, notificationPreferences, pushStatus,
     theme, setTheme, toggleTheme,
     language, setLanguage

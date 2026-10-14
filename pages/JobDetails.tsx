@@ -171,7 +171,7 @@ export const calculateItemPriceWithDentist = (
 export const JobDetails = () => {
   const { id } = useParams();
   const { t } = useTranslation();
-  const { jobs, budgets, updateJob, updateJobType, triggerPrint, currentUser, jobTypes, sectors, uploadFile, addJobToRoute, currentOrg, activeOrganization, allUsers, manualDentists, priceTables, inventoryItems, couriers, onlineRequisitions, currentPlan, updateOnlineRequisition, boxColors } = useApp();
+  const { jobs, budgets, updateJob, updateJobType, triggerPrint, currentUser, jobTypes, sectors, uploadFile, addJobToRoute, currentOrg, activeOrganization, allUsers, manualDentists, priceTables, inventoryItems, couriers, onlineRequisitions, currentPlan, updateOnlineRequisition, boxColors, routes } = useApp();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -508,9 +508,19 @@ export const JobDetails = () => {
 
   const [routeInfo, setRouteInfo] = useState<DeliveryRoute | null>(null);
   const [routeDriver, setRouteDriver] = useState('');
+  const [selectedRouteId, setSelectedRouteId] = useState('');
   const [routeShift, setRouteShift] = useState<'MORNING' | 'AFTERNOON'>('MORNING');
   const [routeDate, setRouteDate] = useState(new Date().toISOString().split('T')[0]);
   const [routeObservations, setRouteObservations] = useState('');
+
+  // Active open routes for selected date and shift
+  const openRoutesForShift = useMemo(() => {
+    if (!routes || !Array.isArray(routes)) return [];
+    return routes.filter(r => {
+      const rDateStr = r.date instanceof Date ? r.date.toISOString().split('T')[0] : String(r.date).split('T')[0];
+      return rDateStr === routeDate && r.shift === routeShift && r.status !== 'COMPLETED';
+    });
+  }, [routes, routeDate, routeShift]);
 
   const [showReturnModal, setShowReturnModal] = useState(false);
 
@@ -1577,9 +1587,10 @@ export const JobDetails = () => {
     if (!routeDriver) { alert("Informe o nome do motorista."); return; }
     setIsUpdatingStatus(true);
     try {
-        await addJobToRoute(job, routeDriver, routeShift, new Date(routeDate), routeObservations);
+        await addJobToRoute(job, routeDriver, routeShift, new Date(routeDate), routeObservations, selectedRouteId || undefined);
         setShowRouteModal(false);
         setRouteObservations('');
+        setSelectedRouteId('');
     } catch (err) {
         alert("Erro ao adicionar à rota.");
     } finally { setIsUpdatingStatus(false); }
@@ -6510,6 +6521,40 @@ export const JobDetails = () => {
                               <option value="AFTERNOON">Tarde</option>
                           </select>
                       </div>
+                      {/* OPEN ROUTES FOR THIS DATE & SHIFT */}
+                      {openRoutesForShift.length > 0 && (
+                          <div className="p-3 bg-blue-50 border border-blue-200 rounded-2xl">
+                              <p className="text-xs font-black text-blue-900 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                                  <Truck size={14} className="text-blue-600" /> Rotas Abertas neste Turno:
+                              </p>
+                              <div className="space-y-1.5">
+                                  {openRoutesForShift.map(r => (
+                                      <button
+                                          key={r.id}
+                                          type="button"
+                                          onClick={() => {
+                                              setSelectedRouteId(r.id);
+                                              setRouteDriver(r.driverName);
+                                          }}
+                                          className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-between ${
+                                              selectedRouteId === r.id
+                                                  ? 'bg-blue-600 text-white shadow-sm'
+                                                  : 'bg-white text-slate-800 hover:bg-blue-100/50 border border-blue-100'
+                                          }`}
+                                      >
+                                          <div className="flex items-center gap-2">
+                                              <User size={14} />
+                                              <span>{r.driverName}</span>
+                                          </div>
+                                          <span className="text-[10px] font-black uppercase opacity-90">
+                                              {selectedRouteId === r.id ? 'Selecionada' : 'Usar esta rota'}
+                                          </span>
+                                      </button>
+                                  ))}
+                              </div>
+                          </div>
+                      )}
+
                       <div>
                           <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Motorista / Motoboy</label>
                           {couriers && couriers.filter(c => c.active).length > 0 ? (
@@ -6519,8 +6564,12 @@ export const JobDetails = () => {
                                       onChange={e => {
                                           if (e.target.value === 'MANUAL') {
                                               setRouteDriver('');
+                                              setSelectedRouteId('');
                                           } else {
                                               setRouteDriver(e.target.value);
+                                              const matched = openRoutesForShift.find(r => r.driverName.trim().toLowerCase() === e.target.value.trim().toLowerCase());
+                                              if (matched) setSelectedRouteId(matched.id);
+                                              else setSelectedRouteId('');
                                           }
                                       }} 
                                       className="w-full px-4 py-2 border rounded-xl bg-white font-bold text-slate-800 text-xs"

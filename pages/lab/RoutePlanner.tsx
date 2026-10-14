@@ -15,12 +15,14 @@ export const RoutePlanner = () => {
     const { t } = useTranslation();
     const { 
         currentOrg, manualDentists, allUsers, triggerRoutePrint, currentUser,
-        couriers, addCourier, updateCourier, deleteCourier, jobs, updateJob
+        couriers, addCourier, updateCourier, deleteCourier, jobs, updateJob, routes
     } = useApp();
     
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
     const [selectedShift, setSelectedShift] = useState<'MORNING' | 'AFTERNOON'>('MORNING');
-    const [routes, setRoutes] = useState<DeliveryRoute[]>([]);
+    const [selectedRouteId, setSelectedRouteId] = useState<string | null>(() => {
+        try { return localStorage.getItem('labprox_active_route_id') || null; } catch { return null; }
+    });
     const [routeItems, setRouteItems] = useState<RouteItem[]>([]);
     const [isAddingPickup, setIsAddingPickup] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -101,16 +103,30 @@ export const RoutePlanner = () => {
     const canEdit = isAdmin || currentUser?.permissions?.includes('logistics:edit');
     const canDelete = isAdmin || currentUser?.permissions?.includes('logistics:delete');
 
-    useEffect(() => {
-        if (currentOrg) {
-            const unsub = api.subscribeRoutes(currentOrg.id, setRoutes);
-            return () => unsub();
-        }
-    }, [currentOrg]);
-
-    const activeRoute = useMemo(() => {
-        return routes.find(r => r.date.toISOString().split('T')[0] === selectedDate && r.shift === selectedShift);
+    // All routes for the currently selected date and shift
+    const shiftRoutes = useMemo(() => {
+        return routes.filter(r => {
+            const rDateStr = r.date instanceof Date ? r.date.toISOString().split('T')[0] : String(r.date).split('T')[0];
+            return rDateStr === selectedDate && r.shift === selectedShift;
+        });
     }, [routes, selectedDate, selectedShift]);
+
+    // Active selected route or fallback to open route
+    const activeRoute = useMemo(() => {
+        if (selectedRouteId) {
+            const found = shiftRoutes.find(r => r.id === selectedRouteId);
+            if (found) return found;
+        }
+        return shiftRoutes.find(r => r.status !== 'COMPLETED') || shiftRoutes[0] || null;
+    }, [shiftRoutes, selectedRouteId]);
+
+    // Sync selectedRouteId with localStorage
+    useEffect(() => {
+        if (activeRoute) {
+            setSelectedRouteId(activeRoute.id);
+            try { localStorage.setItem('labprox_active_route_id', activeRoute.id); } catch (e) {}
+        }
+    }, [activeRoute?.id]);
 
     useEffect(() => {
         if (currentOrg && activeRoute) {
@@ -133,6 +149,8 @@ export const RoutePlanner = () => {
             status: 'OPEN',
             createdAt: new Date()
         });
+        setSelectedRouteId(routeId);
+        try { localStorage.setItem('labprox_active_route_id', routeId); } catch (e) {}
         setShowStartRouteModal(false);
         setManualCourierName('');
         setSelectedCourierId('');
@@ -308,6 +326,53 @@ export const RoutePlanner = () => {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:p-8">
                 {/* LISTA DE PARADAS */}
                 <div className="lg:col-span-8 space-y-4" id="routes-stops-container">
+                    {/* SELETOR MULTI-ROTAS DO TURNO */}
+                    {shiftRoutes.length > 0 && (
+                        <div className="bg-white p-4 rounded-3xl shadow-sm border border-slate-100 flex flex-wrap items-center justify-between gap-3" id="multi-route-selector">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-xs font-black text-slate-400 uppercase tracking-widest mr-1">
+                                    Rotas do Turno ({shiftRoutes.length}):
+                                </span>
+                                {shiftRoutes.map(r => {
+                                    const isActive = activeRoute?.id === r.id;
+                                    return (
+                                        <button
+                                            key={r.id}
+                                            id={`select-route-tab-${r.id}`}
+                                            onClick={() => {
+                                                setSelectedRouteId(r.id);
+                                                try { localStorage.setItem('labprox_active_route_id', r.id); } catch (e) {}
+                                            }}
+                                            className={`px-3.5 py-2 rounded-2xl text-xs font-extrabold transition-all flex items-center gap-2 ${
+                                                isActive
+                                                    ? 'bg-slate-900 text-white shadow-md scale-105'
+                                                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
+                                            }`}
+                                        >
+                                            <Truck size={14} className={isActive ? 'text-blue-400' : 'text-slate-400'} />
+                                            <span>{r.driverName}</span>
+                                            <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-md uppercase ${
+                                                r.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
+                                                r.status === 'IN_TRANSIT' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'
+                                            }`}>
+                                                {r.status === 'COMPLETED' ? 'Concluída' : r.status === 'IN_TRANSIT' ? 'Em Rua' : 'Aberta'}
+                                            </span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            {canCreate && (
+                                <button
+                                    id="add-extra-route-btn"
+                                    onClick={() => setShowStartRouteModal(true)}
+                                    className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black transition-all flex items-center gap-1.5 shadow-sm uppercase tracking-wider"
+                                >
+                                    <Plus size={14} /> Nova Rota
+                                </button>
+                            )}
+                        </div>
+                    )}
+
                     {!activeRoute ? (
                         <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-3xl p-12 text-center" id="no-route-display">
                             <Truck size={48} className="mx-auto text-slate-300 mb-4" />
