@@ -10,7 +10,7 @@ import {
   ArrowLeft, Calendar, Stethoscope, User, Clock, MapPin, Camera as CameraIcon,
   FileText, DollarSign, CheckCircle, AlertTriangle, 
   Printer, Box, Layers, ListChecks, Bell, Edit, Save, X, Plus, Trash2, Settings,
-  LogIn, LogOut, Flag, CheckSquare, File as FileIcon, Download, Loader2, CreditCard, ExternalLink, Copy, Check, Star, UploadCloud, ChevronDown, CheckCircle2, Truck, Navigation, RotateCcw, MessageCircle, MessageSquare, Lock, Crown, FileCode, FileSpreadsheet, FileWarning, XCircle, ArrowLeftCircle, ScanBarcode, Briefcase, Search, ArrowRightCircle, RefreshCw, Edit3, Package,
+  LogIn, LogOut, Flag, CheckSquare, File as FileIcon, Download, Loader2, CreditCard, ExternalLink, Copy, Check, Star, UploadCloud, ChevronDown, CheckCircle2, Truck, Navigation, RotateCcw, MessageCircle, MessageSquare, Lock, Crown, FileCode, FileSpreadsheet, FileWarning, XCircle, ArrowLeftCircle, ScanBarcode, Briefcase, Search, ArrowRightCircle, RefreshCw, Edit3, Package, Smartphone,
   Eye, Edit2, LayoutGrid, List as ListIcon, Image as ImageLucide, Pin
 } from 'lucide-react';
 import { CreateAlertModal } from '../components/AlertSystem';
@@ -5810,8 +5810,9 @@ export const JobDetails = () => {
                             />
 
                             {/* Upload and Camera Buttons */}
-                            <div className="flex flex-col sm:flex-row gap-2.5">
-                                <div className="flex-1 p-4 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/80 group hover:border-blue-400 hover:bg-blue-50/40 transition-all text-center relative shrink-0">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                                {/* Button 1: File Upload */}
+                                <div className="p-4 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/80 group hover:border-blue-400 hover:bg-blue-50/40 transition-all text-center relative shrink-0">
                                     <input 
                                         type="file" 
                                         multiple 
@@ -5820,24 +5821,47 @@ export const JobDetails = () => {
                                         accept=".stl,.ply,.obj,.pdf,.doc,.docx,.xls,.xlsx,.html,.png,.jpg,.jpeg,.webp" 
                                     />
                                     <div className="flex flex-col items-center gap-1.5 pointer-events-none">
-                                        <UploadCloud size={26} className="text-slate-400 group-hover:text-blue-500 transition-colors" />
+                                        <UploadCloud size={24} className="text-slate-400 group-hover:text-blue-500 transition-colors" />
                                         <span className="text-[11px] font-black text-slate-600 uppercase tracking-wider">
-                                            Anexar Arquivos (Imagens, STL, PDFs)
+                                            Anexar Arquivos
                                         </span>
                                         <span className="text-[9px] text-slate-400 font-medium">
-                                            Arraste arquivos ou clique para selecionar
+                                            STL, PDF, Imagens
                                         </span>
                                     </div>
                                 </div>
+
+                                {/* Button 2: Native Camera Capture (Full Original Quality) */}
                                 <button 
                                     type="button"
-                                    onClick={handleTakePhotoClick}
+                                    onClick={() => nativeCameraInputRef.current?.click()}
                                     disabled={isUploadingFiles}
-                                    className="p-4 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/80 group hover:border-blue-400 hover:bg-blue-50/40 transition-all flex flex-row sm:flex-col items-center justify-center gap-2 shrink-0 disabled:opacity-50 cursor-pointer"
+                                    className="p-4 border-2 border-dashed border-emerald-300/80 rounded-2xl bg-emerald-50/50 group hover:border-emerald-500 hover:bg-emerald-50 transition-all flex flex-col items-center justify-center gap-1.5 shrink-0 disabled:opacity-50 cursor-pointer"
+                                    title="Tirar foto com a câmera nativa do aparelho em qualidade máxima"
                                 >
-                                    <CameraIcon size={24} className="text-slate-400 group-hover:text-blue-500 transition-colors" />
-                                    <span className="text-[11px] font-black text-slate-600 uppercase tracking-wider text-center leading-tight">
-                                        Tirar Foto
+                                    <Smartphone size={24} className="text-emerald-600 group-hover:scale-110 transition-transform" />
+                                    <span className="text-[11px] font-black text-emerald-800 uppercase tracking-wider text-center leading-tight">
+                                        Câmera Nativa
+                                    </span>
+                                    <span className="text-[9px] text-emerald-600/80 font-bold">
+                                        Qualidade Total
+                                    </span>
+                                </button>
+
+                                {/* Button 3: Webcam PC / USB */}
+                                <button 
+                                    type="button"
+                                    onClick={() => setIsWebcamOpen(true)}
+                                    disabled={isUploadingFiles}
+                                    className="p-4 border-2 border-dashed border-blue-200 rounded-2xl bg-blue-50/50 group hover:border-blue-500 hover:bg-blue-50 transition-all flex flex-col items-center justify-center gap-1.5 shrink-0 disabled:opacity-50 cursor-pointer"
+                                    title="Abrir câmera ao vivo com seletor de Webcam Externa USB ou Integrada"
+                                >
+                                    <CameraIcon size={24} className="text-blue-600 group-hover:scale-110 transition-transform" />
+                                    <span className="text-[11px] font-black text-blue-900 uppercase tracking-wider text-center leading-tight">
+                                        Webcam PC / USB
+                                    </span>
+                                    <span className="text-[9px] text-blue-600/80 font-bold">
+                                        Seletor de Câmeras
                                     </span>
                                 </button>
                             </div>

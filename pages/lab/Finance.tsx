@@ -172,47 +172,78 @@ export const Finance = () => {
         return !hasSameId && !isDuplicateEmail && !isDuplicateDoc;
     });
 
+    // Build alias map to unify online users and manual dentists
+    const aliasMap = new Map<string, string>();
+    const emailToId = new Map<string, string>();
+    const docToId = new Map<string, string>();
+
+    manualDentists.forEach(m => {
+        aliasMap.set(m.id, m.id);
+        const email = m.email ? m.email.toLowerCase().trim() : '';
+        if (email) emailToId.set(email, m.id);
+        const doc = (m.cpfCnpj || '').replace(/\D/g, '');
+        if (doc) docToId.set(doc, m.id);
+    });
+
+    allUsers.filter(u => u.role === UserRole.CLIENT).forEach(u => {
+        const email = u.email ? u.email.toLowerCase().trim() : '';
+        const doc = (u.cpfCnpj || '').replace(/\D/g, '');
+        let targetId = u.id;
+        if (email && emailToId.has(email)) {
+            targetId = emailToId.get(email)!;
+        } else if (doc && docToId.has(doc)) {
+            targetId = docToId.get(doc)!;
+        }
+        aliasMap.set(u.id, targetId);
+    });
+
+    const getPrimaryId = (id: string) => aliasMap.get(id) || id;
+
     const allDents = [...uniqueOnline, ...uniqueManual];
     const map = new Map<string, any>();
 
     allDents.forEach(d => {
-        map.set(d.id, {
-            id: d.id,
-            name: d.name,
-            clinicName: d.clinicName || '',
-            phone: (d as any).phone || (d as any).whatsapp || '',
-            cpfCnpj: d.cpfCnpj || '',
-            email: d.email || '',
-            dentistObj: d,
-            totalDebitsUpTo: 0,
-            totalCreditsUpTo: 0,
-            balanceUpToEndDate: 0,
-            periodDebits: 0,
-            periodCredits: 0,
-            pendingJobs: [] as Job[],
-            allJobsCount: 0,
-            pendingJobsCount: 0,
-        });
+        const primaryId = getPrimaryId(d.id);
+        if (!map.has(primaryId)) {
+            map.set(primaryId, {
+                id: primaryId,
+                name: d.name,
+                clinicName: d.clinicName || '',
+                phone: (d as any).phone || (d as any).whatsapp || '',
+                cpfCnpj: d.cpfCnpj || '',
+                email: d.email || '',
+                dentistObj: d,
+                totalDebitsUpTo: 0,
+                totalCreditsUpTo: 0,
+                balanceUpToEndDate: 0,
+                periodDebits: 0,
+                periodCredits: 0,
+                pendingJobs: [] as Job[],
+                allJobsCount: 0,
+                pendingJobsCount: 0,
+            });
+        }
     });
 
-    // Process all jobs (apenas casos concluídos são faturados aos clientes; exceção: loja online paga no ato)
+    // Process all jobs
     jobs.forEach(job => {
         if (job.status === JobStatus.CANCELED || job.status === JobStatus.REJECTED) return;
         
         const isOnline = job.origin === 'ONLINE_ORDER' || job.origin === 'ONLINE_REQUISITION';
         const isCompleted = job.status === JobStatus.COMPLETED || job.status === JobStatus.DELIVERED;
-        if (!isOnline && !isCompleted) return; // Em andamento: não gera débito de faturamento até ser concluído
+        if (!isOnline && !isCompleted) return;
 
-        let entry = map.get(job.dentistId);
+        const primaryId = getPrimaryId(job.dentistId);
+        let entry = map.get(primaryId);
         if (!entry) {
             entry = {
-                id: job.dentistId,
+                id: primaryId,
                 name: job.dentistName || 'Cliente sem Nome',
                 clinicName: '',
                 phone: '',
                 cpfCnpj: '',
                 email: '',
-                dentistObj: { id: job.dentistId, name: job.dentistName || 'Cliente' },
+                dentistObj: { id: primaryId, name: job.dentistName || 'Cliente' },
                 totalDebitsUpTo: 0,
                 totalCreditsUpTo: 0,
                 balanceUpToEndDate: 0,
@@ -222,13 +253,12 @@ export const Finance = () => {
                 allJobsCount: 0,
                 pendingJobsCount: 0,
             };
-            map.set(job.dentistId, entry);
+            map.set(primaryId, entry);
         }
 
         const jobDate = safeDate((job as any).completedAt || job.deliveredAt || job.createdAt);
         const jobVal = Number(job.totalValue) || 0;
         
-        // Debits up to end date
         if (jobDate <= eDate) {
             entry.totalDebitsUpTo += jobVal;
             entry.allJobsCount += 1;
@@ -240,7 +270,6 @@ export const Finance = () => {
             }
         }
 
-        // Debits within selected period
         if (jobDate >= sDate && jobDate <= eDate) {
             entry.periodDebits += jobVal;
         }
@@ -248,16 +277,17 @@ export const Finance = () => {
 
     // Process all payments/credits/manual debits
     dentistPayments.forEach(p => {
-        let entry = map.get(p.dentistId);
+        const primaryId = getPrimaryId(p.dentistId);
+        let entry = map.get(primaryId);
         if (!entry) {
             entry = {
-                id: p.dentistId,
+                id: primaryId,
                 name: p.dentistName || 'Cliente',
                 clinicName: '',
                 phone: '',
                 cpfCnpj: '',
                 email: '',
-                dentistObj: { id: p.dentistId, name: p.dentistName },
+                dentistObj: { id: primaryId, name: p.dentistName },
                 totalDebitsUpTo: 0,
                 totalCreditsUpTo: 0,
                 balanceUpToEndDate: 0,
@@ -267,7 +297,7 @@ export const Finance = () => {
                 allJobsCount: 0,
                 pendingJobsCount: 0,
             };
-            map.set(p.dentistId, entry);
+            map.set(primaryId, entry);
         }
 
         const payDate = safeDate(p.paymentDate || p.createdAt);
@@ -318,8 +348,8 @@ export const Finance = () => {
         };
     });
 
-    // Filter to only those with debits (balance > 0 or pending jobs > 0)
-    results = results.filter(d => d.balanceUpToEndDate > 0 || d.pendingJobsCount > 0);
+    // Filter to only those with actual debt (balance > 0)
+    results = results.filter(d => d.balanceUpToEndDate > 0);
 
     // Apply email status filter
     if (reportEmailStatusFilter !== 'ALL') {
@@ -1147,10 +1177,29 @@ export const Finance = () => {
 
   // Chrono History Logic (Synchronized with Dentists.tsx)
   const chronoHistory = useMemo(() => {
-    if (!statementClient) return { history: [], previousBalance: 0 };
+    if (!statementClient) return { history: [], previousBalance: 0, overallBalance: 0 };
     
-    const clientJobs = (dentistJobs && dentistJobs.length > 0 ? dentistJobs : jobs).filter(j => j.dentistId === statementClient.id && (j.status === JobStatus.COMPLETED || j.status === JobStatus.DELIVERED));
-    const clientPayments = dentistPayments.filter(p => p.dentistId === statementClient.id);
+    const clientEmail = statementClient.email ? statementClient.email.toLowerCase().trim() : '';
+    const clientDoc = (statementClient.cpfCnpj || '').replace(/\D/g, '');
+    
+    const equivalentIds = new Set<string>([statementClient.id]);
+    allUsers.filter(u => u.role === UserRole.CLIENT).forEach(u => {
+        const uEmail = u.email ? u.email.toLowerCase().trim() : '';
+        const uDoc = (u.cpfCnpj || '').replace(/\D/g, '');
+        if ((clientEmail && uEmail === clientEmail) || (clientDoc && uDoc === clientDoc)) {
+            equivalentIds.add(u.id);
+        }
+    });
+    manualDentists.forEach(m => {
+        const mEmail = m.email ? m.email.toLowerCase().trim() : '';
+        const mDoc = (m.cpfCnpj || '').replace(/\D/g, '');
+        if ((clientEmail && mEmail === clientEmail) || (clientDoc && mDoc === clientDoc)) {
+            equivalentIds.add(m.id);
+        }
+    });
+
+    const clientJobs = (dentistJobs && dentistJobs.length > 0 ? dentistJobs : jobs).filter(j => j.dentistId && equivalentIds.has(j.dentistId) && (j.status === JobStatus.COMPLETED || j.status === JobStatus.DELIVERED));
+    const clientPayments = dentistPayments.filter(p => p.dentistId && equivalentIds.has(p.dentistId));
     
     const history = [
         ...clientJobs.map(j => ({
@@ -1194,13 +1243,15 @@ export const Finance = () => {
         return { ...item, balanceAfter: runningBalance };
     });
 
-    const filteredHistory = historyWithBalance.filter(item => {
-        const d = new Date(item.date);
-        return d >= sDate && d <= eDate;
-    });
+        const overallBalance = runningBalance;
 
-    return { history: filteredHistory, previousBalance };
-  }, [statementClient, dentistJobs, dentistPayments, jobs, filterStartDate, filterEndDate]);
+        const filteredHistory = historyWithBalance.filter(item => {
+            const d = new Date(item.date);
+            return d >= sDate && d <= eDate;
+        });
+
+        return { history: filteredHistory, previousBalance, overallBalance };
+    }, [statementClient, dentistJobs, dentistPayments, jobs, allUsers, manualDentists, filterStartDate, filterEndDate]);
 
   const handleAddManualEntry = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1592,7 +1643,33 @@ export const Finance = () => {
   const dentistSummary = useMemo(() => {
     const map = new Map<string, any>();
     
-    // Sets para verificar duplicações
+    // Build alias map to unify online users and manual dentists
+    const aliasMap = new Map<string, string>();
+    const emailToId = new Map<string, string>();
+    const docToId = new Map<string, string>();
+
+    manualDentists.forEach(m => {
+        aliasMap.set(m.id, m.id);
+        const email = m.email ? m.email.toLowerCase().trim() : '';
+        if (email) emailToId.set(email, m.id);
+        const doc = (m.cpfCnpj || '').replace(/\D/g, '');
+        if (doc) docToId.set(doc, m.id);
+    });
+
+    allUsers.filter(u => u.role === UserRole.CLIENT).forEach(u => {
+        const email = u.email ? u.email.toLowerCase().trim() : '';
+        const doc = (u.cpfCnpj || '').replace(/\D/g, '');
+        let targetId = u.id;
+        if (email && emailToId.has(email)) {
+            targetId = emailToId.get(email)!;
+        } else if (doc && docToId.has(doc)) {
+            targetId = docToId.get(doc)!;
+        }
+        aliasMap.set(u.id, targetId);
+    });
+
+    const getPrimaryId = (id: string) => aliasMap.get(id) || id;
+
     const manualEmails = new Set<string>();
     const manualDocs = new Set<string>();
 
@@ -1606,27 +1683,27 @@ export const Finance = () => {
     const uniqueOnline = allUsers.filter(u => u.role === UserRole.CLIENT).filter(u => {
         const userEmail = u.email ? u.email.toLowerCase().trim() : '';
         const userDoc = (u.cpfCnpj || '').replace(/\D/g, '');
-        
         const isDuplicateEmail = userEmail && manualEmails.has(userEmail);
         const isDuplicateDoc = userDoc && manualDocs.has(userDoc);
-        
-        // Check if ID already exists in manualDentists
         const hasSameId = uniqueManual.some(m => m.id === u.id);
-
         return !hasSameId && !isDuplicateEmail && !isDuplicateDoc;
     });
 
     const allDents = [...uniqueOnline, ...uniqueManual];
     
     allDents.forEach(d => {
-        map.set(d.id, { ...d, totalPending: 0, history: [], pendingJobs: [] });
+        const primaryId = getPrimaryId(d.id);
+        if (!map.has(primaryId)) {
+            map.set(primaryId, { ...d, id: primaryId, totalPending: 0, history: [], pendingJobs: [] });
+        }
     });
 
     jobs.forEach(job => {
-        let entry = map.get(job.dentistId);
+        const primaryId = getPrimaryId(job.dentistId);
+        let entry = map.get(primaryId);
         if (!entry) {
-            entry = { id: job.dentistId, name: job.dentistName || 'Cliente', totalPending: 0, history: [], pendingJobs: [] };
-            map.set(job.dentistId, entry);
+            entry = { id: primaryId, name: job.dentistName || 'Cliente', totalPending: 0, history: [], pendingJobs: [] };
+            map.set(primaryId, entry);
         }
         
         if (
@@ -1641,10 +1718,11 @@ export const Finance = () => {
 
     // Deduct manual payments/credits and ADD manual debits to totalPending for each dentist
     dentistPayments.forEach(p => {
-        let entry = map.get(p.dentistId);
+        const primaryId = getPrimaryId(p.dentistId);
+        let entry = map.get(primaryId);
         if (!entry) {
             entry = { 
-                id: p.dentistId, 
+                id: primaryId, 
                 name: p.dentistName || 'Cliente', 
                 clinicName: '',
                 phone: '',
@@ -1654,7 +1732,7 @@ export const Finance = () => {
                 history: [], 
                 pendingJobs: [] 
             };
-            map.set(p.dentistId, entry);
+            map.set(primaryId, entry);
         }
         if (entry) {
             if (p.type === 'MANUAL_DEBIT') {
@@ -1667,8 +1745,7 @@ export const Finance = () => {
     });
 
     const pendingList = Array.from(map.values())
-        .map(d => ({ ...d, totalPending: Math.max(0, d.totalPending) }))
-        .filter(d => d.totalPending > 0);
+        .filter(d => d.totalPending !== 0 || d.pendingJobs.length > 0);
 
     return filterAndSortClients(pendingList, searchTerm, (a, b) => b.totalPending - a.totalPending);
   }, [jobs, allUsers, manualDentists, dentistPayments, searchTerm]);
@@ -2659,9 +2736,19 @@ export const Finance = () => {
                                                   R$ {d.periodCredits.toFixed(2)}
                                               </td>
                                               <td className="p-4 text-right">
-                                                  <span className="text-sm font-black text-rose-600 bg-rose-50 px-2.5 py-1 rounded-xl">
-                                                      R$ {d.balanceUpToEndDate.toFixed(2)}
-                                                  </span>
+                                                  {d.balanceUpToEndDate > 0 ? (
+                                                      <span className="text-sm font-black text-rose-600 bg-rose-50 px-2.5 py-1 rounded-xl">
+                                                          R$ {d.balanceUpToEndDate.toFixed(2)}
+                                                      </span>
+                                                  ) : d.balanceUpToEndDate < 0 ? (
+                                                      <span className="text-sm font-black text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-xl">
+                                                          R$ {Math.abs(d.balanceUpToEndDate).toFixed(2)} (Crédito)
+                                                      </span>
+                                                  ) : (
+                                                      <span className="text-sm font-black text-slate-600 bg-slate-100 px-2.5 py-1 rounded-xl">
+                                                          R$ 0,00
+                                                      </span>
+                                                  )}
                                               </td>
                                               <td className="p-4 text-center">
                                                   <div className="flex items-center justify-center gap-1.5">
@@ -3532,46 +3619,53 @@ export const Finance = () => {
                         </div>
 
                         {/* FOOTER */}
-                        <div className="p-3 sm:px-6 sm:py-4 border-t border-slate-100 bg-white flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
-                            <div className="flex items-center justify-between sm:justify-start gap-4">
-                                <div className="flex flex-col">
-                                    <span className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest">Saldo Devedor Total</span>
-                                    <span className={`text-lg sm:text-xl font-black ${chronoHistory.history.length > 0 && chronoHistory.history[chronoHistory.history.length-1].balanceAfter < 0 ? 'text-red-600' : 'text-green-600'}`}>
-                                        R$ {Math.abs(chronoHistory.history.length > 0 ? chronoHistory.history[chronoHistory.history.length-1].balanceAfter : chronoHistory.previousBalance).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                    </span>
-                                </div>
-                                <div className="h-8 w-px bg-slate-100 mx-2 hidden sm:block" />
-                                <div className="flex flex-col text-right sm:text-left">
-                                    <span className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest">Último Pagamento</span>
-                                    <span className="text-xs sm:text-sm font-bold text-slate-600">
-                                        {chronoHistory.history.filter(i => i.type === 'PAYMENT').pop()?.date ? new Date(chronoHistory.history.filter(i => i.type === 'PAYMENT').pop()!.date).toLocaleDateString('pt-BR') : '--/--/----'}
-                                    </span>
-                                </div>
-                            </div>
+                        {(() => {
+                            const overallBal = chronoHistory.overallBalance ?? 0;
+                            return (
+                                <div className="p-3 sm:px-6 sm:py-4 border-t border-slate-100 bg-white flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
+                                    <div className="flex items-center justify-between sm:justify-start gap-4">
+                                        <div className="flex flex-col">
+                                            <span className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                                {overallBal < 0 ? 'Saldo Devedor Total' : overallBal > 0 ? 'Saldo de Crédito Total' : 'Saldo Total'}
+                                            </span>
+                                            <span className={`text-lg sm:text-xl font-black ${overallBal < 0 ? 'text-red-600' : overallBal > 0 ? 'text-emerald-600' : 'text-slate-600'}`}>
+                                                R$ {Math.abs(overallBal).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                {overallBal > 0 ? ' (A favor)' : ''}
+                                            </span>
+                                        </div>
+                                        <div className="h-8 w-px bg-slate-100 mx-2 hidden sm:block" />
+                                        <div className="flex flex-col text-right sm:text-left">
+                                            <span className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest">Último Pagamento</span>
+                                            <span className="text-xs sm:text-sm font-bold text-slate-600">
+                                                {chronoHistory.history.filter(i => i.type === 'PAYMENT').pop()?.date ? new Date(chronoHistory.history.filter(i => i.type === 'PAYMENT').pop()!.date).toLocaleDateString('pt-BR') : '--/--/----'}
+                                            </span>
+                                        </div>
+                                    </div>
 
-                            <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
-                                <button 
-                                    onClick={() => {
-                                        const lastBalance = chronoHistory.history.length > 0 ? chronoHistory.history[chronoHistory.history.length - 1].balanceAfter : chronoHistory.previousBalance;
-                                        const defaultAmount = lastBalance < 0 ? Math.abs(lastBalance) : 0;
-                                        setCustomBoletoAmount(defaultAmount);
-                                        setShowBoletoModal(true);
-                                    }}
-                                    className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-4 sm:px-8 py-2.5 sm:py-3 bg-blue-600 text-white font-black rounded-xl sm:rounded-2xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 uppercase text-xs whitespace-nowrap"
-                                >
-                                    <Receipt size={16} /> Fechar Faturamento
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        setActiveSubTab('RECEBIMENTOS');
-                                        setShowPaymentForm(true);
-                                    }}
-                                    className="flex-1 md:flex-none flex items-center justify-center gap-2 px-8 py-3 bg-slate-100 text-slate-600 font-bold rounded-2xl hover:bg-slate-200 transition-all uppercase text-xs"
-                                >
-                                    <Banknote size={18} /> Pagar Manual
-                                </button>
-                            </div>
-                        </div>
+                                    <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+                                        <button 
+                                            onClick={() => {
+                                                const defaultAmount = overallBal < 0 ? Math.abs(overallBal) : 0;
+                                                setCustomBoletoAmount(defaultAmount);
+                                                setShowBoletoModal(true);
+                                            }}
+                                            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-4 sm:px-8 py-2.5 sm:py-3 bg-blue-600 text-white font-black rounded-xl sm:rounded-2xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 uppercase text-xs whitespace-nowrap"
+                                        >
+                                            <Receipt size={16} /> Fechar Faturamento
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setActiveSubTab('RECEBIMENTOS');
+                                                setShowPaymentForm(true);
+                                            }}
+                                            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-8 py-3 bg-slate-100 text-slate-600 font-bold rounded-2xl hover:bg-slate-200 transition-all uppercase text-xs"
+                                        >
+                                            <Banknote size={18} /> Pagar Manual
+                                        </button>
+                                    </div>
+                                </div>
+                            );
+                        })()}
                     </div>
                 </div>
       )}
@@ -3597,9 +3691,11 @@ export const Finance = () => {
                               placeholder="Valor em R$"
                           />
                           <span className="block text-[10px] text-slate-400 font-bold mt-1 font-mono">
-                              Saldo devedor atual do cliente: R$ {(() => {
-                                  const lastBalance = chronoHistory.history.length > 0 ? chronoHistory.history[chronoHistory.history.length - 1].balanceAfter : chronoHistory.previousBalance;
-                                  return lastBalance < 0 ? Math.abs(lastBalance).toFixed(2) : '0.00';
+                              {(() => {
+                                  const overallBal = chronoHistory.overallBalance ?? 0;
+                                  if (overallBal < 0) return `Saldo devedor atual do cliente: R$ ${Math.abs(overallBal).toFixed(2)}`;
+                                  if (overallBal > 0) return `Cliente possui crédito a favor de: R$ ${overallBal.toFixed(2)}`;
+                                  return 'Cliente não possui saldo devedor.';
                               })()}
                           </span>
                       </div>

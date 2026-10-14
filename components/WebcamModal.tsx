@@ -54,14 +54,25 @@ export const WebcamModal: React.FC<WebcamModalProps> = ({
       if (isMounted) {
         setCameras(availableCameras);
         if (availableCameras.length > 0) {
-          setSelectedCameraId(getSmartCameraSelection(availableCameras) || availableCameras[0].deviceId);
+          setSelectedCameraId(prev => (prev && availableCameras.some(c => c.deviceId === prev)) ? prev : (getSmartCameraSelection(availableCameras) || availableCameras[0].deviceId));
         } else {
           setSelectedCameraId('default');
         }
       }
     };
+
     fetchCameras();
-    return () => { isMounted = false; };
+
+    if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
+      navigator.mediaDevices.addEventListener('devicechange', fetchCameras);
+    }
+
+    return () => { 
+      isMounted = false; 
+      if (navigator.mediaDevices && navigator.mediaDevices.removeEventListener) {
+        navigator.mediaDevices.removeEventListener('devicechange', fetchCameras);
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -82,55 +93,42 @@ export const WebcamModal: React.FC<WebcamModalProps> = ({
           tracks.forEach(t => t.stop());
         }
 
-        const deviceConstraint = selectedCameraId !== 'default' 
+        const exactConstraint = selectedCameraId !== 'default' 
+          ? { deviceId: { exact: selectedCameraId } }
+          : { facingMode: { ideal: 'environment' } };
+
+        const idealConstraint = selectedCameraId !== 'default' 
           ? { deviceId: { ideal: selectedCameraId } }
           : { facingMode: { ideal: 'environment' } };
 
-        // Attempt 1: Ultra High Definition 4K with advanced auto-focus & exposure
+        // Attempt 1: Exact camera ID + Full HD 1080p
         try {
           stream = await navigator.mediaDevices.getUserMedia({
             video: {
-              ...deviceConstraint,
-              width: { ideal: 4096 },
-              height: { ideal: 2160 },
-              frameRate: { ideal: 30 },
-              advanced: [
-                { focusMode: 'continuous' } as any,
-                { exposureMode: 'continuous' } as any,
-                { whiteBalanceMode: 'continuous' } as any
-              ]
+              ...exactConstraint,
+              width: { ideal: 1920 },
+              height: { ideal: 1080 }
             }
           });
         } catch (e1) {
-          console.warn("Tentativa 4K falhou, tentando Full HD...", e1);
+          console.warn("Attempt 1 (exact ID + FHD) failed:", e1);
           try {
-            // Attempt 2: Full HD 1080p
+            // Attempt 2: Exact camera ID without resolution locks
             stream = await navigator.mediaDevices.getUserMedia({
-              video: {
-                ...deviceConstraint,
-                width: { ideal: 1920 },
-                height: { ideal: 1080 },
-                advanced: [
-                  { focusMode: 'continuous' } as any,
-                  { exposureMode: 'continuous' } as any
-                ]
-              }
+              video: exactConstraint
             });
           } catch (e2) {
-            console.warn("Tentativa Full HD falhou, tentando HD 720p...", e2);
+            console.warn("Attempt 2 (exact ID) failed:", e2);
             try {
-              // Attempt 3: HD 720p
+              // Attempt 3: Ideal camera ID
               stream = await navigator.mediaDevices.getUserMedia({
-                video: {
-                  ...deviceConstraint,
-                  width: { ideal: 1280 },
-                  height: { ideal: 720 }
-                }
+                video: idealConstraint
               });
             } catch (e3) {
-              console.warn("Tentativa HD falhou, usando configuração flexível...", e3);
+              console.warn("Attempt 3 (ideal ID) failed, falling back to default video:", e3);
+              // Attempt 4: Flexible default video
               stream = await navigator.mediaDevices.getUserMedia({
-                video: deviceConstraint
+                video: true
               });
             }
           }
@@ -175,7 +173,7 @@ export const WebcamModal: React.FC<WebcamModalProps> = ({
           setIsLoading(false);
           setCameraError(
             err.name === 'NotAllowedError' 
-              ? 'Permissão de acesso à câmera negada. Permita o uso da câmera nas configurações do seu aparelho.' 
+              ? 'Permissão de acesso à câmera negada. Permita o uso da câmera nas configurações do seu navegador ou sistema.' 
               : (err.message || 'Não foi possível acessar a câmera do dispositivo.')
           );
         }
@@ -467,6 +465,28 @@ export const WebcamModal: React.FC<WebcamModalProps> = ({
           </div>
         </div>
 
+        {/* Camera Selector Sub-bar for External USB and Notebook Webcams */}
+        {cameras.length > 0 && (
+          <div className="absolute top-16 inset-x-0 mx-auto w-11/12 max-w-sm z-30 flex justify-center">
+            <div className="bg-black/75 border border-white/20 rounded-full px-3 py-1.5 backdrop-blur-md shadow-2xl flex items-center gap-2 w-full max-w-xs">
+              <span className="text-[10px] font-black uppercase text-blue-400 shrink-0 flex items-center gap-1">
+                📷 Câmera:
+              </span>
+              <select
+                value={selectedCameraId || ''}
+                onChange={(e) => setSelectedCameraId(e.target.value)}
+                className="bg-transparent text-white font-bold text-xs outline-none cursor-pointer w-full truncate border-none focus:ring-0"
+              >
+                {cameras.map((cam, idx) => (
+                  <option key={cam.deviceId || idx} value={cam.deviceId} className="bg-slate-900 text-white font-sans text-xs">
+                    {cam.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
+
         {/* Viewfinder Video Area */}
         <div 
           onClick={handleViewfinderClick}
@@ -606,14 +626,14 @@ export const WebcamModal: React.FC<WebcamModalProps> = ({
           <button
             type="button"
             onClick={handleNativeCamera}
-            className="flex flex-col items-center gap-1 text-slate-300 hover:text-white transition-all active:scale-90 w-16"
-            title="Abrir Câmera Nativa do Celular"
+            className="flex flex-col items-center gap-1 text-slate-300 hover:text-white transition-all active:scale-90 w-20"
+            title="Abrir Câmera Nativa com Qualidade Total"
           >
-            <div className="w-12 h-12 rounded-2xl bg-blue-600/30 hover:bg-blue-600/50 border border-blue-400/40 backdrop-blur-md flex items-center justify-center text-blue-300 shadow-md">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-600/30 hover:bg-emerald-600/50 border border-emerald-400/40 backdrop-blur-md flex items-center justify-center text-emerald-300 shadow-md">
               <Smartphone size={20} />
             </div>
-            <span className="text-[9px] font-black uppercase tracking-wider text-blue-200">
-              Nativa
+            <span className="text-[9px] font-black uppercase tracking-wider text-emerald-300 text-center leading-tight">
+              Câmera Nativa
             </span>
           </button>
         </div>

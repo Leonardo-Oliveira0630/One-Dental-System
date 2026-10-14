@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '../../context/AppContext';
 import { UserRole, ManualDentist, Job, JobStatus, DentistPayment, BillingBatch } from '../../types';
-import { Stethoscope, Building, Search, Loader2, ArrowRight, Tag, Percent, Save, X, DollarSign, Globe, HardDrive, UserCheck, Package, Table, FileText, Lock, Unlock, RefreshCw, Check, Calendar, ArrowUpCircle, ArrowDownCircle, Receipt, History, CreditCard, Banknote, Wallet, FileSpreadsheet, Plus, Info, MinusCircle, Printer, Download, ChevronLeft, ChevronRight, Users, Filter, RotateCcw, Trash2, Pin } from 'lucide-react';
+import { Stethoscope, Building, Search, Loader2, ArrowRight, Tag, Percent, Save, X, DollarSign, Globe, HardDrive, UserCheck, Package, Table, FileText, Lock, Unlock, RefreshCw, Check, Calendar, ArrowUpCircle, ArrowDownCircle, Receipt, History, CreditCard, Banknote, Wallet, FileSpreadsheet, Plus, Info, MinusCircle, PlusCircle, CheckCircle2, Printer, Download, ChevronLeft, ChevronRight, Users, Filter, RotateCcw, Trash2, Pin } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getDentistJobs, subscribeDentistJobs } from '../../services/firebaseService';
 import jsPDF from 'jspdf';
@@ -461,10 +461,29 @@ export const Dentists = () => {
 
     // Advanced chronological statement with previous balance
     const chronoHistory = useMemo(() => {
-        if (!statementClient) return { history: [], previousBalance: 0 };
+        if (!statementClient) return { history: [], previousBalance: 0, overallBalance: 0 };
         
-        const clientJobs = dentistJobs.filter(j => j.dentistId === statementClient.id && (j.status === JobStatus.COMPLETED || j.status === JobStatus.DELIVERED));
-        const clientPayments = dentistPayments.filter(p => p.dentistId === statementClient.id);
+        const clientEmail = statementClient.email ? statementClient.email.toLowerCase().trim() : '';
+        const clientDoc = (statementClient.cpfCnpj || '').replace(/\D/g, '');
+        
+        const equivalentIds = new Set<string>([statementClient.id]);
+        allUsers.filter(u => u.role === UserRole.CLIENT).forEach(u => {
+            const uEmail = u.email ? u.email.toLowerCase().trim() : '';
+            const uDoc = (u.cpfCnpj || '').replace(/\D/g, '');
+            if ((clientEmail && uEmail === clientEmail) || (clientDoc && uDoc === clientDoc)) {
+                equivalentIds.add(u.id);
+            }
+        });
+        manualDentists.forEach(m => {
+            const mEmail = m.email ? m.email.toLowerCase().trim() : '';
+            const mDoc = (m.cpfCnpj || '').replace(/\D/g, '');
+            if ((clientEmail && mEmail === clientEmail) || (clientDoc && mDoc === clientDoc)) {
+                equivalentIds.add(m.id);
+            }
+        });
+
+        const clientJobs = (dentistJobs && dentistJobs.length > 0 ? dentistJobs : jobs).filter(j => j.dentistId && equivalentIds.has(j.dentistId) && (j.status === JobStatus.COMPLETED || j.status === JobStatus.DELIVERED));
+        const clientPayments = dentistPayments.filter(p => p.dentistId && equivalentIds.has(p.dentistId));
         
         const history = [
             ...clientJobs.map(j => ({
@@ -508,13 +527,15 @@ export const Dentists = () => {
             return { ...item, balanceAfter: runningBalance };
         });
 
+        const overallBalance = runningBalance;
+
         const filteredHistory = historyWithBalance.filter(item => {
             const d = new Date(item.date);
             return d >= sDate && d <= eDate;
         });
 
-        return { history: filteredHistory, previousBalance };
-    }, [statementClient, dentistJobs, dentistPayments, filterStartDate, filterEndDate]);
+        return { history: filteredHistory, previousBalance, overallBalance };
+    }, [statementClient, dentistJobs, dentistPayments, jobs, allUsers, manualDentists, filterStartDate, filterEndDate]);
 
     const generateStatementPDF = async () => {
         if (!statementClient || !currentOrg) return;
@@ -944,11 +965,11 @@ export const Dentists = () => {
     };
 
     const totals = useMemo(() => {
-        const lastBalance = chronoHistory.history.length > 0 ? chronoHistory.history[chronoHistory.history.length - 1].balanceAfter : chronoHistory.previousBalance;
+        const overallBalance = chronoHistory.overallBalance ?? 0;
         const pendingInvoicesTotal = billingBatches.filter(b => b.dentistId === statementClient?.id && b.status === 'PENDING').reduce((acc, curr) => acc + curr.totalAmount, 0);
         
         return {
-            currentBalance: lastBalance,
+            currentBalance: overallBalance,
             pendingInvoices: pendingInvoicesTotal
         };
     }, [chronoHistory, billingBatches, statementClient]);
@@ -2133,15 +2154,30 @@ export const Dentists = () => {
                         {/* SUMMARY CARDS */}
                         <div className="p-2 sm:p-4 md:p-6 grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4 bg-slate-50 border-b border-slate-100">
                             <div className="bg-white p-3 sm:p-5 rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm transition-all hover:shadow-md group">
-                                <div className="flex items-center gap-1.5 sm:gap-2 mb-1 sm:mb-2 text-red-500">
-                                    <MinusCircle size={14} className="sm:w-4 sm:h-4" />
-                                    <p className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest truncate">{t('dentists.currentDebtBalance', 'Saldo Devedor Atual')}</p>
+                                <div className="flex items-center gap-1.5 sm:gap-2 mb-1 sm:mb-2">
+                                    {totals.currentBalance < 0 ? (
+                                        <>
+                                            <MinusCircle size={14} className="sm:w-4 sm:h-4 text-red-500" />
+                                            <p className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest truncate text-red-500">{t('dentists.currentDebtBalance', 'Saldo Devedor Atual')}</p>
+                                        </>
+                                    ) : totals.currentBalance > 0 ? (
+                                        <>
+                                            <PlusCircle size={14} className="sm:w-4 sm:h-4 text-emerald-500" />
+                                            <p className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest truncate text-emerald-600">Saldo de Crédito</p>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <CheckCircle2 size={14} className="sm:w-4 sm:h-4 text-slate-400" />
+                                            <p className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest truncate text-slate-500">Saldo Atual</p>
+                                        </>
+                                    )}
                                 </div>
-                                <p className={`text-base sm:text-2xl font-black ${totals.currentBalance < 0 ? 'text-red-600' : 'text-slate-400'}`}>
-                                    R$ {totals.currentBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                <p className={`text-base sm:text-2xl font-black ${totals.currentBalance < 0 ? 'text-red-600' : totals.currentBalance > 0 ? 'text-emerald-600' : 'text-slate-700'}`}>
+                                    R$ {Math.abs(totals.currentBalance).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                    {totals.currentBalance > 0 ? ' (A favor)' : ''}
                                 </p>
                                 <div className="mt-1.5 sm:mt-2 h-1 w-full bg-slate-100 rounded-full overflow-hidden">
-                                    <div className="h-full bg-red-500 w-[60%]" />
+                                    <div className={`h-full ${totals.currentBalance < 0 ? 'bg-red-500' : totals.currentBalance > 0 ? 'bg-emerald-500' : 'bg-slate-300'} w-[60%]`} />
                                 </div>
                             </div>
                             
@@ -2171,17 +2207,20 @@ export const Dentists = () => {
                                 </div>
                             </div>
 
-                            <div className="bg-blue-600 p-3 sm:p-5 rounded-xl sm:rounded-2xl shadow-xl shadow-blue-100 relative overflow-hidden group">
+                            <div className={`p-3 sm:p-5 rounded-xl sm:rounded-2xl shadow-xl relative overflow-hidden group transition-all ${totals.currentBalance < 0 ? 'bg-blue-600 shadow-blue-100' : totals.currentBalance > 0 ? 'bg-emerald-600 shadow-emerald-100' : 'bg-slate-700 shadow-slate-100'}`}>
                                 <div className="relative z-10">
-                                    <div className="flex items-center gap-1.5 sm:gap-2 mb-1 sm:mb-2 text-blue-200">
+                                    <div className="flex items-center gap-1.5 sm:gap-2 mb-1 sm:mb-2 text-white/80">
                                         <Wallet size={14} className="sm:w-4 sm:h-4" />
-                                        <p className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest truncate">{t('dentists.totalDebtBalance', 'Saldo Devedor Total')}</p>
+                                        <p className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest truncate">
+                                            {totals.currentBalance < 0 ? t('dentists.totalDebtBalance', 'Saldo Devedor Total') : totals.currentBalance > 0 ? 'Saldo de Crédito Total' : 'Saldo Total'}
+                                        </p>
                                     </div>
                                     <p className="text-base sm:text-2xl font-black text-white">
-                                        R$ {totals.currentBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                        R$ {Math.abs(totals.currentBalance).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                        {totals.currentBalance > 0 ? ' (A favor)' : ''}
                                     </p>
                                 </div>
-                                <Wallet className="absolute -right-4 -bottom-4 text-blue-500 opacity-20 transform -rotate-12 group-hover:scale-110 transition-transform hidden sm:block" size={80} />
+                                <Wallet className="absolute -right-4 -bottom-4 text-white opacity-20 transform -rotate-12 group-hover:scale-110 transition-transform hidden sm:block" size={80} />
                             </div>
                         </div>
 
@@ -2663,9 +2702,12 @@ export const Dentists = () => {
                         <div className="p-3 sm:px-6 sm:py-4 border-t border-slate-100 bg-white flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
                             <div className="flex items-center justify-between sm:justify-start gap-4">
                                 <div className="flex flex-col">
-                                    <span className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('dentists.totalDebtBalance', 'Saldo Devedor Total')}</span>
-                                    <span className={`text-lg sm:text-xl font-black ${totals.currentBalance < 0 ? 'text-red-600' : 'text-green-600'}`}>
-                                        R$ {totals.currentBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                    <span className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                        {totals.currentBalance < 0 ? t('dentists.totalDebtBalance', 'Saldo Devedor Total') : totals.currentBalance > 0 ? 'Saldo de Crédito Total' : 'Saldo Total'}
+                                    </span>
+                                    <span className={`text-lg sm:text-xl font-black ${totals.currentBalance < 0 ? 'text-red-600' : totals.currentBalance > 0 ? 'text-emerald-600' : 'text-slate-600'}`}>
+                                        R$ {Math.abs(totals.currentBalance).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                        {totals.currentBalance > 0 ? ' (A favor)' : ''}
                                     </span>
                                 </div>
                                 <div className="h-8 w-px bg-slate-100 mx-2 hidden sm:block" />
@@ -2723,7 +2765,13 @@ export const Dentists = () => {
                                     className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-800"
                                     placeholder={t('dentists.amountInBRL', 'Valor em R$')}
                                 />
-                                <span className="block text-[10px] text-slate-400 font-bold mt-1 font-mono">{t('dentists.currentClientDebt', 'Saldo devedor atual do cliente')}: R$ {totals.currentBalance < 0 ? Math.abs(totals.currentBalance).toFixed(2) : '0.00'}</span>
+                                <span className="block text-[10px] text-slate-400 font-bold mt-1 font-mono">
+                                    {totals.currentBalance < 0 
+                                        ? `${t('dentists.currentClientDebt', 'Saldo devedor atual do cliente')}: R$ ${Math.abs(totals.currentBalance).toFixed(2)}` 
+                                        : totals.currentBalance > 0 
+                                        ? `Cliente possui crédito a favor de: R$ ${totals.currentBalance.toFixed(2)}` 
+                                        : 'Cliente não possui saldo devedor.'}
+                                </span>
                             </div>
                             <div>
                                 <label className="block text-xs font-black text-slate-400 uppercase tracking-wider mb-2">{t('common.dueDate', 'Data de Vencimento')}</label>
