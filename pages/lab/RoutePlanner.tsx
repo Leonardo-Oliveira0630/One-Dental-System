@@ -5,7 +5,7 @@ import { DeliveryRoute, RouteItem, Job, ManualDentist, User, Courier, JobStatus 
 import { 
   Truck, Calendar, Clock, Plus, Printer, Trash2, CheckCircle, 
   MapPin, Search, ChevronRight, X, User as UserIcon, Building, Loader2, Save, GripVertical, Navigation,
-  Phone, Shield, ShieldAlert, Check, ToggleLeft, ToggleRight, UserPlus, ChevronDown, ChevronUp
+  Phone, Shield, ShieldAlert, Check, ToggleLeft, ToggleRight, UserPlus, ChevronDown, ChevronUp, Settings, ArrowRightLeft
 } from 'lucide-react';
 import * as api from '../../services/firebaseService';
 import { notifyJobLogistics } from '../../services/ycloudService';
@@ -39,6 +39,13 @@ export const RoutePlanner = () => {
     const [showStartRouteModal, setShowStartRouteModal] = useState(false);
     const [selectedCourierId, setSelectedCourierId] = useState('');
     const [manualCourierName, setManualCourierName] = useState('');
+
+    // State for Move Route / Config Modal
+    const [showMoveModal, setShowMoveModal] = useState(false);
+    const [configGroupItems, setConfigGroupItems] = useState<RouteItem[] | null>(null);
+    const [targetMoveRouteId, setTargetMoveRouteId] = useState<string>('');
+    const [isMovingItem, setIsMovingItem] = useState(false);
+    const [isDeletingRoute, setIsDeletingRoute] = useState(false);
 
     const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
     const [editingObservationsId, setEditingObservationsId] = useState<string | null>(null);
@@ -154,6 +161,46 @@ export const RoutePlanner = () => {
         setShowStartRouteModal(false);
         setManualCourierName('');
         setSelectedCourierId('');
+    };
+
+    // Available target routes for moving items (excluding current active route and completed routes)
+    const availableMoveRoutes = useMemo(() => {
+        return routes.filter(r => r.id !== activeRoute?.id && r.status !== 'COMPLETED');
+    }, [routes, activeRoute?.id]);
+
+    const handleDeleteRoute = async (routeId: string) => {
+        if (!currentOrg || !canDelete) return;
+        if (!window.confirm(t('routes.confirmDeleteRoute', 'Tem certeza que deseja excluir esta rota de entrega? Todos os serviços vinculados voltarão ao estado pendente.'))) return;
+        
+        setIsDeletingRoute(true);
+        try {
+            await api.apiDeleteRoute(currentOrg.id, routeId);
+            setSelectedRouteId(null);
+            try { localStorage.removeItem('labprox_active_route_id'); } catch (e) {}
+        } catch (err) {
+            console.error("Erro ao excluir rota:", err);
+            alert(t('routes.errorDeleteRoute', 'Erro ao excluir rota.'));
+        } finally {
+            setIsDeletingRoute(false);
+        }
+    };
+
+    const handleMoveGroupItems = async () => {
+        if (!currentOrg || !activeRoute || !targetMoveRouteId || !configGroupItems || configGroupItems.length === 0) return;
+        
+        setIsMovingItem(true);
+        try {
+            await api.apiMoveRouteItems(currentOrg.id, activeRoute.id, targetMoveRouteId, configGroupItems);
+            setShowMoveModal(false);
+            setConfigGroupItems(null);
+            setTargetMoveRouteId('');
+            alert(t('routes.moveSuccess', 'Caso/Parada movido para a nova rota com sucesso!'));
+        } catch (err) {
+            console.error("Erro ao mover caso para outra rota:", err);
+            alert(t('routes.moveError', 'Erro ao mover para outra rota.'));
+        } finally {
+            setIsMovingItem(false);
+        }
     };
 
     const formatDentistAddress = (d: any) => {
@@ -400,22 +447,37 @@ export const RoutePlanner = () => {
                                         <p className="font-black text-slate-800 text-lg leading-tight mt-1">{activeRoute.driverName}</p>
                                     </div>
                                 </div>
-                                <select 
-                                    id="route-status-select"
-                                    value={activeRoute.status} 
-                                    onChange={e => handleUpdateStatus(e.target.value as any)}
-                                    disabled={!canEdit}
-                                    className={`px-4 py-2 rounded-full text-xs font-black border outline-none cursor-pointer transition-all ${
-                                        !canEdit ? 'opacity-60 cursor-not-allowed' : ''
-                                    } ${
-                                        activeRoute.status === 'COMPLETED' ? 'bg-green-50 text-green-700 border-green-200' : 
-                                        activeRoute.status === 'IN_TRANSIT' ? 'bg-amber-50 text-amber-700 border-amber-200 animate-pulse' : 'bg-blue-50 text-blue-700 border-blue-100'
-                                    }`}
-                                >
-                                    <option value="OPEN">{t('routes.statusWaitingDeparture', '📦 Aguardando Saída')}</option>
-                                    <option value="IN_TRANSIT">{t('routes.statusInTransit', '🛵 Em Trânsito / Rua')}</option>
-                                    <option value="COMPLETED">{t('routes.statusCompleted', '✅ Rota Concluída')}</option>
-                                </select>
+                                <div className="flex items-center gap-2">
+                                    <select 
+                                        id="route-status-select"
+                                        value={activeRoute.status} 
+                                        onChange={e => handleUpdateStatus(e.target.value as any)}
+                                        disabled={!canEdit}
+                                        className={`px-4 py-2 rounded-full text-xs font-black border outline-none cursor-pointer transition-all ${
+                                            !canEdit ? 'opacity-60 cursor-not-allowed' : ''
+                                        } ${
+                                            activeRoute.status === 'COMPLETED' ? 'bg-green-50 text-green-700 border-green-200' : 
+                                            activeRoute.status === 'IN_TRANSIT' ? 'bg-amber-50 text-amber-700 border-amber-200 animate-pulse' : 'bg-blue-50 text-blue-700 border-blue-100'
+                                        }`}
+                                    >
+                                        <option value="OPEN">{t('routes.statusWaitingDeparture', '📦 Aguardando Saída')}</option>
+                                        <option value="IN_TRANSIT">{t('routes.statusInTransit', '🛵 Em Trânsito / Rua')}</option>
+                                        <option value="COMPLETED">{t('routes.statusCompleted', '✅ Rota Concluída')}</option>
+                                    </select>
+
+                                    {canDelete && (
+                                        <button
+                                            id="delete-active-route-btn"
+                                            onClick={() => handleDeleteRoute(activeRoute.id)}
+                                            disabled={isDeletingRoute}
+                                            className="px-3 py-2 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-full font-extrabold text-xs flex items-center gap-1.5 transition-all shadow-sm shrink-0"
+                                            title="Excluir Rota"
+                                        >
+                                            {isDeletingRoute ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                                            <span className="hidden sm:inline">Excluir Rota</span>
+                                        </button>
+                                    )}
+                                </div>
                             </div>
 
                             <div className="p-5 space-y-3" id="stops-inner-list">
@@ -488,7 +550,22 @@ export const RoutePlanner = () => {
                                                     <span className="truncate">{group[0].address}</span>
                                                 </div>
                                             </div>
-                                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                                            <div className="flex items-center gap-1.5 shrink-0">
+                                                {canEdit && (
+                                                    <button 
+                                                        id={`config-group-btn-${idx}`}
+                                                        onClick={() => {
+                                                            setConfigGroupItems(group);
+                                                            setTargetMoveRouteId('');
+                                                            setShowMoveModal(true);
+                                                        }}
+                                                        className="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl transition-all flex items-center gap-1 font-extrabold text-xs border border-indigo-100 shadow-sm"
+                                                        title="Configurações da Parada (Mover para outra Rota)"
+                                                    >
+                                                        <Settings size={14} className="text-indigo-600" />
+                                                        <span>Config</span>
+                                                    </button>
+                                                )}
                                                 <button 
                                                     onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(group[0].address)}`, '_blank')}
                                                     className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
@@ -514,15 +591,31 @@ export const RoutePlanner = () => {
                                                                 </div>
                                                             )}
                                                         </div>
-                                                        {(canDelete || canEdit) && (
-                                                            <button 
-                                                                onClick={() => handleDeleteItem(item.id)}
-                                                                className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all shrink-0"
-                                                                title={t('routes.removeService', 'Remover Serviço')}
-                                                            >
-                                                                <Trash2 size={16} />
-                                                            </button>
-                                                        )}
+                                                        <div className="flex items-center gap-1 shrink-0">
+                                                            {canEdit && (
+                                                                <button 
+                                                                    id={`config-item-btn-${item.id}`}
+                                                                    onClick={() => {
+                                                                        setConfigGroupItems([item]);
+                                                                        setTargetMoveRouteId('');
+                                                                        setShowMoveModal(true);
+                                                                    }}
+                                                                    className="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg transition-all flex items-center gap-1 text-[10px] font-extrabold border border-indigo-100"
+                                                                    title="Config / Mover este serviço"
+                                                                >
+                                                                    <Settings size={12} /> Config
+                                                                </button>
+                                                            )}
+                                                            {(canDelete || canEdit) && (
+                                                                <button 
+                                                                    onClick={() => handleDeleteItem(item.id)}
+                                                                    className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all shrink-0"
+                                                                    title={t('routes.removeService', 'Remover Serviço')}
+                                                                >
+                                                                    <Trash2 size={16} />
+                                                                </button>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                     
                                                     {/* Observations */}
@@ -839,6 +932,119 @@ export const RoutePlanner = () => {
                                 {dentistSearch && filteredDentists.length === 0 && (
                                     <p className="text-center text-xs text-slate-400 py-6 italic" id="pickup-no-results">{t("routes.noClinicFound", "Nenhum consultório ou dentista encontrado.")}</p>
                                 )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL: MOVER CASO / PARADA PARA OUTRA ROTA (CONFIG) */}
+            {showMoveModal && configGroupItems && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" id="move-route-modal">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-6 animate-in zoom-in-95 duration-200">
+                        <div className="flex justify-between items-center mb-5 border-b pb-4">
+                            <div className="flex items-center gap-2.5">
+                                <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl">
+                                    <Settings size={20} />
+                                </div>
+                                <div>
+                                    <h3 className="text-base font-black text-slate-800 uppercase tracking-tight">
+                                        {t('routes.configModalTitle', 'Configurações da Parada')}
+                                    </h3>
+                                    <p className="text-xs font-bold text-slate-400">Mover para outra rota de entrega</p>
+                                </div>
+                            </div>
+                            <button 
+                                id="close-move-modal-btn"
+                                onClick={() => { setShowMoveModal(false); setConfigGroupItems(null); }} 
+                                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+                            >
+                                <X size={20}/>
+                            </button>
+                        </div>
+
+                        <div className="space-y-4">
+                            {/* Summary of items being moved */}
+                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-1">
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('routes.selectedStopLabel', 'Parada / Caso Selecionado:')}</p>
+                                <p className="font-extrabold text-slate-800 text-sm">{configGroupItems[0]?.dentistName}</p>
+                                {configGroupItems[0]?.address && (
+                                    <p className="text-xs text-slate-500 font-medium">{configGroupItems[0]?.address}</p>
+                                )}
+                                <div className="pt-2 flex flex-wrap gap-1.5">
+                                    {configGroupItems.map(it => (
+                                        <span key={it.id} className="text-[10px] font-extrabold bg-white border border-slate-200 px-2.5 py-1 rounded-lg text-slate-700 shadow-sm flex items-center gap-1">
+                                            <span className={`w-2 h-2 rounded-full ${it.type === 'DELIVERY' ? 'bg-blue-500' : 'bg-amber-500'}`}></span>
+                                            {it.type === 'DELIVERY' ? 'Entrega' : 'Coleta'} {it.patientName ? `(${it.patientName})` : ''}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Target Route Selection */}
+                            <div>
+                                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">
+                                    {t('routes.selectDestinationRoute', 'Selecione a Rota de Destino:')}
+                                </label>
+                                {availableMoveRoutes.length > 0 ? (
+                                    <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1" id="move-target-routes-list">
+                                        {availableMoveRoutes.map(r => (
+                                            <button
+                                                key={r.id}
+                                                type="button"
+                                                id={`target-route-btn-${r.id}`}
+                                                onClick={() => setTargetMoveRouteId(r.id)}
+                                                className={`w-full text-left p-3.5 border rounded-2xl transition-all flex items-center justify-between ${
+                                                    targetMoveRouteId === r.id
+                                                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
+                                                        : 'bg-white hover:bg-indigo-50/50 border-slate-200 text-slate-800'
+                                                }`}
+                                            >
+                                                <div>
+                                                    <div className="flex items-center gap-2">
+                                                        <Truck size={14} className={targetMoveRouteId === r.id ? 'text-indigo-200' : 'text-indigo-600'} />
+                                                        <p className="font-extrabold text-sm">{r.driverName}</p>
+                                                    </div>
+                                                    <p className={`text-[10px] font-bold mt-1 ${targetMoveRouteId === r.id ? 'text-indigo-100' : 'text-slate-400'}`}>
+                                                        Data: {r.date instanceof Date ? r.date.toLocaleDateString('pt-BR') : String(r.date)} • Turno: {r.shift === 'MORNING' ? 'Manhã' : 'Tarde'}
+                                                    </p>
+                                                </div>
+                                                <span className={`text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wider ${
+                                                    targetMoveRouteId === r.id
+                                                        ? 'bg-white/20 text-white'
+                                                        : 'bg-indigo-50 text-indigo-700'
+                                                }`}>
+                                                    {targetMoveRouteId === r.id ? 'Selecionada' : 'Mover p/ aqui'}
+                                                </span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-800 font-bold space-y-2" id="no-destination-routes-warning">
+                                        <p>⚠️ Nenhuma outra rota ativa encontrada para transferência neste momento.</p>
+                                        <p className="text-[11px] font-medium text-amber-700">Para mover este caso, crie primeiro uma nova rota no seletor do turno ("Nova Rota").</p>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="pt-3 flex gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => { setShowMoveModal(false); setConfigGroupItems(null); }}
+                                    className="flex-1 py-3 bg-slate-100 text-slate-700 font-extrabold text-xs rounded-xl hover:bg-slate-200 transition-all uppercase tracking-wider"
+                                >
+                                    {t('common.cancel', 'Cancelar')}
+                                </button>
+                                <button
+                                    type="button"
+                                    id="confirm-move-route-btn"
+                                    onClick={handleMoveGroupItems}
+                                    disabled={!targetMoveRouteId || isMovingItem}
+                                    className="flex-1 py-3 bg-indigo-600 text-white font-black text-xs rounded-xl hover:bg-indigo-700 disabled:opacity-40 uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-indigo-200 transition-all"
+                                >
+                                    {isMovingItem ? <Loader2 size={16} className="animate-spin"/> : <ArrowRightLeft size={16}/>}
+                                    {t('routes.confirmMoveBtn', 'MOVER CASO')}
+                                </button>
                             </div>
                         </div>
                     </div>

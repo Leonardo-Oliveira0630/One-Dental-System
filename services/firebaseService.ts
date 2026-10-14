@@ -9,7 +9,7 @@ import * as messagingPkg from 'firebase/messaging';
 const { 
   collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, 
   onSnapshot, query, where, Timestamp, arrayUnion, arrayRemove, orderBy, limit, increment, addDoc,
-  collectionGroup
+  collectionGroup, writeBatch, deleteField
 } = firestorePkg as any;
 
 const { 
@@ -1506,6 +1506,41 @@ export const subscribeRouteItems = (orgId: string, routeId: string, cb: (items: 
 export const apiAddRouteItem = (orgId: string, routeId: string, item: RouteItem) => setDoc(doc(db, `organizations/${orgId}/routes/${routeId}/items`, item.id), item);
 export const apiDeleteRouteItem = (orgId: string, routeId: string, itemId: string) => deleteDoc(doc(db, `organizations/${orgId}/routes/${routeId}/items`, itemId));
 export const apiUpdateRouteItem = (orgId: string, routeId: string, itemId: string, updates: Partial<RouteItem>) => updateDoc(doc(db, `organizations/${orgId}/routes/${routeId}/items`, itemId), updates);
+
+export const apiDeleteRoute = async (orgId: string, routeId: string) => {
+  if (!orgId || !routeId) return;
+  const itemsSnap = await getDocs(collection(db, `organizations/${orgId}/routes/${routeId}/items`));
+  const batch = writeBatch(db);
+  
+  itemsSnap.docs.forEach((docSnap: any) => {
+    const data = docSnap.data() as RouteItem;
+    batch.delete(docSnap.ref);
+    if (data.jobId) {
+      const jobRef = doc(db, `organizations/${orgId}/jobs`, data.jobId);
+      batch.update(jobRef, { routeId: deleteField() });
+    }
+  });
+
+  batch.delete(doc(db, `organizations/${orgId}/routes`, routeId));
+  await batch.commit();
+};
+
+export const apiMoveRouteItems = async (orgId: string, sourceRouteId: string, targetRouteId: string, items: RouteItem[]) => {
+  if (!orgId || !sourceRouteId || !targetRouteId || !items.length) return;
+  
+  for (const item of items) {
+    const newItem: RouteItem = {
+      ...item,
+      routeId: targetRouteId,
+      order: Date.now()
+    };
+    await setDoc(doc(db, `organizations/${orgId}/routes/${targetRouteId}/items`, item.id), newItem);
+    await deleteDoc(doc(db, `organizations/${orgId}/routes/${sourceRouteId}/items`, item.id));
+    if (item.jobId) {
+      await updateDoc(doc(db, `organizations/${orgId}/jobs`, item.jobId), { routeId: targetRouteId });
+    }
+  }
+};
 
 export const subscribeCouriers = (orgId: string, cb: (couriers: Courier[]) => void) => {
   if (!orgId) return () => {};
