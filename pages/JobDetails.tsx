@@ -246,6 +246,8 @@ export const JobDetails = () => {
     appliedSurchargeFixed?: number | string;
   }>({ quantity: 1, nature: 'NORMAL', price: 0, appliedDiscount: 0, appliedDiscountFixed: 0, priceAdjustmentType: 'DISCOUNT', appliedSurcharge: 0, appliedSurchargeFixed: 0, discountType: 'PERCENTAGE', appliedPriceTable: 'Padrão', commissionDisabled: false, isInternalStep: false, selectedVariationIds: [], variationValues: {}, sectorCommissionDisabled: {}, selectedTeeth: [], color: '' });
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [freeLabEditingNotes, setFreeLabEditingNotes] = useState(false);
+  const [freeLabNotesText, setFreeLabNotesText] = useState('');
   const [isSyncingTracking, setIsSyncingTracking] = useState(false);
   const [trackingSyncMsg, setTrackingSyncMsg] = useState<string | null>(null);
   const [isEditingShipping, setIsEditingShipping] = useState(false);
@@ -669,14 +671,43 @@ export const JobDetails = () => {
   }, [job?.routeId, currentOrg]);
 
   const isFreeLab = currentOrg?.orgType === 'LAB' && (currentPlan?.id === 'free_lab' || currentPlan?.features?.isLabFreeStoreOnly === true);
-  const [freeLabEditingNotes, setFreeLabEditingNotes] = useState(false);
-  const [freeLabNotesText, setFreeLabNotesText] = useState('');
+  const [editingCaseNotes, setEditingCaseNotes] = useState(false);
+  const [caseNotesText, setCaseNotesText] = useState('');
+  const [newCommentInput, setNewCommentInput] = useState('');
 
   useEffect(() => {
     if (job) {
-      setFreeLabNotesText(job.notes || '');
+      setCaseNotesText(job.notes || '');
     }
   }, [job]);
+
+  const handleAddQuickComment = async () => {
+    if (!newCommentInput.trim() || !job) return;
+    setIsUpdatingStatus(true);
+    try {
+      const formattedDate = new Date().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+      const author = currentUser?.name || 'Sistema';
+      const commentText = newCommentInput.trim();
+      const commentEntry = `${job.notes && job.notes.trim() ? '\n' : ''}[${formattedDate} - ${author}]: ${commentText}`;
+      const updatedNotes = (job.notes ? job.notes.trim() : '') + commentEntry;
+
+      await updateJob(job.id, {
+        notes: updatedNotes,
+        history: [...(job.history || []).filter(Boolean), {
+          id: `hist_comment_${Date.now()}`,
+          timestamp: new Date(),
+          action: `Comentário/Nota adicionado ao caso: "${commentText}"`,
+          userId: currentUser?.id || 'sys',
+          userName: author
+        }]
+      });
+      setNewCommentInput('');
+    } catch (err) {
+      alert("Erro ao adicionar comentário ao caso.");
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
 
   const isAdmin = currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.SUPER_ADMIN;
   const isManager = currentUser?.role === UserRole.MANAGER;
