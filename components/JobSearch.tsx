@@ -81,19 +81,17 @@ export const JobSearch = () => {
             totalComm += calculateItemCommission(item, jobType, currentUser, secQty, sector, undefined, true, commissionGroups);
           });
 
-          if (totalComm > 0) {
-            await addCommissionRecord({
-              userId: currentUser.id,
-              userName: currentUser.name,
-              jobId: job.id,
-              osNumber: job.osNumber || 'N/A',
-              patientName: job.patientName,
-              amount: totalComm,
-              status: 'PENDING' as any,
-              createdAt: new Date(),
-              sector: sector
-            });
-          }
+          await addCommissionRecord({
+            userId: currentUser.id,
+            userName: currentUser.name,
+            jobId: job.id,
+            osNumber: job.osNumber || 'N/A',
+            patientName: job.patientName,
+            amount: totalComm,
+            status: 'PENDING' as any,
+            createdAt: new Date(),
+            sector: sector
+          });
         }
       }
 

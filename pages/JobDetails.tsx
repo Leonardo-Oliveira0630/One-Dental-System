@@ -305,22 +305,24 @@ export const JobDetails = () => {
   const handleOpenStageConfig = (item: JobItem) => {
     setStageConfigItem(item);
     const jt = jobTypes.find(t => t.id === item.jobTypeId);
-    const rawStages = item.sectorStages || jt?.sectorStages || {};
+    const itemStages = item.sectorStages || {};
+    const jtStages = jt?.sectorStages || {};
     const initialStages: Record<string, string[]> = {};
     const initialQuantities: Record<string, Record<string, number>> = {};
     const itemQty = item.quantity || 1;
 
     sectors.forEach(s => {
-      const activeStages = s.stages || [];
-      const list = rawStages[s.name] || [];
-      const valid = list.filter(stg => activeStages.includes(stg));
-      if (valid.length > 0) {
-        initialStages[s.name] = valid;
+      const list = Array.from(new Set([
+        ...(itemStages[s.name] || []),
+        ...(jtStages[s.name] || [])
+      ]));
+      if (list.length > 0) {
+        initialStages[s.name] = list;
         initialQuantities[s.name] = {};
         const secQty = (item.sectorQuantities && item.sectorQuantities[s.name] !== undefined)
           ? item.sectorQuantities[s.name]
           : itemQty;
-        valid.forEach(stg => {
+        list.forEach(stg => {
           const rawQ = item.stageQuantities?.[s.name]?.[stg];
           if (rawQ !== undefined && rawQ > 1) {
             initialQuantities[s.name][stg] = rawQ;
@@ -1988,7 +1990,8 @@ export const JobDetails = () => {
 
           const matchingComms = commissions.filter(c => c.jobId === job.id && c.sector === editingExecution.sector && c.userId === editingExecution.userId && c.status === CommissionStatus.PENDING);
           const existingComm = matchingComms[0];
-          if (totalUserComm > 0) {
+          const hasExecutionsInSector = userItemsInSector.length > 0;
+          if (hasExecutionsInSector) {
               if (existingComm) {
                   await updateCommissionRecord(existingComm.id, {
                       amount: totalUserComm,
@@ -2154,7 +2157,8 @@ export const JobDetails = () => {
 
           const matchingComms = commissions.filter(c => c.jobId === job.id && c.sector === sector && c.userId === userId && c.status === CommissionStatus.PENDING);
           const existingComm = matchingComms[0];
-          if (totalUserComm > 0) {
+          const hasExecutionsInSector = userItemsInSector.length > 0;
+          if (hasExecutionsInSector) {
               if (existingComm) {
                   await updateCommissionRecord(existingComm.id, { amount: totalUserComm });
                   for (let i = 1; i < matchingComms.length; i++) {
@@ -6549,13 +6553,16 @@ export const JobDetails = () => {
           execution.executedStages.forEach((s: string) => executedStageNames.add(s));
         }
 
-        let itemSectorStages: string[] = [];
-        if (item.sectorStages && item.sectorStages[sector]) {
-          itemSectorStages = item.sectorStages[sector].filter((stg: string) => activeSectorStages.includes(stg) || executedStageNames.has(stg));
-        } else if (jt?.sectorStages && jt.sectorStages[sector]) {
-          itemSectorStages = jt.sectorStages[sector].filter((stg: string) => activeSectorStages.includes(stg) || executedStageNames.has(stg));
-        }
+        const itemStages = item.sectorStages?.[sector] || [];
+        const jtStages = jt?.sectorStages?.[sector] || [];
+        const executedStages = Array.from(executedStageNames);
 
+        const combinedStagesSet = new Set<string>();
+        itemStages.forEach((s: string) => combinedStagesSet.add(s));
+        jtStages.forEach((s: string) => combinedStagesSet.add(s));
+        executedStages.forEach((s: string) => combinedStagesSet.add(s));
+
+        const itemSectorStages = Array.from(combinedStagesSet);
         const stagesToRender = itemSectorStages.length > 0 ? itemSectorStages : ['BASE'];
         
         return stagesToRender.map((stageName: string, stageIdx: number) => {

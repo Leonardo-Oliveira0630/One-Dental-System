@@ -294,7 +294,8 @@ export const Commissions = () => {
   const stats = {
     pending: filteredCommissions.filter(c => c.status === CommissionStatus.PENDING).reduce((acc, curr) => acc + curr.amount, 0),
     paid: filteredCommissions.filter(c => c.status === CommissionStatus.PAID).reduce((acc, curr) => acc + curr.amount, 0),
-    total: filteredCommissions.reduce((acc, curr) => acc + curr.amount, 0)
+    total: filteredCommissions.reduce((acc, curr) => acc + curr.amount, 0),
+    totalQuantity: filteredCommissions.reduce((acc, curr) => acc + (curr.quantity || 0), 0)
   };
 
   // Exportar para Excel (Geral)
@@ -478,18 +479,22 @@ export const Commissions = () => {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:p-6">
-        <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-100">
-            <p className="text-sm font-bold text-slate-500 mb-1 uppercase">{t('commissions.pendingAmount', 'A Receber')}</p>
-            <h3 className="text-3xl font-black text-orange-600">R$ {stats.pending.toFixed(2)}</h3>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-100">
+            <p className="text-xs font-bold text-slate-500 mb-1 uppercase">{t('commissions.totalQuantityProduced', 'Qtd Produzida Total')}</p>
+            <h3 className="text-2xl sm:text-3xl font-black text-indigo-600">{stats.totalQuantity} <span className="text-xs font-semibold text-slate-400">unid</span></h3>
         </div>
-        <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-100">
-            <p className="text-sm font-bold text-slate-500 mb-1 uppercase">{t('commissions.paidAmount', 'Pago (Acumulado)')}</p>
-            <h3 className="text-3xl font-black text-green-600">R$ {stats.paid.toFixed(2)}</h3>
+        <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-100">
+            <p className="text-xs font-bold text-slate-500 mb-1 uppercase">{t('commissions.pendingAmount', 'A Receber')}</p>
+            <h3 className="text-2xl sm:text-3xl font-black text-orange-600">R$ {stats.pending.toFixed(2)}</h3>
         </div>
-        <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-100">
-            <p className="text-sm font-bold text-slate-500 mb-1 uppercase">{t('commissions.totalAmount', 'Total Período')}</p>
-            <h3 className="text-3xl font-black text-blue-600">R$ {stats.total.toFixed(2)}</h3>
+        <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-100">
+            <p className="text-xs font-bold text-slate-500 mb-1 uppercase">{t('commissions.paidAmount', 'Pago (Acumulado)')}</p>
+            <h3 className="text-2xl sm:text-3xl font-black text-green-600">R$ {stats.paid.toFixed(2)}</h3>
+        </div>
+        <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-100">
+            <p className="text-xs font-bold text-slate-500 mb-1 uppercase">{t('commissions.totalAmount', 'Total Período')}</p>
+            <h3 className="text-2xl sm:text-3xl font-black text-blue-600">R$ {stats.total.toFixed(2)}</h3>
         </div>
       </div>
 
