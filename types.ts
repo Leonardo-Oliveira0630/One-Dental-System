@@ -723,6 +723,7 @@ export interface Job {
   sectorEntryTime?: Date;
   totalValue: number;
   notes?: string;
+  caseNotes?: string;
   isComboPurchase?: boolean;
   vouchersUsed?: string[];
   managerNotes?: string;

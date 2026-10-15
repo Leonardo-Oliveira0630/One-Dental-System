@@ -21,6 +21,7 @@ export interface DentistCompletenessResult {
   hasCpfCnpj: boolean;
   hasCro: boolean;
   hasAddress: boolean;
+  hasAddressNumber: boolean;
   hasEmail: boolean;
   hasPhone: boolean;
   completedCount: number;
@@ -34,10 +35,21 @@ export const checkDentistCompleteness = (dentist: any): DentistCompletenessResul
 
   const hasCpfCnpj = Boolean(dentist?.cpfCnpj && String(dentist.cpfCnpj).trim() !== '');
   const hasCro = Boolean(dentist?.cro && String(dentist.cro).trim() !== '');
+  
+  const rawAddress = String(dentist?.address || '').trim();
+  const rawNumber = String(dentist?.number || '').trim();
+
   const hasAddress = Boolean(
-    (dentist?.address && String(dentist.address).trim() !== '') ||
+    (rawAddress !== '') ||
     (dentist?.cep && String(dentist.cep).trim() !== '' && dentist?.city && String(dentist.city).trim() !== '')
   );
+
+  // Checks if a number/house/apt is explicitly provided in dentist.number or contained in dentist.address (or 's/n')
+  const hasAddressNumber = Boolean(
+    (rawNumber !== '') ||
+    (rawAddress !== '' && (/\d+|s\/n|sn|sem\s+n/i.test(rawAddress)))
+  );
+
   const hasEmail = Boolean(dentist?.email && String(dentist.email).trim() !== '');
   const hasPhone = Boolean(
     (dentist?.phone && String(dentist.phone).trim() !== '') ||
@@ -55,6 +67,9 @@ export const checkDentistCompleteness = (dentist: any): DentistCompletenessResul
   if (!hasAddress) {
     missingKeys.push('address');
     missingLabels.push('Endereço');
+  } else if (!hasAddressNumber) {
+    missingKeys.push('addressNumber');
+    missingLabels.push('Nº da Casa/Apt');
   }
   if (!hasEmail) {
     missingKeys.push('email');
@@ -76,6 +91,7 @@ export const checkDentistCompleteness = (dentist: any): DentistCompletenessResul
     hasCpfCnpj,
     hasCro,
     hasAddress,
+    hasAddressNumber,
     hasEmail,
     hasPhone,
     completedCount,
@@ -94,7 +110,7 @@ export const DentistsTab = () => {
     priceTableFilter: 'ALL',
     customPricingFilter: 'ALL' as 'ALL' | 'CUSTOM' | 'NOT_CUSTOM',
     statusFilter: 'ALL' as 'ALL' | 'ACTIVE' | 'BLOCKED' | 'DEBT' | 'FINANCIAL_APPROVAL',
-    completenessFilter: 'ALL' as 'ALL' | 'INCOMPLETE' | 'COMPLETE' | 'MISSING_CPF' | 'MISSING_CRO' | 'MISSING_ADDRESS' | 'MISSING_EMAIL' | 'MISSING_PHONE'
+    completenessFilter: 'ALL' as 'ALL' | 'INCOMPLETE' | 'COMPLETE' | 'MISSING_CPF' | 'MISSING_CRO' | 'MISSING_ADDRESS' | 'MISSING_ADDRESS_NUMBER' | 'MISSING_EMAIL' | 'MISSING_PHONE'
   }), []);
 
   const {
@@ -547,6 +563,7 @@ export const DentistsTab = () => {
     let missingCpfCount = 0;
     let missingCroCount = 0;
     let missingAddressCount = 0;
+    let missingAddressNumberCount = 0;
     let missingEmailCount = 0;
     let missingPhoneCount = 0;
 
@@ -556,6 +573,7 @@ export const DentistsTab = () => {
       if (!comp.hasCpfCnpj) missingCpfCount++;
       if (!comp.hasCro) missingCroCount++;
       if (!comp.hasAddress) missingAddressCount++;
+      if (!comp.hasAddressNumber) missingAddressNumberCount++;
       if (!comp.hasEmail) missingEmailCount++;
       if (!comp.hasPhone) missingPhoneCount++;
     });
@@ -568,6 +586,7 @@ export const DentistsTab = () => {
       missingCpfCount,
       missingCroCount,
       missingAddressCount,
+      missingAddressNumberCount,
       missingEmailCount,
       missingPhoneCount
     };
@@ -583,6 +602,7 @@ export const DentistsTab = () => {
       if (completenessFilter === 'MISSING_CPF' && !comp.missingKeys.includes('cpfCnpj')) return false;
       if (completenessFilter === 'MISSING_CRO' && !comp.missingKeys.includes('cro')) return false;
       if (completenessFilter === 'MISSING_ADDRESS' && !comp.missingKeys.includes('address')) return false;
+      if (completenessFilter === 'MISSING_ADDRESS_NUMBER' && !comp.missingKeys.includes('addressNumber')) return false;
       if (completenessFilter === 'MISSING_EMAIL' && !comp.missingKeys.includes('email')) return false;
       if (completenessFilter === 'MISSING_PHONE' && !comp.missingKeys.includes('phone')) return false;
 
@@ -778,6 +798,7 @@ export const DentistsTab = () => {
                         <option value="MISSING_CPF">{t('admin.dentists.missingCpf', { count: completenessStats.missingCpfCount, defaultValue: `Falta CPF/CNPJ (${completenessStats.missingCpfCount})` })}</option>
                         <option value="MISSING_CRO">{t('admin.dentists.missingCro', { count: completenessStats.missingCroCount, defaultValue: `Falta CRO (${completenessStats.missingCroCount})` })}</option>
                         <option value="MISSING_ADDRESS">{t('admin.dentists.missingAddress', { count: completenessStats.missingAddressCount, defaultValue: `Falta Endereço (${completenessStats.missingAddressCount})` })}</option>
+                        <option value="MISSING_ADDRESS_NUMBER">{`Falta Nº do Endereço / Casa (${completenessStats.missingAddressNumberCount})`}</option>
                         <option value="MISSING_EMAIL">{t('admin.dentists.missingEmail', { count: completenessStats.missingEmailCount, defaultValue: `Falta E-mail (${completenessStats.missingEmailCount})` })}</option>
                         <option value="MISSING_PHONE">{t('admin.dentists.missingPhone', { count: completenessStats.missingPhoneCount, defaultValue: `Falta Telefone (${completenessStats.missingPhoneCount})` })}</option>
                     </select>
@@ -821,6 +842,7 @@ export const DentistsTab = () => {
                                     completenessFilter === 'MISSING_CPF' ? 'Falta CPF/CNPJ' :
                                     completenessFilter === 'MISSING_CRO' ? 'Falta CRO' :
                                     completenessFilter === 'MISSING_ADDRESS' ? 'Falta Endereço' :
+                                    completenessFilter === 'MISSING_ADDRESS_NUMBER' ? 'Falta Nº do Endereço (Casa/Apt)' :
                                     completenessFilter === 'MISSING_EMAIL' ? 'Falta E-mail' : 'Falta Telefone'
                                 }
                             </span>
