@@ -11,7 +11,7 @@ import {
   FileText, DollarSign, CheckCircle, AlertTriangle, 
   Printer, Box, Layers, ListChecks, Bell, Edit, Save, X, Plus, Trash2, Settings,
   LogIn, LogOut, Flag, CheckSquare, File as FileIcon, Download, Loader2, CreditCard, ExternalLink, Copy, Check, Star, UploadCloud, ChevronDown, CheckCircle2, Truck, Navigation, RotateCcw, MessageCircle, MessageSquare, Lock, Crown, FileCode, FileSpreadsheet, FileWarning, XCircle, ArrowLeftCircle, ScanBarcode, Briefcase, Search, ArrowRightCircle, RefreshCw, Edit3, Package, Smartphone,
-  Eye, Edit2, LayoutGrid, List as ListIcon, Image as ImageLucide, Pin
+  Eye, Edit2, LayoutGrid, List as ListIcon, Image as ImageLucide, Pin, StickyNote
 } from 'lucide-react';
 import { CreateAlertModal } from '../components/AlertSystem';
 import { ChatSystem } from '../components/ChatSystem';
@@ -677,7 +677,7 @@ export const JobDetails = () => {
 
   useEffect(() => {
     if (job) {
-      setCaseNotesText(job.notes || '');
+      setCaseNotesText(job.caseNotes || '');
     }
   }, [job]);
 
@@ -2681,6 +2681,101 @@ export const JobDetails = () => {
             )}
           </div>
 
+          {/* Notas Exclusivas do Caso */}
+          <div className="border-t border-slate-100 pt-6 space-y-2">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <StickyNote size={15} className="text-amber-600" />
+                <span className="text-[11px] font-black uppercase text-amber-900 tracking-wider">Notas do Caso</span>
+                <span className="bg-amber-100 text-amber-800 text-[9px] font-extrabold px-2 py-0.5 rounded-md border border-amber-200">Exclusivo deste Caso</span>
+              </div>
+              {!editingCaseNotes && (
+                <button 
+                  type="button"
+                  onClick={() => {
+                    setEditingCaseNotes(true);
+                    setCaseNotesText(job.caseNotes || '');
+                  }}
+                  className="text-amber-700 hover:text-amber-900 text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer bg-amber-50 hover:bg-amber-100/80 px-2.5 py-1 rounded-lg border border-amber-200/80"
+                >
+                  <Edit3 size={13} /> {job.caseNotes ? 'Editar Notas do Caso' : '+ Adicionar Nota'}
+                </button>
+              )}
+            </div>
+
+            {editingCaseNotes ? (
+              <div className="space-y-3 bg-amber-50/50 p-3.5 rounded-2xl border border-amber-200">
+                <div className="text-[11px] font-bold text-amber-900">
+                  Insira anotações ou comentários específicos para este caso. Podem ser inseridos ou modificados a qualquer momento (mesmo após o caso ser finalizado).
+                </div>
+                <textarea
+                  value={caseNotesText}
+                  onChange={(e) => setCaseNotesText(e.target.value)}
+                  placeholder="Digite comentários ou anotações referentes exclusivamente a este caso..."
+                  rows={4}
+                  className="w-full p-3 bg-white border border-amber-300 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none text-xs font-semibold text-slate-800 shadow-2xs"
+                />
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingCaseNotes(false)}
+                    className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-colors cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setIsUpdatingStatus(true);
+                      try {
+                        await updateJob(job.id, { 
+                          caseNotes: caseNotesText,
+                          history: [...(job.history || []).filter(Boolean), {
+                            id: `hist_case_notes_${Date.now()}`,
+                            timestamp: new Date(),
+                            action: `Nota do caso atualizada`,
+                            userId: currentUser?.id || 'sys',
+                            userName: currentUser?.name || 'Sistema'
+                          }]
+                        });
+                        setEditingCaseNotes(false);
+                      } catch (err) {
+                        alert("Erro ao salvar notas do caso.");
+                      } finally {
+                        setIsUpdatingStatus(false);
+                      }
+                    }}
+                    disabled={isUpdatingStatus}
+                    className="px-4 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl text-xs transition-colors flex items-center gap-1 shadow-xs cursor-pointer"
+                  >
+                    {isUpdatingStatus && <Loader2 size={12} className="animate-spin" />}
+                    Salvar Notas do Caso
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-amber-50/40 p-4 rounded-2xl border border-amber-200/60 min-h-[70px]">
+                {job.caseNotes ? (
+                  <p className="text-amber-950 text-xs font-semibold whitespace-pre-wrap leading-relaxed">{job.caseNotes}</p>
+                ) : (
+                  <div className="flex items-center justify-between text-amber-800/80 text-xs italic">
+                    <span>Nenhuma nota específica foi registrada sobre este caso.</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingCaseNotes(true);
+                        setCaseNotesText('');
+                      }}
+                      className="not-italic font-bold text-amber-900 hover:underline text-[11px] cursor-pointer"
+                    >
+                      + Criar Nota do Caso
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* Action / Status Buttons Section */}
           <div className="border-t border-slate-100 pt-6">
             <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-4">{t("job.statusControlActions", "Ações de Controle de Status")}</span>
@@ -4629,6 +4724,12 @@ export const JobDetails = () => {
                             <CheckSquare size={10}/> {job.approvalEnabled ? t('jobDetails.approvalActive', 'Aprovação Ativa') : t('jobDetails.approvalOff', 'Aprovação Desativada')}
                         </button>
                     )}
+                    {job.caseNotes && (
+                        <div className="px-2.5 py-1 rounded-full text-[8px] md:text-[10px] font-black uppercase border flex items-center gap-1.5 bg-amber-100 text-amber-900 border-amber-300 shadow-2xs" title={job.caseNotes}>
+                            <StickyNote size={11} className="text-amber-700 shrink-0" />
+                            <span className="truncate max-w-[180px]">Nota: {job.caseNotes}</span>
+                        </div>
+                    )}
                 </div>
                 <div className="flex flex-wrap items-center gap-2 text-slate-900 leading-tight">
                     <h1 className="text-xl md:text-2xl font-black uppercase truncate flex items-center gap-2 text-slate-800">
@@ -5598,10 +5699,109 @@ export const JobDetails = () => {
                         </div>
                     </div>
 
-                    <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-5 md:p-4 sm:p-8">
-                        <h3 className="text-base md:text-lg font-black text-slate-800 mb-4 flex items-center gap-2 uppercase tracking-tighter shrink-0"><FileIcon size={20} className="text-blue-500 shrink-0" /> Observações</h3>
-                        <div className="bg-slate-50 p-4 rounded-2xl text-slate-600 text-xs md:text-sm font-medium leading-relaxed whitespace-pre-wrap min-h-[100px] border border-slate-100">
-                            {job.notes || "Sem instruções adicionais registradas."}
+                    <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-5 md:p-6 sm:p-8 space-y-6">
+                        <div>
+                            <h3 className="text-base md:text-lg font-black text-slate-800 mb-3 flex items-center gap-2 uppercase tracking-tighter shrink-0"><FileIcon size={20} className="text-blue-500 shrink-0" /> Observações do Pedido</h3>
+                            <div className="bg-slate-50 p-4 rounded-2xl text-slate-600 text-xs md:text-sm font-medium leading-relaxed whitespace-pre-wrap min-h-[80px] border border-slate-100">
+                                {job.notes || "Sem instruções adicionais registradas no pedido."}
+                            </div>
+                        </div>
+
+                        {/* Notas Exclusivas do Caso */}
+                        <div className="pt-5 border-t border-slate-100 space-y-3">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                <div className="flex items-center gap-2">
+                                    <StickyNote size={20} className="text-amber-600 shrink-0" />
+                                    <h3 className="text-base font-black text-slate-800 uppercase tracking-tighter">Notas do Caso</h3>
+                                    <span className="bg-amber-100 text-amber-900 text-[10px] font-black px-2.5 py-0.5 rounded-full border border-amber-200">
+                                        Exclusivas do Caso
+                                    </span>
+                                </div>
+                                {!editingCaseNotes && (
+                                    <button 
+                                        type="button"
+                                        onClick={() => {
+                                            setEditingCaseNotes(true);
+                                            setCaseNotesText(job.caseNotes || '');
+                                        }}
+                                        className="self-start sm:self-auto text-amber-800 hover:text-amber-950 text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer bg-amber-50 hover:bg-amber-100/90 px-3 py-1.5 rounded-xl border border-amber-200/80 shadow-2xs"
+                                    >
+                                        <Edit3 size={14} /> {job.caseNotes ? 'Editar Notas do Caso' : '+ Adicionar Nota ao Caso'}
+                                    </button>
+                                )}
+                            </div>
+
+                            {editingCaseNotes ? (
+                                <div className="space-y-3 bg-amber-50/60 p-4 rounded-2xl border border-amber-200">
+                                    <div className="text-xs font-bold text-amber-950">
+                                        Insira comentários ou anotações referentes exclusivamente a este caso (editáveis a qualquer momento, mesmo após o caso ser finalizado).
+                                    </div>
+                                    <textarea
+                                        value={caseNotesText}
+                                        onChange={(e) => setCaseNotesText(e.target.value)}
+                                        placeholder="Digite observações ou anotações sobre este caso específico..."
+                                        rows={4}
+                                        className="w-full p-3.5 bg-white border border-amber-300 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none text-xs md:text-sm font-semibold text-slate-800 shadow-2xs"
+                                    />
+                                    <div className="flex justify-end gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setEditingCaseNotes(false)}
+                                            className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-colors cursor-pointer"
+                                        >
+                                            Cancelar
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={async () => {
+                                                setIsUpdatingStatus(true);
+                                                try {
+                                                    await updateJob(job.id, { 
+                                                        caseNotes: caseNotesText,
+                                                        history: [...(job.history || []).filter(Boolean), {
+                                                            id: `hist_case_notes_${Date.now()}`,
+                                                            timestamp: new Date(),
+                                                            action: `Notas do caso atualizadas`,
+                                                            userId: currentUser?.id || 'sys',
+                                                            userName: currentUser?.name || 'Sistema'
+                                                        }]
+                                                    });
+                                                    setEditingCaseNotes(false);
+                                                } catch (err) {
+                                                    alert("Erro ao salvar notas do caso.");
+                                                } finally {
+                                                    setIsUpdatingStatus(false);
+                                                }
+                                            }}
+                                            disabled={isUpdatingStatus}
+                                            className="px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white font-black rounded-xl text-xs transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer"
+                                        >
+                                            {isUpdatingStatus && <Loader2 size={13} className="animate-spin" />}
+                                            Salvar Notas do Caso
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="bg-amber-50/40 p-4 rounded-2xl border border-amber-200/60 min-h-[75px]">
+                                    {job.caseNotes ? (
+                                        <p className="text-amber-950 text-xs md:text-sm font-semibold whitespace-pre-wrap leading-relaxed">{job.caseNotes}</p>
+                                    ) : (
+                                        <div className="flex items-center justify-between text-amber-800/80 text-xs italic">
+                                            <span>Nenhuma nota específica registrada para este caso.</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setEditingCaseNotes(true);
+                                                    setCaseNotesText('');
+                                                }}
+                                                className="not-italic font-black text-amber-900 hover:underline text-xs cursor-pointer ml-2 shrink-0"
+                                            >
+                                                + Criar Nota do Caso
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </div>
                     
