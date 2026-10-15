@@ -316,10 +316,10 @@ export const JobDetails = () => {
       if (!isAllowed) return;
 
       let rawList: string[] = [];
-      if (jtStages[s.name] !== undefined) {
-        rawList = jtStages[s.name];
-      } else if (itemStages[s.name] !== undefined) {
+      if (itemStages[s.name] !== undefined) {
         rawList = itemStages[s.name];
+      } else if (jtStages[s.name] !== undefined) {
+        rawList = jtStages[s.name];
       } else {
         rawList = s.stages || [];
       }
@@ -1283,7 +1283,7 @@ export const JobDetails = () => {
               Object.entries(type.sectorStages).forEach(([sec, stgs]) => {
                   if (Array.isArray(stgs)) {
                       sq[sec] = {};
-                      stgs.forEach(stg => { sq[sec][stg] = 1; });
+                      stgs.forEach(stg => { sq[sec][stg] = Number(newItemQty) || 1; });
                   }
               });
               return Object.keys(sq).length > 0 ? sq : undefined;
@@ -6579,14 +6579,14 @@ export const JobDetails = () => {
           execution.executedStages.forEach((s: string) => executedStageNames.add(s));
         }
 
-        const jtSectorStages = jt?.sectorStages?.[sector];
         const itemSectorStages = item.sectorStages?.[sector];
+        const jtSectorStages = jt?.sectorStages?.[sector];
 
         let candidateStages: string[] = [];
-        if (jtSectorStages !== undefined) {
-            candidateStages = jtSectorStages;
-        } else if (itemSectorStages !== undefined) {
+        if (itemSectorStages !== undefined) {
             candidateStages = itemSectorStages;
+        } else if (jtSectorStages !== undefined) {
+            candidateStages = jtSectorStages;
         } else {
             candidateStages = activeSectorStages;
         }
