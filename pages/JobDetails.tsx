@@ -312,10 +312,21 @@ export const JobDetails = () => {
     const itemQty = item.quantity || 1;
 
     sectors.forEach(s => {
-      const list = Array.from(new Set([
-        ...(itemStages[s.name] || []),
-        ...(jtStages[s.name] || [])
-      ]));
+      const isAllowed = !jt?.allowedSectors || jt.allowedSectors.length === 0 || jt.allowedSectors.includes(s.name);
+      if (!isAllowed) return;
+
+      let rawList: string[] = [];
+      if (jtStages[s.name] !== undefined) {
+        rawList = jtStages[s.name];
+      } else if (itemStages[s.name] !== undefined) {
+        rawList = itemStages[s.name];
+      } else {
+        rawList = s.stages || [];
+      }
+
+      const secStages = s.stages || [];
+      const list = rawList.filter(stg => secStages.length === 0 || secStages.includes(stg));
+
       if (list.length > 0) {
         initialStages[s.name] = list;
         initialQuantities[s.name] = {};
@@ -5107,7 +5118,7 @@ export const JobDetails = () => {
                         <div className="divide-y divide-slate-100">
                             {job.items.map((item: any, idx: number) => {
                                 const jType = jobTypes.find(jt => jt.id === item.jobTypeId);
-                                const allowedSecs = (jType?.allowedSectors && jType.allowedSectors.length > 0) ? jType.allowedSectors : sectors.map(s => s.name);
+                                const allowedSecs = (jType?.allowedSectors && jType.allowedSectors.length > 0) ? jType.allowedSectors.filter(sec => sectors.some(s => s.name === sec)) : sectors.map(s => s.name);
                                 const isExpanded = expandedItemIdx === idx;
                                 
                                 return (
@@ -6511,16 +6522,29 @@ export const JobDetails = () => {
                 <div className="min-w-[800px] max-w-6xl mx-auto space-y-6">
                     {job.items.map((item: any) => {
                         const jt = jobTypes.find(t => t.id === item.jobTypeId);
-                        let sectorsToRender = jt?.allowedSectors && jt.allowedSectors.length > 0 
-                            ? [...jt.allowedSectors] 
-                            : sectors.map(s => s.name);
-                            
-                        const itemSectorStagesConfig = item.sectorStages || jt?.sectorStages || {};
-                        Object.keys(itemSectorStagesConfig).forEach(sec => {
-                            if (itemSectorStagesConfig[sec]?.length > 0 && !sectorsToRender.includes(sec)) {
-                                sectorsToRender.push(sec);
+                        const activeLabSectorNames = new Set(sectors.map(s => s.name));
+
+                        let candidateSectors: string[] = [];
+                        if (jt?.allowedSectors && jt.allowedSectors.length > 0) {
+                            candidateSectors = jt.allowedSectors.filter(sec => activeLabSectorNames.has(sec));
+                        } else {
+                            candidateSectors = sectors.map(s => s.name);
+                        }
+
+                        const itemExecutions = (job.itemExecutions || []).filter((e: any) => e.itemId === item.id);
+                        const executedSectors = new Set<string>();
+                        itemExecutions.forEach((e: any) => {
+                            if (e.sector && activeLabSectorNames.has(e.sector)) {
+                                const hasTimes = e.stageTimes && Object.keys(e.stageTimes).length > 0;
+                                const hasExecutedList = e.executedStages && e.executedStages.length > 0;
+                                if (hasTimes || hasExecutedList || e.entryTime || e.userId) {
+                                    executedSectors.add(e.sector);
+                                }
                             }
                         });
+
+                        const sectorsToRender = Array.from(new Set([...candidateSectors, ...Array.from(executedSectors)]))
+                            .filter(sec => activeLabSectorNames.has(sec));
 
                         return (
                             <div key={item.id} className="bg-white rounded-[24px] overflow-hidden border border-slate-100 shadow-sm">
@@ -6543,6 +6567,8 @@ export const JobDetails = () => {
                                     <tbody className="divide-y divide-slate-50">
     {sectorsToRender.flatMap(sector => {
         const activeSector = sectors.find(s => s.name === sector);
+        if (!activeSector) return [];
+
         const activeSectorStages = activeSector?.stages || [];
         const execution = (job.itemExecutions || []).find((e: any) => e.itemId === item.id && e.sector === sector);
         const executedStageNames = new Set<string>();
@@ -6553,17 +6579,28 @@ export const JobDetails = () => {
           execution.executedStages.forEach((s: string) => executedStageNames.add(s));
         }
 
-        const itemStages = item.sectorStages?.[sector] || [];
-        const jtStages = jt?.sectorStages?.[sector] || [];
-        const executedStages = Array.from(executedStageNames);
+        const jtSectorStages = jt?.sectorStages?.[sector];
+        const itemSectorStages = item.sectorStages?.[sector];
+
+        let candidateStages: string[] = [];
+        if (jtSectorStages !== undefined) {
+            candidateStages = jtSectorStages;
+        } else if (itemSectorStages !== undefined) {
+            candidateStages = itemSectorStages;
+        } else {
+            candidateStages = activeSectorStages;
+        }
 
         const combinedStagesSet = new Set<string>();
-        itemStages.forEach((s: string) => combinedStagesSet.add(s));
-        jtStages.forEach((s: string) => combinedStagesSet.add(s));
-        executedStages.forEach((s: string) => combinedStagesSet.add(s));
+        candidateStages.forEach((s: string) => {
+            if (activeSectorStages.length === 0 || activeSectorStages.includes(s) || executedStageNames.has(s)) {
+                combinedStagesSet.add(s);
+            }
+        });
+        executedStageNames.forEach((s: string) => combinedStagesSet.add(s));
 
-        const itemSectorStages = Array.from(combinedStagesSet);
-        const stagesToRender = itemSectorStages.length > 0 ? itemSectorStages : ['BASE'];
+        const itemSectorStagesList = Array.from(combinedStagesSet);
+        const stagesToRender = itemSectorStagesList.length > 0 ? itemSectorStagesList : ['BASE'];
         
         return stagesToRender.map((stageName: string, stageIdx: number) => {
             const execution = (job.itemExecutions || []).find((e: any) => e.itemId === item.id && e.sector === sector);
