@@ -324,8 +324,7 @@ export const JobDetails = () => {
         rawList = s.stages || [];
       }
 
-      const secStages = s.stages || [];
-      const list = rawList.filter(stg => secStages.length === 0 || secStages.includes(stg));
+      const list = rawList.filter(stg => typeof stg === 'string' && stg.trim() !== '');
 
       if (list.length > 0) {
         initialStages[s.name] = list;
@@ -6593,7 +6592,7 @@ export const JobDetails = () => {
 
         const combinedStagesSet = new Set<string>();
         candidateStages.forEach((s: string) => {
-            if (activeSectorStages.length === 0 || activeSectorStages.includes(s) || executedStageNames.has(s)) {
+            if (s && typeof s === 'string' && s.trim() !== '') {
                 combinedStagesSet.add(s);
             }
         });

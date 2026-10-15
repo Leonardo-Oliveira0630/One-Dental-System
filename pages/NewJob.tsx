@@ -902,9 +902,7 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
     const sanitizedSectorStages: Record<string, string[]> = {};
     if (activeJobType.sectorStages) {
       Object.entries(activeJobType.sectorStages).forEach(([sec, stgs]) => {
-        const secObj = sectors.find(s => s.name === sec);
-        const activeStages = secObj?.stages || [];
-        const valid = (stgs || []).filter(stg => activeStages.includes(stg));
+        const valid = (stgs || []).filter(stg => typeof stg === 'string' && stg.trim() !== '');
         if (valid.length > 0) {
           sanitizedSectorStages[sec] = valid;
           initialStageQuantities[sec] = {};

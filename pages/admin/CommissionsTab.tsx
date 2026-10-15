@@ -145,7 +145,7 @@ export const CommissionsTab = () => {
     Object.entries(type.sectorStages).forEach(([secName, stagesList]) => {
       const sec = sectors.find(s => s.name === secName);
       if (!sec) return;
-      const valid = (stagesList || []).filter(stageName => (sec.stages || []).includes(stageName));
+      const valid = (stagesList || []).filter(stageName => typeof stageName === 'string' && stageName.trim() !== '');
       if (valid.length > 0) {
         active[secName] = valid;
       }

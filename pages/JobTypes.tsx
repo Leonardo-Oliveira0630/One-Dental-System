@@ -332,6 +332,26 @@ export const JobTypes = () => {
     });
   };
 
+  const addCustomStageToFormSector = (sectorName: string, customStageName: string) => {
+    const trimmed = customStageName.trim();
+    if (!trimmed) return;
+    setFormSectorStages(prev => {
+      const current = prev[sectorName] || [];
+      if (current.includes(trimmed)) return prev;
+      return { ...prev, [sectorName]: [...current, trimmed] };
+    });
+  };
+
+  const addCustomStageToTempSector = (sectorName: string, customStageName: string) => {
+    const trimmed = customStageName.trim();
+    if (!trimmed) return;
+    setTempSectorStages(prev => {
+      const current = prev[sectorName] || [];
+      if (current.includes(trimmed)) return prev;
+      return { ...prev, [sectorName]: [...current, trimmed] };
+    });
+  };
+
   const expandAllFormSectors = (expand: boolean) => {
     const next: Record<string, boolean> = {};
     sectors.forEach(s => { next[s.name] = expand; });
@@ -343,7 +363,7 @@ export const JobTypes = () => {
     const sanitized: Record<string, string[]> = {};
     sectors.forEach(s => {
       const list = raw[s.name] || [];
-      const valid = list.filter(stageName => (s.stages || []).includes(stageName));
+      const valid = list.filter(stageName => typeof stageName === 'string' && stageName.trim() !== '');
       if (valid.length > 0) {
         sanitized[s.name] = valid;
       }
@@ -355,7 +375,7 @@ export const JobTypes = () => {
     let count = 0;
     sectors.forEach(s => {
       const list = formSectorStages[s.name] || [];
-      count += list.filter(st => (s.stages || []).includes(st)).length;
+      count += list.filter(st => typeof st === 'string' && st.trim() !== '').length;
     });
     return count;
   }, [formSectorStages, sectors]);
@@ -1660,8 +1680,10 @@ export const JobTypes = () => {
                                 <div className="space-y-4">
                                     {sectors.map(sector => {
                                         const isExpanded = expandedFormSectors[sector.name] ?? true;
-                                        const sectorStagesList = sector.stages || [];
-                                        const selectedStagesForSector = (formSectorStages[sector.name] || []).filter(st => sectorStagesList.includes(st));
+                                        const defaultStages = sector.stages || [];
+                                        const formStages = formSectorStages[sector.name] || [];
+                                        const sectorStagesList = Array.from(new Set([...defaultStages, ...formStages]));
+                                        const selectedStagesForSector = formStages;
                                         const hasAllSelected = sectorStagesList.length > 0 && sectorStagesList.every(st => selectedStagesForSector.includes(st));
 
                                         return (
@@ -1826,8 +1848,10 @@ export const JobTypes = () => {
                           <div className="space-y-3">
                               {sectors.map(sector => {
                                   const isExpanded = expandedSectors[sector.name] ?? true;
-                                  const sectorStagesList = sector.stages || [];
-                                  const selectedStagesForSector = tempSectorStages[sector.name] || [];
+                                  const defaultStages = sector.stages || [];
+                                  const tempStages = tempSectorStages[sector.name] || [];
+                                  const sectorStagesList = Array.from(new Set([...defaultStages, ...tempStages]));
+                                  const selectedStagesForSector = tempStages;
 
                                   return (
                                       <div key={sector.id} className="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-xs">
