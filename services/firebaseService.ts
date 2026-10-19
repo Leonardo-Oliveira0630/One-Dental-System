@@ -1489,7 +1489,7 @@ export const subscribeServiceRatings = (labId: string, serviceId: string, cb: (r
 };
 export const subscribeRoutes = (orgId: string, cb: (routes: DeliveryRoute[]) => void) => {
   if (!orgId) return () => {};
-  const q = query(collection(db, `organizations/${orgId}/routes`), limit(50));
+  const q = query(collection(db, `organizations/${orgId}/routes`), limit(250));
   return onSnapshot(q, (snap: any) => {
     cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any, date: toDate(d.data().date), createdAt: toDate(d.data().createdAt) } as DeliveryRoute)));
   }, (error: any) => logger.warn(`[Firestore] Erro em subscribeRoutes: ${error.code}`));

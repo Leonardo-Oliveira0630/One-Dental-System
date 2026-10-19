@@ -53,10 +53,14 @@ const formatItemNameWithVariations = (item: JobItem, jobTypes: JobType[]) => {
 
 export const GlobalScanner: React.FC = () => {
   console.log("GlobalScanner mounted!");
-  const { jobs, updateJob, currentUser, addCommissionRecord, updateCommissionRecord, deleteCommissionRecord, commissions, uploadFile, sectors, jobTypes, nfcBoxes, commissionGroups } = useApp();
+  const { jobs, updateJob, currentUser, addCommissionRecord, updateCommissionRecord, deleteCommissionRecord, commissions, uploadFile, sectors, jobTypes, nfcBoxes, commissionGroups, allUsers } = useApp();
   const navigate = useNavigate();
   const bufferRef = useRef<string>('');
   const lastKeyTimeRef = useRef<number>(0);
+  const labUsersRef = useRef<any[]>([]);
+  useEffect(() => {
+    labUsersRef.current = (allUsers || []).filter((u: any) => u.role !== UserRole.CLIENT);
+  }, [allUsers]);
   
   const [scannedJob, setScannedJob] = useState<Job | null>(null);
   const [scanAction, setScanAction] = useState<'ENTRY' | 'EXIT'>('ENTRY');
@@ -594,6 +598,21 @@ export const GlobalScanner: React.FC = () => {
             }
             exec.timestamp = new Date();
         } else if (isExiting) {
+            const existingEntryUserId = currentStageTime.entryUserId || (stageKey === 'BASE' ? exec.userId : undefined);
+            const hasEntry = !!(currentStageTime.entryTime || (stageKey === 'BASE' && exec.entryTime));
+
+            if (hasEntry && existingEntryUserId && existingEntryUserId !== user.id) {
+                const entryUserObj = labUsersRef.current?.find((u: any) => u.id === existingEntryUserId);
+                const entryUserName = entryUserObj?.name || exec.userName || 'outro colaborador';
+                alert(
+                    `Regra de Segurança de Comissão:\n\n` +
+                    `Esta etapa/setor teve entrada registrada por "${entryUserName}".\n` +
+                    `Apenas este colaborador pode dar saída e receber a comissão desta etapa.\n\n` +
+                    `Caso outro colaborador vá realizá-la, em produção a etapa deve ser LIMPA primeiro.`
+                );
+                return;
+            }
+
             exec.stageTimes[stageKey] = { 
                 ...currentStageTime, 
                 exitTime: new Date(), 

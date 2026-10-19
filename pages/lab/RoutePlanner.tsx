@@ -10,6 +10,7 @@ import {
 import * as api from '../../services/firebaseService';
 import { notifyJobLogistics } from '../../services/ycloudService';
 import { filterAndSortClients } from '../../utils/stringUtils';
+import { getTodayDateStr, normalizeRouteDate, isAfter12PM, createMiddayDate } from '../../utils/dateHelpers';
 
 export const RoutePlanner = () => {
     const { t } = useTranslation();
@@ -18,13 +19,16 @@ export const RoutePlanner = () => {
         couriers, addCourier, updateCourier, deleteCourier, jobs, updateJob, routes
     } = useApp();
     
-    const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+    const [selectedDate, setSelectedDate] = useState(getTodayDateStr());
     const [selectedShift, setSelectedShift] = useState<'MORNING' | 'AFTERNOON'>('MORNING');
     const [selectedRouteId, setSelectedRouteId] = useState<string | null>(() => {
         try { return localStorage.getItem('labprox_active_route_id') || null; } catch { return null; }
     });
     const [routeItems, setRouteItems] = useState<RouteItem[]>([]);
     const [isAddingPickup, setIsAddingPickup] = useState(false);
+    const [pickupType, setPickupType] = useState<'PICKUP' | 'DELIVERY'>('PICKUP');
+    const [deliverySubtype, setDeliverySubtype] = useState<'MATERIALS' | 'JOB'>('MATERIALS');
+    const [pickupObs, setPickupObs] = useState('');
     const [isSaving, setIsSaving] = useState(false);
     const [dentistSearch, setDentistSearch] = useState('');
 
@@ -46,6 +50,10 @@ export const RoutePlanner = () => {
     const [targetMoveRouteId, setTargetMoveRouteId] = useState<string>('');
     const [isMovingItem, setIsMovingItem] = useState(false);
     const [isDeletingRoute, setIsDeletingRoute] = useState(false);
+    const [isCreatingMoveRoute, setIsCreatingMoveRoute] = useState(false);
+    const [moveRouteCourier, setMoveRouteCourier] = useState('');
+    const [moveRouteShift, setMoveRouteShift] = useState<'MORNING' | 'AFTERNOON'>('AFTERNOON');
+    const [moveRouteDate, setMoveRouteDate] = useState(getTodayDateStr());
 
     const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
     const [editingObservationsId, setEditingObservationsId] = useState<string | null>(null);
@@ -113,7 +121,7 @@ export const RoutePlanner = () => {
     // All routes for the currently selected date and shift
     const shiftRoutes = useMemo(() => {
         return routes.filter(r => {
-            const rDateStr = r.date instanceof Date ? r.date.toISOString().split('T')[0] : String(r.date).split('T')[0];
+            const rDateStr = normalizeRouteDate(r.date);
             return rDateStr === selectedDate && r.shift === selectedShift;
         });
     }, [routes, selectedDate, selectedShift]);
@@ -146,11 +154,24 @@ export const RoutePlanner = () => {
 
     const handleCreateRoute = async (driverName: string) => {
         if (!currentOrg || !driverName || (!canCreate && !canEdit)) return;
+
+        const today = getTodayDateStr();
+
+        if (selectedDate < today) {
+            alert("Não é possível criar rotas para datas anteriores ao dia vigente.");
+            return;
+        }
+
+        if (selectedDate === today && selectedShift === 'MORNING' && isAfter12PM()) {
+            alert("Após as 12:00, não é possível criar a Rota da Manhã do dia de hoje. Selecione a Rota da Tarde ou um dia futuro.");
+            return;
+        }
+
         const routeId = `route_${selectedDate}_${selectedShift}_${driverName.replace(/\s+/g, '_')}_${Date.now().toString(36)}`;
         await api.apiAddRoute(currentOrg.id, {
             id: routeId,
             organizationId: currentOrg.id,
-            date: new Date(selectedDate),
+            date: createMiddayDate(selectedDate),
             shift: selectedShift,
             driverName: driverName,
             status: 'OPEN',
@@ -163,9 +184,16 @@ export const RoutePlanner = () => {
         setSelectedCourierId('');
     };
 
-    // Available target routes for moving items (excluding current active route and completed routes)
+    // Available target routes for moving items (excluding current active route, completed routes, and past dates)
     const availableMoveRoutes = useMemo(() => {
-        return routes.filter(r => r.id !== activeRoute?.id && r.status !== 'COMPLETED');
+        const today = getTodayDateStr();
+        return routes.filter(r => {
+            if (r.id === activeRoute?.id) return false;
+            if (r.status === 'COMPLETED') return false;
+            const rDateStr = normalizeRouteDate(r.date);
+            if (rDateStr < today) return false; // Exclude past routes
+            return true;
+        });
     }, [routes, activeRoute?.id]);
 
     const handleDeleteRoute = async (routeId: string) => {
@@ -203,6 +231,54 @@ export const RoutePlanner = () => {
         }
     };
 
+    const handleQuickCreateAndMove = async () => {
+        if (!currentOrg || !activeRoute || !configGroupItems || configGroupItems.length === 0) return;
+        const driverName = moveRouteCourier.trim();
+        if (!driverName) {
+            alert("Informe o nome do motoboy para a nova rota.");
+            return;
+        }
+        const dateStr = moveRouteDate;
+        const shift = moveRouteShift;
+        const today = getTodayDateStr();
+
+        if (dateStr < today) {
+            alert("Não é possível criar rotas em datas anteriores ao dia vigente.");
+            return;
+        }
+
+        if (dateStr === today && shift === 'MORNING' && isAfter12PM()) {
+            alert("Após as 12:00, somente rotas do turno da TARDE podem ser selecionadas para hoje.");
+            return;
+        }
+
+        setIsMovingItem(true);
+        try {
+            const newRouteId = `route_${dateStr}_${shift}_${driverName.replace(/\s+/g, '_')}_${Date.now().toString(36)}`;
+            await api.apiAddRoute(currentOrg.id, {
+                id: newRouteId,
+                organizationId: currentOrg.id,
+                date: createMiddayDate(dateStr),
+                shift: shift,
+                driverName: driverName,
+                status: 'OPEN',
+                createdAt: new Date()
+            });
+
+            await api.apiMoveRouteItems(currentOrg.id, activeRoute.id, newRouteId, configGroupItems);
+            setShowMoveModal(false);
+            setConfigGroupItems(null);
+            setIsCreatingMoveRoute(false);
+            setMoveRouteCourier('');
+            alert(t('routes.moveSuccess', 'Nova rota criada e caso movido com sucesso!'));
+        } catch (err) {
+            console.error("Erro ao criar rota e mover:", err);
+            alert("Erro ao criar nova rota e mover itens.");
+        } finally {
+            setIsMovingItem(false);
+        }
+    };
+
     const formatDentistAddress = (d: any) => {
         if (!d) return t('routes.addressNotRegistered', 'Endereço não cadastrado');
         const parts: string[] = [];
@@ -221,19 +297,28 @@ export const RoutePlanner = () => {
         if (!activeRoute || !currentOrg || (!canCreate && !canEdit)) return;
         const address = formatDentistAddress(dentist);
         
+        let defaultObs = 'Coleta de materiais / moldes';
+        if (pickupType === 'DELIVERY') {
+            defaultObs = deliverySubtype === 'MATERIALS' ? 'Entrega de materiais / insumos' : 'Entrega de trabalhos finalizados';
+        }
+
         const newItem: RouteItem = {
-            id: `pickup_${Date.now()}`,
+            id: `stop_${Date.now()}`,
             routeId: activeRoute.id,
             dentistId: dentist.id,
             dentistName: dentist.name,
             clinicName: dentist.clinicName,
             address: address,
-            type: 'PICKUP',
+            type: pickupType,
+            observations: pickupObs.trim() ? pickupObs.trim() : defaultObs,
             order: routeItems.length + 1
         };
 
         await api.apiAddRouteItem(currentOrg.id, activeRoute.id, newItem);
         setIsAddingPickup(false);
+        setPickupObs('');
+        setPickupType('PICKUP');
+        setDeliverySubtype('MATERIALS');
     };
 
     const handleDeleteItem = async (itemId: string) => {
@@ -448,6 +533,18 @@ export const RoutePlanner = () => {
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2">
+                                    {(canCreate || canEdit) && (
+                                        <button 
+                                            id="header-add-pickup-btn"
+                                            onClick={() => setIsAddingPickup(true)}
+                                            className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs rounded-full shadow-sm flex items-center gap-1.5 uppercase tracking-wider transition-all shrink-0"
+                                            title="Solicitar Parada Avulsa (Coleta / Entrega)"
+                                        >
+                                            <Plus size={14} />
+                                            <span className="hidden sm:inline">Parada Avulsa</span>
+                                        </button>
+                                    )}
+
                                     <select 
                                         id="route-status-select"
                                         value={activeRoute.status} 
@@ -891,36 +988,80 @@ export const RoutePlanner = () => {
                 </div>
             )}
 
-            {/* MODAL: ADICIONAR COLETA AVULSA */}
+            {/* MODAL: ADICIONAR PARADA AVULSA (COLETA / ENTREGA) */}
             {isAddingPickup && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" id="add-pickup-modal">
                     <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-4 sm:p-6 animate-in zoom-in-95 duration-200">
                         <div className="flex justify-between items-center mb-6 border-b pb-4">
                             <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight flex items-center gap-1.5">
-                                <Building size={18} className="text-blue-600"/> {t('routes.singleStopPickup', 'Parada Avulsa (Coleta)')}
+                                <Building size={18} className="text-blue-600"/> {t('routes.singleStopPickup', 'Parada Avulsa (Coleta / Entrega)')}
                             </h3>
                             <button id="close-pickup-modal-btn" onClick={() => setIsAddingPickup(false)} className="text-slate-400 hover:text-slate-600"><X size={20}/></button>
                         </div>
                         
                         <div className="space-y-4">
-                            <div className="relative">
-                                <Search className="absolute left-3 top-3 text-slate-400" size={18} />
+                            <div>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Tipo da Parada Avulsa</label>
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                    <button 
+                                        type="button" 
+                                        onClick={() => { setPickupType('PICKUP'); setDeliverySubtype('MATERIALS'); }} 
+                                        className={`p-3 rounded-2xl font-extrabold text-xs flex flex-col items-center justify-center gap-1 border transition-all text-center ${pickupType === 'PICKUP' ? 'bg-amber-500 text-white border-amber-500 shadow-md scale-102' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'}`}
+                                    >
+                                        <span className="text-sm">📦 Coleta</span>
+                                        <span className={`text-[10px] ${pickupType === 'PICKUP' ? 'text-amber-100' : 'text-slate-400'}`}>Materiais / Moldes</span>
+                                    </button>
+                                    <button 
+                                        type="button" 
+                                        onClick={() => { setPickupType('DELIVERY'); setDeliverySubtype('MATERIALS'); }} 
+                                        className={`p-3 rounded-2xl font-extrabold text-xs flex flex-col items-center justify-center gap-1 border transition-all text-center ${pickupType === 'DELIVERY' && deliverySubtype === 'MATERIALS' ? 'bg-cyan-600 text-white border-cyan-600 shadow-md scale-102' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'}`}
+                                    >
+                                        <span className="text-sm">🚚 Entrega</span>
+                                        <span className={`text-[10px] ${pickupType === 'DELIVERY' && deliverySubtype === 'MATERIALS' ? 'text-cyan-100' : 'text-slate-400'}`}>Materiais / Insumos</span>
+                                    </button>
+                                    <button 
+                                        type="button" 
+                                        onClick={() => { setPickupType('DELIVERY'); setDeliverySubtype('JOB'); }} 
+                                        className={`p-3 rounded-2xl font-extrabold text-xs flex flex-col items-center justify-center gap-1 border transition-all text-center ${pickupType === 'DELIVERY' && deliverySubtype === 'JOB' ? 'bg-blue-600 text-white border-blue-600 shadow-md scale-102' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'}`}
+                                    >
+                                        <span className="text-sm">💼 Entrega</span>
+                                        <span className={`text-[10px] ${pickupType === 'DELIVERY' && deliverySubtype === 'JOB' ? 'text-blue-100' : 'text-slate-400'}`}>Trabalhos Finalizados</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Observações (Opcional)</label>
                                 <input 
-                                    id="pickup-dentist-search-input"
-                                    placeholder={t('routes.searchDentistByName', 'Buscar dentista por nome...')} 
-                                    value={dentistSearch}
-                                    onChange={e => setDentistSearch(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold bg-slate-50" 
+                                    type="text" 
+                                    placeholder={pickupType === 'PICKUP' ? 'Ex: Coleta de moldes ou trabalhos de prova' : (deliverySubtype === 'MATERIALS' ? 'Ex: Entrega de gessos, ligas, fios ou insumos' : 'Ex: Entrega de caso/prótese pronta')} 
+                                    value={pickupObs} 
+                                    onChange={e => setPickupObs(e.target.value)} 
+                                    className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 bg-slate-50 focus:bg-white outline-none focus:ring-2 focus:ring-blue-500" 
                                 />
                             </div>
 
-                            <div className="space-y-2" id="pickup-dentists-list">
+                            <div className="relative pt-1">
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Selecione o Dentista / Consultório</label>
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-3 text-slate-400" size={18} />
+                                    <input 
+                                        id="pickup-dentist-search-input"
+                                        placeholder={t('routes.searchDentistByName', 'Buscar dentista por nome...')} 
+                                        value={dentistSearch}
+                                        onChange={e => setDentistSearch(e.target.value)}
+                                        className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold bg-slate-50" 
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1" id="pickup-dentists-list">
                                 {filteredDentists.map(d => (
                                     <button 
                                         key={d.id} 
                                         id={`select-pickup-dentist-${d.id}`}
                                         onClick={() => handleAddPickup(d)}
-                                        className="w-full text-left p-3.5 hover:bg-blue-50/20 border border-slate-100 rounded-2xl flex items-center justify-between group transition-all"
+                                        className="w-full text-left p-3.5 hover:bg-blue-50/30 border border-slate-100 rounded-2xl flex items-center justify-between group transition-all"
                                     >
                                         <div>
                                             <p className="font-extrabold text-slate-800 text-sm">{d.name}</p>
@@ -936,6 +1077,19 @@ export const RoutePlanner = () => {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* FLOATING FIXED BUTTON: ADICIONAR PARADA AVULSA */}
+            {(activeRoute && (canCreate || canEdit)) && (
+                <button 
+                    id="floating-add-pickup-btn"
+                    onClick={() => setIsAddingPickup(true)}
+                    className="fixed bottom-6 right-6 z-40 px-5 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs rounded-full shadow-2xl flex items-center gap-2 uppercase tracking-wider transition-all hover:scale-105 active:scale-95 border-2 border-white"
+                    title="Solicitar Parada Avulsa (Coleta/Entrega)"
+                >
+                    <Plus size={18} />
+                    <span>PARADA AVULSA</span>
+                </button>
             )}
 
             {/* MODAL: MOVER CASO / PARADA PARA OUTRA ROTA (CONFIG) */}
@@ -983,69 +1137,165 @@ export const RoutePlanner = () => {
 
                             {/* Target Route Selection */}
                             <div>
-                                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">
-                                    {t('routes.selectDestinationRoute', 'Selecione a Rota de Destino:')}
-                                </label>
-                                {availableMoveRoutes.length > 0 ? (
-                                    <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1" id="move-target-routes-list">
-                                        {availableMoveRoutes.map(r => (
-                                            <button
-                                                key={r.id}
-                                                type="button"
-                                                id={`target-route-btn-${r.id}`}
-                                                onClick={() => setTargetMoveRouteId(r.id)}
-                                                className={`w-full text-left p-3.5 border rounded-2xl transition-all flex items-center justify-between ${
-                                                    targetMoveRouteId === r.id
-                                                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
-                                                        : 'bg-white hover:bg-indigo-50/50 border-slate-200 text-slate-800'
-                                                }`}
-                                            >
-                                                <div>
-                                                    <div className="flex items-center gap-2">
-                                                        <Truck size={14} className={targetMoveRouteId === r.id ? 'text-indigo-200' : 'text-indigo-600'} />
-                                                        <p className="font-extrabold text-sm">{r.driverName}</p>
-                                                    </div>
-                                                    <p className={`text-[10px] font-bold mt-1 ${targetMoveRouteId === r.id ? 'text-indigo-100' : 'text-slate-400'}`}>
-                                                        Data: {r.date instanceof Date ? r.date.toLocaleDateString('pt-BR') : String(r.date)} • Turno: {r.shift === 'MORNING' ? 'Manhã' : 'Tarde'}
-                                                    </p>
-                                                </div>
-                                                <span className={`text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wider ${
-                                                    targetMoveRouteId === r.id
-                                                        ? 'bg-white/20 text-white'
-                                                        : 'bg-indigo-50 text-indigo-700'
-                                                }`}>
-                                                    {targetMoveRouteId === r.id ? 'Selecionada' : 'Mover p/ aqui'}
-                                                </span>
-                                            </button>
-                                        ))}
+                                <div className="flex justify-between items-center mb-2">
+                                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest">
+                                        {t('routes.selectDestinationRoute', 'Selecione a Rota de Destino:')}
+                                    </label>
+                                    {canCreate && (
+                                        <button 
+                                            type="button"
+                                            onClick={() => setIsCreatingMoveRoute(!isCreatingMoveRoute)}
+                                            className="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors flex items-center gap-1"
+                                        >
+                                            {isCreatingMoveRoute ? '✕ Ver Rotas Existentes' : '+ Criar Nova Rota'}
+                                        </button>
+                                    )}
+                                </div>
+
+                                {isCreatingMoveRoute ? (
+                                    <div className="p-4 bg-indigo-50/60 border border-indigo-200 rounded-2xl space-y-3 animate-in zoom-in-95 duration-150">
+                                        <p className="text-xs font-black text-indigo-900 uppercase tracking-wider">Criar Nova Rota e Mover</p>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <div>
+                                                <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Data</label>
+                                                <input 
+                                                    type="date" 
+                                                    min={getTodayDateStr()} 
+                                                    value={moveRouteDate} 
+                                                    onChange={e => setMoveRouteDate(e.target.value)} 
+                                                    className="w-full text-xs font-bold px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Turno</label>
+                                                <select 
+                                                    value={moveRouteShift} 
+                                                    onChange={e => setMoveRouteShift(e.target.value as any)} 
+                                                    className="w-full text-xs font-bold px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
+                                                >
+                                                    <option value="MORNING" disabled={moveRouteDate === getTodayDateStr() && isAfter12PM()}>
+                                                        Manhã {moveRouteDate === getTodayDateStr() && isAfter12PM() ? '(Encerrada)' : ''}
+                                                    </option>
+                                                    <option value="AFTERNOON">Tarde</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Motoboy / Entregador</label>
+                                            {couriers && couriers.filter(c => c.active).length > 0 ? (
+                                                <select 
+                                                    value={moveRouteCourier} 
+                                                    onChange={e => setMoveRouteCourier(e.target.value)} 
+                                                    className="w-full text-xs font-bold px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
+                                                >
+                                                    <option value="">-- Selecione o Motoboy --</option>
+                                                    {couriers.filter(c => c.active).map(c => (
+                                                        <option key={c.id} value={c.name}>{c.name} {c.vehicle ? `(${c.vehicle})` : ''}</option>
+                                                    ))}
+                                                </select>
+                                            ) : (
+                                                <input 
+                                                    type="text" 
+                                                    placeholder="Nome do motorista..." 
+                                                    value={moveRouteCourier} 
+                                                    onChange={e => setMoveRouteCourier(e.target.value)} 
+                                                    className="w-full text-xs font-bold px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
+                                                />
+                                            )}
+                                        </div>
+                                        <button 
+                                            type="button" 
+                                            onClick={handleQuickCreateAndMove}
+                                            disabled={!moveRouteCourier.trim() || isMovingItem}
+                                            className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-xl shadow-md uppercase tracking-wider flex items-center justify-center gap-2 disabled:opacity-40 transition-all"
+                                        >
+                                            {isMovingItem ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+                                            <span>Criar Rota e Mover Imediatamente</span>
+                                        </button>
                                     </div>
                                 ) : (
-                                    <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-800 font-bold space-y-2" id="no-destination-routes-warning">
-                                        <p>⚠️ Nenhuma outra rota ativa encontrada para transferência neste momento.</p>
-                                        <p className="text-[11px] font-medium text-amber-700">Para mover este caso, crie primeiro uma nova rota no seletor do turno ("Nova Rota").</p>
-                                    </div>
+                                    <>
+                                        {availableMoveRoutes.length > 0 ? (
+                                            <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1" id="move-target-routes-list">
+                                                {availableMoveRoutes.map(r => {
+                                                    const rDateStr = normalizeRouteDate(r.date);
+                                                    const isToday = rDateStr === getTodayDateStr();
+                                                    return (
+                                                        <button
+                                                            key={r.id}
+                                                            type="button"
+                                                            id={`target-route-btn-${r.id}`}
+                                                            onClick={() => setTargetMoveRouteId(r.id)}
+                                                            className={`w-full text-left p-3.5 border rounded-2xl transition-all flex items-center justify-between ${
+                                                                targetMoveRouteId === r.id
+                                                                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
+                                                                    : 'bg-white hover:bg-indigo-50/50 border-slate-200 text-slate-800'
+                                                            }`}
+                                                        >
+                                                            <div>
+                                                                <div className="flex items-center gap-2">
+                                                                    <Truck size={14} className={targetMoveRouteId === r.id ? 'text-indigo-200' : 'text-indigo-600'} />
+                                                                    <p className="font-extrabold text-sm">{r.driverName}</p>
+                                                                    {isToday && (
+                                                                        <span className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase ${
+                                                                            targetMoveRouteId === r.id ? 'bg-indigo-500 text-white' : 'bg-emerald-100 text-emerald-800'
+                                                                        }`}>
+                                                                            Hoje
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                                <p className={`text-[10px] font-bold mt-1 ${targetMoveRouteId === r.id ? 'text-indigo-100' : 'text-slate-400'}`}>
+                                                                    Data: {rDateStr.split('-').reverse().join('/')} • Turno: {r.shift === 'MORNING' ? 'Manhã' : 'Tarde'}
+                                                                </p>
+                                                            </div>
+                                                            <span className={`text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wider ${
+                                                                targetMoveRouteId === r.id
+                                                                    ? 'bg-white/20 text-white'
+                                                                    : 'bg-indigo-50 text-indigo-700'
+                                                            }`}>
+                                                                {targetMoveRouteId === r.id ? 'Selecionada' : 'Mover p/ aqui'}
+                                                            </span>
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        ) : (
+                                            <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-800 font-bold space-y-2" id="no-destination-routes-warning">
+                                                <p>⚠️ Nenhuma outra rota ativa encontrada para o dia vigente ou datas futuras.</p>
+                                                <button 
+                                                    type="button" 
+                                                    onClick={() => setIsCreatingMoveRoute(true)}
+                                                    className="w-full mt-1 py-2 bg-indigo-600 text-white rounded-xl text-xs font-black uppercase tracking-wider hover:bg-indigo-700 transition-all"
+                                                >
+                                                    + Criar Rota da Tarde de Hoje e Mover
+                                                </button>
+                                            </div>
+                                        )}
+                                    </>
                                 )}
                             </div>
 
-                            <div className="pt-3 flex gap-2">
-                                <button
-                                    type="button"
-                                    onClick={() => { setShowMoveModal(false); setConfigGroupItems(null); }}
-                                    className="flex-1 py-3 bg-slate-100 text-slate-700 font-extrabold text-xs rounded-xl hover:bg-slate-200 transition-all uppercase tracking-wider"
-                                >
-                                    {t('common.cancel', 'Cancelar')}
-                                </button>
-                                <button
-                                    type="button"
-                                    id="confirm-move-route-btn"
-                                    onClick={handleMoveGroupItems}
-                                    disabled={!targetMoveRouteId || isMovingItem}
-                                    className="flex-1 py-3 bg-indigo-600 text-white font-black text-xs rounded-xl hover:bg-indigo-700 disabled:opacity-40 uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-indigo-200 transition-all"
-                                >
-                                    {isMovingItem ? <Loader2 size={16} className="animate-spin"/> : <ArrowRightLeft size={16}/>}
-                                    {t('routes.confirmMoveBtn', 'MOVER CASO')}
-                                </button>
-                            </div>
+                            {!isCreatingMoveRoute && (
+                                <div className="pt-3 flex gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => { setShowMoveModal(false); setConfigGroupItems(null); }}
+                                        className="flex-1 py-3 bg-slate-100 text-slate-700 font-extrabold text-xs rounded-xl hover:bg-slate-200 transition-all uppercase tracking-wider"
+                                    >
+                                        {t('common.cancel', 'Cancelar')}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        id="confirm-move-route-btn"
+                                        onClick={handleMoveGroupItems}
+                                        disabled={!targetMoveRouteId || isMovingItem}
+                                        className="flex-1 py-3 bg-indigo-600 text-white font-black text-xs rounded-xl hover:bg-indigo-700 disabled:opacity-40 uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-indigo-200 transition-all"
+                                    >
+                                        {isMovingItem ? <Loader2 size={16} className="animate-spin"/> : <ArrowRightLeft size={16}/>}
+                                        {t('routes.confirmMoveBtn', 'MOVER CASO')}
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

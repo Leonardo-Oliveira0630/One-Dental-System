@@ -6,7 +6,7 @@ import { ManualDentist, UserRole, PermissionKey } from '../../types';
 import { 
   Plus, Search, Edit, Trash2, X, Stethoscope, 
   FileSpreadsheet, UploadCloud, Loader2, Sparkles, Check, Save, BadgeCheck, Phone, Mail, MapPin, Calendar, Globe, Hash, Truck, Package, DollarSign, Lock, Unlock, Table, Percent, Link2,
-  AlertTriangle, AlertCircle, CheckCircle2, Filter, MinusCircle, Pin, FileText, StickyNote
+  AlertTriangle, AlertCircle, CheckCircle2, Filter, MinusCircle, Pin, FileText, StickyNote, RotateCcw
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { GoogleGenAI } from "@google/genai";
@@ -1661,74 +1661,107 @@ export const DentistsTab = () => {
                                                           )}
                                                       </p>
                                                   </div>
-                                                  <div className="flex items-center gap-3">
-                                                      <div className="text-right">
+                                                  <div className="flex items-center gap-2">
+                                                      <div className="text-right mr-1">
                                                           <p className="text-[9px] font-bold text-slate-400 uppercase">Final</p>
                                                           <p className="font-black text-xs text-blue-700">R$ {finalPrice.toFixed(2)}</p>
                                                       </div>
-                                                      <div className="flex items-center bg-slate-50 border border-slate-200 rounded-lg overflow-hidden shrink-0 gap-1 pr-2">
-                                                          <div className="flex items-center">
-                                                              <input 
-                                                                  type="number" 
-                                                                  value={cp?.discountPercent !== undefined ? cp.discountPercent : ''}
-                                                                  onChange={e => {
-                                                                      const raw = e.target.value;
-                                                                      const newPercent = raw === '' ? undefined : parseInt(raw);
-                                                                      const newCustomPrices = [...(formData.customPrices || [])];
-                                                                      const idx = newCustomPrices.findIndex(p => p.jobTypeId === type.id);
-                                                                      if (idx !== -1) {
-                                                                          if (newPercent === undefined || isNaN(newPercent)) {
-                                                                              delete newCustomPrices[idx].discountPercent;
-                                                                              if (!newCustomPrices[idx].fixedPrice && (!newCustomPrices[idx].variations || Object.keys(newCustomPrices[idx].variations).length === 0)) {
-                                                                                  newCustomPrices.splice(idx, 1);
-                                                                              }
-                                                                          } else {
-                                                                              newCustomPrices[idx] = { ...newCustomPrices[idx], discountPercent: newPercent, fixedPrice: undefined };
+
+                                                      {/* Input Direto e Destacado de Preço Fixo Personalizado (R$) */}
+                                                      <div 
+                                                          onClick={(e) => {
+                                                              const inp = e.currentTarget.querySelector("input");
+                                                              inp?.focus();
+                                                          }}
+                                                          className={`flex items-center bg-white border-2 rounded-xl px-2.5 py-1.5 transition-all shadow-xs cursor-text ${
+                                                              !canEditPrices 
+                                                                  ? "opacity-60 bg-slate-50 border-slate-200 cursor-not-allowed" 
+                                                                  : "border-slate-300 hover:border-blue-400 focus-within:border-blue-600 focus-within:ring-2 focus-within:ring-blue-100"
+                                                          }`}
+                                                          title="Clique para editar o valor personalizado deste serviço (R$)"
+                                                      >
+                                                          <span className="text-[11px] font-black text-slate-400 mr-1 select-none pointer-events-none">R$</span>
+                                                          <input 
+                                                              id={`fixed-price-input-${type.id}`}
+                                                              type="number" 
+                                                              step="any"
+                                                              min="0"
+                                                              disabled={!canEditPrices}
+                                                              value={cp?.fixedPrice !== undefined && cp.fixedPrice !== null ? cp.fixedPrice : ""}
+                                                              onClick={(e) => e.stopPropagation()}
+                                                              onFocus={(e) => e.target.select()}
+                                                              onChange={e => {
+                                                                  const raw = e.target.value;
+                                                                  const newFixed = raw === "" ? undefined : parseFloat(raw);
+                                                                  const newCustomPrices = [...(formData.customPrices || [])];
+                                                                  const idx = newCustomPrices.findIndex(p => p.jobTypeId === type.id);
+                                                                  if (idx !== -1) {
+                                                                      if (newFixed === undefined || isNaN(newFixed)) {
+                                                                          delete newCustomPrices[idx].fixedPrice;
+                                                                          if (!newCustomPrices[idx].discountPercent && (!newCustomPrices[idx].variations || Object.keys(newCustomPrices[idx].variations).length === 0)) {
+                                                                              newCustomPrices.splice(idx, 1);
                                                                           }
-                                                                      } else if (newPercent !== undefined && !isNaN(newPercent)) {
-                                                                          newCustomPrices.push({ jobTypeId: type.id, discountPercent: newPercent } as any);
+                                                                      } else {
+                                                                          newCustomPrices[idx] = { ...newCustomPrices[idx], fixedPrice: newFixed, discountPercent: undefined as any };
                                                                       }
-                                                                      setFormData(prev => ({ ...prev, customPrices: newCustomPrices }));
-                                                                  }}
-                                                                  disabled={!canEditPrices}
-                                                                  className="w-12 px-2 py-1 text-xs font-bold text-center outline-none bg-transparent disabled:opacity-60"
-                                                                  placeholder={formData.globalDiscountPercent ? `${formData.globalDiscountPercent}%` : "0"}
-                                                              />
-                                                              <span className="px-1 text-[10px] font-bold text-slate-400 border-l">%</span>
-                                                          </div>
-                                                          <div className="w-px h-4 bg-slate-200 mx-1"></div>
-                                                          <div className="flex items-center">
-                                                              <span className="px-1 text-[10px] font-bold text-slate-400">R$</span>
-                                                              <input 
-                                                                  type="number" 
-                                                                  disabled={!canEditPrices}
-                                                                  value={cp?.fixedPrice !== undefined && cp.fixedPrice > 0 ? cp.fixedPrice : ''}
-                                                                  onChange={e => {
-                                                                      const raw = e.target.value;
-                                                                      const newFixed = raw === '' ? undefined : parseFloat(raw);
-                                                                      const newCustomPrices = [...(formData.customPrices || [])];
-                                                                      const idx = newCustomPrices.findIndex(p => p.jobTypeId === type.id);
-                                                                      if (idx !== -1) {
-                                                                          if (newFixed === undefined || isNaN(newFixed) || newFixed <= 0) {
-                                                                              delete newCustomPrices[idx].fixedPrice;
-                                                                              if (!newCustomPrices[idx].discountPercent && (!newCustomPrices[idx].variations || Object.keys(newCustomPrices[idx].variations).length === 0)) {
-                                                                                  newCustomPrices.splice(idx, 1);
-                                                                              }
-                                                                          } else {
-                                                                              newCustomPrices[idx] = { ...newCustomPrices[idx], fixedPrice: newFixed, discountPercent: undefined as any };
+                                                                  } else if (newFixed !== undefined && !isNaN(newFixed)) {
+                                                                      newCustomPrices.push({ jobTypeId: type.id, fixedPrice: newFixed } as any);
+                                                                  }
+                                                                  setFormData(prev => ({ ...prev, customPrices: newCustomPrices }));
+                                                              }}
+                                                              className="w-24 text-xs font-black text-slate-800 outline-none bg-transparent placeholder:text-slate-300 cursor-text"
+                                                              placeholder={basePriceForService.toFixed(2)}
+                                                          />
+                                                      </div>
+
+                                                      {/* Input Opcional de Desconto Percentual (%) */}
+                                                      <div 
+                                                          onClick={(e) => {
+                                                              const inp = e.currentTarget.querySelector("input");
+                                                              inp?.focus();
+                                                          }}
+                                                          className={`flex items-center bg-slate-50 border rounded-xl px-2 py-1.5 transition-all cursor-text ${
+                                                              !canEditPrices 
+                                                                  ? "opacity-60 border-slate-200 cursor-not-allowed" 
+                                                                  : "border-slate-300 hover:border-green-400 focus-within:border-green-600 focus-within:ring-2 focus-within:ring-green-100"
+                                                          }`}
+                                                          title="Desconto percentual opcional (%)"
+                                                      >
+                                                          <input 
+                                                              id={`discount-percent-input-${type.id}`}
+                                                              type="number" 
+                                                              step="1"
+                                                              min="0"
+                                                              max="100"
+                                                              disabled={!canEditPrices}
+                                                              value={cp?.discountPercent !== undefined && cp.discountPercent !== null ? cp.discountPercent : ""}
+                                                              onClick={(e) => e.stopPropagation()}
+                                                              onFocus={(e) => e.target.select()}
+                                                              onChange={e => {
+                                                                  const raw = e.target.value;
+                                                                  const newPercent = raw === "" ? undefined : parseInt(raw);
+                                                                  const newCustomPrices = [...(formData.customPrices || [])];
+                                                                  const idx = newCustomPrices.findIndex(p => p.jobTypeId === type.id);
+                                                                  if (idx !== -1) {
+                                                                      if (newPercent === undefined || isNaN(newPercent)) {
+                                                                          delete newCustomPrices[idx].discountPercent;
+                                                                          if (!newCustomPrices[idx].fixedPrice && (!newCustomPrices[idx].variations || Object.keys(newCustomPrices[idx].variations).length === 0)) {
+                                                                              newCustomPrices.splice(idx, 1);
                                                                           }
-                                                                      } else if (newFixed !== undefined && !isNaN(newFixed) && newFixed > 0) {
-                                                                          newCustomPrices.push({ jobTypeId: type.id, fixedPrice: newFixed } as any);
+                                                                      } else {
+                                                                          newCustomPrices[idx] = { ...newCustomPrices[idx], discountPercent: newPercent, fixedPrice: undefined };
                                                                       }
-                                                                      setFormData(prev => ({ ...prev, customPrices: newCustomPrices }));
-                                                                  }}
-                                                                  className="w-16 px-2 py-1 text-xs font-bold text-center outline-none bg-transparent"
-                                                                  placeholder={finalPrice.toFixed(2)}
-                                                              />
-                                                          </div>
+                                                                  } else if (newPercent !== undefined && !isNaN(newPercent)) {
+                                                                      newCustomPrices.push({ jobTypeId: type.id, discountPercent: newPercent } as any);
+                                                                  }
+                                                                  setFormData(prev => ({ ...prev, customPrices: newCustomPrices }));
+                                                              }}
+                                                              className="w-10 text-xs font-bold text-center outline-none bg-transparent disabled:opacity-60 placeholder:text-slate-400 cursor-text"
+                                                              placeholder={formData.globalDiscountPercent ? `${formData.globalDiscountPercent}` : "0"}
+                                                          />
+                                                          <span className="text-[10px] font-bold text-slate-400 select-none pointer-events-none">%</span>
                                                       </div>
                                                   </div>
-                                              
                                                   </div>
                                                   {((type.variationGroups && type.variationGroups.length > 0) || (type.variations && type.variations.length > 0)) && (
                                                       <div className="pt-3 border-t border-slate-100">

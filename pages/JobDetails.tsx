@@ -32,7 +32,8 @@ import { WebcamModal } from '../components/WebcamModal';
 import { capturePhotoWithNativePreference } from '../utils/cameraUtils';
 import { filterAndSortClients, filterAndSortProducts, matchesSearchQuery, normalizeText } from '../utils/stringUtils';
 
-const { doc, onSnapshot } = firestorePkg as any;
+const { doc, onSnapshot, deleteField, collection, getDocs } = firestorePkg as any;
+import { getTodayDateStr, normalizeRouteDate, isAfter12PM, createMiddayDate } from '../utils/dateHelpers';
 
 const STLViewer = React.lazy(() => import('../components/STLViewer').then(module => ({ default: module.STLViewer })));
 
@@ -524,17 +525,31 @@ export const JobDetails = () => {
   const [routeDriver, setRouteDriver] = useState('');
   const [selectedRouteId, setSelectedRouteId] = useState('');
   const [routeShift, setRouteShift] = useState<'MORNING' | 'AFTERNOON'>('MORNING');
-  const [routeDate, setRouteDate] = useState(new Date().toISOString().split('T')[0]);
+  const [routeDate, setRouteDate] = useState(getTodayDateStr());
   const [routeObservations, setRouteObservations] = useState('');
 
-  // Active open routes for selected date and shift
+  const [showCancelDeliveryModal, setShowCancelDeliveryModal] = useState(false);
+  const [cancelDeliveryReason, setCancelDeliveryReason] = useState('');
+  const [isCancellingDelivery, setIsCancellingDelivery] = useState(false);
+
+  const todayStr = useMemo(() => getTodayDateStr(), []);
+  const isPast12PM = useMemo(() => isAfter12PM(), []);
+
+  // Rule 8.5: After 12:00 PM on today's date, automatically force AFTERNOON shift
+  useEffect(() => {
+    if (routeDate === todayStr && isPast12PM && routeShift === 'MORNING') {
+        setRouteShift('AFTERNOON');
+    }
+  }, [routeDate, todayStr, isPast12PM, routeShift]);
+
+  // Active open routes for selected date
   const openRoutesForShift = useMemo(() => {
     if (!routes || !Array.isArray(routes)) return [];
     return routes.filter(r => {
-      const rDateStr = r.date instanceof Date ? r.date.toISOString().split('T')[0] : String(r.date).split('T')[0];
-      return rDateStr === routeDate && r.shift === routeShift && r.status !== 'COMPLETED';
+      const rDateStr = normalizeRouteDate(r.date);
+      return rDateStr === routeDate && r.status !== 'COMPLETED';
     });
-  }, [routes, routeDate, routeShift]);
+  }, [routes, routeDate]);
 
   const [showReturnModal, setShowReturnModal] = useState(false);
 
@@ -601,6 +616,28 @@ export const JobDetails = () => {
   }, [id, isPseudo, jobs, budgets, onlineRequisitions]);
 
   const job = resolvedJob;
+
+  const currentDentistObj = useMemo(() => {
+    if (!job?.dentistId) return null;
+    return allUsers.find(u => u.id === job.dentistId) || manualDentists.find(d => d.id === job.dentistId) || null;
+  }, [job?.dentistId, allUsers, manualDentists]);
+
+  const clientAddressFormatted = useMemo(() => {
+    if (!currentDentistObj) return '';
+    const parts: string[] = [];
+    if (currentDentistObj.address) {
+      let line = currentDentistObj.address;
+      if (currentDentistObj.number) line += `, ${currentDentistObj.number}`;
+      if (currentDentistObj.complement) line += ` - ${currentDentistObj.complement}`;
+      parts.push(line);
+    }
+    if (currentDentistObj.neighborhood) parts.push(currentDentistObj.neighborhood);
+    if (currentDentistObj.city || currentDentistObj.state) {
+      parts.push(`${currentDentistObj.city || ''}${currentDentistObj.city && currentDentistObj.state ? '/' : ''}${currentDentistObj.state || ''}`);
+    }
+    if (currentDentistObj.cep) parts.push(`CEP: ${currentDentistObj.cep}`);
+    return parts.length > 0 ? parts.join(' - ') : (typeof currentDentistObj.address === 'string' ? currentDentistObj.address : '');
+  }, [currentDentistObj]);
 
   const handleReturnAction = (action: 'PROSSEGUIMENTO' | 'AJUSTE' | 'REPETICAO') => {
     if (!job) return;
@@ -1661,15 +1698,68 @@ export const JobDetails = () => {
 
   const handleAddToRoute = async () => {
     if (!routeDriver) { alert("Informe o nome do motorista."); return; }
+    if (routeDate < todayStr) {
+        alert("Não é possível alocar trabalhos em rotas de datas anteriores à atual.");
+        return;
+    }
+    if (routeDate === todayStr && isPast12PM && routeShift === 'MORNING') {
+        alert("Após as 12:00, somente rotas do turno da TARDE podem ser selecionadas para a data de hoje.");
+        return;
+    }
     setIsUpdatingStatus(true);
     try {
         await addJobToRoute(job, routeDriver, routeShift, new Date(routeDate), routeObservations, selectedRouteId || undefined);
         setShowRouteModal(false);
         setRouteObservations('');
         setSelectedRouteId('');
+        alert("Trabalho vinculado à rota com sucesso!");
     } catch (err) {
         alert("Erro ao adicionar à rota.");
     } finally { setIsUpdatingStatus(false); }
+  };
+
+  const handleConfirmCancelDelivery = async () => {
+    if (!job || !currentOrg) return;
+    if (!cancelDeliveryReason.trim()) {
+        alert("Por favor, informe o motivo do cancelamento da entrega.");
+        return;
+    }
+    setIsCancellingDelivery(true);
+    try {
+        if (job.routeId) {
+            const itemsSnap = await getDocs(collection(db, `organizations/${currentOrg.id}/routes/${job.routeId}/items`));
+            itemsSnap.docs.forEach((dDoc: any) => {
+                if (dDoc.data()?.jobId === job.id) {
+                    api.apiDeleteRouteItem(currentOrg.id, job.routeId!, dDoc.id);
+                }
+            });
+        }
+
+        const newHistory = [...(job.history || []).filter(Boolean), {
+            id: `hist_cancel_del_${Date.now()}`,
+            timestamp: new Date(),
+            action: `Entrega Cancelada / Não Entregue`,
+            observations: `Motivo: ${cancelDeliveryReason.trim()}`,
+            userId: currentUser?.id || '',
+            userName: currentUser?.name || 'Usuário',
+            sector: 'Logística'
+        }];
+
+        await updateJob(job.id, {
+            routeId: deleteField() as any,
+            history: newHistory
+        });
+
+        setShowCancelDeliveryModal(false);
+        setCancelDeliveryReason('');
+        setRouteInfo(null);
+        alert("Entrega cancelada com sucesso! O caso foi liberado da rota e pode ser alocado novamente em um novo roteiro.");
+    } catch (err) {
+        console.error("Erro ao cancelar entrega:", err);
+        alert("Erro ao cancelar entrega. Tente novamente.");
+    } finally {
+        setIsCancellingDelivery(false);
+    }
   };
 
   const handleQuickStatusUpdate = async (newStatus: JobStatus) => {
@@ -1855,11 +1945,34 @@ export const JobDetails = () => {
       if (!editingExecution || !job) return;
       if (!editingExecution.userId) return alert('Selecione um funcionário');
 
+      const targetStageKey = editingExecution.stageName || 'BASE';
+      const isBaseStage = targetStageKey === 'BASE';
+
+      // Security Rule Enforcement:
+      // If this stage/sector already has an entry registered by a collaborator, ONLY that same collaborator can register exit or be assigned to it,
+      // UNLESS the stage/sector was cleared ("limpa") first!
+      const existingExec = (job.itemExecutions || []).find((e: any) => e.itemId === editingExecution.item.id && e.sector === editingExecution.sector);
+      const existingStageData = existingExec?.stageTimes?.[targetStageKey];
+
+      const existingEntryUserId = existingStageData?.entryUserId || (isBaseStage ? (existingExec?.userId || editingExecution.originalMovement?.entryUserId) : undefined);
+      const hasExistingEntry = !!(existingStageData?.entryTime || (isBaseStage && (existingExec?.entryTime || editingExecution.originalMovement?.entryTime)));
+
+      if (hasExistingEntry && existingEntryUserId) {
+          if (editingExecution.userId !== existingEntryUserId) {
+              const entryUserObj = labUsers.find(u => u.id === existingEntryUserId);
+              const entryUserName = entryUserObj?.name || existingExec?.userName || 'outro colaborador';
+              alert(
+                  `Regra de Segurança de Comissão:\n\n` +
+                  `Esta etapa/setor possui entrada registrada por "${entryUserName}".\n` +
+                  `Apenas este mesmo colaborador pode dar saída e receber a comissão desta etapa.\n\n` +
+                  `Caso outro colaborador vá realizar esta etapa, em produção ela deve ser LIMPA primeiro (botão com ícone de desfazer/limpar na tabela de produção).`
+              );
+              return;
+          }
+      }
+
       setIsUpdatingStatus(true);
       try {
-          const targetStageKey = editingExecution.stageName || 'BASE';
-          const isBaseStage = targetStageKey === 'BASE';
-
           // Prepare new sectorMovements if BASE stage
           let newMovements = [...(job.sectorMovements || [])];
           if (isBaseStage) {
@@ -2575,6 +2688,13 @@ export const JobDetails = () => {
                 <User size={16} className="text-slate-400 font-bold" />
                 <span>{job.patientName}</span>
               </div>
+              {clientAddressFormatted && (
+                <div className="flex items-center gap-1.5 mt-1.5 text-xs text-slate-600 font-medium">
+                  <MapPin size={13} className="text-blue-500 shrink-0" />
+                  <span className="text-[10px] font-bold text-slate-400 uppercase shrink-0">Endereço:</span>
+                  <span className="truncate" title={clientAddressFormatted}>{clientAddressFormatted}</span>
+                </div>
+              )}
             </div>
 
             <div>
@@ -3162,6 +3282,27 @@ export const JobDetails = () => {
                   </div>
                   
                   <div className="space-y-4">
+                      {(() => {
+                          const targetStageKey = editingExecution.stageName || 'BASE';
+                          const existingExec = (job.itemExecutions || []).find((e: any) => e.itemId === editingExecution.item.id && e.sector === editingExecution.sector);
+                          const existingStageData = existingExec?.stageTimes?.[targetStageKey];
+                          const entryUid = existingStageData?.entryUserId || (targetStageKey === 'BASE' ? (existingExec?.userId || editingExecution.originalMovement?.entryUserId) : undefined);
+                          const entryUserObj = entryUid ? labUsers.find(u => u.id === entryUid) : null;
+                          const entryName = entryUserObj?.name || existingExec?.userName;
+                          
+                          if (entryName && (existingStageData?.entryTime || (targetStageKey === 'BASE' && (existingExec?.entryTime || editingExecution.originalMovement?.entryTime)))) {
+                              return (
+                                  <div className="bg-amber-50 border border-amber-200 text-amber-900 text-xs p-3 rounded-2xl font-medium space-y-1">
+                                      <div className="font-bold flex items-center gap-1.5 text-amber-950">
+                                          <AlertTriangle size={14} className="text-amber-600" /> Regra de Segurança de Comissão
+                                      </div>
+                                      <p className="text-[11px] leading-snug">Entrada iniciada por <strong>{entryName}</strong>. Apenas este colaborador pode registrar a saída (ou limpe a etapa primeiro na produção para atribuir a outro).</p>
+                                  </div>
+                              );
+                          }
+                          return null;
+                      })()}
+
                       <div>
                           <label className="block text-[10px] font-black uppercase text-slate-400 mb-1 tracking-widest pl-2">{t("job.sector", "Setor")}</label>
                           <div className="w-full bg-slate-50 text-slate-600 p-3 rounded-xl border border-slate-200 font-bold">{editingExecution.sector}</div>
@@ -4760,6 +4901,13 @@ export const JobDetails = () => {
                     <span className="text-[11px] font-black uppercase text-slate-400 tracking-wider">Paciente:</span>
                     <span className="text-slate-700 font-extrabold truncate">{job.patientName}</span>
                 </div>
+                {clientAddressFormatted && (
+                    <div className="flex items-center gap-1.5 mt-1 text-xs text-slate-500 font-medium">
+                        <MapPin size={13} className="text-blue-500 shrink-0" />
+                        <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider shrink-0">Endereço do Cliente:</span>
+                        <span className="text-slate-600 font-semibold truncate" title={clientAddressFormatted}>{clientAddressFormatted}</span>
+                    </div>
+                )}
             </div>
             
             <div className="flex flex-col xs:flex-row lg:flex-col lg:items-end gap-3 w-full lg:w-auto mt-2 lg:mt-0 pt-4 lg:pt-0 border-t lg:border-t-0 border-slate-50">
@@ -4961,13 +5109,38 @@ export const JobDetails = () => {
                                     <Truck size={20} className={routeInfo.status === 'IN_TRANSIT' ? 'animate-bounce' : ''} />
                                     <h3 className="font-black text-xs uppercase tracking-widest truncate">Registro de Entrega (Motoboy)</h3>
                                 </div>
-                                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider shrink-0 shadow-sm ${
-                                    routeInfo.status === 'COMPLETED' ? 'bg-emerald-600 text-white' : 
-                                    routeInfo.status === 'IN_TRANSIT' ? 'bg-amber-500 text-white animate-pulse' : 'bg-slate-500 text-white'
-                                }`}>
-                                    {routeInfo.status === 'COMPLETED' ? '✓ Entregue' : 
-                                     routeInfo.status === 'IN_TRANSIT' ? '🛵 Em Trânsito' : '📦 Agendado'}
-                                </span>
+                                <div className="flex items-center gap-2 shrink-0">
+                                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider shrink-0 shadow-sm ${
+                                        routeInfo.status === 'COMPLETED' ? 'bg-emerald-600 text-white' : 
+                                        routeInfo.status === 'IN_TRANSIT' ? 'bg-amber-500 text-white animate-pulse' : 'bg-slate-500 text-white'
+                                    }`}>
+                                        {routeInfo.status === 'COMPLETED' ? '✓ Entregue' : 
+                                         routeInfo.status === 'IN_TRANSIT' ? '🛵 Em Trânsito' : '📦 Agendado'}
+                                    </span>
+
+                                    {(canManageCommissions || canEditProduction || isLabStaff) && (
+                                        <div className="flex items-center gap-1.5 ml-2">
+                                            <button 
+                                                type="button"
+                                                onClick={() => setShowRouteModal(true)}
+                                                className="px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-700 rounded-lg font-extrabold text-[10px] transition-all border border-slate-200 shadow-sm flex items-center gap-1 uppercase tracking-tight"
+                                                title="Trocar de rota de entrega"
+                                            >
+                                                <RefreshCw size={12} className="text-indigo-600" />
+                                                <span>Trocar Rota</span>
+                                            </button>
+                                            <button 
+                                                type="button"
+                                                onClick={() => setShowCancelDeliveryModal(true)}
+                                                className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg font-extrabold text-[10px] transition-all border border-rose-200 shadow-sm flex items-center gap-1 uppercase tracking-tight"
+                                                title="Cancelar entrega deste caso"
+                                            >
+                                                <XCircle size={12} className="text-rose-600" />
+                                                <span>Cancelar Entrega</span>
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                             <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-4 sm:p-6">
                                 <div className="flex items-center gap-3.5 min-w-0">
@@ -6623,16 +6796,22 @@ export const JobDetails = () => {
             }
 
             // Find users from stageData
-            let entryUserName = stageData?.entryUserId ? labUsers.find(u => u.id === stageData.entryUserId)?.name : null;
-            let exitUserName = stageData?.exitUserId ? labUsers.find(u => u.id === stageData.exitUserId)?.name : null;
+            const exitUserObj = stageData?.exitUserId ? labUsers.find(u => u.id === stageData.exitUserId) : null;
+            const entryUserObj = stageData?.entryUserId ? labUsers.find(u => u.id === stageData.entryUserId) : null;
+            
+            let entryUserName = entryUserObj?.name || (stageData?.entryUserId ? stageData.entryUserId : null);
+            let exitUserName = exitUserObj?.name || (stageData?.exitUserId ? stageData.exitUserId : null);
             
             if (stageName === 'BASE' && isLegacyExecution && !entryUserName && !exitUserName) {
                 entryUserName = execution.userName;
                 exitUserName = execution.userName;
             }
 
-            const displayName = stageName === 'BASE' ? sector : `${sector} - ${stageName}`;
             const activeUser = exitUserName || entryUserName;
+            const activeUserObj = exitUserObj || entryUserObj || (execution?.userId ? labUsers.find(u => u.id === execution.userId) : null) || (activeUser ? labUsers.find(u => u.name === activeUser) : null);
+            const activeUserAvatar = activeUserObj?.avatarUrl || activeUserObj?.photoUrl;
+
+            const displayName = stageName === 'BASE' ? sector : `${sector} - ${stageName}`;
             
             const secQty = (item.sectorQuantities && item.sectorQuantities[sector] !== undefined)
                 ? item.sectorQuantities[sector]
@@ -6685,9 +6864,17 @@ export const JobDetails = () => {
                     <td className="px-5 py-3">
                         {activeUser ? (
                             <div className="flex items-center gap-2">
-                                <div className="w-6 h-6 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 font-black text-[9px] uppercase shadow-sm">
-                                    {activeUser.charAt(0)}
-                                </div>
+                                {activeUserAvatar ? (
+                                    <img 
+                                        src={activeUserAvatar} 
+                                        alt={activeUser} 
+                                        className="w-6 h-6 rounded-lg object-cover border border-blue-200 shadow-sm shrink-0" 
+                                    />
+                                ) : (
+                                    <div className="w-6 h-6 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 font-black text-[9px] uppercase shadow-sm shrink-0">
+                                        {activeUser.charAt(0)}
+                                    </div>
+                                )}
                                 <span className="text-[11px] font-black text-slate-700 uppercase tracking-tight">{activeUser}</span>
                             </div>
                         ) : (
@@ -6819,22 +7006,35 @@ export const JobDetails = () => {
                   <div className="space-y-4">
                       <div>
                           <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Data da Rota</label>
-                          <input type="date" value={routeDate} onChange={e => setRouteDate(e.target.value)} className="w-full px-4 py-2 border rounded-xl font-bold bg-slate-50" />
+                          <input 
+                              type="date" 
+                              min={todayStr} 
+                              value={routeDate} 
+                              onChange={e => setRouteDate(e.target.value)} 
+                              className="w-full px-4 py-2 border rounded-xl font-bold bg-slate-50 text-slate-800 text-xs" 
+                          />
                       </div>
                       <div>
                           <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Turno da Rota</label>
                           <select value={routeShift} onChange={e => setRouteShift(e.target.value as any)} className="w-full px-4 py-2 border rounded-xl bg-slate-50 font-black text-xs text-slate-800">
-                              <option value="MORNING">Manhã</option>
+                              <option value="MORNING" disabled={routeDate === todayStr && isPast12PM}>
+                                  Manhã {routeDate === todayStr && isPast12PM ? '(Indisponível após 12h)' : ''}
+                              </option>
                               <option value="AFTERNOON">Tarde</option>
                           </select>
+                          {routeDate === todayStr && isPast12PM && (
+                              <p className="text-[10px] font-bold text-amber-600 mt-1 flex items-center gap-1">
+                                  <Clock size={12} /> Após as 12:00, somente rotas do turno da TARDE podem ser selecionadas para hoje.
+                              </p>
+                          )}
                       </div>
-                      {/* OPEN ROUTES FOR THIS DATE & SHIFT */}
+                      {/* OPEN ROUTES FOR THIS DATE */}
                       {openRoutesForShift.length > 0 && (
                           <div className="p-3 bg-blue-50 border border-blue-200 rounded-2xl">
                               <p className="text-xs font-black text-blue-900 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                                  <Truck size={14} className="text-blue-600" /> Rotas Abertas neste Turno:
+                                  <Truck size={14} className="text-blue-600" /> Rotas Abertas nesta Data:
                               </p>
-                              <div className="space-y-1.5">
+                              <div className="space-y-1.5 max-h-[160px] overflow-y-auto pr-1">
                                   {openRoutesForShift.map(r => (
                                       <button
                                           key={r.id}
@@ -6842,6 +7042,7 @@ export const JobDetails = () => {
                                           onClick={() => {
                                               setSelectedRouteId(r.id);
                                               setRouteDriver(r.driverName);
+                                              setRouteShift(r.shift);
                                           }}
                                           className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-between ${
                                               selectedRouteId === r.id
@@ -6851,7 +7052,7 @@ export const JobDetails = () => {
                                       >
                                           <div className="flex items-center gap-2">
                                               <User size={14} />
-                                              <span>{r.driverName}</span>
+                                              <span>{r.driverName} ({r.shift === 'MORNING' ? 'Manhã' : 'Tarde'})</span>
                                           </div>
                                           <span className="text-[10px] font-black uppercase opacity-90">
                                               {selectedRouteId === r.id ? 'Selecionada' : 'Usar esta rota'}
@@ -6874,7 +7075,7 @@ export const JobDetails = () => {
                                               setSelectedRouteId('');
                                           } else {
                                               setRouteDriver(e.target.value);
-                                              const matched = openRoutesForShift.find(r => r.driverName.trim().toLowerCase() === e.target.value.trim().toLowerCase());
+                                              const matched = openRoutesForShift.find(r => r.driverName.trim().toLowerCase() === e.target.value.trim().toLowerCase() && r.shift === routeShift);
                                               if (matched) setSelectedRouteId(matched.id);
                                               else setSelectedRouteId('');
                                           }
@@ -6911,6 +7112,56 @@ export const JobDetails = () => {
                       </div>
                       <button onClick={handleAddToRoute} disabled={isUpdatingStatus} className="w-full py-4 bg-indigo-600 text-white font-black text-xs rounded-2xl shadow-xl hover:bg-indigo-700 flex items-center justify-center gap-2 active:scale-95 transition-transform uppercase tracking-widest mt-2">
                           {isUpdatingStatus ? <Loader2 className="animate-spin" /> : <><CheckCircle2 size={16} /> ADICIONAR AO ROTEIRO</>}
+                      </button>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {/* MODAL: CANCELAR ENTREGA DO CASO */}
+      {showCancelDeliveryModal && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" id="cancelDeliveryModal">
+              <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl border border-slate-100 animate-in zoom-in-95 duration-200 space-y-4">
+                  <div className="flex justify-between items-center border-b pb-3">
+                      <h3 className="text-base font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
+                          <XCircle className="text-rose-600" size={20} /> Cancelar Entrega do Caso
+                      </h3>
+                      <button onClick={() => setShowCancelDeliveryModal(false)} className="text-slate-400 hover:text-slate-600 p-1">
+                          <X size={20} />
+                      </button>
+                  </div>
+                  
+                  <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                      Descreva abaixo o motivo do cancelamento da entrega (ex: cliente ausente, endereço incorreto, chuva/atraso, remarcação). Este caso será removido da rota atual para poder ser alocado em uma outra rota.
+                  </p>
+
+                  <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Motivo do Cancelamento *</label>
+                      <textarea 
+                          rows={3}
+                          placeholder="Digite o motivo em detalhes..."
+                          value={cancelDeliveryReason}
+                          onChange={e => setCancelDeliveryReason(e.target.value)}
+                          className="w-full px-3.5 py-2.5 border rounded-2xl bg-slate-50 focus:bg-white text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-rose-500 resize-none"
+                      />
+                  </div>
+
+                  <div className="flex items-center justify-end gap-2 pt-2">
+                      <button 
+                          type="button" 
+                          onClick={() => setShowCancelDeliveryModal(false)}
+                          className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all"
+                      >
+                          Voltar
+                      </button>
+                      <button 
+                          type="button" 
+                          onClick={handleConfirmCancelDelivery}
+                          disabled={isCancellingDelivery || !cancelDeliveryReason.trim()}
+                          className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black transition-all shadow-md flex items-center gap-2 disabled:opacity-50"
+                      >
+                          {isCancellingDelivery ? <Loader2 className="animate-spin" size={14} /> : <XCircle size={14} />}
+                          <span>Confirmar Cancelamento</span>
                       </button>
                   </div>
               </div>

@@ -1850,16 +1850,21 @@ export const Dentists = () => {
                                                                     )}
                                                                 </p>
                                                             </div>
-                                                            <div className="flex items-center gap-4">
-                                                                <div className="text-right">
-                                                                    <p className="text-[10px] font-bold text-slate-400 uppercase">{t('dentists.finalPrice', 'Preço Final')}</p>
-                                                                    <p className="font-black text-blue-700">R$ {finalPrice.toFixed(2)}</p>
+                                                            <div className="flex flex-wrap items-center gap-3">
+                                                                <div className="text-right shrink-0">
+                                                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">{t('dentists.finalPrice', 'Preço Final')}</p>
+                                                                    <p className="font-black text-blue-700 text-sm md:text-base">R$ {finalPrice.toFixed(2)}</p>
                                                                 </div>
-                                                                
-                                                                <div className="flex items-center bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-                                                                    <div className="flex items-center">
+
+                                                                {/* Desconto % */}
+                                                                <div className="flex flex-col">
+                                                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-0.5">Desc. (%)</span>
+                                                                    <div className="flex items-center bg-white border border-slate-200 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100 rounded-xl px-2.5 py-1.5 shadow-sm transition-all">
                                                                         <input 
                                                                             type="number" 
+                                                                            step="any"
+                                                                            min="0"
+                                                                            max="100"
                                                                             value={cp?.discountPercent !== undefined ? cp.discountPercent : ''}
                                                                             onChange={e => {
                                                                                 const raw = e.target.value;
@@ -1881,24 +1886,36 @@ export const Dentists = () => {
                                                                                 setCustomPrices(newCustomPrices);
                                                                             }}
                                                                             disabled={!canEditPrices}
-                                                                            className="w-14 px-2 py-2 font-bold text-center outline-none bg-transparent disabled:opacity-60"
-                                                                            placeholder={globalDiscount > 0 ? `${globalDiscount}%` : "0"}
+                                                                            className="w-12 font-extrabold text-xs text-center outline-none bg-transparent disabled:opacity-60 text-slate-800"
+                                                                            placeholder={globalDiscount > 0 ? `${globalDiscount}%` : "0%"}
                                                                         />
-                                                                        <span className="px-1 text-[10px] font-bold text-slate-400 border-l">%</span>
+                                                                        <span className="text-[10px] font-bold text-slate-400 select-none">%</span>
                                                                     </div>
-                                                                    <div className="w-px h-6 bg-slate-200 mx-1"></div>
-                                                                    <div className="flex items-center">
-                                                                        <span className="pl-2 pr-1 text-[10px] font-bold text-slate-400">R$</span>
+                                                                </div>
+
+                                                                {/* Preço Fixo R$ - Destacado e fácil de clicar */}
+                                                                <div className="flex flex-col">
+                                                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-0.5">Preço Fixo (R$)</span>
+                                                                    <div 
+                                                                        className="flex items-center bg-white border border-slate-300 hover:border-blue-400 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100 rounded-xl px-2.5 py-1.5 shadow-sm transition-all cursor-text"
+                                                                        onClick={(e) => {
+                                                                            const inp = e.currentTarget.querySelector('input');
+                                                                            if (inp) inp.focus();
+                                                                        }}
+                                                                    >
+                                                                        <span className="text-xs font-black text-slate-400 mr-1 select-none">R$</span>
                                                                         <input 
                                                                             type="number" 
-                                                                            value={cp?.fixedPrice !== undefined && cp.fixedPrice > 0 ? cp.fixedPrice : ''}
+                                                                            step="0.01"
+                                                                            min="0"
+                                                                            value={cp?.fixedPrice !== undefined && cp.fixedPrice !== null ? cp.fixedPrice : ''}
                                                                             onChange={e => {
                                                                                 const raw = e.target.value;
                                                                                 const newFixed = raw === '' ? undefined : parseFloat(raw);
                                                                                 const newCustomPrices = [...customPrices];
                                                                                 const idx = newCustomPrices.findIndex(p => p.jobTypeId === type.id);
                                                                                 if (idx !== -1) {
-                                                                                    if (newFixed === undefined || isNaN(newFixed) || newFixed <= 0) {
+                                                                                    if (newFixed === undefined || isNaN(newFixed)) {
                                                                                         delete newCustomPrices[idx].fixedPrice;
                                                                                         if (!newCustomPrices[idx].discountPercent && (!newCustomPrices[idx].variations || Object.keys(newCustomPrices[idx].variations).length === 0)) {
                                                                                             newCustomPrices.splice(idx, 1);
@@ -1906,17 +1923,39 @@ export const Dentists = () => {
                                                                                     } else {
                                                                                         newCustomPrices[idx] = { ...newCustomPrices[idx], fixedPrice: newFixed, discountPercent: undefined };
                                                                                     }
-                                                                                } else if (newFixed !== undefined && !isNaN(newFixed) && newFixed > 0) {
+                                                                                } else if (newFixed !== undefined && !isNaN(newFixed)) {
                                                                                     newCustomPrices.push({ jobTypeId: type.id, fixedPrice: newFixed });
                                                                                 }
                                                                                 setCustomPrices(newCustomPrices);
                                                                             }}
                                                                             disabled={!canEditPrices}
-                                                                            className="w-20 px-2 py-2 font-bold text-center outline-none bg-transparent disabled:opacity-60"
+                                                                            className="w-24 font-black text-xs text-right outline-none bg-transparent disabled:opacity-60 text-slate-900"
                                                                             placeholder={finalPrice.toFixed(2)}
                                                                         />
                                                                     </div>
                                                                 </div>
+
+                                                                {(hasCustomFixed || hasCustomDiscount) && canEditPrices && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            const newCustomPrices = [...customPrices];
+                                                                            const idx = newCustomPrices.findIndex(p => p.jobTypeId === type.id);
+                                                                            if (idx !== -1) {
+                                                                                delete newCustomPrices[idx].fixedPrice;
+                                                                                delete newCustomPrices[idx].discountPercent;
+                                                                                if (!newCustomPrices[idx].variations || Object.keys(newCustomPrices[idx].variations).length === 0) {
+                                                                                    newCustomPrices.splice(idx, 1);
+                                                                                }
+                                                                                setCustomPrices(newCustomPrices);
+                                                                            }
+                                                                        }}
+                                                                        title="Restaurar preço padrão"
+                                                                        className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors self-end mb-1"
+                                                                    >
+                                                                        <RotateCcw size={14} />
+                                                                    </button>
+                                                                )}
                                                             </div>
                                                         
                                                             </div>

@@ -32,7 +32,8 @@ import * as firestorePkg from 'firebase/firestore';
 
 
 const { onAuthStateChanged } = authPkg as any;
-const { doc, getDoc, onSnapshot, getDocFromServer } = firestorePkg as any;
+const { doc, getDoc, onSnapshot, getDocFromServer, collection, getDocs } = firestorePkg as any;
+import { getTodayDateStr, normalizeRouteDate, createMiddayDate } from '../utils/dateHelpers';
 
 enum OperationType {
   CREATE = 'create',
@@ -1740,13 +1741,26 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       const orgId = currentUser?.organizationId;
       if (!orgId) return;
 
-      const dateStr = date.toISOString().split('T')[0];
+      const dateStr = normalizeRouteDate(date);
+      const today = getTodayDateStr();
+
+      // Rule: Do not allow allocating jobs in past routes
+      if (dateStr < today) {
+          throw new Error("Não é possível alocar trabalhos em rotas de datas anteriores à atual.");
+      }
+
+      // Rule: After 12:00 PM on current date, only AFTERNOON shift is allowed
+      const nowHours = new Date().getHours();
+      if (dateStr === today && shift === 'MORNING' && nowHours >= 12) {
+          throw new Error("Após as 12:00, somente rotas do turno da TARDE podem ser selecionadas para o dia vigente.");
+      }
+
       let routeId = targetRouteId;
 
       if (!routeId) {
           // Check for an existing open or in-transit route on that date, shift, and driverName
           const existingRoute = routes.find(r => {
-              const rDateStr = r.date instanceof Date ? r.date.toISOString().split('T')[0] : String(r.date).split('T')[0];
+              const rDateStr = normalizeRouteDate(r.date);
               const driverMatch = (r.driverName || '').trim().toLowerCase() === (driver || '').trim().toLowerCase();
               return rDateStr === dateStr && r.shift === shift && driverMatch && r.status !== 'COMPLETED';
           });
@@ -1756,15 +1770,29 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
           } else {
               routeId = `route_${dateStr}_${shift}_${driver.replace(/\s+/g, '_')}_${Date.now().toString(36)}`;
               await api.apiAddRoute(orgId, {
-                  id: routeId, organizationId: orgId, date: date, shift: shift, driverName: driver, status: 'OPEN', createdAt: new Date()
+                  id: routeId, organizationId: orgId, date: createMiddayDate(dateStr), shift: shift, driverName: driver, status: 'OPEN', createdAt: new Date()
               });
           }
       } else {
           const routeSnap = await getDoc(doc(db, 'organizations', orgId, 'routes', routeId));
           if (!routeSnap.exists()) {
               await api.apiAddRoute(orgId, {
-                  id: routeId, organizationId: orgId, date: date, shift: shift, driverName: driver, status: 'OPEN', createdAt: new Date()
+                  id: routeId, organizationId: orgId, date: createMiddayDate(dateStr), shift: shift, driverName: driver, status: 'OPEN', createdAt: new Date()
               });
+          }
+      }
+
+      // If the job was already in a different route, remove it from the old route
+      if (job.routeId && job.routeId !== routeId) {
+          try {
+              const oldItemsSnap = await getDocs(collection(db, `organizations/${orgId}/routes/${job.routeId}/items`));
+              oldItemsSnap.docs.forEach((dDoc: any) => {
+                  if (dDoc.data()?.jobId === job.id) {
+                      api.apiDeleteRouteItem(orgId, job.routeId!, dDoc.id);
+                  }
+              });
+          } catch (e) {
+              console.error("Erro ao remover da rota antiga:", e);
           }
       }
 

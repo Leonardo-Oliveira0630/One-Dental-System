@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { UserRole } from '../types';
 import { 
   UserCircle, Mail, Shield, Building, Briefcase, Key, CheckCircle, Loader2, 
   Bell, BellOff, Info, Trash2, AlertTriangle, ShieldAlert, X, Send, Lock,
-  Sun, Moon, Check, Palette, Globe, Languages
+  Sun, Moon, Check, Palette, Globe, Languages, Camera, Image as ImageIcon
 } from 'lucide-react';
 import * as api from '../services/firebaseService';
 import { useNavigate } from 'react-router-dom';
@@ -12,9 +12,11 @@ import { useTranslation } from 'react-i18next';
 import { SUPPORTED_LANGUAGES, SupportedLanguage } from '../src/i18n';
 
 export const Profile = () => {
-  const { currentUser, theme, setTheme, language, setLanguage } = useApp();
+  const { currentUser, theme, setTheme, language, setLanguage, uploadFile, updateUser } = useApp();
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [changingLang, setChangingLang] = useState(false);
 
   const [loadingReset, setLoadingReset] = useState(false);
@@ -49,6 +51,37 @@ export const Profile = () => {
 
   const isAdmin = currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.SUPER_ADMIN;
   const expectedConfirmWord = t('profile.confirmWordRequired', 'EXCLUIR').toUpperCase();
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !currentUser) return;
+    setUploadingAvatar(true);
+    try {
+      const url = await uploadFile(file);
+      await updateUser(currentUser.id, { avatarUrl: url, photoUrl: url });
+      alert(t('profile.avatarSuccess', 'Foto de perfil atualizada com sucesso!'));
+    } catch (err) {
+      console.error("Error uploading avatar:", err);
+      alert(t('profile.avatarError', 'Erro ao atualizar foto de perfil.'));
+    } finally {
+      setUploadingAvatar(false);
+      if (e.target) e.target.value = '';
+    }
+  };
+
+  const handleRemoveAvatar = async () => {
+    if (!currentUser) return;
+    if (!confirm(t('profile.confirmRemovePhoto', 'Deseja remover sua foto de perfil?'))) return;
+    setUploadingAvatar(true);
+    try {
+      await updateUser(currentUser.id, { avatarUrl: '', photoUrl: '' });
+      alert(t('profile.avatarRemoved', 'Foto de perfil removida com sucesso.'));
+    } catch (err) {
+      alert(t('profile.avatarRemoveError', 'Erro ao remover foto.'));
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
 
   const handleSavePhone = async () => {
     if (!currentUser) return;
@@ -173,15 +206,68 @@ export const Profile = () => {
         <div className="lg:col-span-2 space-y-6">
           {/* CARTÃO DE DADOS PESSOAIS */}
           <div className="bg-white dark:bg-[#131B2A] rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden">
-            <div className="bg-slate-50 dark:bg-[#0B0F17] p-6 border-b border-slate-100 dark:border-slate-800 flex flex-col md:flex-row items-center gap-4 sm:p-6">
-              <div className="w-24 h-24 bg-white dark:bg-[#131B2A] rounded-full flex items-center justify-center text-4xl font-bold text-slate-400 dark:text-slate-300 border-4 border-white dark:border-slate-800 shadow-sm">
-                {currentUser.name.charAt(0)}
+            <div className="bg-slate-50 dark:bg-[#0B0F17] p-6 border-b border-slate-100 dark:border-slate-800 flex flex-col md:flex-row items-center gap-6 sm:p-6">
+              <div className="relative group shrink-0">
+                <div className="w-24 h-24 bg-white dark:bg-[#131B2A] rounded-full flex items-center justify-center text-4xl font-bold text-slate-400 dark:text-slate-300 border-4 border-white dark:border-slate-800 shadow-md overflow-hidden">
+                  {(currentUser.avatarUrl || currentUser.photoUrl) ? (
+                    <img 
+                      src={currentUser.avatarUrl || currentUser.photoUrl} 
+                      alt={currentUser.name} 
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span>{currentUser.name.charAt(0)}</span>
+                  )}
+                </div>
+
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  accept="image/*" 
+                  onChange={handleAvatarUpload} 
+                  className="hidden" 
+                />
+
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingAvatar}
+                  title={t('profile.changePhoto', 'Alterar Foto de Perfil')}
+                  className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center shadow-lg border-2 border-white dark:border-slate-800 transition-all cursor-pointer active:scale-95"
+                >
+                  {uploadingAvatar ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />}
+                </button>
               </div>
-              <div className="text-center md:text-left">
+
+              <div className="text-center md:text-left flex-1 space-y-2">
                 <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{currentUser.name}</h2>
-                <div className={`mt-2 inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold border ${getRoleBadge(currentUser.role)}`}>
-                  <Shield size={12} />
-                  {currentUser.role}
+                <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 pt-0.5">
+                  <div className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold border ${getRoleBadge(currentUser.role)}`}>
+                    <Shield size={12} />
+                    {currentUser.role}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingAvatar}
+                    className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    <Camera size={13} />
+                    {(currentUser.avatarUrl || currentUser.photoUrl) ? t('profile.changePhotoBtn', 'Alterar foto') : t('profile.addPhotoBtn', '+ Adicionar foto')}
+                  </button>
+
+                  {(currentUser.avatarUrl || currentUser.photoUrl) && (
+                    <button
+                      type="button"
+                      onClick={handleRemoveAvatar}
+                      disabled={uploadingAvatar}
+                      className="text-xs font-bold text-rose-500 hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      <Trash2 size={12} />
+                      {t('profile.removePhotoBtn', 'Remover foto')}
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

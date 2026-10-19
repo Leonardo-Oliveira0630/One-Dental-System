@@ -714,7 +714,8 @@ export const PrintOverlay = () => {
                                   </td>
                                   <td className="py-2 align-bottom pb-4">
                                      <div className="w-full border-t border-black pt-0.5">
-                                         <p className="text-[7px] text-center uppercase font-bold text-gray-500">Recebedor / Hora</p>
+                                         <p className="text-[7px] text-center uppercase font-bold text-gray-500">Recebedor / Assinatura</p>
+                                          <p className="text-[7px] text-center uppercase font-bold text-gray-400 mt-0.5">Data: ____ / ____ / ________</p>
                                      </div>
                                   </td>
                                </tr>

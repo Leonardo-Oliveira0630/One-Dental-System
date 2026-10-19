@@ -563,14 +563,24 @@ export const JobsList = ({ isStoreContext, isBudgetMode }: { isStoreContext?: bo
   const [routeObservations, setRouteObservations] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Active open routes for selected date and shift
+  const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
+  const isPast12PM = useMemo(() => new Date().getHours() >= 12, []);
+
+  // Rule 8.5: Force AFTERNOON shift if today and past 12:00 PM
+  useEffect(() => {
+    if (routeDate === todayStr && isPast12PM && routeShift === 'MORNING') {
+        setRouteShift('AFTERNOON');
+    }
+  }, [routeDate, todayStr, isPast12PM, routeShift]);
+
+  // Active open routes for selected date
   const openRoutesForShift = useMemo(() => {
     if (!routes || !Array.isArray(routes)) return [];
     return routes.filter(r => {
       const rDateStr = r.date instanceof Date ? r.date.toISOString().split('T')[0] : String(r.date).split('T')[0];
-      return rDateStr === routeDate && r.shift === routeShift && r.status !== 'COMPLETED';
+      return rDateStr === routeDate && r.status !== 'COMPLETED';
     });
-  }, [routes, routeDate, routeShift]);
+  }, [routes, routeDate]);
 
   const handleSaveNotes = async (jobId: string, notes: string) => {
     try {
@@ -815,6 +825,14 @@ const handleUpdateStatus = async (jobId: string, status: JobStatus) => {
 
   const handleAddToRoute = async () => {
     if (!routeModalJob || !routeDriver) return;
+    if (routeDate < todayStr) {
+        alert("Não é possível alocar trabalhos em rotas de datas anteriores à atual.");
+        return;
+    }
+    if (routeDate === todayStr && isPast12PM && routeShift === 'MORNING') {
+        alert("Após as 12:00, somente rotas do turno da TARDE podem ser selecionadas para a data de hoje.");
+        return;
+    }
     setIsProcessing(true);
     try {
         await addJobToRoute(routeModalJob, routeDriver, routeShift, new Date(routeDate), routeObservations, selectedRouteId || undefined);
@@ -1331,14 +1349,27 @@ const handleUpdateStatus = async (jobId: string, status: JobStatus) => {
                   <div className="space-y-4">
                       <div>
                           <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">{t('orders.routeDate', 'Data da Rota')}</label>
-                          <input type="date" value={routeDate} onChange={e => setRouteDate(e.target.value)} className="w-full px-4 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0B0F17] text-slate-800 dark:text-slate-100 rounded-xl" />
+                          <input 
+                              type="date" 
+                              min={todayStr} 
+                              value={routeDate} 
+                              onChange={e => setRouteDate(e.target.value)} 
+                              className="w-full px-4 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0B0F17] text-slate-800 dark:text-slate-100 rounded-xl" 
+                          />
                       </div>
                       <div>
                           <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">{t('orders.shift', 'Turno')}</label>
                           <select value={routeShift} onChange={e => setRouteShift(e.target.value as any)} className="w-full px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-slate-100 bg-slate-50 dark:bg-[#0B0F17]">
-                              <option value="MORNING">{t('orders.morning', 'Manhã')}</option>
+                              <option value="MORNING" disabled={routeDate === todayStr && isPast12PM}>
+                                  {t('orders.morning', 'Manhã')} {routeDate === todayStr && isPast12PM ? '(Indisponível após 12h)' : ''}
+                              </option>
                               <option value="AFTERNOON">{t('orders.afternoon', 'Tarde')}</option>
                           </select>
+                          {routeDate === todayStr && isPast12PM && (
+                              <p className="text-[10px] font-bold text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1">
+                                  <Clock size={12} /> Após as 12:00, somente rotas do turno da TARDE podem ser selecionadas para hoje.
+                              </p>
+                          )}
                       </div>
                       {/* OPEN ROUTES FOR THIS DATE & SHIFT */}
                       {openRoutesForShift.length > 0 && (

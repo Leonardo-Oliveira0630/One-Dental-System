@@ -885,6 +885,8 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
+  avatarUrl?: string;
+  photoUrl?: string;
   phone?: string;
   cro?: string;
   specialty?: string;

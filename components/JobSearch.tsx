@@ -7,7 +7,8 @@ import { Job, JobStatus, UserRole } from '../types';
 import { calculateItemCommission } from '../utils/commissionUtils';
 
 export const JobSearch = () => {
-  const { jobs, jobTypes, currentUser, updateJob, addCommissionRecord, commissions, commissionGroups } = useApp();
+  const { jobs, jobTypes, currentUser, updateJob, addCommissionRecord, commissions, commissionGroups, allUsers } = useApp();
+  const labUsers = (allUsers || []).filter((u: any) => u.role !== UserRole.CLIENT);
   const userSectors = currentUser?.sectors || (currentUser?.sector ? [currentUser.sector] : []);
   const hasSector = userSectors.length > 0;
   const navigate = useNavigate();
@@ -159,6 +160,23 @@ export const JobSearch = () => {
               }
           });
       } else if (actionType === 'EXIT') {
+          // Security Check: Verify if entry was registered by another collaborator
+          let entryUserViolationName = '';
+          const openMovement = newSectorMovements.find(m => m.sector === sector && !m.exitTime);
+          if (openMovement && openMovement.entryUserId && openMovement.entryUserId !== currentUser.id) {
+              const uObj = labUsers.find((u: any) => u.id === openMovement.entryUserId);
+              entryUserViolationName = uObj?.name || openMovement.entryUserName || 'outro colaborador';
+          }
+
+          if (entryUserViolationName) {
+              alert(
+                  `Regra de Segurança de Comissão:\n\n` +
+                  `O setor "${sector}" teve entrada registrada por "${entryUserViolationName}".\n` +
+                  `Apenas este colaborador pode dar saída. Limpe a etapa em produção se outro colaborador for realizá-la.`
+              );
+              return;
+          }
+
           const openMovementIndex = newSectorMovements.findIndex(m => m.sector === sector && !m.exitTime);
           if (openMovementIndex !== -1) {
               newSectorMovements[openMovementIndex] = {
