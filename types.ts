@@ -737,6 +737,14 @@ export interface Job {
   batchId?: string;
   ratingId?: string; 
   routeId?: string;
+  lastDeliveryAttempt?: {
+    driverName: string;
+    date: string;
+    shift: 'MORNING' | 'AFTERNOON';
+    status: 'CANCELLED' | 'DELIVERED' | string;
+    reason?: string;
+    timestamp: Date | string;
+  };
   chatEnabled?: boolean;
   approvalEnabled?: boolean;
   approvalStatus?: 'PENDING' | 'APPROVED' | 'REJECTED';

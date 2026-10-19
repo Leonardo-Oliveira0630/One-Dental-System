@@ -8,7 +8,7 @@ import { useApp } from '../context/AppContext';
 import { JobStatus, UrgencyLevel, UserRole, JobItem, LabRating, Job, DeliveryRoute, Attachment, JobNature, JobItemExecution, SectorMovement, CommissionStatus, JobProduct } from '../types';
 import { 
   ArrowLeft, Calendar, Stethoscope, User, Clock, MapPin, Camera as CameraIcon,
-  FileText, DollarSign, CheckCircle, AlertTriangle, 
+  FileText, DollarSign, CheckCircle, AlertTriangle, AlertCircle,
   Printer, Box, Layers, ListChecks, Bell, Edit, Save, X, Plus, Trash2, Settings,
   LogIn, LogOut, Flag, CheckSquare, File as FileIcon, Download, Loader2, CreditCard, ExternalLink, Copy, Check, Star, UploadCloud, ChevronDown, CheckCircle2, Truck, Navigation, RotateCcw, MessageCircle, MessageSquare, Lock, Crown, FileCode, FileSpreadsheet, FileWarning, XCircle, ArrowLeftCircle, ScanBarcode, Briefcase, Search, ArrowRightCircle, RefreshCw, Edit3, Package, Smartphone,
   Eye, Edit2, LayoutGrid, List as ListIcon, Image as ImageLucide, Pin, StickyNote
@@ -302,9 +302,11 @@ export const JobDetails = () => {
   const [expandedStageSectors, setExpandedStageSectors] = useState<Record<string, boolean>>({});
   const [tempItemStages, setTempItemStages] = useState<Record<string, string[]>>({});
   const [tempStageQuantities, setTempStageQuantities] = useState<Record<string, Record<string, number>>>({});
+  const [newStageInputs, setNewStageInputs] = useState<Record<string, string>>({});
 
   const handleOpenStageConfig = (item: JobItem) => {
     setStageConfigItem(item);
+    setNewStageInputs({});
     const jt = jobTypes.find(t => t.id === item.jobTypeId);
     const itemStages = item.sectorStages || {};
     const jtStages = jt?.sectorStages || {};
@@ -313,9 +315,6 @@ export const JobDetails = () => {
     const itemQty = item.quantity || 1;
 
     sectors.forEach(s => {
-      const isAllowed = !jt?.allowedSectors || jt.allowedSectors.length === 0 || jt.allowedSectors.includes(s.name);
-      if (!isAllowed) return;
-
       let rawList: string[] = [];
       if (itemStages[s.name] !== undefined) {
         rawList = itemStages[s.name];
@@ -335,10 +334,9 @@ export const JobDetails = () => {
           : itemQty;
         list.forEach(stg => {
           const rawQ = item.stageQuantities?.[s.name]?.[stg];
-          if (rawQ !== undefined && rawQ > 1) {
+          if (rawQ !== undefined && rawQ > 0) {
             initialQuantities[s.name][stg] = rawQ;
           } else {
-            // Default to secQty (e.g. 3) instead of 1
             initialQuantities[s.name][stg] = secQty;
           }
         });
@@ -356,16 +354,53 @@ export const JobDetails = () => {
     setExpandedStageSectors(initialExpanded);
   };
 
+  const handleAddCustomStage = (sectorName: string) => {
+    const stageName = (newStageInputs[sectorName] || '').trim();
+    if (!stageName) return;
+
+    const current = tempItemStages[sectorName] || [];
+    if (current.includes(stageName)) {
+      alert("Esta etapa já foi adicionada a este setor.");
+      return;
+    }
+
+    const secQty = (stageConfigItem?.sectorQuantities && stageConfigItem.sectorQuantities[sectorName] !== undefined)
+      ? stageConfigItem.sectorQuantities[sectorName]
+      : (stageConfigItem?.quantity || 1);
+
+    const next = [...current, stageName];
+    setTempItemStages(prev => ({ ...prev, [sectorName]: next }));
+    setTempStageQuantities(prev => ({
+      ...prev,
+      [sectorName]: {
+        ...(prev[sectorName] || {}),
+        [stageName]: secQty
+      }
+    }));
+    setNewStageInputs(prev => ({ ...prev, [sectorName]: '' }));
+  };
+
   const handleSaveStageConfig = async () => {
     if (!stageConfigItem || !job) return;
     setIsUpdatingStatus(true);
     try {
+      const sanitizedStages: Record<string, string[]> = {};
+      const sanitizedQuantities: Record<string, Record<string, number>> = {};
+
+      Object.entries(tempItemStages).forEach(([sec, stgs]) => {
+        const valid = stgs.filter(s => typeof s === 'string' && s.trim() !== '');
+        if (valid.length > 0) {
+          sanitizedStages[sec] = valid;
+          sanitizedQuantities[sec] = tempStageQuantities[sec] || {};
+        }
+      });
+
       const updatedItems = job.items.map((i: any) => {
         if (i.id === stageConfigItem.id) {
           return {
             ...i,
-            sectorStages: tempItemStages,
-            stageQuantities: tempStageQuantities
+            sectorStages: sanitizedStages,
+            stageQuantities: sanitizedQuantities
           };
         }
         return i;
@@ -373,13 +408,23 @@ export const JobDetails = () => {
 
       const jType = jobTypes.find(t => t.id === stageConfigItem.jobTypeId);
       if (jType && updateJobType) {
-        await updateJobType(jType.id, { sectorStages: tempItemStages });
+        const configuredSectors = Object.keys(sanitizedStages);
+        let newAllowed = jType.allowedSectors || [];
+        if (newAllowed.length > 0) {
+          newAllowed = Array.from(new Set([...newAllowed, ...configuredSectors]));
+        }
+        await updateJobType(jType.id, { 
+          sectorStages: sanitizedStages,
+          allowedSectors: newAllowed.length > 0 ? newAllowed : undefined
+        });
       }
 
       await updateJob(job.id, { items: updatedItems });
       await recalculateAllCommissions(updatedItems, job.itemExecutions || []);
       setStageConfigItem(null);
+      alert("Etapas do serviço salvas com sucesso!");
     } catch (err) {
+      console.error("Erro ao salvar etapas do serviço:", err);
       alert("Erro ao salvar etapas do serviço.");
     } finally {
       setIsUpdatingStatus(false);
@@ -531,6 +576,9 @@ export const JobDetails = () => {
   const [showCancelDeliveryModal, setShowCancelDeliveryModal] = useState(false);
   const [cancelDeliveryReason, setCancelDeliveryReason] = useState('');
   const [isCancellingDelivery, setIsCancellingDelivery] = useState(false);
+
+  const [isHeaderStatusMenuOpen, setIsHeaderStatusMenuOpen] = useState(false);
+  const [isActionStatusMenuOpen, setIsActionStatusMenuOpen] = useState(false);
 
   const todayStr = useMemo(() => getTodayDateStr(), []);
   const isPast12PM = useMemo(() => isAfter12PM(), []);
@@ -1735,6 +1783,15 @@ export const JobDetails = () => {
             });
         }
 
+        const lastDeliveryAttempt = {
+            driverName: routeInfo?.driverName || 'Motoboy',
+            date: routeInfo?.date ? normalizeRouteDate(routeInfo.date) : getTodayDateStr(),
+            shift: routeInfo?.shift || 'MORNING',
+            status: 'CANCELLED',
+            reason: cancelDeliveryReason.trim(),
+            timestamp: new Date().toISOString()
+        };
+
         const newHistory = [...(job.history || []).filter(Boolean), {
             id: `hist_cancel_del_${Date.now()}`,
             timestamp: new Date(),
@@ -1746,14 +1803,16 @@ export const JobDetails = () => {
         }];
 
         await updateJob(job.id, {
+            status: JobStatus.COMPLETED,
             routeId: deleteField() as any,
+            lastDeliveryAttempt,
             history: newHistory
         });
 
         setShowCancelDeliveryModal(false);
         setCancelDeliveryReason('');
         setRouteInfo(null);
-        alert("Entrega cancelada com sucesso! O caso foi liberado da rota e pode ser alocado novamente em um novo roteiro.");
+        alert("Entrega cancelada com sucesso! O status do caso foi mantido como CONCLUÍDO e o motivo foi registrado no histórico de entrega.");
     } catch (err) {
         console.error("Erro ao cancelar entrega:", err);
         alert("Erro ao cancelar entrega. Tente novamente.");
@@ -2917,30 +2976,45 @@ export const JobDetails = () => {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {/* Botão de Status */}
               {canChangeStatus && (
-              <div className="relative group/dropdown">
+              <div 
+                className="relative"
+                onMouseEnter={() => canChangeStatus && setIsActionStatusMenuOpen(true)}
+                onMouseLeave={() => setIsActionStatusMenuOpen(false)}
+              >
                 <button
                   type="button"
-                  className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs rounded-2xl flex items-center justify-center gap-2 transition-all border border-slate-200 cursor-pointer"
+                  onClick={() => canChangeStatus && setIsActionStatusMenuOpen(prev => !prev)}
+                  className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs rounded-2xl flex items-center justify-center gap-2 transition-all border border-slate-200 cursor-pointer shadow-xs"
                 >
                   <RefreshCw size={14} className="text-slate-500" />
                   Mudar Status
-                  <ChevronDown size={14} className="text-slate-400" />
+                  <ChevronDown size={14} className={`text-slate-400 transition-transform ${isActionStatusMenuOpen ? 'rotate-180' : ''}`} />
                 </button>
                 
                 {/* Dropdown item options */}
-                <div className="absolute left-0 right-0 mt-1 bg-white border border-slate-200 rounded-2xl shadow-xl hidden group-hover/dropdown:block z-50 overflow-hidden">
-                  {[JobStatus.PENDING, JobStatus.IN_PROGRESS, JobStatus.WAITING_APPROVAL].map((st) => (
-                    <button
-                      key={st}
-                      type="button"
-                      onClick={() => handleQuickStatusUpdate(st)}
-                      className="w-full px-4 py-3 hover:bg-slate-50 text-left text-xs font-extrabold text-slate-700 uppercase tracking-tight flex items-center gap-2 transition-colors border-b last:border-0 border-slate-100 cursor-pointer"
-                    >
-                      <span className={`w-2.5 h-2.5 rounded-full ${st === JobStatus.PENDING ? 'bg-amber-400' : st === JobStatus.IN_PROGRESS ? 'bg-blue-400' : 'bg-purple-400'}`} />
-                      {getTranslatedStatus(st)}
-                    </button>
-                  ))}
-                </div>
+                {isActionStatusMenuOpen && (
+                  <div className="absolute left-0 right-0 top-full pt-0.5 z-50 animate-in fade-in slide-in-from-top-2">
+                    <div className="bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden">
+                      {[JobStatus.PENDING, JobStatus.IN_PROGRESS, JobStatus.WAITING_APPROVAL].map((st) => (
+                        <button
+                          key={st}
+                          type="button"
+                          onClick={() => {
+                            setIsActionStatusMenuOpen(false);
+                            handleQuickStatusUpdate(st);
+                          }}
+                          className="w-full px-4 py-3 hover:bg-slate-50 text-left text-xs font-extrabold text-slate-700 uppercase tracking-tight flex items-center justify-between transition-colors border-b last:border-0 border-slate-100 cursor-pointer"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className={`w-2.5 h-2.5 rounded-full ${st === JobStatus.PENDING ? 'bg-amber-400' : st === JobStatus.IN_PROGRESS ? 'bg-blue-400' : 'bg-purple-400'}`} />
+                            <span>{getTranslatedStatus(st)}</span>
+                          </div>
+                          {job.status === st && <Check size={14} className="text-blue-600" />}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
               )}
 
@@ -3164,85 +3238,119 @@ export const JobDetails = () => {
                               </button>
                               
                               {expandedStageSectors[sector.name] && (
-                                  <div className="p-4 bg-white border-t border-slate-100 space-y-2">
-                                      {(!sector.stages || sector.stages.length === 0) ? (
-                                          <p className="text-xs text-slate-400 font-bold text-center py-2">{t("job.noStepsInSector", "Nenhuma etapa cadastrada neste setor.")}</p>
-                                      ) : (
-                                          sector.stages.map((stage, idx) => {
-                                              const isChecked = tempItemStages[sector.name]?.includes(stage) || false;
-                                              return (
-                                                  <div key={idx} className="flex items-center justify-between gap-3 p-2 hover:bg-slate-50 rounded-xl border border-transparent hover:border-slate-100 transition-colors">
-                                                      <label className="flex items-center gap-3 cursor-pointer flex-1">
-                                                          <input
-                                                              type="checkbox"
-                                                              className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300"
-                                                              checked={isChecked}
-                                                              onChange={(e) => {
-                                                                  const current = tempItemStages[sector.name] || [];
-                                                                  let next;
-                                                                  if (e.target.checked) {
-                                                                      next = [...current, stage];
-                                                                      const secQty = (stageConfigItem?.sectorQuantities && stageConfigItem.sectorQuantities[sector.name] !== undefined)
-                                                                          ? stageConfigItem.sectorQuantities[sector.name]
-                                                                          : (stageConfigItem?.quantity || 1);
-                                                                      setTempStageQuantities(prev => ({
-                                                                          ...prev,
-                                                                          [sector.name]: {
-                                                                              ...(prev[sector.name] || {}),
-                                                                              [stage]: secQty
-                                                                          }
-                                                                      }));
-                                                                  } else {
-                                                                      next = current.filter(s => s !== stage);
-                                                                      // Remove qty when unchecked
-                                                                      if (tempStageQuantities[sector.name] && tempStageQuantities[sector.name][stage]) {
-                                                                          setTempStageQuantities(prev => {
-                                                                              const newQts = {...prev};
-                                                                              if (newQts[sector.name]) {
-                                                                                  delete newQts[sector.name][stage];
+                                  <div className="p-4 bg-white border-t border-slate-100 space-y-3">
+                                      {(() => {
+                                          const combinedStages = Array.from(new Set([
+                                              ...(sector.stages || []),
+                                              ...(tempItemStages[sector.name] || [])
+                                          ])).filter(stg => typeof stg === 'string' && stg.trim() !== '');
+
+                                          return (
+                                              <>
+                                                  {combinedStages.length === 0 ? (
+                                                      <p className="text-xs text-slate-400 font-bold text-center py-1">{t("job.noStepsInSector", "Nenhuma etapa cadastrada neste setor.")}</p>
+                                                  ) : (
+                                                      combinedStages.map((stage, idx) => {
+                                                          const isChecked = tempItemStages[sector.name]?.includes(stage) || false;
+                                                          return (
+                                                              <div key={idx} className="flex items-center justify-between gap-3 p-2 hover:bg-slate-50 rounded-xl border border-transparent hover:border-slate-100 transition-colors">
+                                                                  <label className="flex items-center gap-3 cursor-pointer flex-1">
+                                                                      <input
+                                                                          type="checkbox"
+                                                                          className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300"
+                                                                          checked={isChecked}
+                                                                          onChange={(e) => {
+                                                                              const current = tempItemStages[sector.name] || [];
+                                                                              let next;
+                                                                              if (e.target.checked) {
+                                                                                  next = [...current, stage];
+                                                                                  const secQty = (stageConfigItem?.sectorQuantities && stageConfigItem.sectorQuantities[sector.name] !== undefined)
+                                                                                      ? stageConfigItem.sectorQuantities[sector.name]
+                                                                                      : (stageConfigItem?.quantity || 1);
+                                                                                  setTempStageQuantities(prev => ({
+                                                                                      ...prev,
+                                                                                      [sector.name]: {
+                                                                                          ...(prev[sector.name] || {}),
+                                                                                          [stage]: secQty
+                                                                                      }
+                                                                                  }));
+                                                                              } else {
+                                                                                  next = current.filter(s => s !== stage);
+                                                                                  if (tempStageQuantities[sector.name] && tempStageQuantities[sector.name][stage]) {
+                                                                                      setTempStageQuantities(prev => {
+                                                                                          const newQts = {...prev};
+                                                                                          if (newQts[sector.name]) {
+                                                                                              delete newQts[sector.name][stage];
+                                                                                          }
+                                                                                          return newQts;
+                                                                                      });
+                                                                                  }
                                                                               }
-                                                                              return newQts;
-                                                                          });
-                                                                      }
-                                                                  }
-                                                                  setTempItemStages(prev => ({ ...prev, [sector.name]: next }));
-                                                              }}
-                                                          />
-                                                          <span className="text-sm font-bold text-slate-600">{stage}</span>
-                                                      </label>
-                                                      
-                                                      {isChecked && (
-                                                          <div className="flex items-center gap-2">
-                                                              <span className="text-xs text-slate-400 font-bold">Qtd:</span>
-                                                              <input 
-                                                                  type="number"
-                                                                  min="1"
-                                                                  className="w-16 h-8 text-xs font-bold text-slate-700 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent px-2"
-                                                                  value={(() => {
-                                                                      const v = tempStageQuantities[sector.name]?.[stage];
-                                                                      if (v !== undefined && v > 0) return v;
-                                                                      const secQty = (stageConfigItem?.sectorQuantities && stageConfigItem.sectorQuantities[sector.name] !== undefined)
-                                                                          ? stageConfigItem.sectorQuantities[sector.name]
-                                                                          : (stageConfigItem?.quantity || 1);
-                                                                      return secQty;
-                                                                  })()}
-                                                                  onChange={(e) => {
-                                                                      const val = e.target.value === '' ? '' : (parseInt(e.target.value) || '');
-                                                                      setTempStageQuantities(prev => ({
-                                                                          ...prev,
-                                                                          [sector.name]: {
-                                                                              ...(prev[sector.name] || {}),
-                                                                              [stage]: val as any
-                                                                          }
-                                                                      }));
-                                                                  }}
-                                                              />
-                                                          </div>
-                                                      )}
+                                                                              setTempItemStages(prev => ({ ...prev, [sector.name]: next }));
+                                                                          }}
+                                                                      />
+                                                                      <span className="text-sm font-bold text-slate-600">{stage}</span>
+                                                                  </label>
+                                                                  
+                                                                  {isChecked && (
+                                                                      <div className="flex items-center gap-2">
+                                                                          <span className="text-xs text-slate-400 font-bold">Qtd:</span>
+                                                                          <input 
+                                                                              type="number"
+                                                                              min="1"
+                                                                              className="w-16 h-8 text-xs font-bold text-slate-700 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent px-2"
+                                                                              value={(() => {
+                                                                                  const v = tempStageQuantities[sector.name]?.[stage];
+                                                                                  if (v !== undefined && v > 0) return v;
+                                                                                  const secQty = (stageConfigItem?.sectorQuantities && stageConfigItem.sectorQuantities[sector.name] !== undefined)
+                                                                                      ? stageConfigItem.sectorQuantities[sector.name]
+                                                                                      : (stageConfigItem?.quantity || 1);
+                                                                                  return secQty;
+                                                                              })()}
+                                                                              onChange={(e) => {
+                                                                                  const val = e.target.value === '' ? '' : (parseInt(e.target.value) || '');
+                                                                                  setTempStageQuantities(prev => ({
+                                                                                      ...prev,
+                                                                                      [sector.name]: {
+                                                                                          ...(prev[sector.name] || {}),
+                                                                                          [stage]: val as any
+                                                                                      }
+                                                                                  }));
+                                                                              }}
+                                                                          />
+                                                                      </div>
+                                                                  )}
+                                                              </div>
+                                                          );
+                                                      })
+                                                  )}
+
+                                                  {/* Campo para Adicionar Nova Etapa Personalizada */}
+                                                  <div className="mt-3 pt-3 border-t border-slate-100 flex items-center gap-2">
+                                                      <input
+                                                          type="text"
+                                                          placeholder="Digitar nome de nova etapa..."
+                                                          value={newStageInputs[sector.name] || ''}
+                                                          onChange={(e) => setNewStageInputs(prev => ({ ...prev, [sector.name]: e.target.value }))}
+                                                          onKeyDown={(e) => {
+                                                              if (e.key === 'Enter') {
+                                                                  e.preventDefault();
+                                                                  handleAddCustomStage(sector.name);
+                                                              }
+                                                          }}
+                                                          className="flex-1 px-3 py-2 text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+                                                      />
+                                                      <button
+                                                          type="button"
+                                                          onClick={() => handleAddCustomStage(sector.name)}
+                                                          className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition-colors flex items-center gap-1 shrink-0 shadow-xs"
+                                                      >
+                                                          <Plus size={14} /> Add Etapa
+                                                      </button>
                                                   </div>
-                                              );
-                                          })
-                                      )}
+                                              </>
+                                          );
+                                      })()}
                                   </div>
                               )}
                           </div>
@@ -4831,23 +4939,49 @@ export const JobDetails = () => {
                         )}
                     </div>
                     {!job.isBudget && (
-                    <div className="relative group shrink-0">
+                    <div 
+                        className="relative shrink-0"
+                        onMouseEnter={() => canChangeStatus && setIsHeaderStatusMenuOpen(true)}
+                        onMouseLeave={() => setIsHeaderStatusMenuOpen(false)}
+                    >
                         {revealJobStatus ? (
-                            <button className={`px-2.5 py-1 rounded-full text-[8px] md:text-[10px] font-black uppercase border flex items-center gap-1.5 ${getStatusColor(job.status)} shadow-sm ${canChangeStatus ? '' : 'cursor-default'}`}>
+                            <button 
+                                type="button"
+                                onClick={() => canChangeStatus && setIsHeaderStatusMenuOpen(prev => !prev)}
+                                className={`px-2.5 py-1 rounded-full text-[8px] md:text-[10px] font-black uppercase border flex items-center gap-1.5 ${getStatusColor(job.status)} shadow-sm ${canChangeStatus ? 'cursor-pointer hover:opacity-90' : 'cursor-default'}`}
+                            >
                                 {getTranslatedStatus(job.status)} {canChangeStatus && <ChevronDown size={10}/>}
                             </button>
                         ) : (
-                            <button className="px-2.5 py-1 rounded-full text-[8px] md:text-[10px] font-black uppercase border flex items-center gap-1.5 bg-slate-100 text-slate-400 border-slate-200 shadow-sm cursor-not-allowed" title="Andamento ocultado pelo laboratório">
+                            <button type="button" className="px-2.5 py-1 rounded-full text-[8px] md:text-[10px] font-black uppercase border flex items-center gap-1.5 bg-slate-100 text-slate-400 border-slate-200 shadow-sm cursor-not-allowed" title="Andamento ocultado pelo laboratório">
                                 <Lock size={10} /> Indisponível
                             </button>
                         )}
-                        {canChangeStatus && (
-                            <div className="absolute top-full left-0 mt-2 w-44 bg-white border border-slate-200 rounded-xl shadow-2xl z-[60] hidden group-hover:block animate-in fade-in slide-in-from-top-2 overflow-hidden">
-                                <div className="p-1.5 bg-slate-50 text-[8px] font-black text-slate-400 uppercase tracking-widest border-b">Alterar Status</div>
-                                <div className="p-1 space-y-0.5">
-                                    {Object.values(JobStatus).map(s => (
-                                        <button key={s} onClick={() => handleQuickStatusUpdate(s)} className="w-full text-left px-3 py-1.5 text-[10px] font-bold text-slate-600 hover:bg-blue-600 hover:text-white rounded-lg transition-colors">{getTranslatedStatus(s)}</button>
-                                    ))}
+                        {canChangeStatus && isHeaderStatusMenuOpen && (
+                            <div className="absolute top-full left-0 pt-0.5 w-48 z-[60]">
+                                <div className="bg-white border border-slate-200 rounded-xl shadow-2xl animate-in fade-in slide-in-from-top-2 overflow-hidden">
+                                    <div className="p-1.5 bg-slate-50 text-[8px] font-black text-slate-400 uppercase tracking-widest border-b flex justify-between items-center">
+                                        <span>Alterar Status</span>
+                                        <button onClick={() => setIsHeaderStatusMenuOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={10}/></button>
+                                    </div>
+                                    <div className="p-1 space-y-0.5 max-h-60 overflow-y-auto">
+                                        {Object.values(JobStatus).map(s => (
+                                            <button 
+                                                key={s} 
+                                                type="button"
+                                                onClick={() => {
+                                                    setIsHeaderStatusMenuOpen(false);
+                                                    handleQuickStatusUpdate(s);
+                                                }} 
+                                                className={`w-full text-left px-3 py-1.5 text-[10px] font-bold rounded-lg transition-colors flex items-center justify-between ${
+                                                    job.status === s ? 'bg-blue-50 text-blue-700 font-black' : 'text-slate-600 hover:bg-blue-600 hover:text-white'
+                                                }`}
+                                            >
+                                                <span>{getTranslatedStatus(s)}</span>
+                                                {job.status === s && <Check size={12} className="text-blue-600 shrink-0" />}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
                         )}
@@ -5099,23 +5233,29 @@ export const JobDetails = () => {
                 </div>
 
                 <div className="lg:col-span-2 space-y-4 md:space-y-6 min-w-0">
-                    {routeInfo && revealJobStatus && (
+                    {(routeInfo || job?.lastDeliveryAttempt) && revealJobStatus && (
                         <div id="delivery-record-wrapper" className="bg-white rounded-[32px] shadow-sm border border-slate-100 overflow-hidden animate-in slide-in-from-top-4">
                             <div className={`px-6 py-4 flex justify-between items-center border-b ${
-                                routeInfo.status === 'COMPLETED' ? 'bg-emerald-50 border-emerald-100 text-emerald-800' :
-                                routeInfo.status === 'IN_TRANSIT' ? 'bg-amber-50 border-amber-100 text-amber-800' : 'bg-slate-50 border-slate-100 text-slate-700'
+                                routeInfo ? (
+                                    routeInfo.status === 'COMPLETED' ? 'bg-emerald-50 border-emerald-100 text-emerald-800' :
+                                    routeInfo.status === 'IN_TRANSIT' ? 'bg-amber-50 border-amber-100 text-amber-800' : 'bg-slate-50 border-slate-100 text-slate-700'
+                                ) : 'bg-rose-50 border-rose-100 text-rose-900'
                             }`}>
                                 <div className="flex items-center gap-2 min-w-0">
-                                    <Truck size={20} className={routeInfo.status === 'IN_TRANSIT' ? 'animate-bounce' : ''} />
+                                    <Truck size={20} className={routeInfo?.status === 'IN_TRANSIT' ? 'animate-bounce' : ''} />
                                     <h3 className="font-black text-xs uppercase tracking-widest truncate">Registro de Entrega (Motoboy)</h3>
                                 </div>
                                 <div className="flex items-center gap-2 shrink-0">
                                     <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider shrink-0 shadow-sm ${
-                                        routeInfo.status === 'COMPLETED' ? 'bg-emerald-600 text-white' : 
-                                        routeInfo.status === 'IN_TRANSIT' ? 'bg-amber-500 text-white animate-pulse' : 'bg-slate-500 text-white'
+                                        routeInfo ? (
+                                            routeInfo.status === 'COMPLETED' ? 'bg-emerald-600 text-white' : 
+                                            routeInfo.status === 'IN_TRANSIT' ? 'bg-amber-500 text-white animate-pulse' : 'bg-slate-500 text-white'
+                                        ) : 'bg-rose-600 text-white'
                                     }`}>
-                                        {routeInfo.status === 'COMPLETED' ? '✓ Entregue' : 
-                                         routeInfo.status === 'IN_TRANSIT' ? '🛵 Em Trânsito' : '📦 Agendado'}
+                                        {routeInfo ? (
+                                            routeInfo.status === 'COMPLETED' ? '✓ Entregue' : 
+                                            routeInfo.status === 'IN_TRANSIT' ? '🛵 Em Trânsito' : '📦 Agendado'
+                                        ) : '⚠️ Entrega Cancelada / Não Entregue'}
                                     </span>
 
                                     {(canManageCommissions || canEditProduction || isLabStaff) && (
@@ -5124,71 +5264,111 @@ export const JobDetails = () => {
                                                 type="button"
                                                 onClick={() => setShowRouteModal(true)}
                                                 className="px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-700 rounded-lg font-extrabold text-[10px] transition-all border border-slate-200 shadow-sm flex items-center gap-1 uppercase tracking-tight"
-                                                title="Trocar de rota de entrega"
+                                                title={routeInfo ? "Trocar de rota de entrega" : "Vincular a uma nova rota"}
                                             >
                                                 <RefreshCw size={12} className="text-indigo-600" />
-                                                <span>Trocar Rota</span>
+                                                <span>{routeInfo ? "Trocar Rota" : "Vincular a Nova Rota"}</span>
                                             </button>
-                                            <button 
-                                                type="button"
-                                                onClick={() => setShowCancelDeliveryModal(true)}
-                                                className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg font-extrabold text-[10px] transition-all border border-rose-200 shadow-sm flex items-center gap-1 uppercase tracking-tight"
-                                                title="Cancelar entrega deste caso"
-                                            >
-                                                <XCircle size={12} className="text-rose-600" />
-                                                <span>Cancelar Entrega</span>
-                                            </button>
+                                            {routeInfo && (
+                                                <button 
+                                                    type="button"
+                                                    onClick={() => setShowCancelDeliveryModal(true)}
+                                                    className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg font-extrabold text-[10px] transition-all border border-rose-200 shadow-sm flex items-center gap-1 uppercase tracking-tight"
+                                                    title="Cancelar entrega deste caso"
+                                                >
+                                                    <XCircle size={12} className="text-rose-600" />
+                                                    <span>Cancelar Entrega</span>
+                                                </button>
+                                            )}
                                         </div>
                                     )}
                                 </div>
                             </div>
-                            <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-4 sm:p-6">
-                                <div className="flex items-center gap-3.5 min-w-0">
-                                    <div className={`p-3 rounded-xl shadow-sm border shrink-0 ${
-                                        routeInfo.status === 'COMPLETED' ? 'bg-emerald-100/40 text-emerald-600 border-emerald-100' : 'bg-slate-100/50 text-slate-500 border-slate-100'
-                                    }`}><User size={20}/></div>
-                                    <div className="min-w-0">
-                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Quem Entregou / Motoboy</p>
-                                        <p className="font-extrabold text-slate-800 text-sm md:text-base uppercase truncate mt-0.5">{routeInfo.driverName}</p>
+
+                            <div className="p-6 space-y-4">
+                                {routeInfo ? (
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div className="flex items-center gap-3.5 min-w-0">
+                                            <div className={`p-3 rounded-xl shadow-sm border shrink-0 ${
+                                                routeInfo.status === 'COMPLETED' ? 'bg-emerald-100/40 text-emerald-600 border-emerald-100' : 'bg-slate-100/50 text-slate-500 border-slate-100'
+                                            }`}><User size={20}/></div>
+                                            <div className="min-w-0">
+                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Quem Entregou / Motoboy</p>
+                                                <p className="font-extrabold text-slate-800 text-sm md:text-base uppercase truncate mt-0.5">{routeInfo.driverName}</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-3.5 min-w-0">
+                                            <div className="p-3 bg-slate-100/50 text-slate-500 border border-slate-100 rounded-xl shadow-sm shrink-0"><Calendar size={20}/></div>
+                                            <div className="min-w-0">
+                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Data da Entrega / Rota</p>
+                                                <p className="font-extrabold text-slate-800 text-sm md:text-base truncate mt-0.5">
+                                                    {(() => {
+                                                        try {
+                                                            const d = routeInfo.date instanceof Date ? routeInfo.date : new Date(routeInfo.date);
+                                                            return d.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+                                                        } catch(e) {
+                                                            try {
+                                                                return new Date(routeInfo.date).toLocaleDateString('pt-BR');
+                                                            } catch(err) {
+                                                                return String(routeInfo.date);
+                                                            }
+                                                        }
+                                                    })()}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-3.5 min-w-0">
+                                            <div className="p-3 bg-slate-100/50 text-slate-500 border border-slate-100 rounded-xl shadow-sm shrink-0"><Clock size={20}/></div>
+                                            <div className="min-w-0">
+                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Turno do Roteiro</p>
+                                                <p className="font-extrabold text-slate-800 text-sm md:text-base truncate mt-0.5">
+                                                    {routeInfo.shift === 'MORNING' ? (
+                                                        <span className="inline-flex items-center gap-1 text-amber-600">
+                                                            ☀️ Rota da Manhã
+                                                        </span>
+                                                    ) : (
+                                                        <span className="inline-flex items-center gap-1 text-indigo-600">
+                                                            🌙 Rota da Tarde
+                                                        </span>
+                                                    )}
+                                                </p>
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
-                                <div className="flex items-center gap-3.5 min-w-0">
-                                    <div className="p-3 bg-slate-100/50 text-slate-500 border border-slate-100 rounded-xl shadow-sm shrink-0"><Calendar size={20}/></div>
-                                    <div className="min-w-0">
-                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Data da Entrega / Rota</p>
-                                        <p className="font-extrabold text-slate-800 text-sm md:text-base truncate mt-0.5">
-                                            {(() => {
-                                                try {
-                                                    const d = routeInfo.date instanceof Date ? routeInfo.date : new Date(routeInfo.date);
-                                                    return d.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
-                                                } catch(e) {
-                                                    try {
-                                                        return new Date(routeInfo.date).toLocaleDateString('pt-BR');
-                                                    } catch(err) {
-                                                        return String(routeInfo.date);
-                                                    }
-                                                }
-                                            })()}
-                                        </p>
+                                ) : null}
+
+                                {/* Histórico de Tentativa Cancelada */}
+                                {job?.lastDeliveryAttempt && (
+                                    <div className="p-4 bg-rose-50/70 border border-rose-200/80 rounded-2xl space-y-2">
+                                        <div className="flex items-center justify-between border-b border-rose-200/60 pb-2">
+                                            <span className="text-[10px] font-black uppercase tracking-wider text-rose-800 flex items-center gap-1.5">
+                                                <AlertCircle size={14} className="text-rose-600" /> Histórico da Última Tentativa de Entrega
+                                            </span>
+                                            <span className="text-[9px] font-extrabold px-2 py-0.5 bg-rose-200/60 text-rose-900 rounded-md uppercase">
+                                                {job.lastDeliveryAttempt.status === 'CANCELLED' ? 'Entrega Não Realizada' : job.lastDeliveryAttempt.status}
+                                            </span>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs pt-1">
+                                            <div>
+                                                <p className="text-[9px] font-black uppercase text-rose-400 tracking-wider">Motoboy</p>
+                                                <p className="font-bold text-slate-800 uppercase">{job.lastDeliveryAttempt.driverName}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-[9px] font-black uppercase text-rose-400 tracking-wider">Data / Turno</p>
+                                                <p className="font-bold text-slate-800">
+                                                    {job.lastDeliveryAttempt.date.split('-').reverse().join('/')} ({job.lastDeliveryAttempt.shift === 'MORNING' ? 'Manhã' : 'Tarde'})
+                                                </p>
+                                            </div>
+                                            <div className="sm:col-span-3 pt-1 border-t border-rose-200/50">
+                                                <p className="text-[9px] font-black uppercase text-rose-500 tracking-wider mb-0.5">Motivo do Cancelamento:</p>
+                                                <p className="font-black text-rose-900 bg-white p-2.5 rounded-xl border border-rose-200 shadow-2xs leading-relaxed text-xs">
+                                                    "{job.lastDeliveryAttempt.reason || 'Motivo não informado'}"
+                                                </p>
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
-                                <div className="flex items-center gap-3.5 min-w-0">
-                                    <div className="p-3 bg-slate-100/50 text-slate-500 border border-slate-100 rounded-xl shadow-sm shrink-0"><Clock size={20}/></div>
-                                    <div className="min-w-0">
-                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Turno do Roteiro</p>
-                                        <p className="font-extrabold text-slate-800 text-sm md:text-base truncate mt-0.5">
-                                            {routeInfo.shift === 'MORNING' ? (
-                                                <span className="inline-flex items-center gap-1 text-amber-600">
-                                                    ☀️ Rota da Manhã
-                                                </span>
-                                            ) : (
-                                                <span className="inline-flex items-center gap-1 text-indigo-600">
-                                                    🌙 Rota da Tarde
-                                                </span>
-                                            )}
-                                        </p>
-                                    </div>
-                                </div>
+                                )}
                             </div>
                         </div>
                     )}
@@ -6696,9 +6876,17 @@ export const JobDetails = () => {
                         const jt = jobTypes.find(t => t.id === item.jobTypeId);
                         const activeLabSectorNames = new Set(sectors.map(s => s.name));
 
+                        const itemConfiguredSectors = Object.keys(item.sectorStages || {}).filter(sec => Array.isArray(item.sectorStages[sec]) && item.sectorStages[sec].length > 0);
+                        const jtSectorStages = jt?.sectorStages;
+                        const jtConfiguredSectors = Object.keys(jtSectorStages || {}).filter(sec => Array.isArray(jtSectorStages?.[sec]) && (jtSectorStages?.[sec]?.length || 0) > 0);
+                        const allConfiguredSectors = Array.from(new Set([...itemConfiguredSectors, ...jtConfiguredSectors]));
+
                         let candidateSectors: string[] = [];
                         if (jt?.allowedSectors && jt.allowedSectors.length > 0) {
-                            candidateSectors = jt.allowedSectors.filter(sec => activeLabSectorNames.has(sec));
+                            candidateSectors = Array.from(new Set([
+                                ...jt.allowedSectors.filter(sec => activeLabSectorNames.has(sec)),
+                                ...allConfiguredSectors.filter(sec => activeLabSectorNames.has(sec))
+                            ]));
                         } else {
                             candidateSectors = sectors.map(s => s.name);
                         }

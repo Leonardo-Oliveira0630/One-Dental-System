@@ -67,29 +67,109 @@ export const PrintOverlay = () => {
 
   if (!printData) return null;
 
+  React.useEffect(() => {
+    if (!printData) return;
+    
+    document.body.classList.add('printing-overlay-active');
+
+    // Handle afterprint listener to cleanup cleanly
+    const handleAfterPrint = () => {
+      document.body.classList.remove('printing-overlay-active');
+    };
+    window.addEventListener('afterprint', handleAfterPrint);
+
+    // Auto-trigger print smoothly after 500ms once DOM elements and SVG barcodes render
+    const timer = setTimeout(() => {
+      try {
+        window.print();
+      } catch (err) {
+        console.warn("[PrintOverlay] Auto print error:", err);
+      }
+    }, 500);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('afterprint', handleAfterPrint);
+      document.body.classList.remove('printing-overlay-active');
+    };
+  }, [printData?.mode, printData?.job?.id, printData?.date]);
+
   const handlePrint = () => {
-    window.print();
+    try {
+      document.body.classList.add('printing-overlay-active');
+      window.print();
+    } catch (e) {
+      console.error("Print execution failed:", e);
+      alert("Não foi possível abrir o diálogo de impressão. Verifique as permissões de impressora ou popups no navegador.");
+    }
   };
 
   const labName = currentOrg?.name || 'Labprox SYSTEM';
   const labLogo = currentOrg?.logoUrl;
 
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm p-4 print:bg-white print:static print:block print:p-0">
+    <div id="printable-overlay-container" className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm p-4 print:bg-white print:static print:block print:p-0">
       <style>
         {`
           @media print {
+            body {
+              visibility: hidden !important;
+              background: #ffffff !important;
+            }
+            #printable-overlay-container,
+            #printable-overlay-container * {
+              visibility: visible !important;
+            }
+            #printable-overlay-container {
+              position: absolute !important;
+              left: 0 !important;
+              top: 0 !important;
+              width: 100% !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              background: #ffffff !important;
+            }
+            .print\\:hidden, header, nav, aside {
+              display: none !important;
+            }
+
+            /* Configure body and html for clean printing */
+            html, body {
+              width: 100% !important;
+              height: auto !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              background: #ffffff !important;
+              color: #000000 !important;
+              overflow: visible !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+
+            /* Reset printable content box */
+            #printable-content {
+              position: relative !important;
+              display: block !important;
+              width: ${printData.mode === 'LABEL' || printData.mode === 'ADDRESS_LABEL' ? '50mm' : '100%'} !important;
+              max-width: none !important;
+              min-height: auto !important;
+              margin: 0 auto !important;
+              padding: ${printData.mode === 'LABEL' || printData.mode === 'ADDRESS_LABEL' ? '0' : '8mm'} !important;
+              box-shadow: none !important;
+              border: none !important;
+              background: #ffffff !important;
+              color: #000000 !important;
+              overflow: visible !important;
+              break-inside: avoid !important;
+              page-break-inside: avoid !important;
+            }
+
             @page {
               size: ${printData.mode === 'LABEL' || printData.mode === 'ADDRESS_LABEL' ? '50mm 28mm' : 'A4 portrait'};
               margin: 0;
             }
-            body {
-              -webkit-print-color-adjust: exact;
-              print-color-adjust: exact;
-              margin: 0;
-              padding: 0;
-            }
-            /* Disable anti-aliasing for thermal printers to avoid dithering (serrilhado) */
+
+            /* Disable anti-aliasing for thermal printers to avoid dithering */
             .thermal-print {
               -webkit-font-smoothing: none;
               -moz-osx-font-smoothing: grayscale;
@@ -187,7 +267,12 @@ export const PrintOverlay = () => {
                     <div className="border border-gray-300 p-2 rounded relative flex-1 flex items-center justify-between">
                         <div className="overflow-hidden">
                             <p className="text-[10px] uppercase font-bold text-gray-500 mb-0.5 leading-none">Paciente</p>
-                            <p className="text-[10pt] font-bold leading-tight truncate mt-1">{job.patientName}</p>
+                            <p className="text-[10pt] font-bold leading-tight truncate mt-1 flex items-center gap-2">
+                                <span>{job.patientName}</span>
+                                <span className="text-[8.5pt] font-black text-black bg-gray-100 px-1.5 py-0.5 rounded border border-gray-300 shrink-0">
+                                    OS: {job.osNumber || job.id.substring(0, 8)}
+                                </span>
+                            </p>
                         </div>
                         {job.items.some(i => i.nature === 'REPETITION' || i.nature === 'ADJUSTMENT') && (
                             <div className="px-2 py-0.5 bg-black text-white text-[10px] font-black uppercase rounded-sm shrink-0">
@@ -389,7 +474,12 @@ export const PrintOverlay = () => {
                     <div className="border border-gray-300 p-2 rounded relative flex-1 flex flex-col justify-between">
                         <div className="overflow-hidden pb-1 mb-1 border-b border-gray-200">
                             <p className="text-[10px] uppercase font-bold text-gray-500 mb-0.5 leading-none">Paciente</p>
-                            <p className="text-[10pt] font-bold leading-tight truncate mt-1 text-gray-900">{job.patientName}</p>
+                            <p className="text-[10pt] font-bold leading-tight mt-1 text-gray-900 flex items-center gap-2.5">
+                                <span className="font-extrabold text-black uppercase truncate">{job.patientName}</span>
+                                <span className="text-[9pt] font-black text-black bg-gray-100 px-2 py-0.5 rounded border border-gray-300 shrink-0">
+                                    OS: {job.osNumber || job.id.substring(0, 8)}
+                                </span>
+                            </p>
                         </div>
                         <div className="overflow-hidden">
                             <p className="text-[10px] uppercase font-bold text-gray-500 mb-0.5 leading-none">Endereço do Dentista</p>
