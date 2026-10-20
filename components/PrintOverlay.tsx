@@ -65,8 +65,6 @@ export const PrintOverlay = () => {
   };
 
 
-  if (!printData) return null;
-
   React.useEffect(() => {
     if (!printData) return;
     
@@ -94,6 +92,8 @@ export const PrintOverlay = () => {
     };
   }, [printData?.mode, printData?.job?.id, printData?.date]);
 
+  if (!printData) return null;
+
   const handlePrint = () => {
     try {
       document.body.classList.add('printing-overlay-active');
@@ -108,35 +108,48 @@ export const PrintOverlay = () => {
   const labLogo = currentOrg?.logoUrl;
 
   return (
-    <div id="printable-overlay-container" className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm p-4 print:bg-white print:static print:block print:p-0">
+    <div id="printable-overlay-container" className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm p-4 print:bg-white print:p-0">
       <style>
         {`
           @media print {
-            body {
-              visibility: hidden !important;
-              background: #ffffff !important;
+            /* 1. Hide body direct siblings except #root */
+            body > *:not(#root) {
+              display: none !important;
             }
-            #printable-overlay-container,
-            #printable-overlay-container * {
-              visibility: visible !important;
+
+            /* 2. Hide all siblings of #printable-overlay-container inside #root */
+            #root > *:not(#printable-overlay-container) {
+              display: none !important;
             }
+
+            /* 3. Position and display printable overlay container at top left */
             #printable-overlay-container {
+              display: block !important;
               position: absolute !important;
               left: 0 !important;
               top: 0 !important;
               width: 100% !important;
+              height: auto !important;
               margin: 0 !important;
               padding: 0 !important;
               background: #ffffff !important;
+              color: #000000 !important;
+              visibility: visible !important;
             }
+
+            #printable-overlay-container * {
+              visibility: visible !important;
+            }
+
             .print\\:hidden, header, nav, aside {
               display: none !important;
             }
 
             /* Configure body and html for clean printing */
-            html, body {
+            html, body, #root {
               width: 100% !important;
               height: auto !important;
+              min-height: auto !important;
               margin: 0 !important;
               padding: 0 !important;
               background: #ffffff !important;
