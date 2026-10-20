@@ -112,18 +112,24 @@ export const PrintOverlay = () => {
       <style>
         {`
           @media print {
-            /* 1. Hide body direct siblings except #root */
+            /* Hide body direct siblings except #root when printing */
             body > *:not(#root) {
               display: none !important;
             }
 
-            /* 2. Hide all siblings of #printable-overlay-container inside #root */
-            #root > *:not(#printable-overlay-container) {
-              display: none !important;
+            /* Hide everything inside body/root by default using visibility */
+            body.printing-overlay-active * {
+              visibility: hidden !important;
             }
 
-            /* 3. Position and display printable overlay container at top left */
-            #printable-overlay-container {
+            /* Make #printable-overlay-container and all its descendants visible */
+            body.printing-overlay-active #printable-overlay-container,
+            body.printing-overlay-active #printable-overlay-container * {
+              visibility: visible !important;
+            }
+
+            /* Position #printable-overlay-container at top left */
+            body.printing-overlay-active #printable-overlay-container {
               display: block !important;
               position: absolute !important;
               left: 0 !important;
@@ -134,14 +140,13 @@ export const PrintOverlay = () => {
               padding: 0 !important;
               background: #ffffff !important;
               color: #000000 !important;
-              visibility: visible !important;
             }
 
-            #printable-overlay-container * {
-              visibility: visible !important;
-            }
-
-            .print\\:hidden, header, nav, aside {
+            /* Force display none on overlay controls marked with print:hidden */
+            body.printing-overlay-active .print\\:hidden,
+            body.printing-overlay-active header,
+            body.printing-overlay-active nav,
+            body.printing-overlay-active aside {
               display: none !important;
             }
 
