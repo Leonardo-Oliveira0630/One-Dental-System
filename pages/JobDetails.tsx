@@ -5523,9 +5523,38 @@ export const JobDetails = () => {
                                       }}
                                     >
                                         <div className="min-w-0 flex-1">
-                                            <p className="font-black text-slate-800 text-sm md:text-base leading-tight truncate"><span className="text-blue-600 mr-1">{item.quantity}x</span> {getNaturePrefix(item.nature)}{formatItemNameWithVariations(item, jobTypes)}</p>
-                                            <div className="flex items-center gap-2 mt-1">
-                                                <p className="text-[9px] text-slate-400 uppercase font-black tracking-widest truncate">{item.nature === 'REPETITION' ? 'REPETIÇÃO' : item.nature === 'ADJUSTMENT' ? 'AJUSTE' : 'NORMAL'}</p>
+                                            <p className="font-black text-slate-800 text-sm md:text-base leading-tight">
+                                                {getNaturePrefix(item.nature)}{formatItemNameWithVariations(item, jobTypes)}
+                                            </p>
+                                            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-2">
+                                                {/* Quantidade */}
+                                                <span className="px-2 py-0.5 rounded-md font-extrabold text-[11px] bg-blue-50 text-blue-700 border border-blue-100/80 flex items-center gap-1 shrink-0">
+                                                    <span className="text-[9px] uppercase tracking-wider text-blue-400 font-black">Qtd:</span> {item.quantity || 1}
+                                                </span>
+
+                                                {/* Natureza */}
+                                                <span className={`px-2 py-0.5 rounded-md font-extrabold text-[11px] border flex items-center gap-1 shrink-0 ${
+                                                    item.nature === 'REPETITION' ? 'bg-amber-50 text-amber-800 border-amber-200' : 
+                                                    item.nature === 'ADJUSTMENT' ? 'bg-purple-50 text-purple-800 border-purple-200' : 
+                                                    'bg-slate-100 text-slate-700 border-slate-200'
+                                                }`}>
+                                                    <span className="text-[9px] uppercase tracking-wider opacity-60 font-black">Natureza:</span> {
+                                                        item.nature === 'REPETITION' ? '(R) Repetição' : 
+                                                        item.nature === 'ADJUSTMENT' ? '(A) Ajuste' : 
+                                                        'Normal'
+                                                    }
+                                                </span>
+
+                                                {/* Cor */}
+                                                <span className="px-2 py-0.5 rounded-md font-extrabold text-[11px] bg-slate-50 text-slate-700 border border-slate-200 flex items-center gap-1 shrink-0">
+                                                    <span className="text-[9px] uppercase tracking-wider text-slate-400 font-black">Cor:</span> {item.color || 'Não informada'}
+                                                </span>
+
+                                                {/* Dentes */}
+                                                <span className="px-2 py-0.5 rounded-md font-extrabold text-[11px] bg-indigo-50 text-indigo-700 border border-indigo-100 flex items-center gap-1 shrink-0">
+                                                    <span className="text-[9px] uppercase tracking-wider text-indigo-400 font-black">Dentes:</span> {formatTeethRange(item.selectedTeeth) || 'Sem elemento'}
+                                                </span>
+
                                                 {(item.nature === 'REPETITION' || item.nature === 'ADJUSTMENT') && canManageCommissions && (
                                                     <button 
                                                         type="button" 
@@ -5946,14 +5975,24 @@ export const JobDetails = () => {
                                             ) : (
                                                 <>
                                                     <div className="flex justify-between items-start mb-4">
-                                                        <div className="grid grid-cols-2 lg:grid-cols-6 gap-4 flex-1">
+                                                        <div className="grid grid-cols-2 lg:grid-cols-7 gap-4 flex-1">
                                                             <div>
-                                                                <p className="text-[9px] font-black text-slate-400 uppercase">Dentes</p>
-                                                                <p className="text-sm font-bold text-indigo-600">{formatTeethRange(item.selectedTeeth)}</p>
+                                                                <p className="text-[9px] font-black text-slate-400 uppercase">Natureza</p>
+                                                                <p className="text-sm font-bold text-slate-700">
+                                                                    {item.nature === 'REPETITION' ? '(R) Repetição' : item.nature === 'ADJUSTMENT' ? '(A) Ajuste' : 'Normal'}
+                                                                </p>
                                                             </div>
                                                             <div>
-                                                                <p className="text-[9px] font-black text-slate-400 uppercase">Quant. Original</p>
-                                                                <p className="text-sm font-bold text-slate-700">{item.quantity}</p>
+                                                                <p className="text-[9px] font-black text-slate-400 uppercase">Dentes</p>
+                                                                <p className="text-sm font-bold text-indigo-600">{formatTeethRange(item.selectedTeeth) || 'Sem elemento'}</p>
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-[9px] font-black text-slate-400 uppercase">Cor</p>
+                                                                <p className="text-sm font-bold text-slate-700">{item.color || 'Não informada'}</p>
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-[9px] font-black text-slate-400 uppercase">Quantidade</p>
+                                                                <p className="text-sm font-bold text-slate-700">{item.quantity || 1}</p>
                                                             </div>
                                                             <div>
                                                                 <p className="text-[9px] font-black text-slate-400 uppercase">Valor Unitário</p>

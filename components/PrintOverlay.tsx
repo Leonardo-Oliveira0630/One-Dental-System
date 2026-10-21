@@ -819,6 +819,11 @@ export const PrintOverlay = () => {
                                                      </span>
                                                  </div>
                                                  {item.observations && <div className="text-[8px] text-gray-800 font-bold uppercase leading-tight">OBS: {item.observations}</div>}
+                                                 {item.addedByUserName && (
+                                                     <div className="text-[7.5px] text-gray-500 font-bold uppercase leading-tight mt-0.5">
+                                                         Ins: {item.addedByUserName} {item.addedAt ? `(${new Date(item.addedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })})` : ''}
+                                                     </div>
+                                                 )}
                                              </div>
                                          );
                                      })}

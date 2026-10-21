@@ -1098,10 +1098,74 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
       return;
     }
 
+    // Validação de Serviços / Produtos obrigatórios
+    let finalItems = [...addedItems];
+    let finalProducts = [...addedProducts];
+
+    // Se o usuário selecionou e configurou um tipo de serviço na tela mas não clicou no botão "Adicionar", inclui automaticamente esse serviço
+    if (finalItems.length === 0 && finalProducts.length === 0 && activeJobType) {
+        const allSelectedOptionIds = Object.values(selectedVariations).flat() as string[];
+        let appliedTableName = 'Tabela Genérica';
+        if (selectedDentistObj?.isCustomPricing) {
+            appliedTableName = 'Customizado (Dentista)';
+        } else if (selectedDentistObj?.priceTableId) {
+            const table = priceTables.find(t => t.id === selectedDentistObj.priceTableId);
+            if (table) appliedTableName = table.name;
+        }
+
+        const initialStageQuantities: Record<string, Record<string, number>> = {};
+        const sanitizedSectorStages: Record<string, string[]> = {};
+        if (activeJobType.sectorStages) {
+          Object.entries(activeJobType.sectorStages).forEach(([sec, stgs]) => {
+            const valid = (stgs || []).filter(stg => typeof stg === 'string' && stg.trim() !== '');
+            if (valid.length > 0) {
+              sanitizedSectorStages[sec] = valid;
+              initialStageQuantities[sec] = {};
+              valid.forEach(stg => {
+                initialStageQuantities[sec][stg] = Number(quantity) || 1;
+              });
+            }
+          });
+        }
+
+        const isSurcharge = priceAdjustmentType === 'SURCHARGE';
+        const numVal = Number(discountValue) || 0;
+
+        const autoItem: JobItem = { 
+            id: `item_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`, 
+            jobTypeId: activeJobType.id, 
+            name: activeJobType.name, 
+            quantity: Number(quantity) || 1, 
+            nature: itemNature, 
+            isInternalStep: isInternalStep,
+            price: finalItemPrice, 
+            basePriceBeforeDiscount: manualPrice !== null ? (Number(manualPrice) || 0) : calculatedBasePrice,
+            priceAdjustmentType: priceAdjustmentType,
+            appliedDiscount: !isSurcharge && discountType === 'PERCENTAGE' ? numVal : 0,
+            appliedDiscountFixed: !isSurcharge && discountType === 'FIXED' ? numVal : 0,
+            appliedSurcharge: isSurcharge && discountType === 'PERCENTAGE' ? numVal : 0,
+            appliedSurchargeFixed: isSurcharge && discountType === 'FIXED' ? numVal : 0,
+            appliedPriceTable: appliedTableName,
+            selectedVariationIds: allSelectedOptionIds, 
+            variationValues: variationTextValues, 
+            commissionDisabled: commissionDisabled, 
+            selectedTeeth: itemSelectedTeeth && itemSelectedTeeth.length > 0 ? itemSelectedTeeth : (manualTeethText.trim() ? [manualTeethText.trim()] : undefined), 
+            color: itemColor || undefined,
+            sectorStages: Object.keys(sanitizedSectorStages).length > 0 ? sanitizedSectorStages : undefined,
+            stageQuantities: Object.keys(initialStageQuantities).length > 0 ? initialStageQuantities : undefined
+        };
+        finalItems.push(autoItem);
+    }
+
+    if (finalItems.length === 0 && finalProducts.length === 0) {
+      alert("É necessário adicionar pelo menos um Tipo de Serviço ou Produto do estoque para cadastrar a nova OS.");
+      return;
+    }
+
     if (!currentUser) return;
 
-    const itemsTotal = addedItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-    const productsTotal = addedProducts.reduce((acc, p) => acc + (p.unitPrice * p.quantity), 0);
+    const itemsTotal = finalItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+    const productsTotal = finalProducts.reduce((acc, p) => acc + (p.unitPrice * p.quantity), 0);
     const totalValue = itemsTotal + productsTotal;
     const boxColor = boxColors.find(c => c.id === selectedColorId);
     const initialSector = currentUser.sector || 'Recepção';
@@ -1140,8 +1204,8 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                 dentistId: selectedDentistId,
                 dentistName: dentistName.trim().toUpperCase(),
                 subDentistName: subDentistName.trim() || undefined,
-                items: addedItems,
-                products: addedProducts,
+                items: finalItems,
+                products: finalProducts,
                 totalValue,
                 notes: finalJobNotes,
                 status: 'PENDING' as const,
@@ -1165,8 +1229,8 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
             urgency, 
             origin: finalOrigin,
             dentistUserId: computedDentistUserId,
-            items: addedItems, 
-            products: addedProducts,
+            items: finalItems, 
+            products: finalProducts,
             attachments: location.state?.attachments || [],
             history: [{ id: Math.random().toString(), timestamp: new Date(), action: historyAction, userId: currentUser.id, userName: currentUser.name, sector: initialSector }], 
             sectorMovements: [{

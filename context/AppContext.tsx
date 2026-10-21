@@ -1756,13 +1756,15 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       }
 
       let routeId = targetRouteId;
+      const activeCouriersCount = couriers.filter(c => c.active !== false).length;
 
       if (!routeId) {
-          // Check for an existing open or in-transit route on that date, shift, and driverName
+          // Check for an existing open or in-transit route on that date and shift
           const existingRoute = routes.find(r => {
               const rDateStr = normalizeRouteDate(r.date);
               const driverMatch = (r.driverName || '').trim().toLowerCase() === (driver || '').trim().toLowerCase();
-              return rDateStr === dateStr && r.shift === shift && driverMatch && r.status !== 'COMPLETED';
+              const matchDriver = activeCouriersCount <= 1 ? true : driverMatch;
+              return rDateStr === dateStr && r.shift === shift && matchDriver && r.status !== 'COMPLETED';
           });
 
           if (existingRoute) {
@@ -1815,8 +1817,53 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       };
 
       const address = formatRouteAddress(targetDentist);
+
+      // Determine ordering: if client is already in route, insert directly after last item of this client; otherwise place at the very end
+      let nextOrder = 1;
+      try {
+          const itemsSnap = await getDocs(collection(db, `organizations/${orgId}/routes/${routeId}/items`));
+          const existingItems: RouteItem[] = itemsSnap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() } as RouteItem));
+          
+          if (existingItems.length > 0) {
+              const sorted = [...existingItems].sort((a, b) => (a.order || 0) - (b.order || 0));
+              const sameClientItems = sorted.filter(i => i.dentistId === job.dentistId);
+              
+              if (sameClientItems.length > 0) {
+                  const lastClientItem = sameClientItems[sameClientItems.length - 1];
+                  const lastIdx = sorted.findIndex(i => i.id === lastClientItem.id);
+                  sorted.splice(lastIdx + 1, 0, { id: 'temp_new', dentistId: job.dentistId } as any);
+                  
+                  sorted.forEach((item, idx) => {
+                      const newOrd = idx + 1;
+                      if (item.id === 'temp_new') {
+                          nextOrder = newOrd;
+                      } else if (item.order !== newOrd) {
+                          api.apiUpdateRouteItem(orgId, routeId, item.id, { order: newOrd });
+                      }
+                  });
+              } else {
+                  const maxOrder = sorted.reduce((max, i) => Math.max(max, i.order || 0), 0);
+                  nextOrder = maxOrder + 1;
+              }
+          }
+      } catch (e) {
+          console.error("Erro ao calcular ordem dos itens da rota:", e);
+      }
+
       const routeItem: RouteItem = {
-          id: `item_${Date.now()}`, routeId: routeId, jobId: job.id, dentistId: job.dentistId, dentistName: job.dentistName, patientName: job.patientName, address: address, type: 'DELIVERY', order: Date.now(), observations: observations || '' 
+          id: `item_${Date.now()}`,
+          routeId: routeId,
+          jobId: job.id,
+          dentistId: job.dentistId,
+          dentistName: job.dentistName,
+          patientName: job.patientName,
+          address: address,
+          type: 'DELIVERY',
+          order: nextOrder,
+          observations: observations || '',
+          addedByUserId: currentUser?.id,
+          addedByUserName: currentUser?.name || 'Colaborador',
+          addedAt: new Date().toISOString()
       };
       await api.apiAddRouteItem(orgId, routeId, routeItem);
       await api.apiUpdateJob(orgId, job.id, { routeId });

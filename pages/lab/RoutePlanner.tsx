@@ -29,7 +29,7 @@ export const RoutePlanner = () => {
     const [pickupType, setPickupType] = useState<'PICKUP' | 'DELIVERY'>('PICKUP');
     const [deliverySubtype, setDeliverySubtype] = useState<'MATERIALS' | 'JOB'>('MATERIALS');
     const [pickupObs, setPickupObs] = useState('');
-    const [isSaving, setIsSaving] = useState(false);
+    const [routeSearchQuery, setRouteSearchQuery] = useState('');
     const [dentistSearch, setDentistSearch] = useState('');
 
     // State for Courier Management
@@ -59,9 +59,38 @@ export const RoutePlanner = () => {
     const [editingObservationsId, setEditingObservationsId] = useState<string | null>(null);
     const [observationsText, setObservationsText] = useState('');
 
+    const activeCouriers = useMemo(() => {
+        return couriers.filter(c => c.active);
+    }, [couriers]);
+
+    const filteredRouteItems = useMemo(() => {
+        if (!routeSearchQuery || !routeSearchQuery.trim()) return routeItems;
+        const q = routeSearchQuery.toLowerCase().trim();
+        return routeItems.filter(item => {
+            const itemJob = item.jobId ? jobs.find(j => j.id === item.jobId) : null;
+            const osNum = itemJob?.osNumber || item.jobId || '';
+            const dentist = item.dentistName || '';
+            const clinic = item.clinicName || '';
+            const patient = item.patientName || '';
+            const addr = item.address || '';
+            const obs = item.observations || '';
+            const addedBy = item.addedByUserName || '';
+            
+            return (
+                dentist.toLowerCase().includes(q) ||
+                clinic.toLowerCase().includes(q) ||
+                patient.toLowerCase().includes(q) ||
+                osNum.toLowerCase().includes(q) ||
+                addr.toLowerCase().includes(q) ||
+                obs.toLowerCase().includes(q) ||
+                addedBy.toLowerCase().includes(q)
+            );
+        });
+    }, [routeItems, routeSearchQuery, jobs]);
+
     const groupedStops = useMemo(() => {
         const groups = new Map<string, RouteItem[]>();
-        const sortedItems = [...routeItems].sort((a, b) => (a.order || 0) - (b.order || 0));
+        const sortedItems = [...filteredRouteItems].sort((a, b) => (a.order || 0) - (b.order || 0));
         
         sortedItems.forEach(item => {
             if (!groups.has(item.dentistId)) {
@@ -71,7 +100,7 @@ export const RoutePlanner = () => {
         });
         
         return Array.from(groups.values());
-    }, [routeItems]);
+    }, [filteredRouteItems]);
 
     const handleSaveObservations = async (item: RouteItem) => {
         if (!activeRoute || !currentOrg || !canEdit) return;
@@ -154,6 +183,18 @@ export const RoutePlanner = () => {
 
     const handleCreateRoute = async (driverName: string) => {
         if (!currentOrg || !driverName || (!canCreate && !canEdit)) return;
+
+        // Constraint: Single route per shift when 1 or fewer active couriers
+        if (activeCouriers.length <= 1 && shiftRoutes.length > 0) {
+            const existing = shiftRoutes[0];
+            setSelectedRouteId(existing.id);
+            try { localStorage.setItem('labprox_active_route_id', existing.id); } catch (e) {}
+            setShowStartRouteModal(false);
+            setManualCourierName('');
+            setSelectedCourierId('');
+            alert(`O laboratório possui apenas 1 motoboy ativo. A rota do turno já existente (${existing.driverName}) foi selecionada.`);
+            return;
+        }
 
         const today = getTodayDateStr();
 
@@ -302,6 +343,23 @@ export const RoutePlanner = () => {
             defaultObs = deliverySubtype === 'MATERIALS' ? 'Entrega de materiais / insumos' : 'Entrega de trabalhos finalizados';
         }
 
+        // Grouping logic: if client is already in route, insert after their last stop
+        const sameClientItems = routeItems.filter(item => item.dentistId === dentist.id);
+        let calculatedOrder = routeItems.length + 1;
+
+        if (sameClientItems.length > 0) {
+            const lastSameClientItem = sameClientItems.reduce((prev, curr) => (curr.order || 0) > (prev.order || 0) ? curr : prev, sameClientItems[0]);
+            calculatedOrder = (lastSameClientItem.order || 0) + 1;
+
+            // Shift subsequent items
+            const itemsToShift = routeItems.filter(item => (item.order || 0) >= calculatedOrder);
+            for (const item of itemsToShift) {
+                await api.apiUpdateRouteItem(currentOrg.id, activeRoute.id, item.id, {
+                    order: (item.order || 0) + 1
+                });
+            }
+        }
+
         const newItem: RouteItem = {
             id: `stop_${Date.now()}`,
             routeId: activeRoute.id,
@@ -311,7 +369,10 @@ export const RoutePlanner = () => {
             address: address,
             type: pickupType,
             observations: pickupObs.trim() ? pickupObs.trim() : defaultObs,
-            order: routeItems.length + 1
+            order: calculatedOrder,
+            addedByUserId: currentUser?.id || (currentUser as any)?.uid,
+            addedByUserName: currentUser?.name || currentUser?.email || 'Colaborador',
+            addedAt: new Date().toISOString()
         };
 
         await api.apiAddRouteItem(currentOrg.id, activeRoute.id, newItem);
@@ -412,10 +473,7 @@ export const RoutePlanner = () => {
         return filterAndSortClients(combined, dentistSearch).slice(0, 8);
     }, [dentistSearch, manualDentists, allUsers]);
 
-    // Active couriers helper
-    const activeCouriers = useMemo(() => {
-        return couriers.filter(c => c.active);
-    }, [couriers]);
+
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500" id="route-planner-section">
@@ -437,7 +495,7 @@ export const RoutePlanner = () => {
                 )}
             </div>
 
-            {/* FILTRO DE DATA E TURNO */}
+            {/* FILTRO DE DATA E TURNO E BUSCA */}
             <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col md:flex-row gap-4 sm:p-6" id="route-filters-card">
                 <div className="flex-1">
                     <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">{t("routes.routeDate", "Data do Roteiro")}</label>
@@ -451,6 +509,25 @@ export const RoutePlanner = () => {
                     <div className="flex bg-slate-100 p-1 rounded-xl" id="route-shift-tabs">
                         <button id="shift-morning-btn" onClick={() => setSelectedShift('MORNING')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${selectedShift === 'MORNING' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>{t('routes.morning', 'Manhã')}</button>
                         <button id="shift-afternoon-btn" onClick={() => setSelectedShift('AFTERNOON')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${selectedShift === 'AFTERNOON' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>{t('routes.afternoon', 'Tarde')}</button>
+                    </div>
+                </div>
+                <div className="flex-1">
+                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Pesquisar na Rota</label>
+                    <div className="relative">
+                        <Search className="absolute left-3 top-2.5 text-slate-400" size={18} />
+                        <input 
+                            id="route-search-input" 
+                            type="text" 
+                            placeholder="Buscar parada, OS, paciente, dentista..." 
+                            value={routeSearchQuery} 
+                            onChange={e => setRouteSearchQuery(e.target.value)} 
+                            className="w-full pl-10 pr-8 py-2 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-800 bg-slate-50 focus:bg-white" 
+                        />
+                        {routeSearchQuery && (
+                            <button onClick={() => setRouteSearchQuery('')} className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600">
+                                <X size={16} />
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
@@ -683,9 +760,22 @@ export const RoutePlanner = () => {
                                                     <div key={item.id} className="p-3 bg-slate-50 border border-slate-100 rounded-xl">
                                                         <div className="flex justify-between items-start gap-2">
                                                             <div>
-                                                                <span className={`text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider ${item.type === 'DELIVERY' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
-                                                                    {item.type === 'DELIVERY' ? t('routes.deliveryBadge', 'Entrega') : t('routes.pickupBadge', 'Coleta')}
-                                                                </span>
+                                                                <div className="flex items-center gap-2 flex-wrap">
+                                                                    <span className={`text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider ${item.type === 'DELIVERY' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
+                                                                        {item.type === 'DELIVERY' ? t('routes.deliveryBadge', 'Entrega') : t('routes.pickupBadge', 'Coleta')}
+                                                                    </span>
+                                                                    {item.addedByUserName && (
+                                                                        <span className="text-[10px] text-slate-500 font-extrabold bg-slate-200/80 px-2 py-0.5 rounded flex items-center gap-1">
+                                                                            <UserIcon size={10} className="text-slate-400" />
+                                                                            Por: {item.addedByUserName}
+                                                                            {item.addedAt && (
+                                                                                <span className="font-normal text-slate-500 ml-1">
+                                                                                    ({new Date(item.addedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })})
+                                                                                </span>
+                                                                            )}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
                                                                 {item.patientName && (
                                                                     <div className="mt-1.5 flex items-center gap-1.5 text-xs font-bold text-slate-600 flex-wrap">
                                                                         <UserIcon size={12} /> {t('routes.patientLabel', 'Paciente:')} {item.patientName}

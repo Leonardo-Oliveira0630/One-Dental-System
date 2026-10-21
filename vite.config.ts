@@ -29,6 +29,15 @@ export default defineConfig(({ mode }) => {
     },
     build: {
       outDir: 'dist',
+      target: 'es2022',
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            vendor: ['react', 'react-dom', 'lucide-react'],
+            xlsx: ['xlsx']
+          }
+        }
+      }
     },
   };
 });

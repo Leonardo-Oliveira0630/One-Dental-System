@@ -296,6 +296,9 @@ export interface RouteItem {
   type: 'DELIVERY' | 'PICKUP';
   order: number;
   observations?: string;
+  addedByUserId?: string;
+  addedByUserName?: string;
+  addedAt?: Date | string;
 }
 
 export interface Courier {
