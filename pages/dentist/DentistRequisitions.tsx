@@ -154,28 +154,43 @@ export const DentistRequisitions = () => {
   }, [selectedServiceId]);
 
   const handleVariationChange = (group: any, optionId: string) => {
+    let nextVariations: Record<string, string | string[]> = { ...selectedVariations };
     const isSingle = group.selectionType === 'SINGLE';
     if (isSingle) {
       if (selectedVariations[group.id] === optionId) {
-        const copy = { ...selectedVariations };
-        delete copy[group.id];
-        setSelectedVariations(copy);
+        delete nextVariations[group.id];
       } else {
-        setSelectedVariations({ ...selectedVariations, [group.id]: optionId });
+        nextVariations[group.id] = optionId;
       }
     } else {
-      const prev = selectedVariations[group.id] as string[] || [];
+      const prev = (selectedVariations[group.id] as string[]) || [];
       if (prev.includes(optionId)) {
-        setSelectedVariations({
-          ...selectedVariations,
-          [group.id]: prev.filter(id => id !== optionId)
-        });
+        nextVariations[group.id] = prev.filter(id => id !== optionId);
       } else {
-        setSelectedVariations({
-          ...selectedVariations,
-          [group.id]: [...prev, optionId]
-        });
+        nextVariations[group.id] = [...prev, optionId];
       }
+    }
+    setSelectedVariations(nextVariations);
+
+    const allSelectedIds = Object.values(nextVariations).flat() as string[];
+    let targetAutoQty = 1;
+
+    const activeService = services.find(s => s.id === selectedServiceId);
+    if (activeService && activeService.variationGroups) {
+      for (const g of activeService.variationGroups) {
+        if (!g.options) continue;
+        for (const opt of g.options) {
+          if (allSelectedIds.includes(opt.id) && opt.autoQuantity && opt.autoQuantity > 0) {
+            if (opt.autoQuantity > targetAutoQty) {
+              targetAutoQty = opt.autoQuantity;
+            }
+          }
+        }
+      }
+    }
+
+    if (itemSelectedTeeth.length === 0 || targetAutoQty > 1) {
+      setQuantity(targetAutoQty);
     }
   };
 

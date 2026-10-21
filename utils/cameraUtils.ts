@@ -1,5 +1,5 @@
 import { Capacitor } from '@capacitor/core';
-import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
+import { Camera, CameraResultType, CameraSource, CameraDirection } from '@capacitor/camera';
 
 export interface CameraDevice {
     deviceId: string;
@@ -13,9 +13,11 @@ export const getAvailableCameras = async (): Promise<CameraDevice[]> => {
             return [];
         }
 
-        // Request permission first, otherwise labels might be empty
+        // Request permission using rear camera constraint (environment) to avoid defaulting to front camera on Android
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: { ideal: 'environment' } }
+            });
             stream.getTracks().forEach(track => track.stop());
         } catch (err) {
             console.warn("Permission check stream error (enumeration will proceed):", err);
@@ -29,17 +31,18 @@ export const getAvailableCameras = async (): Promise<CameraDevice[]> => {
             const labelLower = label.toLowerCase();
 
             if (!label) {
-                label = `Câmera ${index + 1}`;
+                // By Android HAL specification, camera 0 is almost universally the primary rear camera
+                label = index === 0 ? 'Câmera Traseira Principal' : `Câmera ${index + 1}`;
             }
 
-            // Friendly tag for PC external webcams vs notebook built-in webcams
+            // Friendly tag for PC external webcams vs notebook built-in webcams vs mobile rear/front
             if (labelLower.includes('usb') || labelLower.includes('external') || labelLower.includes('logitech') || labelLower.includes('c920') || labelLower.includes('c922') || labelLower.includes('obs') || labelLower.includes('cam')) {
                 if (!labelLower.includes('externa') && !labelLower.includes('integrada')) {
                     label += ' (Externa USB)';
                 }
-            } else if (labelLower.includes('integrated') || labelLower.includes('built-in') || labelLower.includes('front') || labelLower.includes('internal') || labelLower.includes('hp hd') || labelLower.includes('dell')) {
-                if (!labelLower.includes('notebook') && !labelLower.includes('integrada')) {
-                    label += ' (Integrada Notebook)';
+            } else if (labelLower.includes('integrated') || labelLower.includes('built-in') || labelLower.includes('front') || labelLower.includes('internal') || labelLower.includes('hp hd') || labelLower.includes('dell') || labelLower.includes('selfie') || labelLower.includes('user')) {
+                if (!labelLower.includes('notebook') && !labelLower.includes('integrada') && !labelLower.includes('frontal')) {
+                    label += ' (Frontal / Integrada)';
                 }
             }
 
@@ -57,17 +60,53 @@ export const getAvailableCameras = async (): Promise<CameraDevice[]> => {
 export const getSmartCameraSelection = (cameras: CameraDevice[]): string | undefined => {
     if (!cameras || cameras.length === 0) return undefined;
 
-    // Preference 1: External USB Webcams or Rear/Back Mobile Cameras
-    const externalOrBack = cameras.filter(cam => {
+    // Score devices to identify the primary rear (environment) camera, especially on Android devices
+    const scored = cameras.map((cam, index) => {
         const lbl = cam.label.toLowerCase();
-        return lbl.includes('externa') || lbl.includes('usb') || lbl.includes('logitech') || lbl.includes('back') || lbl.includes('rear') || lbl.includes('traseira');
+        let score = 0;
+
+        // 1. HARD DISQUALIFICATION for front/selfie/user cameras
+        const isFront = lbl.includes('front') || lbl.includes('frontal') || lbl.includes('user') ||
+                        lbl.includes('selfie') || lbl.includes('facetime') || lbl.includes('anterior') ||
+                        lbl.includes('integrada') || lbl.includes('built-in');
+        if (isFront) {
+            score -= 1000;
+        }
+
+        // 2. HIGH REWARD for Rear / Back / Environment cameras
+        const isRear = lbl.includes('back') || lbl.includes('rear') || lbl.includes('traseira') ||
+                       lbl.includes('traseiro') || lbl.includes('posterior') || lbl.includes('environment') ||
+                       lbl.includes('facing back') || lbl.includes('camera 0') || lbl.includes('câmera 0') ||
+                       lbl.includes('camera2 0') || lbl.includes('0, facing back') || lbl.includes('main') ||
+                       lbl.includes('principal') || lbl.includes('primary');
+        if (isRear) {
+            score += 500;
+        }
+
+        // 3. Prefer Main rear camera over Ultra-Wide/Macro (main camera has optimal autofocus for barcodes)
+        if (lbl.includes('0') || lbl.includes('main') || lbl.includes('principal') || lbl.includes('primary')) {
+            score += 100;
+        }
+        if (lbl.includes('wide') || lbl.includes('ultra') || lbl.includes('macro') || lbl.includes('depth') || lbl.includes('telephoto')) {
+            score -= 50;
+        }
+
+        // 4. External USB webcams on PC
+        if (lbl.includes('usb') || lbl.includes('externa') || lbl.includes('logitech') || lbl.includes('c920') || lbl.includes('c922')) {
+            score += 300;
+        }
+
+        // 5. Android HAL spec: camera 0 is Primary Rear Camera if unlabelled
+        if (index === 0 && !isFront) {
+            score += 150;
+        }
+
+        return { deviceId: cam.deviceId, score };
     });
 
-    if (externalOrBack.length > 0) {
-        return externalOrBack[0].deviceId;
-    }
+    scored.sort((a, b) => b.score - a.score);
 
-    return cameras[0].deviceId;
+    return scored[0].deviceId;
 };
 
 export const capturePhotoWithNativePreference = async (
@@ -76,7 +115,6 @@ export const capturePhotoWithNativePreference = async (
 ): Promise<void> => {
     if (Capacitor.isNativePlatform()) {
         try {
-            // First check & request camera permission if needed
             try {
                 const perm = await Camera.checkPermissions();
                 if (perm.camera !== 'granted') {
@@ -90,7 +128,8 @@ export const capturePhotoWithNativePreference = async (
                 quality: 100,
                 allowEditing: false,
                 resultType: CameraResultType.Uri,
-                source: CameraSource.Camera
+                source: CameraSource.Camera,
+                direction: CameraDirection.Rear
             });
 
             if (photo && photo.webPath) {
@@ -107,7 +146,6 @@ export const capturePhotoWithNativePreference = async (
             }
         } catch (err: any) {
             const errStr = (err?.message || err?.toString() || '').toLowerCase();
-            // If the user cancelled the camera app, do nothing
             if (errStr.includes('cancelled') || errStr.includes('cancel') || errStr.includes('user cancelled')) {
                 return;
             }
@@ -117,6 +155,5 @@ export const capturePhotoWithNativePreference = async (
         }
     }
 
-    // On web / desktop or if fallback needed:
     onOpenModalFallback();
 };

@@ -675,19 +675,28 @@ export const RoutePlanner = () => {
                                         
                                         {/* Group Items */}
                                         <div className="pl-[3.25rem] space-y-2 mt-2">
-                                            {group.map(item => (
-                                                <div key={item.id} className="p-3 bg-slate-50 border border-slate-100 rounded-xl">
-                                                    <div className="flex justify-between items-start gap-2">
-                                                        <div>
-                                                            <span className={`text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider ${item.type === 'DELIVERY' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
-                                                                {item.type === 'DELIVERY' ? t('routes.deliveryBadge', 'Entrega') : t('routes.pickupBadge', 'Coleta')}
-                                                            </span>
-                                                            {item.patientName && (
-                                                                <div className="mt-1.5 flex items-center gap-1.5 text-xs font-bold text-slate-600">
-                                                                    <UserIcon size={12} /> {t('routes.patientLabel', 'Paciente:')} {item.patientName}
-                                                                </div>
-                                                            )}
-                                                        </div>
+                                            {group.map(item => {
+                                                const itemJob = item.jobId ? jobs.find(j => j.id === item.jobId) : null;
+                                                const itemOsNumber = itemJob?.osNumber || (item.jobId ? item.jobId.substring(0, 8) : null);
+
+                                                return (
+                                                    <div key={item.id} className="p-3 bg-slate-50 border border-slate-100 rounded-xl">
+                                                        <div className="flex justify-between items-start gap-2">
+                                                            <div>
+                                                                <span className={`text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider ${item.type === 'DELIVERY' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
+                                                                    {item.type === 'DELIVERY' ? t('routes.deliveryBadge', 'Entrega') : t('routes.pickupBadge', 'Coleta')}
+                                                                </span>
+                                                                {item.patientName && (
+                                                                    <div className="mt-1.5 flex items-center gap-1.5 text-xs font-bold text-slate-600 flex-wrap">
+                                                                        <UserIcon size={12} /> {t('routes.patientLabel', 'Paciente:')} {item.patientName}
+                                                                        {itemOsNumber && (
+                                                                            <span className="text-[10px] font-black text-slate-800 bg-slate-200 px-1.5 py-0.5 rounded border border-slate-300">
+                                                                                OS: {itemOsNumber}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+                                                            </div>
                                                         <div className="flex items-center gap-1 shrink-0">
                                                             {canEdit && (
                                                                 <button 
@@ -740,7 +749,8 @@ export const RoutePlanner = () => {
                                                         )}
                                                     </div>
                                                 </div>
-                                            ))}
+                                            );
+                                        })}
                                         </div>
                                     </div>
                                 ))}

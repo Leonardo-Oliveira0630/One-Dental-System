@@ -381,12 +381,13 @@ export const CameraBarcodeScannerModal: React.FC<CameraBarcodeScannerModalProps>
   // Handle Photo from Device Native Camera (Capacitor)
   const handleNativeCameraSnap = async () => {
     try {
-      const { Camera, CameraResultType, CameraSource } = await import('@capacitor/camera');
+      const { Camera, CameraResultType, CameraSource, CameraDirection } = await import('@capacitor/camera');
       const photo = await Camera.getPhoto({
         quality: 100,
         allowEditing: false,
         resultType: CameraResultType.Uri,
-        source: CameraSource.Camera
+        source: CameraSource.Camera,
+        direction: CameraDirection.Rear
       });
 
       if (photo.webPath) {

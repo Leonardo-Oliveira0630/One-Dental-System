@@ -349,41 +349,48 @@ export async function startHighDefinitionCamera(
   // Fallback ladder: optimal 1080p -> 720p -> back camera -> universal video
   // NEVER use strict 'min' constraints on iOS because WebKit throws OverconstrainedError!
   const constraintCandidates: MediaStreamConstraints[] = [
-    // 1. High Definition (1080p) - Ideal back camera or chosen device
+    // 1. High Definition (1080p) - Chosen device + Environment (Rear) facing mode
     {
       audio: false,
       video: {
         deviceId: isSelectedValid ? { ideal: selectedDeviceId } : undefined,
-        facingMode: isSelectedValid ? undefined : { ideal: 'environment' },
+        facingMode: { ideal: 'environment' },
         width: { ideal: 1920 },
         height: { ideal: 1080 }
       }
     },
-    // 2. Standard HD (720p) - High compatibility on all iPhones & mobile browsers
+    // 2. Standard HD (720p) - Chosen device + Environment (Rear) facing mode
     {
       audio: false,
       video: {
         deviceId: isSelectedValid ? { ideal: selectedDeviceId } : undefined,
-        facingMode: isSelectedValid ? undefined : { ideal: 'environment' },
+        facingMode: { ideal: 'environment' },
         width: { ideal: 1280 },
         height: { ideal: 720 }
       }
     },
-    // 3. Facing mode environment only (no resolution constraints)
+    // 3. Exact Environment (Rear) facing mode constraint (forces Android browser to rear camera)
+    {
+      audio: false,
+      video: {
+        facingMode: { exact: 'environment' },
+        width: { ideal: 1280 },
+        height: { ideal: 720 }
+      }
+    },
+    // 4. Facing mode environment only (no resolution constraints)
     {
       audio: false,
       video: {
         facingMode: { ideal: 'environment' }
       }
     },
-    // 4. Exact environment facing mode
+    // 5. Fallback with deviceId if provided
     {
       audio: false,
-      video: {
-        facingMode: 'environment'
-      }
+      video: isSelectedValid ? { deviceId: { ideal: selectedDeviceId } } : { facingMode: 'environment' }
     },
-    // 5. Universal fallback
+    // 6. Universal fallback
     {
       audio: false,
       video: true

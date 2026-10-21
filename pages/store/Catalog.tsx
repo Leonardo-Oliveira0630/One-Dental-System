@@ -472,9 +472,15 @@ const VariationConfigModal = ({ product, selectedLab, localPriceTables, onClose,
 
 
     const handleVariationChange = (group: VariationGroup, optionId: string) => {
+        const option = group.options?.find(o => o.id === optionId);
+
         setSelectedVariations(prev => {
             const newSelections = { ...prev };
             const current = newSelections[group.id];
+            const isSelecting = group.selectionType === 'SINGLE' 
+                ? current !== optionId 
+                : !(Array.isArray(current) && current.includes(optionId));
+
             if (group.selectionType === 'SINGLE') {
                 newSelections[group.id] = optionId;
             } else {
@@ -484,6 +490,20 @@ const VariationConfigModal = ({ product, selectedLab, localPriceTables, onClose,
                 else arr.push(optionId);
                 newSelections[group.id] = arr;
             }
+
+            if (group.selectionType === 'SINGLE') {
+                if (isSelecting && option?.autoQuantity && option.autoQuantity > 0) {
+                    setQuantity(option.autoQuantity);
+                } else {
+                    setQuantity(1);
+                }
+            } else {
+                const remainingOptionIds = (newSelections[group.id] as string[]) || [];
+                const remainingOptions = group.options?.filter(o => remainingOptionIds.includes(o.id)) || [];
+                const activeAutoQtyOpt = remainingOptions.find(o => o.autoQuantity && o.autoQuantity > 0);
+                setQuantity(activeAutoQtyOpt?.autoQuantity || 1);
+            }
+
             return newSelections;
         });
     };

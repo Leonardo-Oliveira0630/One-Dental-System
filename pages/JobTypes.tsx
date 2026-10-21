@@ -1543,7 +1543,7 @@ export const JobTypes = () => {
                                                 {(group.options || []).map(option => (
                                                     <div key={option.id} className="bg-white p-3 rounded-lg border border-slate-200 space-y-3">
                                                         <div className="grid grid-cols-12 gap-2 items-end">
-                                                            <div className="col-span-12 sm:col-span-6">
+                                                            <div className="col-span-12 sm:col-span-4">
                                                                 <label className="text-[10px] text-slate-500 font-bold block">
                                                                     {group.selectionType === 'TEXT' ? t('jobTypes.fieldLabel', 'Rótulo do Campo (ex: Cor)') : t('jobTypes.optionName', 'Nome da Opção')}
                                                                 </label>
@@ -1562,8 +1562,22 @@ export const JobTypes = () => {
                                                                     />
                                                                 </div>
                                                             </div>
+                                                            <div className="col-span-6 sm:col-span-2">
+                                                                <label className="text-[10px] text-slate-500 font-bold block truncate" title="Quantidade automática do serviço ao selecionar esta opção (ex: 2 para Inferior+Superior)">
+                                                                    {t('jobTypes.autoQuantity', 'Qtd. Auto')}
+                                                                </label>
+                                                                <input 
+                                                                    type="number" 
+                                                                    min="1" 
+                                                                    step="1" 
+                                                                    value={option.autoQuantity || ''} 
+                                                                    onChange={e => updateOption(group.id, option.id, { autoQuantity: e.target.value === '' ? undefined : (parseInt(e.target.value, 10) || undefined) })} 
+                                                                    className="w-full p-2 text-sm font-bold text-indigo-700 rounded bg-slate-50 focus:bg-white outline-none focus:ring-1 ring-slate-200 focus:ring-indigo-400 text-center" 
+                                                                    placeholder="Ex: 2" 
+                                                                />
+                                                            </div>
                                                             <div className="col-span-4 sm:col-span-2 flex flex-col items-center">
-                                                                <label className="text-[10px] text-slate-500 font-bold block mb-1">{t('jobTypes.discountExempt', 'Isento de Desconto')}</label>
+                                                                <label className="text-[10px] text-slate-500 font-bold block mb-1 truncate" title="Isento de Desconto">{t('jobTypes.discountExemptShort', 'Isento')}</label>
                                                                 <button 
                                                                     type="button" 
                                                                     onClick={() => updateOption(group.id, option.id, { isDiscountExempt: !option.isDiscountExempt })}

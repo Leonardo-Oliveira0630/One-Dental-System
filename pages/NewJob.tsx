@@ -825,6 +825,7 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
     setSelectedVariations(prev => {
       const newSelections = { ...prev };
       const currentSelection = newSelections[group.id];
+
       if (group.selectionType === 'SINGLE') newSelections[group.id] = optionId;
       else { 
         const selectionArray = Array.isArray(currentSelection) ? [...currentSelection] : [];
@@ -832,6 +833,26 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
         if (index > -1) selectionArray.splice(index, 1); else selectionArray.push(optionId);
         newSelections[group.id] = selectionArray;
       }
+
+      // Check all selected option IDs across ALL groups
+      const allSelectedIds = Object.values(newSelections).flat() as string[];
+      let targetAutoQty = 1;
+
+      if (activeJobType && activeJobType.variationGroups) {
+        for (const g of activeJobType.variationGroups) {
+          if (!g.options) continue;
+          for (const opt of g.options) {
+            if (allSelectedIds.includes(opt.id) && opt.autoQuantity && opt.autoQuantity > 0) {
+              if (opt.autoQuantity > targetAutoQty) {
+                targetAutoQty = opt.autoQuantity;
+              }
+            }
+          }
+        }
+      }
+
+      setQuantity(targetAutoQty);
+
       return newSelections;
     });
   };
@@ -847,7 +868,15 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
       });
   };
   
-  useEffect(() => { setSelectedVariations({}); setVariationTextValues({}); setItemSelectedTeeth([]); setManualPrice(null); setDiscountValue(0); setItemNature('NORMAL'); }, [selectedTypeId]);
+  useEffect(() => { 
+    setSelectedVariations({}); 
+    setVariationTextValues({}); 
+    setItemSelectedTeeth([]); 
+    setManualPrice(null); 
+    setDiscountValue(0); 
+    setItemNature('NORMAL'); 
+    setQuantity(1);
+  }, [selectedTypeId]);
 
   const handleAddProduct = () => {
     if (!selectedProductId) return;

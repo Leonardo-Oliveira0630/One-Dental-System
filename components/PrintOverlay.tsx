@@ -285,12 +285,7 @@ export const PrintOverlay = () => {
                     <div className="border border-gray-300 p-2 rounded relative flex-1 flex items-center justify-between">
                         <div className="overflow-hidden">
                             <p className="text-[10px] uppercase font-bold text-gray-500 mb-0.5 leading-none">Paciente</p>
-                            <p className="text-[10pt] font-bold leading-tight truncate mt-1 flex items-center gap-2">
-                                <span>{job.patientName}</span>
-                                <span className="text-[8.5pt] font-black text-black bg-gray-100 px-1.5 py-0.5 rounded border border-gray-300 shrink-0">
-                                    OS: {job.osNumber || job.id.substring(0, 8)}
-                                </span>
-                            </p>
+                            <p className="text-[10pt] font-extrabold text-black uppercase truncate mt-1">{job.patientName}</p>
                         </div>
                         {job.items.some(i => i.nature === 'REPETITION' || i.nature === 'ADJUSTMENT') && (
                             <div className="px-2 py-0.5 bg-black text-white text-[10px] font-black uppercase rounded-sm shrink-0">
@@ -492,12 +487,7 @@ export const PrintOverlay = () => {
                     <div className="border border-gray-300 p-2 rounded relative flex-1 flex flex-col justify-between">
                         <div className="overflow-hidden pb-1 mb-1 border-b border-gray-200">
                             <p className="text-[10px] uppercase font-bold text-gray-500 mb-0.5 leading-none">Paciente</p>
-                            <p className="text-[10pt] font-bold leading-tight mt-1 text-gray-900 flex items-center gap-2.5">
-                                <span className="font-extrabold text-black uppercase truncate">{job.patientName}</span>
-                                <span className="text-[9pt] font-black text-black bg-gray-100 px-2 py-0.5 rounded border border-gray-300 shrink-0">
-                                    OS: {job.osNumber || job.id.substring(0, 8)}
-                                </span>
-                            </p>
+                            <p className="text-[10pt] font-extrabold text-black uppercase truncate mt-1">{job.patientName}</p>
                         </div>
                         <div className="overflow-hidden">
                             <p className="text-[10px] uppercase font-bold text-gray-500 mb-0.5 leading-none">Endereço do Dentista</p>
@@ -811,14 +801,27 @@ export const PrintOverlay = () => {
                                      <p className="text-[9px] leading-tight flex items-start gap-0.5 uppercase"><MapPin size={10} className="shrink-0 mt-0.5"/> {group[0].address}</p>
                                   </td>
                                   <td className="py-2 pr-2 align-top text-[9px]">
-                                     {group.map((item, i) => (
-                                         <div key={i} className="mb-1 border border-gray-200 rounded p-1 bg-gray-50">
-                                             <div className="font-bold uppercase mb-0.5 flex items-center justify-between">
-                                                 <span>{item.type === 'DELIVERY' ? 'ENTREGA' : 'COLETA'}{item.patientName ? ` - ${item.patientName}` : ''}</span>
+                                     {group.map((item, i) => {
+                                         const job = item.jobId ? jobs.find(j => j.id === item.jobId) : null;
+                                         const osNumber = job?.osNumber || (item.jobId ? item.jobId.substring(0, 8) : null);
+
+                                         return (
+                                             <div key={i} className="mb-1 border border-gray-200 rounded p-1 bg-gray-50">
+                                                 <div className="font-bold uppercase mb-0.5 flex items-center justify-between">
+                                                     <span className="flex items-center gap-1.5 flex-wrap">
+                                                         <span>{item.type === 'DELIVERY' ? 'ENTREGA' : 'COLETA'}</span>
+                                                         {item.patientName && <span> - {item.patientName}</span>}
+                                                         {osNumber && (
+                                                             <span className="text-[8.5px] font-black text-black bg-white px-1.5 py-0.5 rounded border border-gray-300">
+                                                                 OS: {osNumber}
+                                                             </span>
+                                                         )}
+                                                     </span>
+                                                 </div>
+                                                 {item.observations && <div className="text-[8px] text-gray-800 font-bold uppercase leading-tight">OBS: {item.observations}</div>}
                                              </div>
-                                             {item.observations && <div className="text-[8px] text-gray-800 font-bold uppercase leading-tight">OBS: {item.observations}</div>}
-                                         </div>
-                                     ))}
+                                         );
+                                     })}
                                   </td>
                                   <td className="py-2 align-bottom pb-4">
                                      <div className="w-full border-t border-black pt-0.5">

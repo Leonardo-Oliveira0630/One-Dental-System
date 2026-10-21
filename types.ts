@@ -800,6 +800,7 @@ export interface VariationOption {
   disablesOptions?: string[];
   isDiscountExempt?: boolean; 
   imageUrl?: string;
+  autoQuantity?: number;
 }
 
 export interface VariationGroup {

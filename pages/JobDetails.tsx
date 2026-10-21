@@ -958,6 +958,7 @@ export const JobDetails = () => {
   
   useEffect(() => {
     const type = jobTypes.find(t => t.id === newItemTypeId);
+    let targetAutoQty = 1;
     if (type && type.variationGroups) {
       const defaultIds: string[] = [];
       type.variationGroups.forEach((group: any) => {
@@ -966,13 +967,24 @@ export const JobDetails = () => {
         }
       });
       setNewItemVariationIds(defaultIds);
+
+      for (const group of type.variationGroups) {
+        if (!group.options) continue;
+        for (const opt of group.options) {
+          if (defaultIds.includes(opt.id) && opt.autoQuantity && opt.autoQuantity > 0) {
+            if (opt.autoQuantity > targetAutoQty) {
+              targetAutoQty = opt.autoQuantity;
+            }
+          }
+        }
+      }
     } else {
       setNewItemVariationIds([]);
     }
+    setNewItemQty(targetAutoQty);
     setNewItemTeeth([]);
     setNewItemTeethInput('');
     setNewItemColor('');
-    setNewItemQty(1);
     setNewItemDiscount(0);
     setNewItemDiscountType('PERCENTAGE');
     setNewItemCustomPrice('');
@@ -4053,7 +4065,19 @@ export const JobDetails = () => {
                                                                                                    if (isSelected) newSelected = newSelected.filter(id => id !== option.id);
                                                                                                    else newSelected.push(option.id);
                                                                                                }
-                                                                                               handleUpdateEditItem(item.id, { selectedVariationIds: newSelected });
+                                                                                               const updates: any = { selectedVariationIds: newSelected };
+                                                                                               if (group.selectionType === 'SINGLE') {
+                                                                                                   if (!isSelected && option.autoQuantity && option.autoQuantity > 0) {
+                                                                                                       updates.quantity = option.autoQuantity;
+                                                                                                   } else {
+                                                                                                       updates.quantity = 1;
+                                                                                                   }
+                                                                                               } else {
+                                                                                                   const selectedOptsInGroup = group.options.filter((o: any) => newSelected.includes(o.id));
+                                                                                                   const autoOpt = selectedOptsInGroup.find((o: any) => o.autoQuantity && o.autoQuantity > 0);
+                                                                                                   updates.quantity = autoOpt?.autoQuantity || 1;
+                                                                                               }
+                                                                                               handleUpdateEditItem(item.id, updates);
                                                                                            }}
                                                                                            className={`px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all border ${isSelected ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:border-blue-400'}`}
                                                                                        >
@@ -4523,6 +4547,21 @@ export const JobDetails = () => {
                                                                                     else newSelected.push(option.id);
                                                                                 }
                                                                                 setNewItemVariationIds(newSelected);
+                                                                                const type = jobTypes.find((t: any) => t.id === newItemTypeId);
+                                                                                let targetAutoQty = 1;
+                                                                                if (type && type.variationGroups) {
+                                                                                    for (const g of type.variationGroups) {
+                                                                                        if (!g.options) continue;
+                                                                                        for (const opt of g.options) {
+                                                                                            if (newSelected.includes(opt.id) && opt.autoQuantity && opt.autoQuantity > 0) {
+                                                                                                if (opt.autoQuantity > targetAutoQty) {
+                                                                                                    targetAutoQty = opt.autoQuantity;
+                                                                                                }
+                                                                                            }
+                                                                                        }
+                                                                                    }
+                                                                                }
+                                                                                setNewItemQty(targetAutoQty);
                                                                             }} 
                                                                             className={`px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all border ${isSelected ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-blue-400'}`}
                                                                         >
@@ -5847,7 +5886,28 @@ export const JobDetails = () => {
                                                                                                 if (isSelected) newSelected = newSelected.filter(id => id !== option.id);
                                                                                                 else newSelected.push(option.id);
                                                                                             }
-                                                                                            setItemEditForm({...itemEditForm, selectedVariationIds: newSelected});
+                                                                                            const editingItem = job?.items?.find((i: any) => i.id === editingItemId);
+                                                                                            const type = jobTypes.find((t: any) => t.id === editingItem?.jobTypeId);
+                                                                                            let targetAutoQty = 1;
+                                                                                            if (type && type.variationGroups) {
+                                                                                                for (const g of type.variationGroups) {
+                                                                                                    if (!g.options) continue;
+                                                                                                    for (const opt of g.options) {
+                                                                                                        if (newSelected.includes(opt.id) && opt.autoQuantity && opt.autoQuantity > 0) {
+                                                                                                            if (opt.autoQuantity > targetAutoQty) {
+                                                                                                                targetAutoQty = opt.autoQuantity;
+                                                                                                            }
+                                                                                                        }
+                                                                                                    }
+                                                                                                }
+                                                                                            }
+
+                                                                                            const updatedForm: any = { 
+                                                                                                ...itemEditForm, 
+                                                                                                selectedVariationIds: newSelected,
+                                                                                                quantity: targetAutoQty
+                                                                                            };
+                                                                                            setItemEditForm(updatedForm);
                                                                                         }} 
                                                                                         className={`px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all border ${isSelected ? 'bg-blue-600 text-white border-blue-600 shadow-md scale-105' : 'bg-white text-slate-600 border-slate-200 hover:border-blue-400'}`}
                                                                                     >
