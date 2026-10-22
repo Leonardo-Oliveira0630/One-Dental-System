@@ -819,11 +819,6 @@ export const PrintOverlay = () => {
                                                      </span>
                                                  </div>
                                                  {item.observations && <div className="text-[8px] text-gray-800 font-bold uppercase leading-tight">OBS: {item.observations}</div>}
-                                                 {item.addedByUserName && (
-                                                     <div className="text-[7.5px] text-gray-500 font-bold uppercase leading-tight mt-0.5">
-                                                         Ins: {item.addedByUserName} {item.addedAt ? `(${new Date(item.addedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })})` : ''}
-                                                     </div>
-                                                 )}
                                              </div>
                                          );
                                      })}
@@ -831,7 +826,6 @@ export const PrintOverlay = () => {
                                   <td className="py-2 align-bottom pb-4">
                                      <div className="w-full border-t border-black pt-0.5">
                                          <p className="text-[7px] text-center uppercase font-bold text-gray-500">Recebedor / Assinatura</p>
-                                          <p className="text-[7px] text-center uppercase font-bold text-gray-400 mt-0.5">Data: ____ / ____ / ________</p>
                                      </div>
                                   </td>
                                </tr>
