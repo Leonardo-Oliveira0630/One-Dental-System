@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
+import { getJobNatureBadge } from '../JobsList';
 
 export const Kanban = () => {
   const { t } = useTranslation();
@@ -385,6 +386,18 @@ export const Kanban = () => {
                           <FileText size={12} className="text-slate-400" />
                           OS #{job.osNumber || job.id.slice(-6).toUpperCase()}
                         </div>
+                        {(() => {
+                            const natureBadge = getJobNatureBadge(job);
+                            if (!natureBadge) return null;
+                            return (
+                                <span 
+                                    className={`px-1.5 py-0.5 rounded text-[10px] font-black border shadow-2xs ${natureBadge.className}`}
+                                    title={natureBadge.label}
+                                >
+                                    {natureBadge.code}
+                                </span>
+                            );
+                        })()}
                         {job.boxNumber && (
                           <div className="flex items-center gap-1 text-xs font-black text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200">
                             <Box size={12} />
@@ -620,6 +633,18 @@ const SectorColumn = ({
                   <FileText size={12} className="text-slate-400" />
                   OS #{job.osNumber || job.id.slice(-6).toUpperCase()}
                 </div>
+                {(() => {
+                    const natureBadge = getJobNatureBadge(job);
+                    if (!natureBadge) return null;
+                    return (
+                        <span 
+                            className={`px-1.5 py-0.5 rounded text-[10px] font-black border shadow-2xs ${natureBadge.className}`}
+                            title={natureBadge.label}
+                        >
+                            {natureBadge.code}
+                        </span>
+                    );
+                })()}
                 {job.boxNumber && (
                   <div className="flex items-center gap-1 text-xs font-extrabold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/50 px-2 py-0.5 rounded border border-blue-100 dark:border-blue-900">
                     <Box size={12} className="text-blue-500" />

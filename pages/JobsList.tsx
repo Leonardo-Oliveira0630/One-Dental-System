@@ -91,6 +91,32 @@ export const getJobCompletionInfo = (job: Job) => {
   return { isFinalized: true, dateStr: '-', timeStr: '' };
 };
 
+// Helper to identify if job has a Repetition (R) or Adjustment (A)
+export const getJobNatureBadge = (job: any) => {
+  if (!job) return null;
+  
+  const topNature = String(job.nature || '').toUpperCase();
+  let hasRepetition = topNature === 'REPETITION' || topNature === 'REPETICAO' || topNature === 'REPETIÇÃO';
+  let hasAdjustment = topNature === 'ADJUSTMENT' || topNature === 'AJUSTE';
+
+  if (job.items && Array.isArray(job.items) && job.items.length > 0) {
+    job.items.forEach((i: any) => {
+      const n = String(i.nature || '').toUpperCase();
+      if (n === 'REPETITION' || n === 'REPETICAO' || n === 'REPETIÇÃO') hasRepetition = true;
+      if (n === 'ADJUSTMENT' || n === 'AJUSTE') hasAdjustment = true;
+    });
+  }
+
+  if (hasRepetition && hasAdjustment) {
+    return { code: '(R/A)', label: 'Repetição e Ajuste', className: 'bg-amber-500 text-white border-amber-600 font-extrabold' };
+  } else if (hasRepetition) {
+    return { code: '(R)', label: 'Repetição', className: 'bg-amber-500 text-white border-amber-600 font-extrabold' };
+  } else if (hasAdjustment) {
+    return { code: '(A)', label: 'Ajuste', className: 'bg-purple-600 text-white border-purple-700 font-extrabold' };
+  }
+  return null;
+};
+
 // Componente de Linha Memoizado para evitar re-renders desnecessários
 const JobRow = memo(({ isJobOverdue, 
     job, 
@@ -133,9 +159,23 @@ const JobRow = memo(({ isJobOverdue,
         <tr className={`hover:bg-blue-50/30 dark:hover:bg-blue-950/20 transition-colors ${showAttention ? 'bg-yellow-50/50 dark:bg-yellow-950/20' : ''}`}>
             {/* 1. OS # ou Orçamento # */}
             <td className="p-4 font-mono font-bold text-sm">
-                <button onClick={() => onOpenJob ? onOpenJob(job.id) : navigate(`/jobs/${job.id}`)} className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline text-left cursor-pointer">
-                    {job.osNumber || '---'}
-                </button>
+                <div className="flex items-center gap-2">
+                    <button onClick={() => onOpenJob ? onOpenJob(job.id) : navigate(`/jobs/${job.id}`)} className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline text-left cursor-pointer">
+                        {job.osNumber || '---'}
+                    </button>
+                    {(() => {
+                        const natureBadge = getJobNatureBadge(job);
+                        if (!natureBadge) return null;
+                        return (
+                            <span 
+                                className={`px-1.5 py-0.5 rounded text-[11px] font-black tracking-tight border shadow-2xs ${natureBadge.className}`}
+                                title={natureBadge.label}
+                            >
+                                {natureBadge.code}
+                            </span>
+                        );
+                    })()}
+                </div>
             </td>
 
             {/* 2. Caixa */}
@@ -314,6 +354,18 @@ const JobCard = memo(({ isJobOverdue,
             <div className="flex justify-between items-start mb-3">
                 <div className="flex items-center gap-2">
                     <span className="font-mono font-black text-blue-600 dark:text-blue-400 text-base">#{job.osNumber || '---'}</span>
+                    {(() => {
+                        const natureBadge = getJobNatureBadge(job);
+                        if (!natureBadge) return null;
+                        return (
+                            <span 
+                                className={`px-1.5 py-0.5 rounded text-[11px] font-black tracking-tight border shadow-2xs ${natureBadge.className}`}
+                                title={natureBadge.label}
+                            >
+                                {natureBadge.code}
+                            </span>
+                        );
+                    })()}
                     {!isBudgetMode && (
                         revealJobStatus ? (
                             <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase border ${getStatusColor(job.status, typeof isJobOverdue === "function" ? isJobOverdue(job) : false)}`}>
@@ -905,12 +957,26 @@ const handleUpdateStatus = async (jobId: string, status: JobStatus) => {
                     return (
                       <tr key={job.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
                         <td className="px-6 py-4 font-mono font-bold text-blue-600 dark:text-blue-400">
-                          <button 
-                            onClick={() => navigate(`/jobs/${job.id}`)} 
-                            className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline font-bold focus:outline-none cursor-pointer"
-                          >
-                            #{job.osNumber || job.id.substring(0, 6)}
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button 
+                              onClick={() => navigate(`/jobs/${job.id}`)} 
+                              className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline font-bold focus:outline-none cursor-pointer"
+                            >
+                              #{job.osNumber || job.id.substring(0, 6)}
+                            </button>
+                            {(() => {
+                                const natureBadge = getJobNatureBadge(job);
+                                if (!natureBadge) return null;
+                                return (
+                                    <span 
+                                        className={`px-1.5 py-0.5 rounded text-[11px] font-black tracking-tight border shadow-2xs ${natureBadge.className}`}
+                                        title={natureBadge.label}
+                                    >
+                                        {natureBadge.code}
+                                    </span>
+                                );
+                            })()}
+                          </div>
                         </td>
                         <td className="px-6 py-4">
                           <button 
