@@ -1,7 +1,9 @@
 import { 
   Job, JobStatus, UrgencyLevel, UserRole, DeliveryRoute, RouteItem, ClinicPatient, 
   InventoryItem, Appointment, AppointmentStatus, ClinicService, ClinicDentist, 
-  ClinicRoom, PatientPayment, ClinicBudget, SupplierOrder, LabCoupon 
+  ClinicRoom, PatientPayment, ClinicBudget, SupplierOrder, LabCoupon,
+  ManualDentist, JobType, BoxColor, Sector, User, CommissionRecord, CommissionStatus,
+  ALL_SYSTEM_PERMISSIONS
 } from '../types';
 
 export const getReviewerSeedJobs = (orgId: string): Job[] => {
@@ -707,4 +709,420 @@ export const getReviewerSupplierCoupons = (orgId: string): LabCoupon[] => [
     active: true
   }
 ];
+
+// ==========================================
+// REPOSITÓRIO MOCK: LABORATÓRIO ODONTOLÓGICO
+// Clientes, Serviços, Caixas, Setores, Equipe e Comissões
+// ==========================================
+
+export const getReviewerLabDentists = (orgId: string): ManualDentist[] => {
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+  return [
+    {
+      id: 'dentist-rev-1',
+      organizationId: orgId,
+      name: 'Dr. Roberto Silva',
+      clinicName: 'Clínica Odonto Prime Review',
+      clientType: 'CLINICA',
+      cro: 'CRO-SP 12345',
+      phone: '(11) 98888-1111',
+      whatsapp: '11988881111',
+      email: 'roberto.silva@odontoprime.com.br',
+      cpfCnpj: '12.345.678/0001-99',
+      address: 'Avenida Paulista',
+      number: '1500',
+      neighborhood: 'Bela Vista',
+      city: 'São Paulo',
+      state: 'SP',
+      cep: '01310-200',
+      billingLimit: 15000,
+      globalDiscountPercent: 5,
+      isBlocked: false,
+      createdAt: thirtyDaysAgo
+    },
+    {
+      id: 'dentist-rev-2',
+      organizationId: orgId,
+      name: 'Dra. Fernanda Lima',
+      clinicName: 'Clínica Sorriso Aberto',
+      clientType: 'CLINICA',
+      cro: 'CRO-SP 98765',
+      phone: '(11) 97777-2222',
+      whatsapp: '11977772222',
+      email: 'fernanda.lima@sorrisoaberto.com.br',
+      cpfCnpj: '98.765.432/0001-88',
+      address: 'Rua Domingos de Morais',
+      number: '820',
+      neighborhood: 'Vila Mariana',
+      city: 'São Paulo',
+      state: 'SP',
+      cep: '04010-000',
+      billingLimit: 10000,
+      globalDiscountPercent: 0,
+      isBlocked: false,
+      createdAt: thirtyDaysAgo
+    },
+    {
+      id: 'dentist-rev-3',
+      organizationId: orgId,
+      name: 'Dr. Carlos Eduardo Mendes',
+      clinicName: 'Instituto Reabilitar Oral',
+      clientType: 'PESSOA_FISICA',
+      cro: 'CRO-SP 54321',
+      phone: '(11) 96666-3333',
+      whatsapp: '11966663333',
+      email: 'carlos.mendes@reabilitaroral.com.br',
+      cpfCnpj: '321.654.987-00',
+      address: 'Alameda Santos',
+      number: '450',
+      neighborhood: 'Cerqueira César',
+      city: 'São Paulo',
+      state: 'SP',
+      cep: '01418-000',
+      billingLimit: 20000,
+      globalDiscountPercent: 10,
+      isBlocked: false,
+      createdAt: thirtyDaysAgo
+    },
+    {
+      id: 'dentist-rev-4',
+      organizationId: orgId,
+      name: 'Dra. Camila Nogueira',
+      clinicName: 'Odonto Estética Alphaville',
+      clientType: 'CLINICA',
+      cro: 'CRO-SP 67890',
+      phone: '(11) 95555-4444',
+      whatsapp: '11955554444',
+      email: 'camila.nogueira@esteticaalphaville.com.br',
+      cpfCnpj: '45.678.901/0001-77',
+      address: 'Alameda Rio Negro',
+      number: '1030',
+      neighborhood: 'Alphaville Industrial',
+      city: 'Barueri',
+      state: 'SP',
+      cep: '06454-000',
+      billingLimit: 25000,
+      globalDiscountPercent: 5,
+      isBlocked: false,
+      createdAt: thirtyDaysAgo
+    }
+  ];
+};
+
+export const getReviewerLabJobTypes = (orgId: string): JobType[] => [
+  {
+    id: 'jt-zirconia',
+    name: 'Coroa Cerâmica Zircônia Pura Ultra CAD/CAM',
+    category: 'Prótese Fixa',
+    description: 'Usinagem em zircônia translúcida com anatomia oclusal e glaze cerâmico.',
+    basePrice: 280.00,
+    baseCommission: 28.00,
+    productionTimeDays: 3,
+    variationGroups: [],
+    isVisibleInStore: true,
+    isVisibleInternally: true,
+    allowedSectors: ['CAD / CAM & Escaneamento', 'Cerâmica & Estratificação', 'Acabamento & Polimento', 'Controle de Qualidade'],
+    imageUrl: 'https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?auto=format&fit=crop&w=400&q=80'
+  },
+  {
+    id: 'jt-protocolo',
+    name: 'Protocolo Superior Zircônia sobre Implante',
+    category: 'Prótese sobre Implante',
+    description: 'Barra usinada em zircônia pura com orifícios de parafuso passivo e gengiva rosa estratificada.',
+    basePrice: 1250.00,
+    baseCommission: 125.00,
+    productionTimeDays: 5,
+    variationGroups: [],
+    isVisibleInStore: true,
+    isVisibleInternally: true,
+    allowedSectors: ['Gesso & Modelos', 'CAD / CAM & Escaneamento', 'Cerâmica & Estratificação', 'Acabamento & Polimento', 'Controle de Qualidade'],
+    imageUrl: 'https://images.unsplash.com/photo-1584744982491-665216d95f8b?auto=format&fit=crop&w=400&q=80'
+  },
+  {
+    id: 'jt-metaloceramica',
+    name: 'Coroa Metalocerâmica Clássica Co-Cr',
+    category: 'Prótese Fixa',
+    description: 'Subestrutura em liga nobre Co-Cr fundida ou sinterizada com cerâmica feldspática.',
+    basePrice: 180.00,
+    baseCommission: 18.00,
+    productionTimeDays: 3,
+    variationGroups: [],
+    isVisibleInStore: true,
+    isVisibleInternally: true,
+    allowedSectors: ['Gesso & Modelos', 'Cerâmica & Estratificação', 'Acabamento & Polimento', 'Controle de Qualidade']
+  },
+  {
+    id: 'jt-facetas-emax',
+    name: 'Faceta / Lente de Contato Dental E-max Dissilicato',
+    category: 'Estética & Lentes',
+    description: 'Lente ultrafina de dissilicato de lítio maquiada e prensada de altíssima translucidez.',
+    basePrice: 320.00,
+    baseCommission: 35.00,
+    productionTimeDays: 2,
+    variationGroups: [],
+    isVisibleInStore: true,
+    isVisibleInternally: true,
+    allowedSectors: ['CAD / CAM & Escaneamento', 'Cerâmica & Estratificação', 'Acabamento & Polimento', 'Controle de Qualidade']
+  },
+  {
+    id: 'jt-placa-miox',
+    name: 'Placa Miorrelaxante de Bruxismo em Acetato Rígida',
+    category: 'Ortodontia & Placas',
+    description: 'Placa estabilizadora prensada a vácuo com alívio canino e guia anterior ajustada.',
+    basePrice: 95.00,
+    baseCommission: 12.00,
+    productionTimeDays: 1,
+    variationGroups: [],
+    isVisibleInStore: true,
+    isVisibleInternally: true,
+    allowedSectors: ['Gesso & Modelos', 'Acabamento & Polimento', 'Controle de Qualidade']
+  },
+  {
+    id: 'jt-protese-total',
+    name: 'Prótese Total Bimaxilar Acrílica Premium',
+    category: 'Prótese Total',
+    description: 'Montagem de dentes de alta resistência com caracterização gengival e acrilização prensada.',
+    basePrice: 580.00,
+    baseCommission: 58.00,
+    productionTimeDays: 4,
+    variationGroups: [],
+    isVisibleInStore: true,
+    isVisibleInternally: true,
+    allowedSectors: ['Gesso & Modelos', 'Acabamento & Polimento', 'Controle de Qualidade']
+  }
+];
+
+export const getReviewerLabBoxColors = (orgId: string): BoxColor[] => [
+  { id: 'box-color-blue', name: 'Azul Padrão (Normal)', hex: '#2563EB' },
+  { id: 'box-color-green', name: 'Verde (Pronto p/ Entrega)', hex: '#10B981' },
+  { id: 'box-color-yellow', name: 'Amarelo (Prova / Atenção)', hex: '#F59E0B' },
+  { id: 'box-color-red', name: 'Vermelho (Urgência / VIP)', hex: '#EF4444' },
+  { id: 'box-color-purple', name: 'Roxo (Implantes Especiais)', hex: '#8B5CF6' }
+];
+
+export const getReviewerLabSectors = (orgId: string): Sector[] => [
+  {
+    id: 'sec-gesso',
+    name: 'Gesso & Modelos',
+    stages: ['Vazamento de Gesso', 'Troquelização', 'Articulação']
+  },
+  {
+    id: 'sec-cadcam',
+    name: 'CAD / CAM & Escaneamento',
+    stages: ['Escaneamento 3D', 'Desenho Digital Exocad', 'Usinagem de Zircônia']
+  },
+  {
+    id: 'sec-ceramica',
+    name: 'Cerâmica & Estratificação',
+    stages: ['Aplicação Cerâmica', 'Queima de Glaze', 'Maquiagem Estética']
+  },
+  {
+    id: 'sec-acabamento',
+    name: 'Acabamento & Polimento',
+    stages: ['Ajuste Oclusal', 'Polimento Alto Brilho', 'Limpeza Ultrassônica']
+  },
+  {
+    id: 'sec-qualidade',
+    name: 'Controle de Qualidade',
+    stages: ['Inspeção Dimensional', 'Prova no Modelo', 'Liberação Final']
+  },
+  {
+    id: 'sec-expedicao',
+    name: 'Expedição & Logística',
+    stages: ['Embalagem Protegida', 'Etiquetagem de Caixa', 'Despacho com Motoboy']
+  }
+];
+
+export const getReviewerLabCollaborators = (orgId: string): User[] => {
+  const now = new Date();
+  const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+
+  return [
+    {
+      id: 'colab-rev-1',
+      organizationId: orgId,
+      name: 'Lucas Medeiros (Projetista CAD/CAM)',
+      email: 'lucas.cad@labprox.com.br',
+      phone: '(11) 98111-2233',
+      role: UserRole.COLLABORATOR,
+      sector: 'CAD / CAM & Escaneamento',
+      sectors: ['CAD / CAM & Escaneamento'],
+      permissions: ALL_SYSTEM_PERMISSIONS,
+      avatarUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=256&q=80',
+      createdAt: sixtyDaysAgo
+    },
+    {
+      id: 'colab-rev-2',
+      organizationId: orgId,
+      name: 'Amanda Vasconcellos (Ceramista Sênior)',
+      email: 'amanda.ceramista@labprox.com.br',
+      phone: '(11) 98222-3344',
+      role: UserRole.COLLABORATOR,
+      sector: 'Cerâmica & Estratificação',
+      sectors: ['Cerâmica & Estratificação'],
+      permissions: ALL_SYSTEM_PERMISSIONS,
+      avatarUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=256&q=80',
+      createdAt: sixtyDaysAgo
+    },
+    {
+      id: 'colab-rev-3',
+      organizationId: orgId,
+      name: 'Gabriel Martins (Técnico de Gesso)',
+      email: 'gabriel.gesso@labprox.com.br',
+      phone: '(11) 98333-4455',
+      role: UserRole.COLLABORATOR,
+      sector: 'Gesso & Modelos',
+      sectors: ['Gesso & Modelos'],
+      permissions: ALL_SYSTEM_PERMISSIONS,
+      avatarUrl: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&w=256&q=80',
+      createdAt: sixtyDaysAgo
+    },
+    {
+      id: 'colab-rev-4',
+      organizationId: orgId,
+      name: 'Rafael Souza (Polimento & Acabamento)',
+      email: 'rafael.polimento@labprox.com.br',
+      phone: '(11) 98444-5566',
+      role: UserRole.COLLABORATOR,
+      sector: 'Acabamento & Polimento',
+      sectors: ['Acabamento & Polimento'],
+      permissions: ALL_SYSTEM_PERMISSIONS,
+      avatarUrl: 'https://images.unsplash.com/photo-1527980965255-d3b416303d12?auto=format&fit=crop&w=256&q=80',
+      createdAt: sixtyDaysAgo
+    },
+    {
+      id: 'colab-rev-5',
+      organizationId: orgId,
+      name: 'Patrícia Rocha (Gerente de Qualidade)',
+      email: 'patricia.qualidade@labprox.com.br',
+      phone: '(11) 98555-6677',
+      role: UserRole.MANAGER,
+      sector: 'Controle de Qualidade',
+      sectors: ['Controle de Qualidade', 'CAD / CAM & Escaneamento'],
+      permissions: ALL_SYSTEM_PERMISSIONS,
+      avatarUrl: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=256&q=80',
+      createdAt: sixtyDaysAgo
+    },
+    {
+      id: 'colab-rev-6',
+      organizationId: orgId,
+      name: 'Bruno Ferreira (Expedição & Logística)',
+      email: 'bruno.logistica@labprox.com.br',
+      phone: '(11) 98666-7788',
+      role: UserRole.COLLABORATOR,
+      sector: 'Expedição & Logística',
+      sectors: ['Expedição & Logística'],
+      permissions: ALL_SYSTEM_PERMISSIONS,
+      avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=256&q=80',
+      createdAt: sixtyDaysAgo
+    }
+  ];
+};
+
+export const getReviewerLabCommissions = (orgId: string): CommissionRecord[] => {
+  const now = new Date();
+  const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const twoDaysAgo = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000);
+  const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
+  const fourDaysAgo = new Date(now.getTime() - 4 * 24 * 60 * 60 * 1000);
+
+  return [
+    {
+      id: 'comm-rev-1',
+      userId: 'colab-rev-1',
+      userName: 'Lucas Medeiros (Projetista CAD/CAM)',
+      jobId: 'job-rev-101',
+      osNumber: 'OS-8001',
+      patientName: 'Carolina Mendes (Avaliador)',
+      amount: 84.00,
+      status: CommissionStatus.PAID,
+      createdAt: threeDaysAgo,
+      paidAt: yesterday,
+      sector: 'CAD / CAM & Escaneamento',
+      itemName: 'Coroa Cerâmica Zircônia Pura Ultra 3D',
+      stageName: 'Usinagem de Zircônia',
+      quantity: 3
+    },
+    {
+      id: 'comm-rev-2',
+      userId: 'colab-rev-1',
+      userName: 'Lucas Medeiros (Projetista CAD/CAM)',
+      jobId: 'job-rev-102',
+      osNumber: 'OS-8002',
+      patientName: 'Marcelo Oliveira (Avaliador)',
+      amount: 125.00,
+      status: CommissionStatus.PENDING,
+      createdAt: twoDaysAgo,
+      sector: 'CAD / CAM & Escaneamento',
+      itemName: 'Protocolo Superior Sobre Implante Zircônia',
+      stageName: 'Desenho Digital Exocad',
+      quantity: 1
+    },
+    {
+      id: 'comm-rev-3',
+      userId: 'colab-rev-2',
+      userName: 'Amanda Vasconcellos (Ceramista Sênior)',
+      jobId: 'job-rev-101',
+      osNumber: 'OS-8001',
+      patientName: 'Carolina Mendes (Avaliador)',
+      amount: 150.00,
+      status: CommissionStatus.PAID,
+      createdAt: twoDaysAgo,
+      paidAt: yesterday,
+      sector: 'Cerâmica & Estratificação',
+      itemName: 'Coroa Cerâmica Zircônia Pura Ultra 3D',
+      stageName: 'Aplicação Cerâmica & Maquiagem',
+      quantity: 3
+    },
+    {
+      id: 'comm-rev-4',
+      userId: 'colab-rev-2',
+      userName: 'Amanda Vasconcellos (Ceramista Sênior)',
+      jobId: 'job-rev-103',
+      osNumber: 'OS-8003',
+      patientName: 'Patrícia Albuquerque (Avaliador)',
+      amount: 75.00,
+      status: CommissionStatus.PENDING,
+      createdAt: yesterday,
+      sector: 'Cerâmica & Estratificação',
+      itemName: 'Faceta E-max Estética',
+      stageName: 'Queima de Glaze',
+      quantity: 2
+    },
+    {
+      id: 'comm-rev-5',
+      userId: 'colab-rev-3',
+      userName: 'Gabriel Martins (Técnico de Gesso)',
+      jobId: 'job-rev-101',
+      osNumber: 'OS-8001',
+      patientName: 'Carolina Mendes (Avaliador)',
+      amount: 45.00,
+      status: CommissionStatus.PAID,
+      createdAt: fourDaysAgo,
+      paidAt: twoDaysAgo,
+      sector: 'Gesso & Modelos',
+      itemName: 'Troquelização de Modelo 3D',
+      stageName: 'Troquelização',
+      quantity: 3
+    },
+    {
+      id: 'comm-rev-6',
+      userId: 'colab-rev-4',
+      userName: 'Rafael Souza (Polimento & Acabamento)',
+      jobId: 'job-rev-102',
+      osNumber: 'OS-8002',
+      patientName: 'Marcelo Oliveira (Avaliador)',
+      amount: 60.00,
+      status: CommissionStatus.PENDING,
+      createdAt: yesterday,
+      sector: 'Acabamento & Polimento',
+      itemName: 'Polimento de Alto Brilho em Zircônia',
+      stageName: 'Polimento Alto Brilho',
+      quantity: 1
+    }
+  ];
+};
+
 

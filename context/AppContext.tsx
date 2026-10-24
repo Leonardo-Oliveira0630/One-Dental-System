@@ -13,7 +13,9 @@ import {
   getReviewerSeedJobs, getReviewerSeedRoutes, getReviewerSeedInventory, getReviewerSeedPatients,
   getReviewerClinicPatients, getReviewerClinicAppointments, getReviewerClinicServices,
   getReviewerClinicRooms, getReviewerClinicDentists, getReviewerClinicPatientPayments,
-  getReviewerSupplierProducts, getReviewerSupplierOrders, getReviewerSupplierCoupons
+  getReviewerSupplierProducts, getReviewerSupplierOrders, getReviewerSupplierCoupons,
+  getReviewerLabDentists, getReviewerLabJobTypes, getReviewerLabBoxColors,
+  getReviewerLabSectors, getReviewerLabCollaborators, getReviewerLabCommissions
 } from '../services/reviewerSeedService';
 import { db, auth } from '../services/firebaseConfig';
 import * as api from '../services/firebaseService';
@@ -863,6 +865,18 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     setRoutes(prev => prev.length === 0 ? [getReviewerSeedRoutes(orgId).route] : prev);
     setInventoryItems(prev => prev.length === 0 ? getReviewerSeedInventory(orgId) : prev);
     setPatients(prev => prev.length === 0 ? getReviewerSeedPatients(orgId) : prev);
+    setManualDentists(prev => prev.length === 0 ? getReviewerLabDentists(orgId) : prev);
+    setJobTypes(prev => prev.length === 0 ? getReviewerLabJobTypes(orgId) : prev);
+    setBoxColors(prev => prev.length === 0 ? getReviewerLabBoxColors(orgId) : prev);
+    setSectors(prev => prev.length === 0 ? getReviewerLabSectors(orgId) : prev);
+    setCommissions(prev => prev.length === 0 ? getReviewerLabCommissions(orgId) : prev);
+    setAllUsers(prev => {
+      if (prev.length <= 1) {
+        const mockColabs = getReviewerLabCollaborators(orgId);
+        return [currentUser, ...mockColabs];
+      }
+      return prev;
+    });
   }, [currentUser]);
 
 
