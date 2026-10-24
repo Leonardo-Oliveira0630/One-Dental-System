@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { Logo } from '../components/Logo';
-import { UserRole } from '../types';
+import { UserRole, isClinicReviewer, isSupplierReviewer } from '../types';
 import { Lock, Mail, Loader2, ArrowLeft, Send, CheckCircle, HelpCircle } from 'lucide-react';
 import * as api from '../services/firebaseService';
 
@@ -36,6 +36,10 @@ export const Login = () => {
             navigate(redirect);
         } else if (currentUser.role === UserRole.HELPDESK) {
             navigate('/helpdesk');
+        } else if (isSupplierReviewer(currentUser) || currentUser.role === UserRole.SUPPLIER) {
+            navigate('/supplier/dashboard');
+        } else if (isClinicReviewer(currentUser)) {
+            navigate('/patients');
         } else if (currentUser.role === UserRole.CLIENT) {
             navigate('/store');
         } else if (currentUser.role === UserRole.SUPER_ADMIN) {

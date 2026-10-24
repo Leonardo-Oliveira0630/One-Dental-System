@@ -26,7 +26,8 @@ import {
   Appointment, Organization, SubscriptionPlan, OrganizationConnection, 
   Coupon, LabCoupon, CommissionRecord, ManualDentist, Expense, BillingBatch, GlobalSettings, LabRating, DeliveryRoute, RouteItem, BoxColor, ChatMessage, ClinicService, ClinicRoom, ClinicDentist, PatientHistoryRecord, PaymentRecord, PriceTable, DentistPayment, CardMachine, BankAccount,
   Tutorial, Courier, ClinicBudget, ClinicPrescription, ClinicClinicalCard, ClinicAnamnesis, ClinicPatientFinance, ClinicTreatmentPlan, OnlineRequisition, SupplierOrder, CaseApprovalItem, CaseApprovalReply, CaseApprovalFile, Budget,
-  OrderReturnRequest, SupplierChatMessage, SupplierConversation, CommissionGroup, isReviewerUser
+  OrderReturnRequest, SupplierChatMessage, SupplierConversation, CommissionGroup, isReviewerUser,
+  isClinicReviewer, isSupplierReviewer
 } from '../types';
 
 // Helper ultra-seguro para datas
@@ -106,12 +107,102 @@ export const apiDeletePatientHistory = (orgId: string, patientId: string, record
 };
 
 // --- AUTH & PROFILE ---
+const getReviewerSeedConfig = (cleanEmail: string, uid: string) => {
+    if (isClinicReviewer(cleanEmail)) {
+        return {
+            user: {
+                id: uid,
+                name: 'Dra. Mariana Costa (Clínica Review)',
+                email: cleanEmail,
+                role: UserRole.CLIENT,
+                isReviewer: true,
+                is_reviewer: true,
+                organizationId: 'org_reviewer_clinic',
+                permissions: ALL_SYSTEM_PERMISSIONS,
+                createdAt: new Date(),
+            } as User,
+            org: {
+                id: 'org_reviewer_clinic',
+                name: 'Clínica Odontológica Review',
+                tradeName: 'Clínica Odonto Review',
+                cnpj: '11.222.333/0001-44',
+                email: cleanEmail,
+                phone: '(11) 98888-7777',
+                orgType: 'CLINIC',
+                status: 'ACTIVE',
+                planId: 'super_plan',
+                createdAt: new Date(),
+                updatedAt: new Date()
+            }
+        };
+    }
+
+    if (isSupplierReviewer(cleanEmail)) {
+        return {
+            user: {
+                id: uid,
+                name: 'Dental Supplier Express (Review)',
+                email: cleanEmail,
+                role: UserRole.SUPPLIER,
+                isReviewer: true,
+                is_reviewer: true,
+                organizationId: 'org_reviewer_supplier',
+                permissions: ALL_SYSTEM_PERMISSIONS,
+                createdAt: new Date(),
+            } as User,
+            org: {
+                id: 'org_reviewer_supplier',
+                name: 'Dental Supplier Express (Demo Avaliação)',
+                tradeName: 'Dental Supplier Review',
+                cnpj: '22.333.444/0001-55',
+                email: cleanEmail,
+                phone: '(11) 97777-8888',
+                orgType: 'SUPPLIER',
+                status: 'ACTIVE',
+                planId: 'super_plan',
+                createdAt: new Date(),
+                updatedAt: new Date()
+            }
+        };
+    }
+
+    // Default: Lab Reviewer
+    return {
+        user: {
+            id: uid,
+            name: 'Avaliador Oficial Labprox',
+            email: cleanEmail,
+            role: UserRole.ADMIN,
+            isReviewer: true,
+            is_reviewer: true,
+            organizationId: 'org_reviewer_demo',
+            permissions: ALL_SYSTEM_PERMISSIONS,
+            createdAt: new Date(),
+        } as User,
+        org: {
+            id: 'org_reviewer_demo',
+            name: 'Labprox Dental Lab (Demo Avaliação)',
+            tradeName: 'Labprox Demo',
+            cnpj: '00.000.000/0001-99',
+            email: cleanEmail,
+            phone: '(11) 99999-8888',
+            orgType: 'LAB',
+            status: 'ACTIVE',
+            planId: 'super_plan',
+            createdAt: new Date(),
+            updatedAt: new Date()
+        }
+    };
+};
+
 export const apiLogin = async (email: string, pass: string) => {
     const cleanEmail = email.toLowerCase().trim();
     const isReviewerEmail = isReviewerUser({ email: cleanEmail } as any) ||
         cleanEmail === 'avaliador@labprox.com.br' ||
         cleanEmail === 'apple.review@labprox.com.br' ||
-        cleanEmail === 'google.test@labprox.com.br';
+        cleanEmail === 'google.test@labprox.com.br' ||
+        cleanEmail === 'clinica.review@labprox.com' ||
+        cleanEmail === 'fornecedor.review@labprox.com';
 
     try {
         return await signInWithEmailAndPassword(auth, cleanEmail, pass);
@@ -121,31 +212,9 @@ export const apiLogin = async (email: string, pass: string) => {
             try {
                 const cred = await createUserWithEmailAndPassword(auth, cleanEmail, pass);
                 if (cred?.user) {
-                    const reviewerProfile: User = {
-                        id: cred.user.uid,
-                        name: 'Avaliador Oficial',
-                        email: cleanEmail,
-                        role: UserRole.ADMIN,
-                        isReviewer: true,
-                        is_reviewer: true,
-                        organizationId: 'org_reviewer_demo',
-                        permissions: ALL_SYSTEM_PERMISSIONS,
-                        createdAt: new Date(),
-                    };
-                    await setDoc(doc(db, 'users', cred.user.uid), reviewerProfile, { merge: true });
-                    await setDoc(doc(db, 'organizations', 'org_reviewer_demo'), {
-                        id: 'org_reviewer_demo',
-                        name: 'Labprox Dental Lab (Demo Avaliação)',
-                        tradeName: 'Labprox Demo',
-                        cnpj: '00.000.000/0001-99',
-                        email: cleanEmail,
-                        phone: '(11) 99999-8888',
-                        orgType: 'LAB',
-                        status: 'ACTIVE',
-                        planId: 'super_plan',
-                        createdAt: new Date(),
-                        updatedAt: new Date()
-                    }, { merge: true });
+                    const config = getReviewerSeedConfig(cleanEmail, cred.user.uid);
+                    await setDoc(doc(db, 'users', cred.user.uid), config.user, { merge: true });
+                    await setDoc(doc(db, 'organizations', config.org.id), config.org, { merge: true });
                     return cred;
                 }
             } catch (createErr: any) {
@@ -170,11 +239,23 @@ export const getUserProfile = async (uid: string): Promise<User | null> => {
             if (d.exists()) {
                 const data = d.data() as any;
                 const userObj: User = { id: d.id, ...data };
+                const emailToCheck = (userObj.email || currentEmail || '').toLowerCase().trim();
+
                 if (isReviewerUser(userObj) || isCurrentReviewer) {
                     userObj.isReviewer = true;
                     userObj.is_reviewer = true;
-                    userObj.role = UserRole.ADMIN;
                     userObj.permissions = ALL_SYSTEM_PERMISSIONS;
+
+                    if (isClinicReviewer(emailToCheck)) {
+                        userObj.role = UserRole.CLIENT;
+                        userObj.organizationId = 'org_reviewer_clinic';
+                    } else if (isSupplierReviewer(emailToCheck)) {
+                        userObj.role = UserRole.SUPPLIER;
+                        userObj.organizationId = 'org_reviewer_supplier';
+                    } else {
+                        userObj.role = UserRole.ADMIN;
+                        userObj.organizationId = userObj.organizationId || 'org_reviewer_demo';
+                    }
                 }
                 return userObj;
             }
@@ -187,35 +268,13 @@ export const getUserProfile = async (uid: string): Promise<User | null> => {
     }
 
     // Silent fallback for reviewer if document doesn't exist yet in Firestore
-    if (isCurrentReviewer && uid) {
-        const fallbackReviewer: User = {
-            id: uid,
-            name: 'Avaliador Oficial',
-            email: currentEmail || 'avaliador@labprox.com.br',
-            role: UserRole.ADMIN,
-            isReviewer: true,
-            is_reviewer: true,
-            organizationId: 'org_reviewer_demo',
-            permissions: ALL_SYSTEM_PERMISSIONS,
-            createdAt: new Date()
-        };
+    if (isCurrentReviewer && uid && currentEmail) {
+        const config = getReviewerSeedConfig(currentEmail, uid);
         try {
-            await setDoc(doc(db, 'users', uid), fallbackReviewer, { merge: true });
-            await setDoc(doc(db, 'organizations', 'org_reviewer_demo'), {
-                id: 'org_reviewer_demo',
-                name: 'Labprox Dental Lab (Demo Avaliação)',
-                tradeName: 'Labprox Demo',
-                cnpj: '00.000.000/0001-99',
-                email: currentEmail,
-                phone: '(11) 99999-8888',
-                orgType: 'LAB',
-                status: 'ACTIVE',
-                planId: 'super_plan',
-                createdAt: new Date(),
-                updatedAt: new Date()
-            }, { merge: true });
+            await setDoc(doc(db, 'users', uid), config.user, { merge: true });
+            await setDoc(doc(db, 'organizations', config.org.id), config.org, { merge: true });
         } catch (e) {}
-        return fallbackReviewer;
+        return config.user;
     }
 
     return null;

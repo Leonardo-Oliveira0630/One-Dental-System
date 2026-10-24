@@ -115,6 +115,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, PermissionKey[]> = {
   [UserRole.CLIENT]: CLINIC_PERMISSIONS.map(p => p.key),
   [UserRole.SUPER_ADMIN]: CLINIC_PERMISSIONS.map(p => p.key),
   [UserRole.HELPDESK]: [],
+  [UserRole.SUPPLIER]: [],
   [UserRole.REVIEWER]: CLINIC_PERMISSIONS.map(p => p.key)
 };
 

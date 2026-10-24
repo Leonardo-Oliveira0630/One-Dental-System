@@ -17,11 +17,13 @@ service cloud.firestore {
     
     function isReviewer() {
       return isAuthenticated() && (
-        request.auth.token.email.matches('.*reviewer.*') ||
+        request.auth.token.email.matches('.*review.*') ||
         request.auth.token.email.matches('.*avaliador.*') ||
         request.auth.token.email == "avaliador@labprox.com.br" ||
         request.auth.token.email == "apple.review@labprox.com.br" ||
         request.auth.token.email == "google.test@labprox.com.br" ||
+        request.auth.token.email == "clinica.review@labprox.com" ||
+        request.auth.token.email == "fornecedor.review@labprox.com" ||
         (userExists() && (getUserData().get('isReviewer', false) == true || getUserData().get('is_reviewer', false) == true || getUserData().get('role', '') == 'REVIEWER'))
       );
     }

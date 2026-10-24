@@ -6,9 +6,15 @@ import {
   ClinicPatient, Appointment, Organization, SubscriptionPlan, OrganizationConnection, Coupon, LabCoupon, CommissionRecord, CommissionStatus, ManualDentist, GlobalSettings, DeliveryRoute, RouteItem, BoxColor, ClinicService, ClinicRoom, ClinicDentist, PermissionKey, ALL_SYSTEM_PERMISSIONS, PaymentRecord, PriceTable, BillingBatch, DentistPayment, Courier,
   CardMachine, BankAccount,
   JobStatus, UrgencyLevel, OnlineRequisition, Budget,
-  AppNotification, NotificationPreferences, CommissionGroup, isReviewerUser
+  AppNotification, NotificationPreferences, CommissionGroup, isReviewerUser,
+  isClinicReviewer, isSupplierReviewer
 } from '../types';
-import { getReviewerSeedJobs, getReviewerSeedRoutes, getReviewerSeedInventory, getReviewerSeedPatients } from '../services/reviewerSeedService';
+import { 
+  getReviewerSeedJobs, getReviewerSeedRoutes, getReviewerSeedInventory, getReviewerSeedPatients,
+  getReviewerClinicPatients, getReviewerClinicAppointments, getReviewerClinicServices,
+  getReviewerClinicRooms, getReviewerClinicDentists, getReviewerClinicPatientPayments,
+  getReviewerSupplierProducts, getReviewerSupplierOrders, getReviewerSupplierCoupons
+} from '../services/reviewerSeedService';
 import { db, auth } from '../services/firebaseConfig';
 import * as api from '../services/firebaseService';
 import { notifyAppointmentCreated, notifyJobLogistics, notifySupplierOrder } from '../services/ycloudService';
@@ -831,35 +837,32 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   useEffect(() => {
     if (!currentUser || !isReviewerUser(currentUser)) return;
     const orgId = currentUser.organizationId || 'org-reviewer-test';
-    
-    setJobs(prev => {
-      if (prev.length === 0) {
-        return getReviewerSeedJobs(orgId);
-      }
-      return prev;
-    });
+    const email = (currentUser.email || '').toLowerCase().trim();
 
-    setRoutes(prev => {
-      if (prev.length === 0) {
-        const seedData = getReviewerSeedRoutes(orgId);
-        return [seedData.route];
-      }
-      return prev;
-    });
+    // 1. Reviewer de Clínica (clinica.review@labprox.com)
+    if (isClinicReviewer(email)) {
+      setPatients(prev => prev.length === 0 ? getReviewerClinicPatients(orgId) : prev);
+      setAppointments(prev => prev.length === 0 ? getReviewerClinicAppointments(orgId) : prev);
+      setClinicServices(prev => prev.length === 0 ? getReviewerClinicServices(orgId) : prev);
+      setClinicRooms(prev => prev.length === 0 ? getReviewerClinicRooms(orgId) : prev);
+      setClinicDentists(prev => prev.length === 0 ? getReviewerClinicDentists(orgId) : prev);
+      setPatientPayments(prev => prev.length === 0 ? getReviewerClinicPatientPayments(orgId) : prev);
+      return;
+    }
 
-    setInventoryItems(prev => {
-      if (prev.length === 0) {
-        return getReviewerSeedInventory(orgId);
-      }
-      return prev;
-    });
+    // 2. Reviewer de Fornecedor (fornecedor.review@labprox.com)
+    if (isSupplierReviewer(email)) {
+      setSupplierOrders(prev => prev.length === 0 ? getReviewerSupplierOrders(orgId) : prev);
+      setInventoryItems(prev => prev.length === 0 ? getReviewerSupplierProducts(orgId) : prev);
+      setLabCoupons(prev => prev.length === 0 ? getReviewerSupplierCoupons(orgId) : prev);
+      return;
+    }
 
-    setPatients(prev => {
-      if (prev.length === 0) {
-        return getReviewerSeedPatients(orgId);
-      }
-      return prev;
-    });
+    // 3. Reviewer de Laboratório (avaliador@labprox.com.br, etc.)
+    setJobs(prev => prev.length === 0 ? getReviewerSeedJobs(orgId) : prev);
+    setRoutes(prev => prev.length === 0 ? [getReviewerSeedRoutes(orgId).route] : prev);
+    setInventoryItems(prev => prev.length === 0 ? getReviewerSeedInventory(orgId) : prev);
+    setPatients(prev => prev.length === 0 ? getReviewerSeedPatients(orgId) : prev);
   }, [currentUser]);
 
 
