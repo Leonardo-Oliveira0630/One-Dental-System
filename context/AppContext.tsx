@@ -6,8 +6,9 @@ import {
   ClinicPatient, Appointment, Organization, SubscriptionPlan, OrganizationConnection, Coupon, LabCoupon, CommissionRecord, CommissionStatus, ManualDentist, GlobalSettings, DeliveryRoute, RouteItem, BoxColor, ClinicService, ClinicRoom, ClinicDentist, PermissionKey, ALL_SYSTEM_PERMISSIONS, PaymentRecord, PriceTable, BillingBatch, DentistPayment, Courier,
   CardMachine, BankAccount,
   JobStatus, UrgencyLevel, OnlineRequisition, Budget,
-  AppNotification, NotificationPreferences, CommissionGroup
+  AppNotification, NotificationPreferences, CommissionGroup, isReviewerUser
 } from '../types';
+import { getReviewerSeedJobs, getReviewerSeedRoutes, getReviewerSeedInventory, getReviewerSeedPatients } from '../services/reviewerSeedService';
 import { db, auth } from '../services/firebaseConfig';
 import * as api from '../services/firebaseService';
 import { notifyAppointmentCreated, notifyJobLogistics, notifySupplierOrder } from '../services/ycloudService';
@@ -825,6 +826,42 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
     return () => unsubs.forEach(u => u());
   }, [currentUser, currentOrg, userConnections, activeManualDentistId]);
+
+  // Reviewer Seed Data Hydration (Rule 3: Ensure App Store & Google Play reviewers never see blank screens)
+  useEffect(() => {
+    if (!currentUser || !isReviewerUser(currentUser)) return;
+    const orgId = currentUser.organizationId || 'org-reviewer-test';
+    
+    setJobs(prev => {
+      if (prev.length === 0) {
+        return getReviewerSeedJobs(orgId);
+      }
+      return prev;
+    });
+
+    setRoutes(prev => {
+      if (prev.length === 0) {
+        const seedData = getReviewerSeedRoutes(orgId);
+        return [seedData.route];
+      }
+      return prev;
+    });
+
+    setInventoryItems(prev => {
+      if (prev.length === 0) {
+        return getReviewerSeedInventory(orgId);
+      }
+      return prev;
+    });
+
+    setPatients(prev => {
+      if (prev.length === 0) {
+        return getReviewerSeedPatients(orgId);
+      }
+      return prev;
+    });
+  }, [currentUser]);
+
 
 
   

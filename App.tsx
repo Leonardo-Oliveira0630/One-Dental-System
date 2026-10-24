@@ -58,6 +58,7 @@ import { TutorialsView } from './pages/TutorialsView';
 import { HelpdeskWorkspace } from './pages/HelpdeskWorkspace';
 import { TermsOfUse } from './pages/TermsOfUse';
 import { PrivacyPolicy } from './pages/PrivacyPolicy';
+import { Support } from './pages/Support';
 import { MonitoringPage } from './pages/MonitoringPage';
 import { SupplierTermsAndGuidelines } from './pages/SupplierTermsAndGuidelines';
 import { RequisitionInvite } from './pages/RequisitionInvite';
@@ -201,6 +202,10 @@ const AppContent = () => {
       <Route path="/termos-fornecedores" element={<SupplierTermsAndGuidelines />} />
       <Route path="/bio" element={<BioPage />} />
       <Route path="/privacy" element={<PrivacyPolicy />} />
+      <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+      <Route path="/support" element={<Support />} />
+      <Route path="/suporte" element={<Support />} />
+      <Route path="/help" element={<Support />} />
       <Route path="/requisition-invite" element={<RequisitionInvite />} />
       
       <Route path="/dashboard" element={<ProtectedRoute requiredPermission="dashboard:view"><Dashboard /></ProtectedRoute>} />

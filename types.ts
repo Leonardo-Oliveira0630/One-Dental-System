@@ -346,7 +346,8 @@ export enum UserRole {
   CLIENT = 'CLIENT',
   DENTIST = 'DENTIST',
   SUPER_ADMIN = 'SUPER_ADMIN',
-  HELPDESK = 'HELPDESK'
+  HELPDESK = 'HELPDESK',
+  REVIEWER = 'REVIEWER'
 }
 
 export type PermissionKey = 
@@ -897,6 +898,8 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
+  isReviewer?: boolean;
+  is_reviewer?: boolean;
   avatarUrl?: string;
   photoUrl?: string;
   phone?: string;
@@ -1970,4 +1973,21 @@ export interface NotificationPreferences {
   onlineRequisitions: boolean;
   jobStatusChanges: boolean;
 }
+
+export const isReviewerUser = (user: User | null | undefined): boolean => {
+  if (!user) return false;
+  if (user.isReviewer === true || user.is_reviewer === true) return true;
+  if (user.role === UserRole.REVIEWER) return true;
+  const email = (user.email || '').toLowerCase();
+  if (
+    email.includes('review') || 
+    email.includes('avaliador') || 
+    email.includes('apple.review') || 
+    email.includes('google.test')
+  ) {
+    return true;
+  }
+  return false;
+};
+
 

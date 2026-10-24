@@ -114,7 +114,8 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, PermissionKey[]> = {
   [UserRole.COLLABORATOR]: CLINIC_PERMISSIONS.map(p => p.key),
   [UserRole.CLIENT]: CLINIC_PERMISSIONS.map(p => p.key),
   [UserRole.SUPER_ADMIN]: CLINIC_PERMISSIONS.map(p => p.key),
-  [UserRole.HELPDESK]: []
+  [UserRole.HELPDESK]: [],
+  [UserRole.REVIEWER]: CLINIC_PERMISSIONS.map(p => p.key)
 };
 
 const DENTIST_COLORS = ['#0d9488', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#6366f1', '#14b8a6', '#06b6d4'];

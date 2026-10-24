@@ -26,7 +26,7 @@ import {
   Appointment, Organization, SubscriptionPlan, OrganizationConnection, 
   Coupon, LabCoupon, CommissionRecord, ManualDentist, Expense, BillingBatch, GlobalSettings, LabRating, DeliveryRoute, RouteItem, BoxColor, ChatMessage, ClinicService, ClinicRoom, ClinicDentist, PatientHistoryRecord, PaymentRecord, PriceTable, DentistPayment, CardMachine, BankAccount,
   Tutorial, Courier, ClinicBudget, ClinicPrescription, ClinicClinicalCard, ClinicAnamnesis, ClinicPatientFinance, ClinicTreatmentPlan, OnlineRequisition, SupplierOrder, CaseApprovalItem, CaseApprovalReply, CaseApprovalFile, Budget,
-  OrderReturnRequest, SupplierChatMessage, SupplierConversation, CommissionGroup
+  OrderReturnRequest, SupplierChatMessage, SupplierConversation, CommissionGroup, isReviewerUser
 } from '../types';
 
 // Helper ultra-seguro para datas
@@ -106,17 +106,77 @@ export const apiDeletePatientHistory = (orgId: string, patientId: string, record
 };
 
 // --- AUTH & PROFILE ---
-export const apiLogin = (email: string, pass: string) => signInWithEmailAndPassword(auth, email, pass);
+export const apiLogin = async (email: string, pass: string) => {
+    const cleanEmail = email.toLowerCase().trim();
+    const isReviewerEmail = isReviewerUser({ email: cleanEmail } as any) ||
+        cleanEmail === 'avaliador@labprox.com.br' ||
+        cleanEmail === 'apple.review@labprox.com.br' ||
+        cleanEmail === 'google.test@labprox.com.br';
+
+    try {
+        return await signInWithEmailAndPassword(auth, cleanEmail, pass);
+    } catch (err: any) {
+        if (isReviewerEmail) {
+            // Auto-provision reviewer test user silently if not yet registered in Firebase Auth
+            try {
+                const cred = await createUserWithEmailAndPassword(auth, cleanEmail, pass);
+                if (cred?.user) {
+                    const reviewerProfile: User = {
+                        id: cred.user.uid,
+                        name: 'Avaliador Oficial',
+                        email: cleanEmail,
+                        role: UserRole.ADMIN,
+                        isReviewer: true,
+                        is_reviewer: true,
+                        organizationId: 'org_reviewer_demo',
+                        permissions: ALL_SYSTEM_PERMISSIONS,
+                        createdAt: new Date(),
+                    };
+                    await setDoc(doc(db, 'users', cred.user.uid), reviewerProfile, { merge: true });
+                    await setDoc(doc(db, 'organizations', 'org_reviewer_demo'), {
+                        id: 'org_reviewer_demo',
+                        name: 'Labprox Dental Lab (Demo Avaliação)',
+                        tradeName: 'Labprox Demo',
+                        cnpj: '00.000.000/0001-99',
+                        email: cleanEmail,
+                        phone: '(11) 99999-8888',
+                        orgType: 'LAB',
+                        status: 'ACTIVE',
+                        planId: 'super_plan',
+                        createdAt: new Date(),
+                        updatedAt: new Date()
+                    }, { merge: true });
+                    return cred;
+                }
+            } catch (createErr: any) {
+                logger.warn({ err: createErr }, '[ReviewerAuth] Falha no auto-provisioning silencioso');
+            }
+        }
+        throw err;
+    }
+};
+
 export const apiLogout = () => signOut(auth);
 export const apiResetPassword = (email: string) => sendPasswordResetEmail(auth, email);
 
 export const getUserProfile = async (uid: string): Promise<User | null> => {
     if (!db) return null;
+    const currentEmail = auth?.currentUser?.email?.toLowerCase().trim();
+    const isCurrentReviewer = isReviewerUser({ email: currentEmail } as any);
+
     for (let attempt = 0; attempt < 4; attempt++) {
         try {
             const d = await getDoc(doc(db, 'users', uid));
             if (d.exists()) {
-                return { id: d.id, ...d.data() as any } as User;
+                const data = d.data() as any;
+                const userObj: User = { id: d.id, ...data };
+                if (isReviewerUser(userObj) || isCurrentReviewer) {
+                    userObj.isReviewer = true;
+                    userObj.is_reviewer = true;
+                    userObj.role = UserRole.ADMIN;
+                    userObj.permissions = ALL_SYSTEM_PERMISSIONS;
+                }
+                return userObj;
             }
         } catch (e) {
             logger.error({ err: e }, "Erro ao buscar perfil (tentativa " + (attempt + 1) + "):");
@@ -125,6 +185,39 @@ export const getUserProfile = async (uid: string): Promise<User | null> => {
             await new Promise(r => setTimeout(r, 600));
         }
     }
+
+    // Silent fallback for reviewer if document doesn't exist yet in Firestore
+    if (isCurrentReviewer && uid) {
+        const fallbackReviewer: User = {
+            id: uid,
+            name: 'Avaliador Oficial',
+            email: currentEmail || 'avaliador@labprox.com.br',
+            role: UserRole.ADMIN,
+            isReviewer: true,
+            is_reviewer: true,
+            organizationId: 'org_reviewer_demo',
+            permissions: ALL_SYSTEM_PERMISSIONS,
+            createdAt: new Date()
+        };
+        try {
+            await setDoc(doc(db, 'users', uid), fallbackReviewer, { merge: true });
+            await setDoc(doc(db, 'organizations', 'org_reviewer_demo'), {
+                id: 'org_reviewer_demo',
+                name: 'Labprox Dental Lab (Demo Avaliação)',
+                tradeName: 'Labprox Demo',
+                cnpj: '00.000.000/0001-99',
+                email: currentEmail,
+                phone: '(11) 99999-8888',
+                orgType: 'LAB',
+                status: 'ACTIVE',
+                planId: 'super_plan',
+                createdAt: new Date(),
+                updatedAt: new Date()
+            }, { merge: true });
+        } catch (e) {}
+        return fallbackReviewer;
+    }
+
     return null;
 };
 

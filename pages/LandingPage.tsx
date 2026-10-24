@@ -3672,6 +3672,7 @@ export const LandingPage = () => {
                 <li><Link to="/register-lab?profile=dentista" className="hover:text-white transition-colors">Cadastro Dentista</Link></li>
                 <li><Link to="/terms" className="hover:text-white transition-colors">Termos de Uso</Link></li>
                 <li><Link to="/privacy" className="hover:text-white transition-colors">Política de Privacidade</Link></li>
+                <li><Link to="/support" className="hover:text-white transition-colors text-[#00B8D9]">Suporte Técnico</Link></li>
               </ul>
             </div>
 
