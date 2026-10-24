@@ -3,13 +3,14 @@ import {
   InventoryItem, Appointment, AppointmentStatus, ClinicService, ClinicDentist, 
   ClinicRoom, PatientPayment, ClinicBudget, SupplierOrder, LabCoupon,
   ManualDentist, JobType, BoxColor, Sector, User, CommissionRecord, CommissionStatus,
-  ALL_SYSTEM_PERMISSIONS
+  ALL_SYSTEM_PERMISSIONS, DentistPayment
 } from '../types';
 
 export const getReviewerSeedJobs = (orgId: string): Job[] => {
   const now = new Date();
   const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
   const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
+  const fiveDaysAgo = new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000);
 
   return [
     {
@@ -21,11 +22,14 @@ export const getReviewerSeedJobs = (orgId: string): Job[] => {
       dentistId: 'dentist-rev-1',
       dentistName: 'Dr. Roberto Silva (CRO 12345-SP)',
       clinicName: 'Clínica Odonto Prime Review',
-      status: JobStatus.IN_PROGRESS,
+      status: JobStatus.DELIVERED,
       urgency: UrgencyLevel.NORMAL,
-      totalValue: 850.00,
-      createdAt: threeDaysAgo,
-      dueDate: new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000),
+      totalValue: 840.00,
+      createdAt: fiveDaysAgo,
+      dueDate: yesterday,
+      deliveredAt: yesterday,
+      isDelivered: true,
+      deliveryConfirmed: true,
       items: [
         {
           id: 'item-101-1',
@@ -39,24 +43,24 @@ export const getReviewerSeedJobs = (orgId: string): Job[] => {
           color: 'A2 (VITA Classic)'
         }
       ],
-      currentSector: 'USINAGEM_CAD_CAM',
+      currentSector: 'ENTREGA',
       sectorEntryTime: yesterday,
       history: [
         {
           id: 'hist-1',
           action: 'Caso recebido via aplicativo e registrado no sistema.',
           sector: 'RECEPCAO',
-          timestamp: threeDaysAgo,
+          timestamp: fiveDaysAgo,
           userId: 'usr-rev-1',
           userName: 'Equipe de Recepção Review'
         },
         {
           id: 'hist-2',
-          action: 'Usinagem de bloco de Zircônia iniciada.',
-          sector: 'USINAGEM_CAD_CAM',
+          action: 'Trabalho entregue com sucesso e assinado pelo Dr. Roberto Silva.',
+          sector: 'ENTREGA',
           timestamp: yesterday,
-          userId: 'usr-rev-2',
-          userName: 'Técnico CAD/CAM Review'
+          userId: 'usr-rev-3',
+          userName: 'Logística Labprox'
         }
       ]
     },
@@ -72,7 +76,7 @@ export const getReviewerSeedJobs = (orgId: string): Job[] => {
       status: JobStatus.DELIVERED,
       urgency: UrgencyLevel.HIGH,
       totalValue: 1250.00,
-      createdAt: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000),
+      createdAt: fiveDaysAgo,
       dueDate: yesterday,
       deliveredAt: yesterday,
       isDelivered: true,
@@ -94,7 +98,7 @@ export const getReviewerSeedJobs = (orgId: string): Job[] => {
       history: [
         {
           id: 'hist-102-1',
-          action: 'Trabalho entregue com sucesso na clínica parceira.',
+          action: 'Trabalho entregue com sucesso na clínica parceira (Faturamento Pendente).',
           sector: 'ENTREGA',
           timestamp: yesterday,
           userId: 'usr-rev-3',
@@ -105,39 +109,122 @@ export const getReviewerSeedJobs = (orgId: string): Job[] => {
     {
       id: 'job-rev-103',
       organizationId: orgId,
-      osNumber: 'OS-8003 (R)',
+      osNumber: 'OS-8003',
       boxNumber: 'CX-05',
-      patientName: 'Juliana Paes (Repetição Teste)',
+      patientName: 'Juliana Paes (Avaliador)',
       dentistId: 'dentist-rev-1',
       dentistName: 'Dr. Roberto Silva',
       clinicName: 'Clínica Odonto Prime Review',
-      status: JobStatus.WAITING_APPROVAL,
+      status: JobStatus.DELIVERED,
       urgency: UrgencyLevel.VIP,
       totalValue: 420.00,
-      createdAt: yesterday,
-      dueDate: new Date(now.getTime() + 1 * 24 * 60 * 60 * 1000),
+      createdAt: threeDaysAgo,
+      dueDate: yesterday,
+      deliveredAt: yesterday,
+      isDelivered: true,
+      deliveryConfirmed: true,
       items: [
         {
           id: 'item-103-1',
-          jobTypeId: 'jt-e-max',
-          name: 'Laminado Cerâmico E-Max CAD (Repetição)',
+          jobTypeId: 'jt-facetas-emax',
+          name: 'Faceta / Lente de Contato Dental E-max Dissilicato',
           quantity: 2,
           price: 210.00,
-          nature: 'REPETITION',
+          nature: 'NORMAL',
           selectedVariationIds: [],
           selectedTeeth: ['14', '15'],
-          color: 'A3'
+          color: 'A1 (Bleach)'
         }
       ],
-      currentSector: 'CONTROLE_QUALIDADE',
+      currentSector: 'ENTREGA',
       history: [
         {
           id: 'hist-103-1',
-          action: 'Aguardando aprovação de repetção pelo controle de qualidade.',
-          sector: 'CONTROLE_QUALIDADE',
+          action: 'Trabalho entregue e recebido com sucesso.',
+          sector: 'ENTREGA',
           timestamp: yesterday,
           userId: 'usr-rev-1',
-          userName: 'Supervisão de Qualidade'
+          userName: 'Logística Labprox'
+        }
+      ]
+    },
+    {
+      id: 'job-rev-104',
+      organizationId: orgId,
+      osNumber: 'OS-8004',
+      boxNumber: 'CX-06',
+      patientName: 'Thiago Siqueira (Avaliador)',
+      dentistId: 'dentist-rev-2',
+      dentistName: 'Dra. Fernanda Lima (CRO 98765-SP)',
+      clinicName: 'Clínica Sorriso Aberto',
+      status: JobStatus.DELIVERED,
+      urgency: UrgencyLevel.HIGH,
+      totalValue: 2400.00,
+      createdAt: fiveDaysAgo,
+      dueDate: yesterday,
+      deliveredAt: yesterday,
+      isDelivered: true,
+      deliveryConfirmed: true,
+      items: [
+        {
+          id: 'item-104-1',
+          jobTypeId: 'jt-zirconia',
+          name: 'Reabilitação em Zircônia Estética Anterior (8 Elementos)',
+          quantity: 8,
+          price: 300.00,
+          nature: 'NORMAL',
+          selectedVariationIds: [],
+          selectedTeeth: ['11', '12', '13', '14', '21', '22', '23', '24'],
+          color: 'BL2 (Ultra Bleach)'
+        }
+      ],
+      currentSector: 'ENTREGA',
+      history: [
+        {
+          id: 'hist-104-1',
+          action: 'Entrega confirmada no consultório. Fatura em aberto.',
+          sector: 'ENTREGA',
+          timestamp: yesterday,
+          userId: 'usr-rev-3',
+          userName: 'Motoboy Lucas Review'
+        }
+      ]
+    },
+    {
+      id: 'job-rev-105',
+      organizationId: orgId,
+      osNumber: 'OS-8005',
+      boxNumber: 'CX-03',
+      patientName: 'Renata Bezerra (Avaliador)',
+      dentistId: 'dentist-rev-3',
+      dentistName: 'Dr. Carlos Eduardo Mendes',
+      clinicName: 'Instituto Reabilitar Oral',
+      status: JobStatus.IN_PROGRESS,
+      urgency: UrgencyLevel.NORMAL,
+      totalValue: 580.00,
+      createdAt: yesterday,
+      dueDate: new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000),
+      items: [
+        {
+          id: 'item-105-1',
+          jobTypeId: 'jt-protese-total',
+          name: 'Prótese Total Bimaxilar Acrílica Premium',
+          quantity: 1,
+          price: 580.00,
+          nature: 'NORMAL',
+          selectedVariationIds: [],
+          color: 'Rosa Médio com Caracterização'
+        }
+      ],
+      currentSector: 'Cerâmica & Estratificação',
+      history: [
+        {
+          id: 'hist-105-1',
+          action: 'Montagem de dentes finalizada, em fase de acrilização.',
+          sector: 'Cerâmica & Estratificação',
+          timestamp: yesterday,
+          userId: 'colab-rev-2',
+          userName: 'Amanda Vasconcellos'
         }
       ]
     }
@@ -759,9 +846,10 @@ export const getReviewerLabDentists = (orgId: string): ManualDentist[] => {
       city: 'São Paulo',
       state: 'SP',
       cep: '04010-000',
-      billingLimit: 10000,
+      billingLimit: 3000,
       globalDiscountPercent: 0,
-      isBlocked: false,
+      isBlocked: true,
+      blockReason: 'DEBT',
       createdAt: thirtyDaysAgo
     },
     {
@@ -807,6 +895,61 @@ export const getReviewerLabDentists = (orgId: string): ManualDentist[] => {
       globalDiscountPercent: 5,
       isBlocked: false,
       createdAt: thirtyDaysAgo
+    },
+    {
+      id: 'dentist-rev-5',
+      organizationId: orgId,
+      name: 'Dr. André Guimarães',
+      clinicName: 'Centro Odontológico Guimarães & Implantes',
+      clientType: 'CLINICA',
+      cro: 'CRO-SP 88123',
+      phone: '(11) 94444-9999',
+      whatsapp: '11944449999',
+      email: 'andre.guimaraes@odontoguimaraes.com.br',
+      cpfCnpj: '67.890.123/0001-55',
+      address: 'Rua Bela Cintra',
+      number: '920',
+      neighborhood: 'Consolação',
+      city: 'São Paulo',
+      state: 'SP',
+      cep: '01415-000',
+      billingLimit: 18000,
+      globalDiscountPercent: 0,
+      isBlocked: false,
+      createdAt: thirtyDaysAgo
+    }
+  ];
+};
+
+export const getReviewerLabDentistPayments = (orgId: string): DentistPayment[] => {
+  const now = new Date();
+  const twoDaysAgo = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000);
+  const fiveDaysAgo = new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000);
+
+  return [
+    {
+      id: 'pay-rev-1',
+      organizationId: orgId,
+      dentistId: 'dentist-rev-1',
+      dentistName: 'Dr. Roberto Silva',
+      amount: 840.00,
+      paymentMethod: 'PIX',
+      paymentDate: fiveDaysAgo,
+      type: 'PAYMENT',
+      notes: 'Quitação integral OS-8001 via PIX Chave CNPJ',
+      createdAt: fiveDaysAgo
+    },
+    {
+      id: 'pay-rev-2',
+      organizationId: orgId,
+      dentistId: 'dentist-rev-1',
+      dentistName: 'Dr. Roberto Silva',
+      amount: 420.00,
+      paymentMethod: 'CREDIT_CARD',
+      paymentDate: twoDaysAgo,
+      type: 'PAYMENT',
+      notes: 'Quitação OS-8003 no Cartão de Crédito em 2x',
+      createdAt: twoDaysAgo
     }
   ];
 };
@@ -820,51 +963,47 @@ export const getReviewerLabJobTypes = (orgId: string): JobType[] => [
     basePrice: 280.00,
     baseCommission: 28.00,
     productionTimeDays: 3,
-    variationGroups: [],
+    variationGroups: [
+      {
+        id: 'vg-cor-zirc',
+        name: 'Escala de Cor VITA',
+        selectionType: 'SINGLE',
+        options: [
+          { id: 'opt-a1', name: 'A1', priceModifier: 0 },
+          { id: 'opt-a2', name: 'A2 (Mais Usada)', priceModifier: 0 },
+          { id: 'opt-a3', name: 'A3', priceModifier: 0 },
+          { id: 'opt-bl2', name: 'BL2 Bleach', priceModifier: 20 }
+        ]
+      }
+    ],
     isVisibleInStore: true,
     isVisibleInternally: true,
     allowedSectors: ['CAD / CAM & Escaneamento', 'Cerâmica & Estratificação', 'Acabamento & Polimento', 'Controle de Qualidade'],
     imageUrl: 'https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?auto=format&fit=crop&w=400&q=80'
   },
   {
-    id: 'jt-protocolo',
-    name: 'Protocolo Superior Zircônia sobre Implante',
-    category: 'Prótese sobre Implante',
-    description: 'Barra usinada em zircônia pura com orifícios de parafuso passivo e gengiva rosa estratificada.',
-    basePrice: 1250.00,
-    baseCommission: 125.00,
-    productionTimeDays: 5,
-    variationGroups: [],
-    isVisibleInStore: true,
-    isVisibleInternally: true,
-    allowedSectors: ['Gesso & Modelos', 'CAD / CAM & Escaneamento', 'Cerâmica & Estratificação', 'Acabamento & Polimento', 'Controle de Qualidade'],
-    imageUrl: 'https://images.unsplash.com/photo-1584744982491-665216d95f8b?auto=format&fit=crop&w=400&q=80'
-  },
-  {
-    id: 'jt-metaloceramica',
-    name: 'Coroa Metalocerâmica Clássica Co-Cr',
-    category: 'Prótese Fixa',
-    description: 'Subestrutura em liga nobre Co-Cr fundida ou sinterizada com cerâmica feldspática.',
-    basePrice: 180.00,
-    baseCommission: 18.00,
-    productionTimeDays: 3,
-    variationGroups: [],
-    isVisibleInStore: true,
-    isVisibleInternally: true,
-    allowedSectors: ['Gesso & Modelos', 'Cerâmica & Estratificação', 'Acabamento & Polimento', 'Controle de Qualidade']
-  },
-  {
     id: 'jt-facetas-emax',
-    name: 'Faceta / Lente de Contato Dental E-max Dissilicato',
+    name: 'Lente de Contato Dental E-max Dissilicato',
     category: 'Estética & Lentes',
     description: 'Lente ultrafina de dissilicato de lítio maquiada e prensada de altíssima translucidez.',
     basePrice: 320.00,
     baseCommission: 35.00,
     productionTimeDays: 2,
-    variationGroups: [],
+    variationGroups: [
+      {
+        id: 'vg-espessura',
+        name: 'Espessura Mínima',
+        selectionType: 'SINGLE',
+        options: [
+          { id: 'opt-03mm', name: '0.3mm Ultrafina', priceModifier: 30 },
+          { id: 'opt-05mm', name: '0.5mm Padrão', priceModifier: 0 }
+        ]
+      }
+    ],
     isVisibleInStore: true,
     isVisibleInternally: true,
-    allowedSectors: ['CAD / CAM & Escaneamento', 'Cerâmica & Estratificação', 'Acabamento & Polimento', 'Controle de Qualidade']
+    allowedSectors: ['CAD / CAM & Escaneamento', 'Cerâmica & Estratificação', 'Acabamento & Polimento', 'Controle de Qualidade'],
+    imageUrl: 'https://images.unsplash.com/photo-1606811841689-23dfddce3e95?auto=format&fit=crop&w=400&q=80'
   },
   {
     id: 'jt-placa-miox',
@@ -874,10 +1013,97 @@ export const getReviewerLabJobTypes = (orgId: string): JobType[] => [
     basePrice: 95.00,
     baseCommission: 12.00,
     productionTimeDays: 1,
+    variationGroups: [
+      {
+        id: 'vg-arcada',
+        name: 'Arcada Alvo',
+        selectionType: 'SINGLE',
+        options: [
+          { id: 'opt-sup', name: 'Arcada Superior', priceModifier: 0 },
+          { id: 'opt-inf', name: 'Arcada Inferior', priceModifier: 0 }
+        ]
+      }
+    ],
+    isVisibleInStore: true,
+    isVisibleInternally: true,
+    allowedSectors: ['Gesso & Modelos', 'Acabamento & Polimento', 'Controle de Qualidade'],
+    imageUrl: 'https://images.unsplash.com/photo-1598256989800-fe5f95da9787?auto=format&fit=crop&w=400&q=80'
+  },
+  {
+    id: 'jt-protocolo',
+    name: 'Protocolo Superior em Zircônia sobre Implante',
+    category: 'Prótese sobre Implante',
+    description: 'Barra usinada em zircônia pura com orifícios de parafuso passivo e gengiva rosa estratificada.',
+    basePrice: 1250.00,
+    baseCommission: 125.00,
+    productionTimeDays: 5,
+    variationGroups: [
+      {
+        id: 'vg-fixacao',
+        name: 'Tipo de Conexão',
+        selectionType: 'SINGLE',
+        options: [
+          { id: 'opt-cone-morse', name: 'Cone Morse Mini Pilar', priceModifier: 0 },
+          { id: 'opt-he', name: 'Hexágono Externo', priceModifier: 0 }
+        ]
+      }
+    ],
+    isVisibleInStore: true,
+    isVisibleInternally: true,
+    allowedSectors: ['Gesso & Modelos', 'CAD / CAM & Escaneamento', 'Cerâmica & Estratificação', 'Acabamento & Polimento', 'Controle de Qualidade'],
+    imageUrl: 'https://images.unsplash.com/photo-1584744982491-665216d95f8b?auto=format&fit=crop&w=400&q=80'
+  },
+  {
+    id: 'jt-guia-cirurgico',
+    name: 'Guia Cirúrgico para Implantes com Anilha CAD/CAM',
+    category: 'Cirurgia Guiada',
+    description: 'Guia cirúrgico de precisão desenhado a partir de tomografia DICOM e escaneamento intraoral STL.',
+    basePrice: 190.00,
+    baseCommission: 20.00,
+    productionTimeDays: 2,
+    variationGroups: [
+      {
+        id: 'vg-anilhas',
+        name: 'Quantidade de Anilhas',
+        selectionType: 'SINGLE',
+        options: [
+          { id: 'opt-1-3', name: '1 a 3 Implantes', priceModifier: 0 },
+          { id: 'opt-4-mais', name: '4 ou mais Implantes', priceModifier: 80 }
+        ]
+      }
+    ],
+    isVisibleInStore: true,
+    isVisibleInternally: true,
+    allowedSectors: ['CAD / CAM & Escaneamento', 'Controle de Qualidade'],
+    imageUrl: 'https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&w=400&q=80'
+  },
+  {
+    id: 'jt-metaloceramica',
+    name: 'Coroa Metalocerâmica Co-Cr Clássica',
+    category: 'Prótese Fixa',
+    description: 'Subestrutura em liga nobre Co-Cr fundida com cerâmica feldspática de alta aderência.',
+    basePrice: 180.00,
+    baseCommission: 18.00,
+    productionTimeDays: 3,
     variationGroups: [],
     isVisibleInStore: true,
     isVisibleInternally: true,
-    allowedSectors: ['Gesso & Modelos', 'Acabamento & Polimento', 'Controle de Qualidade']
+    allowedSectors: ['Gesso & Modelos', 'Cerâmica & Estratificação', 'Acabamento & Polimento', 'Controle de Qualidade'],
+    imageUrl: 'https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&w=400&q=80'
+  },
+  {
+    id: 'jt-ppr-metalica',
+    name: 'Prótese Parcial Removível (PPR) com Grampos Co-Cr',
+    category: 'Prótese Removível',
+    description: 'Armação metálica fundida de cobalto-cromo com grampos circunferenciais e montagem acrílica.',
+    basePrice: 450.00,
+    baseCommission: 45.00,
+    productionTimeDays: 4,
+    variationGroups: [],
+    isVisibleInStore: true,
+    isVisibleInternally: true,
+    allowedSectors: ['Gesso & Modelos', 'Acabamento & Polimento', 'Controle de Qualidade'],
+    imageUrl: 'https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?auto=format&fit=crop&w=400&q=80'
   },
   {
     id: 'jt-protese-total',
@@ -890,7 +1116,34 @@ export const getReviewerLabJobTypes = (orgId: string): JobType[] => [
     variationGroups: [],
     isVisibleInStore: true,
     isVisibleInternally: true,
-    allowedSectors: ['Gesso & Modelos', 'Acabamento & Polimento', 'Controle de Qualidade']
+    allowedSectors: ['Gesso & Modelos', 'Acabamento & Polimento', 'Controle de Qualidade'],
+    imageUrl: 'https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?auto=format&fit=crop&w=400&q=80'
+  },
+  {
+    id: 'jt-inlay-onlay',
+    name: 'Inlay / Onlay Cerâmico E-max Maquiado',
+    category: 'Estética & Lentes',
+    description: 'Restauração indireta inlay/onlay de dissilicato de lítio usinada para máxima adaptação marginal.',
+    basePrice: 260.00,
+    baseCommission: 26.00,
+    productionTimeDays: 2,
+    variationGroups: [],
+    isVisibleInStore: true,
+    isVisibleInternally: true,
+    allowedSectors: ['CAD / CAM & Escaneamento', 'Cerâmica & Estratificação', 'Acabamento & Polimento', 'Controle de Qualidade']
+  },
+  {
+    id: 'jt-provisorio-pmma',
+    name: 'Provisório em Resina PMMA Multicamadas Fresado',
+    category: 'Prótese Fixa',
+    description: 'Coroa provisória usinada em bloco PMMA multicamadas com alta precisão anatômica.',
+    basePrice: 75.00,
+    baseCommission: 8.00,
+    productionTimeDays: 1,
+    variationGroups: [],
+    isVisibleInStore: true,
+    isVisibleInternally: true,
+    allowedSectors: ['CAD / CAM & Escaneamento', 'Acabamento & Polimento', 'Controle de Qualidade']
   }
 ];
 
@@ -941,6 +1194,19 @@ export const getReviewerLabCollaborators = (orgId: string): User[] => {
 
   return [
     {
+      id: 'colab-rev-admin',
+      organizationId: orgId,
+      name: 'Dr. Marcelo Rezende (Administrador Geral)',
+      email: 'marcelo.admin@labprox.com.br',
+      phone: '(11) 98000-1122',
+      role: UserRole.ADMIN,
+      sector: 'Administração',
+      sectors: ['Administração', 'Controle de Qualidade'],
+      permissions: ALL_SYSTEM_PERMISSIONS,
+      avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&q=80',
+      createdAt: sixtyDaysAgo
+    },
+    {
       id: 'colab-rev-1',
       organizationId: orgId,
       name: 'Lucas Medeiros (Projetista CAD/CAM)',
@@ -977,45 +1243,6 @@ export const getReviewerLabCollaborators = (orgId: string): User[] => {
       sectors: ['Gesso & Modelos'],
       permissions: ALL_SYSTEM_PERMISSIONS,
       avatarUrl: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&w=256&q=80',
-      createdAt: sixtyDaysAgo
-    },
-    {
-      id: 'colab-rev-4',
-      organizationId: orgId,
-      name: 'Rafael Souza (Polimento & Acabamento)',
-      email: 'rafael.polimento@labprox.com.br',
-      phone: '(11) 98444-5566',
-      role: UserRole.COLLABORATOR,
-      sector: 'Acabamento & Polimento',
-      sectors: ['Acabamento & Polimento'],
-      permissions: ALL_SYSTEM_PERMISSIONS,
-      avatarUrl: 'https://images.unsplash.com/photo-1527980965255-d3b416303d12?auto=format&fit=crop&w=256&q=80',
-      createdAt: sixtyDaysAgo
-    },
-    {
-      id: 'colab-rev-5',
-      organizationId: orgId,
-      name: 'Patrícia Rocha (Gerente de Qualidade)',
-      email: 'patricia.qualidade@labprox.com.br',
-      phone: '(11) 98555-6677',
-      role: UserRole.MANAGER,
-      sector: 'Controle de Qualidade',
-      sectors: ['Controle de Qualidade', 'CAD / CAM & Escaneamento'],
-      permissions: ALL_SYSTEM_PERMISSIONS,
-      avatarUrl: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=256&q=80',
-      createdAt: sixtyDaysAgo
-    },
-    {
-      id: 'colab-rev-6',
-      organizationId: orgId,
-      name: 'Bruno Ferreira (Expedição & Logística)',
-      email: 'bruno.logistica@labprox.com.br',
-      phone: '(11) 98666-7788',
-      role: UserRole.COLLABORATOR,
-      sector: 'Expedição & Logística',
-      sectors: ['Expedição & Logística'],
-      permissions: ALL_SYSTEM_PERMISSIONS,
-      avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=256&q=80',
       createdAt: sixtyDaysAgo
     }
   ];

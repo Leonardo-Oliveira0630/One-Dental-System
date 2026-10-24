@@ -15,7 +15,8 @@ import {
   getReviewerClinicRooms, getReviewerClinicDentists, getReviewerClinicPatientPayments,
   getReviewerSupplierProducts, getReviewerSupplierOrders, getReviewerSupplierCoupons,
   getReviewerLabDentists, getReviewerLabJobTypes, getReviewerLabBoxColors,
-  getReviewerLabSectors, getReviewerLabCollaborators, getReviewerLabCommissions
+  getReviewerLabSectors, getReviewerLabCollaborators, getReviewerLabCommissions,
+  getReviewerLabDentistPayments
 } from '../services/reviewerSeedService';
 import { db, auth } from '../services/firebaseConfig';
 import * as api from '../services/firebaseService';
@@ -870,6 +871,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     setBoxColors(prev => prev.length === 0 ? getReviewerLabBoxColors(orgId) : prev);
     setSectors(prev => prev.length === 0 ? getReviewerLabSectors(orgId) : prev);
     setCommissions(prev => prev.length === 0 ? getReviewerLabCommissions(orgId) : prev);
+    setDentistPayments(prev => prev.length === 0 ? getReviewerLabDentistPayments(orgId) : prev);
     setAllUsers(prev => {
       if (prev.length <= 1) {
         const mockColabs = getReviewerLabCollaborators(orgId);
