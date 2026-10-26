@@ -16,11 +16,7 @@ import {
   getReviewerSupplierProducts, getReviewerSupplierOrders, getReviewerSupplierCoupons,
   getReviewerLabDentists, getReviewerLabJobTypes, getReviewerLabBoxColors,
   getReviewerLabSectors, getReviewerLabCollaborators, getReviewerLabCommissions,
-<<<<<<< HEAD
   getReviewerLabDentistPayments, ensureReviewerDatabaseSeeded
-=======
-  getReviewerLabDentistPayments
->>>>>>> f861ee86426f8838d147aca36f98fce11944c283
 } from '../services/reviewerSeedService';
 import { db, auth } from '../services/firebaseConfig';
 import * as api from '../services/firebaseService';
@@ -846,12 +842,9 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     const orgId = currentUser.organizationId || 'org-reviewer-test';
     const email = (currentUser.email || '').toLowerCase().trim();
 
-<<<<<<< HEAD
     // Silently auto-seed cloud Firestore in background so documents exist permanently
     ensureReviewerDatabaseSeeded(orgId, email).catch(() => {});
 
-=======
->>>>>>> f861ee86426f8838d147aca36f98fce11944c283
     // 1. Reviewer de Clínica (clinica.review@labprox.com)
     if (isClinicReviewer(email)) {
       setPatients(prev => prev.length === 0 ? getReviewerClinicPatients(orgId) : prev);

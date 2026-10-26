@@ -3,15 +3,10 @@ import {
   InventoryItem, Appointment, AppointmentStatus, ClinicService, ClinicDentist, 
   ClinicRoom, PatientPayment, ClinicBudget, SupplierOrder, LabCoupon,
   ManualDentist, JobType, BoxColor, Sector, User, CommissionRecord, CommissionStatus,
-<<<<<<< HEAD
   ALL_SYSTEM_PERMISSIONS, DentistPayment, isClinicReviewer, isSupplierReviewer, isReviewerUser
 } from '../types';
 import { db } from './firebaseConfig';
 import { doc, setDoc } from 'firebase/firestore';
-=======
-  ALL_SYSTEM_PERMISSIONS, DentistPayment
-} from '../types';
->>>>>>> f861ee86426f8838d147aca36f98fce11944c283
 
 export const getReviewerSeedJobs = (orgId: string): Job[] => {
   const now = new Date();
@@ -1359,7 +1354,6 @@ export const getReviewerLabCommissions = (orgId: string): CommissionRecord[] => 
   ];
 };
 
-<<<<<<< HEAD
 const cleanPayload = (obj: any): any => {
   if (obj === undefined || obj === null) return null;
   if (obj instanceof Date) return obj;
@@ -1520,6 +1514,4 @@ export const ensureReviewerDatabaseSeeded = async (orgId?: string, email?: strin
 };
 
 
-=======
->>>>>>> f861ee86426f8838d147aca36f98fce11944c283
 
