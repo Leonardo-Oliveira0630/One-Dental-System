@@ -238,12 +238,16 @@ export const apiLogin = async (email: string, pass: string) => {
         cleanEmail === 'fornecedor.review@labprox.com';
 
     try {
+<<<<<<< HEAD
         const cred = await signInWithEmailAndPassword(auth, cleanEmail, pass);
         if (isReviewerEmail && cred?.user) {
             const config = getReviewerSeedConfig(cleanEmail, cred.user.uid);
             ensureReviewerDatabaseSeeded(config.org.id, cleanEmail).catch(() => {});
         }
         return cred;
+=======
+        return await signInWithEmailAndPassword(auth, cleanEmail, pass);
+>>>>>>> f861ee86426f8838d147aca36f98fce11944c283
     } catch (err: any) {
         if (isReviewerEmail) {
             // Auto-provision reviewer test user silently if not yet registered in Firebase Auth
@@ -253,7 +257,10 @@ export const apiLogin = async (email: string, pass: string) => {
                     const config = getReviewerSeedConfig(cleanEmail, cred.user.uid);
                     await setDoc(doc(db, 'users', cred.user.uid), config.user, { merge: true });
                     await setDoc(doc(db, 'organizations', config.org.id), config.org, { merge: true });
+<<<<<<< HEAD
                     ensureReviewerDatabaseSeeded(config.org.id, cleanEmail).catch(() => {});
+=======
+>>>>>>> f861ee86426f8838d147aca36f98fce11944c283
                     return cred;
                 }
             } catch (createErr: any) {
