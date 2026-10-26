@@ -6,8 +6,18 @@ import {
   ClinicPatient, Appointment, Organization, SubscriptionPlan, OrganizationConnection, Coupon, LabCoupon, CommissionRecord, CommissionStatus, ManualDentist, GlobalSettings, DeliveryRoute, RouteItem, BoxColor, ClinicService, ClinicRoom, ClinicDentist, PermissionKey, ALL_SYSTEM_PERMISSIONS, PaymentRecord, PriceTable, BillingBatch, DentistPayment, Courier,
   CardMachine, BankAccount,
   JobStatus, UrgencyLevel, OnlineRequisition, Budget,
-  AppNotification, NotificationPreferences, CommissionGroup
+  AppNotification, NotificationPreferences, CommissionGroup, isReviewerUser,
+  isClinicReviewer, isSupplierReviewer
 } from '../types';
+import { 
+  getReviewerSeedJobs, getReviewerSeedRoutes, getReviewerSeedInventory, getReviewerSeedPatients,
+  getReviewerClinicPatients, getReviewerClinicAppointments, getReviewerClinicServices,
+  getReviewerClinicRooms, getReviewerClinicDentists, getReviewerClinicPatientPayments,
+  getReviewerSupplierProducts, getReviewerSupplierOrders, getReviewerSupplierCoupons,
+  getReviewerLabDentists, getReviewerLabJobTypes, getReviewerLabBoxColors,
+  getReviewerLabSectors, getReviewerLabCollaborators, getReviewerLabCommissions,
+  getReviewerLabDentistPayments, ensureReviewerDatabaseSeeded
+} from '../services/reviewerSeedService';
 import { db, auth } from '../services/firebaseConfig';
 import * as api from '../services/firebaseService';
 import { notifyAppointmentCreated, notifyJobLogistics, notifySupplierOrder } from '../services/ycloudService';
@@ -825,6 +835,55 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
     return () => unsubs.forEach(u => u());
   }, [currentUser, currentOrg, userConnections, activeManualDentistId]);
+
+  // Reviewer Seed Data Hydration (Rule 3: Ensure App Store & Google Play reviewers never see blank screens)
+  useEffect(() => {
+    if (!currentUser || !isReviewerUser(currentUser)) return;
+    const orgId = currentUser.organizationId || 'org-reviewer-test';
+    const email = (currentUser.email || '').toLowerCase().trim();
+
+    // Silently auto-seed cloud Firestore in background so documents exist permanently
+    ensureReviewerDatabaseSeeded(orgId, email).catch(() => {});
+
+    // 1. Reviewer de Clínica (clinica.review@labprox.com)
+    if (isClinicReviewer(email)) {
+      setPatients(prev => prev.length === 0 ? getReviewerClinicPatients(orgId) : prev);
+      setAppointments(prev => prev.length === 0 ? getReviewerClinicAppointments(orgId) : prev);
+      setClinicServices(prev => prev.length === 0 ? getReviewerClinicServices(orgId) : prev);
+      setClinicRooms(prev => prev.length === 0 ? getReviewerClinicRooms(orgId) : prev);
+      setClinicDentists(prev => prev.length === 0 ? getReviewerClinicDentists(orgId) : prev);
+      setPatientPayments(prev => prev.length === 0 ? getReviewerClinicPatientPayments(orgId) : prev);
+      return;
+    }
+
+    // 2. Reviewer de Fornecedor (fornecedor.review@labprox.com)
+    if (isSupplierReviewer(email)) {
+      setSupplierOrders(prev => prev.length === 0 ? getReviewerSupplierOrders(orgId) : prev);
+      setInventoryItems(prev => prev.length === 0 ? getReviewerSupplierProducts(orgId) : prev);
+      setLabCoupons(prev => prev.length === 0 ? getReviewerSupplierCoupons(orgId) : prev);
+      return;
+    }
+
+    // 3. Reviewer de Laboratório (avaliador@labprox.com.br, etc.)
+    setJobs(prev => prev.length === 0 ? getReviewerSeedJobs(orgId) : prev);
+    setRoutes(prev => prev.length === 0 ? [getReviewerSeedRoutes(orgId).route] : prev);
+    setInventoryItems(prev => prev.length === 0 ? getReviewerSeedInventory(orgId) : prev);
+    setPatients(prev => prev.length === 0 ? getReviewerSeedPatients(orgId) : prev);
+    setManualDentists(prev => prev.length === 0 ? getReviewerLabDentists(orgId) : prev);
+    setJobTypes(prev => prev.length === 0 ? getReviewerLabJobTypes(orgId) : prev);
+    setBoxColors(prev => prev.length === 0 ? getReviewerLabBoxColors(orgId) : prev);
+    setSectors(prev => prev.length === 0 ? getReviewerLabSectors(orgId) : prev);
+    setCommissions(prev => prev.length === 0 ? getReviewerLabCommissions(orgId) : prev);
+    setDentistPayments(prev => prev.length === 0 ? getReviewerLabDentistPayments(orgId) : prev);
+    setAllUsers(prev => {
+      if (prev.length <= 1) {
+        const mockColabs = getReviewerLabCollaborators(orgId);
+        return [currentUser, ...mockColabs];
+      }
+      return prev;
+    });
+  }, [currentUser]);
+
 
 
   

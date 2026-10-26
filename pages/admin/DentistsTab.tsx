@@ -1687,12 +1687,13 @@ export const DentistsTab = () => {
                                                               step="any"
                                                               min="0"
                                                               disabled={!canEditPrices}
-                                                              value={cp?.fixedPrice !== undefined && cp.fixedPrice !== null ? cp.fixedPrice : ""}
+                                                              value={cp?.fixedPrice !== undefined && cp.fixedPrice !== null && cp.fixedPrice > 0 ? cp.fixedPrice : ""}
                                                               onClick={(e) => e.stopPropagation()}
                                                               onFocus={(e) => e.target.select()}
                                                               onChange={e => {
                                                                   const raw = e.target.value;
-                                                                  const newFixed = raw === "" ? undefined : parseFloat(raw);
+                                                                  const parsed = parseFloat(raw);
+                                                                   const newFixed = (raw === "" || isNaN(parsed) || parsed <= 0) ? undefined : parsed;
                                                                   const newCustomPrices = [...(formData.customPrices || [])];
                                                                   const idx = newCustomPrices.findIndex(p => p.jobTypeId === type.id);
                                                                   if (idx !== -1) {
@@ -1734,12 +1735,13 @@ export const DentistsTab = () => {
                                                               min="0"
                                                               max="100"
                                                               disabled={!canEditPrices}
-                                                              value={cp?.discountPercent !== undefined && cp.discountPercent !== null ? cp.discountPercent : ""}
+                                                              value={cp?.discountPercent !== undefined && cp.discountPercent !== null && cp.discountPercent > 0 ? cp.discountPercent : ""}
                                                               onClick={(e) => e.stopPropagation()}
                                                               onFocus={(e) => e.target.select()}
                                                               onChange={e => {
                                                                   const raw = e.target.value;
-                                                                  const newPercent = raw === "" ? undefined : parseInt(raw);
+                                                                  const parsed = parseInt(raw);
+                                                                   const newPercent = (raw === "" || isNaN(parsed) || parsed <= 0) ? undefined : parsed;
                                                                   const newCustomPrices = [...(formData.customPrices || [])];
                                                                   const idx = newCustomPrices.findIndex(p => p.jobTypeId === type.id);
                                                                   if (idx !== -1) {
@@ -1802,10 +1804,11 @@ export const DentistsTab = () => {
                                                                                           <span className="text-[9px] text-slate-400 pr-1">R$</span>
                                                                                           <input
                                                                                               type="number"
-                                                                                              value={customVarPrice !== undefined ? customVarPrice : ''}
+                                                                                              value={customVarPrice !== undefined && customVarPrice !== null && customVarPrice > 0 ? customVarPrice : ''}
                                                                                               onChange={e => {
                                                                                                   const raw = e.target.value;
-                                                                                                  const val = raw === '' ? undefined : parseFloat(raw);
+                                                                                                  const parsed = parseFloat(raw);
+                                                                   const val = (raw === '' || isNaN(parsed) || parsed <= 0) ? undefined : parsed;
                                                                                                   const newCustomPrices = [...(formData.customPrices || [])];
                                                                                                   let idx = newCustomPrices.findIndex((p: any) => p.jobTypeId === type.id);
                                                                                                   if (idx === -1) {

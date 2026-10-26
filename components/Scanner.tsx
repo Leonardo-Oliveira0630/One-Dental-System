@@ -5,8 +5,8 @@ import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react'
 import { motion, AnimatePresence } from "motion/react";
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { Job, JobStatus, UserRole, CommissionStatus, JobItem, JobType } from '../types';
-import { ScanBarcode, X, AlertTriangle, LogIn, LogOut, CheckCircle, Camera, RefreshCcw, Volume2, MessageCircle, Loader2, ImagePlus } from 'lucide-react';
+import { Job, JobStatus, UserRole, CommissionStatus, JobItem, JobType, isReviewerUser } from '../types';
+import { ScanBarcode, X, AlertTriangle, LogIn, LogOut, CheckCircle, Camera, RefreshCcw, Volume2, MessageCircle, Loader2, ImagePlus, Zap, ShieldCheck } from 'lucide-react';
 import { calculateItemCommission } from '../utils/commissionUtils';
 import { CameraDevice, getAvailableCameras, getSmartCameraSelection } from '../utils/cameraUtils';
 import { getNfcUidFormats, findMatchingNfcBox } from '../services/nfcServices';
@@ -1140,6 +1140,7 @@ export const GlobalScanner: React.FC = () => {
 
 
 export const ManualScannerInput: React.FC = () => {
+    const { currentUser, jobs } = useApp();
     const [value, setValue] = useState('');
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {

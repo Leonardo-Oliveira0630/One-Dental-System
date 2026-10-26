@@ -345,8 +345,10 @@ export enum UserRole {
   COLLABORATOR = 'COLLABORATOR',
   CLIENT = 'CLIENT',
   DENTIST = 'DENTIST',
+  SUPPLIER = 'SUPPLIER',
   SUPER_ADMIN = 'SUPER_ADMIN',
-  HELPDESK = 'HELPDESK'
+  HELPDESK = 'HELPDESK',
+  REVIEWER = 'REVIEWER'
 }
 
 export type PermissionKey = 
@@ -897,6 +899,8 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
+  isReviewer?: boolean;
+  is_reviewer?: boolean;
   avatarUrl?: string;
   photoUrl?: string;
   phone?: string;
@@ -1970,4 +1974,36 @@ export interface NotificationPreferences {
   onlineRequisitions: boolean;
   jobStatusChanges: boolean;
 }
+
+export const isReviewerUser = (user: User | null | undefined): boolean => {
+  if (!user) return false;
+  if (user.isReviewer === true || user.is_reviewer === true) return true;
+  if (user.role === UserRole.REVIEWER) return true;
+  const email = (user.email || '').toLowerCase().trim();
+  if (
+    email.includes('review') || 
+    email.includes('avaliador') || 
+    email.includes('apple.review') || 
+    email.includes('google.test') ||
+    email === 'clinica.review@labprox.com' ||
+    email === 'fornecedor.review@labprox.com'
+  ) {
+    return true;
+  }
+  return false;
+};
+
+export const isClinicReviewer = (userOrEmail: User | string | null | undefined): boolean => {
+  if (!userOrEmail) return false;
+  const email = (typeof userOrEmail === 'string' ? userOrEmail : userOrEmail.email || '').toLowerCase().trim();
+  return email === 'clinica.review@labprox.com' || email.includes('clinica.review');
+};
+
+export const isSupplierReviewer = (userOrEmail: User | string | null | undefined): boolean => {
+  if (!userOrEmail) return false;
+  const email = (typeof userOrEmail === 'string' ? userOrEmail : userOrEmail.email || '').toLowerCase().trim();
+  return email === 'fornecedor.review@labprox.com' || email.includes('fornecedor.review');
+};
+
+
 

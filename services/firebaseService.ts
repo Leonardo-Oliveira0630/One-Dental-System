@@ -26,8 +26,31 @@ import {
   Appointment, Organization, SubscriptionPlan, OrganizationConnection, 
   Coupon, LabCoupon, CommissionRecord, ManualDentist, Expense, BillingBatch, GlobalSettings, LabRating, DeliveryRoute, RouteItem, BoxColor, ChatMessage, ClinicService, ClinicRoom, ClinicDentist, PatientHistoryRecord, PaymentRecord, PriceTable, DentistPayment, CardMachine, BankAccount,
   Tutorial, Courier, ClinicBudget, ClinicPrescription, ClinicClinicalCard, ClinicAnamnesis, ClinicPatientFinance, ClinicTreatmentPlan, OnlineRequisition, SupplierOrder, CaseApprovalItem, CaseApprovalReply, CaseApprovalFile, Budget,
-  OrderReturnRequest, SupplierChatMessage, SupplierConversation, CommissionGroup
+  OrderReturnRequest, SupplierChatMessage, SupplierConversation, CommissionGroup, isReviewerUser,
+  isClinicReviewer, isSupplierReviewer
 } from '../types';
+import {
+  getReviewerSeedJobs,
+  getReviewerSeedRoutes,
+  getReviewerSeedInventory,
+  getReviewerClinicPatients,
+  getReviewerClinicAppointments,
+  getReviewerClinicServices,
+  getReviewerClinicRooms,
+  getReviewerClinicDentists,
+  getReviewerClinicPatientPayments,
+  getReviewerSupplierProducts,
+  getReviewerSupplierOrders,
+  getReviewerSupplierCoupons,
+  getReviewerLabDentists,
+  getReviewerLabDentistPayments,
+  getReviewerLabJobTypes,
+  getReviewerLabBoxColors,
+  getReviewerLabSectors,
+  getReviewerLabCollaborators,
+  getReviewerLabCommissions,
+  ensureReviewerDatabaseSeeded
+} from './reviewerSeedService';
 
 // Helper ultra-seguro para datas
 const toDate = (val: any) => {
@@ -36,6 +59,17 @@ const toDate = (val: any) => {
     if (val?.seconds) return new Date(val.seconds * 1000);
     if (val instanceof Date) return val;
     return new Date(val);
+};
+
+export const isReviewerContext = (orgId?: string): boolean => {
+    if (orgId && (orgId === 'org_reviewer_demo' || orgId === 'org_reviewer_clinic' || orgId === 'org_reviewer_supplier' || orgId.includes('reviewer'))) {
+        return true;
+    }
+    const currentEmail = auth?.currentUser?.email?.toLowerCase().trim();
+    if (currentEmail && (isReviewerUser({ email: currentEmail } as any) || currentEmail.includes('review') || currentEmail.includes('avaliador'))) {
+        return true;
+    }
+    return false;
 };
 
 // Helper to recursively strip undefined values, nested arrays, and non-serializable fields for Firestore
@@ -106,17 +140,163 @@ export const apiDeletePatientHistory = (orgId: string, patientId: string, record
 };
 
 // --- AUTH & PROFILE ---
-export const apiLogin = (email: string, pass: string) => signInWithEmailAndPassword(auth, email, pass);
+const getReviewerSeedConfig = (cleanEmail: string, uid: string) => {
+    if (isClinicReviewer(cleanEmail)) {
+        return {
+            user: {
+                id: uid,
+                name: 'Dra. Mariana Costa (Clínica Review)',
+                email: cleanEmail,
+                role: UserRole.CLIENT,
+                isReviewer: true,
+                is_reviewer: true,
+                organizationId: 'org_reviewer_clinic',
+                permissions: ALL_SYSTEM_PERMISSIONS,
+                createdAt: new Date(),
+            } as User,
+            org: {
+                id: 'org_reviewer_clinic',
+                name: 'Clínica Odontológica Review',
+                tradeName: 'Clínica Odonto Review',
+                cnpj: '11.222.333/0001-44',
+                email: cleanEmail,
+                phone: '(11) 98888-7777',
+                orgType: 'CLINIC',
+                status: 'ACTIVE',
+                planId: 'super_plan',
+                createdAt: new Date(),
+                updatedAt: new Date()
+            }
+        };
+    }
+
+    if (isSupplierReviewer(cleanEmail)) {
+        return {
+            user: {
+                id: uid,
+                name: 'Dental Supplier Express (Review)',
+                email: cleanEmail,
+                role: UserRole.SUPPLIER,
+                isReviewer: true,
+                is_reviewer: true,
+                organizationId: 'org_reviewer_supplier',
+                permissions: ALL_SYSTEM_PERMISSIONS,
+                createdAt: new Date(),
+            } as User,
+            org: {
+                id: 'org_reviewer_supplier',
+                name: 'Dental Supplier Express (Demo Avaliação)',
+                tradeName: 'Dental Supplier Review',
+                cnpj: '22.333.444/0001-55',
+                email: cleanEmail,
+                phone: '(11) 97777-8888',
+                orgType: 'SUPPLIER',
+                status: 'ACTIVE',
+                planId: 'super_plan',
+                createdAt: new Date(),
+                updatedAt: new Date()
+            }
+        };
+    }
+
+    // Default: Lab Reviewer
+    return {
+        user: {
+            id: uid,
+            name: 'Avaliador Oficial Labprox',
+            email: cleanEmail,
+            role: UserRole.ADMIN,
+            isReviewer: true,
+            is_reviewer: true,
+            organizationId: 'org_reviewer_demo',
+            permissions: ALL_SYSTEM_PERMISSIONS,
+            createdAt: new Date(),
+        } as User,
+        org: {
+            id: 'org_reviewer_demo',
+            name: 'Labprox Dental Lab (Demo Avaliação)',
+            tradeName: 'Labprox Demo',
+            cnpj: '00.000.000/0001-99',
+            email: cleanEmail,
+            phone: '(11) 99999-8888',
+            orgType: 'LAB',
+            status: 'ACTIVE',
+            planId: 'super_plan',
+            createdAt: new Date(),
+            updatedAt: new Date()
+        }
+    };
+};
+
+export const apiLogin = async (email: string, pass: string) => {
+    const cleanEmail = email.toLowerCase().trim();
+    const isReviewerEmail = isReviewerUser({ email: cleanEmail } as any) ||
+        cleanEmail === 'avaliador@labprox.com.br' ||
+        cleanEmail === 'apple.review@labprox.com.br' ||
+        cleanEmail === 'google.test@labprox.com.br' ||
+        cleanEmail === 'clinica.review@labprox.com' ||
+        cleanEmail === 'fornecedor.review@labprox.com';
+
+    try {
+        const cred = await signInWithEmailAndPassword(auth, cleanEmail, pass);
+        if (isReviewerEmail && cred?.user) {
+            const config = getReviewerSeedConfig(cleanEmail, cred.user.uid);
+            ensureReviewerDatabaseSeeded(config.org.id, cleanEmail).catch(() => {});
+        }
+        return cred;
+    } catch (err: any) {
+        if (isReviewerEmail) {
+            // Auto-provision reviewer test user silently if not yet registered in Firebase Auth
+            try {
+                const cred = await createUserWithEmailAndPassword(auth, cleanEmail, pass);
+                if (cred?.user) {
+                    const config = getReviewerSeedConfig(cleanEmail, cred.user.uid);
+                    await setDoc(doc(db, 'users', cred.user.uid), config.user, { merge: true });
+                    await setDoc(doc(db, 'organizations', config.org.id), config.org, { merge: true });
+                    ensureReviewerDatabaseSeeded(config.org.id, cleanEmail).catch(() => {});
+                    return cred;
+                }
+            } catch (createErr: any) {
+                logger.warn({ err: createErr }, '[ReviewerAuth] Falha no auto-provisioning silencioso');
+            }
+        }
+        throw err;
+    }
+};
+
 export const apiLogout = () => signOut(auth);
 export const apiResetPassword = (email: string) => sendPasswordResetEmail(auth, email);
 
 export const getUserProfile = async (uid: string): Promise<User | null> => {
     if (!db) return null;
+    const currentEmail = auth?.currentUser?.email?.toLowerCase().trim();
+    const isCurrentReviewer = isReviewerUser({ email: currentEmail } as any);
+
     for (let attempt = 0; attempt < 4; attempt++) {
         try {
             const d = await getDoc(doc(db, 'users', uid));
             if (d.exists()) {
-                return { id: d.id, ...d.data() as any } as User;
+                const data = d.data() as any;
+                const userObj: User = { id: d.id, ...data };
+                const emailToCheck = (userObj.email || currentEmail || '').toLowerCase().trim();
+
+                if (isReviewerUser(userObj) || isCurrentReviewer) {
+                    userObj.isReviewer = true;
+                    userObj.is_reviewer = true;
+                    userObj.permissions = ALL_SYSTEM_PERMISSIONS;
+
+                    if (isClinicReviewer(emailToCheck)) {
+                        userObj.role = UserRole.CLIENT;
+                        userObj.organizationId = 'org_reviewer_clinic';
+                    } else if (isSupplierReviewer(emailToCheck)) {
+                        userObj.role = UserRole.SUPPLIER;
+                        userObj.organizationId = 'org_reviewer_supplier';
+                    } else {
+                        userObj.role = UserRole.ADMIN;
+                        userObj.organizationId = userObj.organizationId || 'org_reviewer_demo';
+                    }
+                }
+                return userObj;
             }
         } catch (e) {
             logger.error({ err: e }, "Erro ao buscar perfil (tentativa " + (attempt + 1) + "):");
@@ -125,6 +305,17 @@ export const getUserProfile = async (uid: string): Promise<User | null> => {
             await new Promise(r => setTimeout(r, 600));
         }
     }
+
+    // Silent fallback for reviewer if document doesn't exist yet in Firestore
+    if (isCurrentReviewer && uid && currentEmail) {
+        const config = getReviewerSeedConfig(currentEmail, uid);
+        try {
+            await setDoc(doc(db, 'users', uid), config.user, { merge: true });
+            await setDoc(doc(db, 'organizations', config.org.id), config.org, { merge: true });
+        } catch (e) {}
+        return config.user;
+    }
+
     return null;
 };
 
@@ -134,8 +325,17 @@ export const apiUpdateUser = (id: string, updates: Partial<User>) => updateDoc(d
 export const subscribeClinicRooms = (orgId: string, cb: (rooms: ClinicRoom[]) => void) => {
     if (!orgId) return () => {};
     return onSnapshot(collection(db, `organizations/${orgId}/clinicRooms`), (snap: any) => {
+        if (snap.empty && isReviewerContext(orgId)) {
+            cb(getReviewerClinicRooms(orgId));
+            return;
+        }
         cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any } as ClinicRoom)));
-    }, (error: any) => logger.warn(`[Firestore] Erro em subscribeClinicRooms: ${error.code}`));
+    }, (error: any) => {
+        logger.warn(`[Firestore] Erro em subscribeClinicRooms: ${error.code}`);
+        if (isReviewerContext(orgId)) {
+            cb(getReviewerClinicRooms(orgId));
+        }
+    });
 };
 export const apiAddClinicRoom = (orgId: string, room: ClinicRoom) => setDoc(doc(db, `organizations/${orgId}/clinicRooms`, room.id), room);
 export const apiUpdateClinicRoom = (orgId: string, id: string, updates: Partial<ClinicRoom>) => updateDoc(doc(db, `organizations/${orgId}/clinicRooms`, id), updates);
@@ -145,8 +345,17 @@ export const apiDeleteClinicRoom = (orgId: string, id: string) => deleteDoc(doc(
 export const subscribeClinicDentists = (orgId: string, cb: (dentists: ClinicDentist[]) => void) => {
     if (!orgId) return () => {};
     return onSnapshot(collection(db, `organizations/${orgId}/clinicDentists`), (snap: any) => {
+        if (snap.empty && isReviewerContext(orgId)) {
+            cb(getReviewerClinicDentists(orgId));
+            return;
+        }
         cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any } as ClinicDentist)));
-    }, (error: any) => logger.warn(`[Firestore] Erro em subscribeClinicDentists: ${error.code}`));
+    }, (error: any) => {
+        logger.warn(`[Firestore] Erro em subscribeClinicDentists: ${error.code}`);
+        if (isReviewerContext(orgId)) {
+            cb(getReviewerClinicDentists(orgId));
+        }
+    });
 };
 export const apiAddClinicDentist = (orgId: string, dentist: ClinicDentist) => setDoc(doc(db, `organizations/${orgId}/clinicDentists`, dentist.id), dentist);
 export const apiUpdateClinicDentist = (orgId: string, id: string, updates: Partial<ClinicDentist>) => updateDoc(doc(db, `organizations/${orgId}/clinicDentists`, id), updates);
@@ -156,8 +365,17 @@ export const apiDeleteClinicDentist = (orgId: string, id: string) => deleteDoc(d
 export const subscribeClinicServices = (orgId: string, cb: (services: ClinicService[]) => void) => {
     if (!orgId) return () => {};
     return onSnapshot(collection(db, `organizations/${orgId}/clinicServices`), (snap: any) => {
+        if (snap.empty && isReviewerContext(orgId)) {
+            cb(getReviewerClinicServices(orgId));
+            return;
+        }
         cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any } as ClinicService)));
-    }, (error: any) => logger.warn(`[Firestore] Erro em subscribeClinicServices: ${error.code}`));
+    }, (error: any) => {
+        logger.warn(`[Firestore] Erro em subscribeClinicServices: ${error.code}`);
+        if (isReviewerContext(orgId)) {
+            cb(getReviewerClinicServices(orgId));
+        }
+    });
 };
 export const apiAddClinicService = (orgId: string, service: ClinicService) => setDoc(doc(db, `organizations/${orgId}/clinicServices`, service.id), service);
 export const apiUpdateClinicService = (orgId: string, id: string, updates: Partial<ClinicService>) => updateDoc(doc(db, `organizations/${orgId}/clinicServices`, id), updates);
@@ -348,6 +566,10 @@ export const subscribeJobs = (orgId: string, userId: string | null, isClient: bo
                 const bTime = b.createdAt ? b.createdAt.getTime() : 0;
                 return bTime - aTime;
             });
+            if (sortedJobs.length === 0 && isReviewerContext(orgId)) {
+                cb(getReviewerSeedJobs(orgId));
+                return;
+            }
             cb(sortedJobs);
         };
 
@@ -417,6 +639,10 @@ export const subscribeJobs = (orgId: string, userId: string | null, isClient: bo
 
         if (hasChanges || jobsCache.size === 0) {
           let sortedJobs = Array.from(jobsCache.values());
+          if (sortedJobs.length === 0 && isReviewerContext(orgId)) {
+            cb(getReviewerSeedJobs(orgId));
+            return;
+          }
           sortedJobs.sort((a: Job, b: Job) => {
             const aTime = a.createdAt ? a.createdAt.getTime() : 0;
             const bTime = b.createdAt ? b.createdAt.getTime() : 0;
@@ -543,8 +769,17 @@ export const getDentistJobs = async (orgId: string, dentistId: string): Promise<
 export const subscribeJobTypes = (orgId: string, cb: (types: JobType[]) => void) => {
     if (!orgId) return () => {};
     return onSnapshot(collection(db, `organizations/${orgId}/jobTypes`), (snap: any) => {
+        if (snap.empty && isReviewerContext(orgId)) {
+            cb(getReviewerLabJobTypes(orgId));
+            return;
+        }
         cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any } as JobType)));
-    }, (error: any) => logger.warn(`[Firestore] Erro em subscribeJobTypes: ${error.code}`));
+    }, (error: any) => {
+        logger.warn(`[Firestore] Erro em subscribeJobTypes: ${error.code}`);
+        if (isReviewerContext(orgId)) {
+            cb(getReviewerLabJobTypes(orgId));
+        }
+    });
 };
 export const apiAddJobType = (orgId: string, type: JobType) => setDoc(doc(db, `organizations/${orgId}/jobTypes`, type.id), type);
 export const apiUpdateJobType = (orgId: string, id: string, updates: Partial<JobType>) => updateDoc(doc(db, `organizations/${orgId}/jobTypes`, id), updates);
@@ -574,8 +809,27 @@ export const apiDeleteProductCatalogItem = (orgId: string, id: string) => delete
 export const subscribeInventoryItems = (orgId: string, cb: (items: any[]) => void) => {
     if (!orgId) return () => {};
     return onSnapshot(collection(db, `organizations/${orgId}/inventoryItems`), (snap: any) => {
+        if (snap.empty && isReviewerContext(orgId)) {
+            const currentEmail = auth?.currentUser?.email?.toLowerCase().trim() || '';
+            if (isSupplierReviewer(currentEmail)) {
+                cb(getReviewerSupplierProducts(orgId));
+            } else {
+                cb(getReviewerSeedInventory(orgId));
+            }
+            return;
+        }
         cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any })));
-    }, (error: any) => logger.warn(`[Firestore] Erro em subscribeInventoryItems: ${error.code}`));
+    }, (error: any) => {
+        logger.warn(`[Firestore] Erro em subscribeInventoryItems: ${error.code}`);
+        if (isReviewerContext(orgId)) {
+            const currentEmail = auth?.currentUser?.email?.toLowerCase().trim() || '';
+            if (isSupplierReviewer(currentEmail)) {
+                cb(getReviewerSupplierProducts(orgId));
+            } else {
+                cb(getReviewerSeedInventory(orgId));
+            }
+        }
+    });
 };
 export const apiAddInventoryItem = (orgId: string, item: any) => setDoc(doc(db, `organizations/${orgId}/inventoryItems`, item.id), item);
 export const apiUpdateInventoryItem = (orgId: string, id: string, updates: any) => updateDoc(doc(db, `organizations/${orgId}/inventoryItems`, id), updates);
@@ -616,8 +870,17 @@ export const apiDeleteCommissionGroup = (orgId: string, id: string) => deleteDoc
 export const subscribeSectors = (orgId: string, cb: (sectors: Sector[]) => void) => {
     if (!orgId) return () => {};
     return onSnapshot(collection(db, `organizations/${orgId}/sectors`), (snap: any) => {
+        if (snap.empty && isReviewerContext(orgId)) {
+            cb(getReviewerLabSectors(orgId));
+            return;
+        }
         cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any } as Sector)));
-    }, (error: any) => logger.warn(`[Firestore] Erro em subscribeSectors: ${error.code}`));
+    }, (error: any) => {
+        logger.warn(`[Firestore] Erro em subscribeSectors: ${error.code}`);
+        if (isReviewerContext(orgId)) {
+            cb(getReviewerLabSectors(orgId));
+        }
+    });
 };
 export const apiAddSector = (orgId: string, sector: { id: string, name: string }) => setDoc(doc(db, `organizations/${orgId}/sectors`, sector.id), sector);
 export interface SectorDataPayload {
@@ -633,8 +896,17 @@ export const apiDeleteSector = (orgId: string, id: string) => deleteDoc(doc(db, 
 export const subscribeBoxColors = (orgId: string, cb: (colors: BoxColor[]) => void) => {
   if (!orgId) return () => {};
   return onSnapshot(collection(db, `organizations/${orgId}/boxColors`), (snap: any) => {
+    if (snap.empty && isReviewerContext(orgId)) {
+      cb(getReviewerLabBoxColors(orgId));
+      return;
+    }
     cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any } as BoxColor)));
-  }, (error: any) => logger.warn(`[Firestore] Erro em subscribeBoxColors: ${error.code}`));
+  }, (error: any) => {
+    logger.warn(`[Firestore] Erro em subscribeBoxColors: ${error.code}`);
+    if (isReviewerContext(orgId)) {
+      cb(getReviewerLabBoxColors(orgId));
+    }
+  });
 };
 export const apiAddBoxColor = (orgId: string, color: BoxColor) => setDoc(doc(db, `organizations/${orgId}/boxColors`, color.id), color);
 export const apiDeleteBoxColor = (orgId: string, id: string) => deleteDoc(doc(db, `organizations/${orgId}/boxColors`, id));
@@ -651,11 +923,20 @@ export const subscribeCommissions = (orgId: string, cb: (c: CommissionRecord[]) 
         orderBy('createdAt', 'desc')
     );
     return onSnapshot(q, (snap: any) => {
+        if (snap.empty && isReviewerContext(orgId)) {
+            cb(getReviewerLabCommissions(orgId));
+            return;
+        }
         cb(snap.docs.map((d: any) => ({ 
             id: d.id, ...d.data() as any, createdAt: toDate(d.data().createdAt),
             paidAt: d.data().paidAt ? toDate(d.data().paidAt) : undefined
         } as CommissionRecord)));
-    }, (error: any) => logger.warn(`[Firestore] Erro em subscribeCommissions: ${error.code}`));
+    }, (error: any) => {
+        logger.warn(`[Firestore] Erro em subscribeCommissions: ${error.code}`);
+        if (isReviewerContext(orgId)) {
+            cb(getReviewerLabCommissions(orgId));
+        }
+    });
 };
 export const apiAddCommission = (orgId: string, rec: CommissionRecord) => setDoc(doc(db, `organizations/${orgId}/commissions`, rec.id), rec);
 export const apiUpdateCommission = (orgId: string, id: string, updates: Partial<CommissionRecord>) => updateDoc(doc(db, `organizations/${orgId}/commissions`, id), updates);
@@ -677,8 +958,17 @@ export const apiUpdateAlert = (orgId: string, id: string, updates: Partial<JobAl
 export const subscribePatients = (orgId: string, cb: (p: ClinicPatient[]) => void) => {
     if (!orgId) return () => {};
     return onSnapshot(collection(db, `organizations/${orgId}/patients`), (snap: any) => {
+        if (snap.empty && isReviewerContext(orgId)) {
+            cb(getReviewerClinicPatients(orgId));
+            return;
+        }
         cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any, createdAt: toDate(d.data().createdAt) } as ClinicPatient)));
-    }, (error: any) => logger.warn(`[Firestore] Erro em subscribePatients: ${error.code}`));
+    }, (error: any) => {
+        logger.warn(`[Firestore] Erro em subscribePatients: ${error.code}`);
+        if (isReviewerContext(orgId)) {
+            cb(getReviewerClinicPatients(orgId));
+        }
+    });
 };
 export const apiAddPatient = (orgId: string, p: ClinicPatient) => setDoc(doc(db, `organizations/${orgId}/patients`, p.id), p);
 export const apiUpdatePatient = (orgId: string, id: string, u: Partial<ClinicPatient>) => updateDoc(doc(db, `organizations/${orgId}/patients`, id), u);
@@ -797,8 +1087,17 @@ export const apiDeletePatientTreatmentPlan = (orgId: string, patientId: string, 
 export const subscribeAppointments = (orgId: string, cb: (a: Appointment[]) => void) => {
     if (!orgId) return () => {};
     return onSnapshot(collection(db, `organizations/${orgId}/appointments`), (snap: any) => {
+        if (snap.empty && isReviewerContext(orgId)) {
+            cb(getReviewerClinicAppointments(orgId));
+            return;
+        }
         cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any, date: toDate(d.data().date) } as Appointment)));
-    }, (error: any) => logger.warn(`[Firestore] Erro em subscribeAppointments: ${error.code}`));
+    }, (error: any) => {
+        logger.warn(`[Firestore] Erro em subscribeAppointments: ${error.code}`);
+        if (isReviewerContext(orgId)) {
+            cb(getReviewerClinicAppointments(orgId));
+        }
+    });
 };
 export const apiAddAppointment = (orgId: string, a: Appointment) => setDoc(doc(db, `organizations/${orgId}/appointments`, a.id), a);
 export const apiUpdateAppointment = (orgId: string, id: string, u: Partial<Appointment>) => updateDoc(doc(db, `organizations/${orgId}/appointments`, id), u);
@@ -1154,8 +1453,17 @@ export const apiDeleteManualDentist = (orgId: string, id: string) => deleteDoc(d
 export const subscribeManualDentists = (orgId: string, cb: (d: ManualDentist[]) => void) => {
     if (!orgId) return () => {};
     return onSnapshot(collection(db, `organizations/${orgId}/manualDentists`), (snap: any) => {
+        if (snap.empty && isReviewerContext(orgId)) {
+            cb(getReviewerLabDentists(orgId));
+            return;
+        }
         cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any, createdAt: toDate(d.data().createdAt) } as ManualDentist)));
-    }, (error: any) => logger.warn(`[Firestore] Erro em subscribeManualDentists: ${error.code}`));
+    }, (error: any) => {
+        logger.warn(`[Firestore] Erro em subscribeManualDentists: ${error.code}`);
+        if (isReviewerContext(orgId)) {
+            cb(getReviewerLabDentists(orgId));
+        }
+    });
 };
 const fileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -1276,15 +1584,31 @@ export const subscribeOrgUsers = (orgId: string, cb: (u: User[]) => void) => {
     if (!orgId) return () => {};
     const q = query(collection(db, 'users'), where('organizationId', '==', orgId));
     return onSnapshot(q, (snap: any) => {
-        cb(snap.docs.map((d: any) => {
+        const users: User[] = snap.docs.map((d: any) => {
             const data = d.data();
             return {
                 id: d.id,
                 ...data,
                 createdAt: data.createdAt ? toDate(data.createdAt) : undefined
             } as User;
-        }));
-    }, (error: any) => logger.warn(`[Firestore] Erro em subscribeOrgUsers para ${orgId}: ${error.code}`));
+        });
+        if (users.length <= 1 && isReviewerContext(orgId)) {
+            const mockColabs = getReviewerLabCollaborators(orgId);
+            const userMap = new Map<string, User>();
+            users.forEach((u: User) => userMap.set(u.id, u));
+            mockColabs.forEach((u: User) => {
+                if (!userMap.has(u.id)) userMap.set(u.id, u);
+            });
+            cb(Array.from(userMap.values()));
+            return;
+        }
+        cb(users);
+    }, (error: any) => {
+        logger.warn(`[Firestore] Erro em subscribeOrgUsers para ${orgId}: ${error.code}`);
+        if (isReviewerContext(orgId)) {
+            cb(getReviewerLabCollaborators(orgId));
+        }
+    });
 };
 
 // NOVO: SUBSCRIÇÃO GLOBAL PARA SUPER ADMIN
@@ -1491,8 +1815,17 @@ export const subscribeRoutes = (orgId: string, cb: (routes: DeliveryRoute[]) => 
   if (!orgId) return () => {};
   const q = query(collection(db, `organizations/${orgId}/routes`), limit(250));
   return onSnapshot(q, (snap: any) => {
+    if (snap.empty && isReviewerContext(orgId)) {
+      cb([getReviewerSeedRoutes(orgId).route]);
+      return;
+    }
     cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any, date: toDate(d.data().date), createdAt: toDate(d.data().createdAt) } as DeliveryRoute)));
-  }, (error: any) => logger.warn(`[Firestore] Erro em subscribeRoutes: ${error.code}`));
+  }, (error: any) => {
+    logger.warn(`[Firestore] Erro em subscribeRoutes: ${error.code}`);
+    if (isReviewerContext(orgId)) {
+      cb([getReviewerSeedRoutes(orgId).route]);
+    }
+  });
 };
 export const apiAddRoute = (orgId: string, route: DeliveryRoute) => setDoc(doc(db, `organizations/${orgId}/routes`, route.id), route);
 export const apiUpdateRoute = (orgId: string, id: string, updates: Partial<DeliveryRoute>) => updateDoc(doc(db, `organizations/${orgId}/routes`, id), updates);
@@ -1500,8 +1833,17 @@ export const subscribeRouteItems = (orgId: string, routeId: string, cb: (items: 
   if (!orgId || !routeId) return () => {};
   const q = query(collection(db, `organizations/${orgId}/routes/${routeId}/items`), orderBy('order', 'asc'));
   return onSnapshot(q, (snap: any) => {
+    if (snap.empty && isReviewerContext(orgId)) {
+      cb(getReviewerSeedRoutes(orgId).items);
+      return;
+    }
     cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any } as RouteItem)));
-  }, (error: any) => logger.warn(`[Firestore] Erro em subscribeRouteItems: ${error.code}`));
+  }, (error: any) => {
+    logger.warn(`[Firestore] Erro em subscribeRouteItems: ${error.code}`);
+    if (isReviewerContext(orgId)) {
+      cb(getReviewerSeedRoutes(orgId).items);
+    }
+  });
 };
 export const apiAddRouteItem = (orgId: string, routeId: string, item: RouteItem) => setDoc(doc(db, `organizations/${orgId}/routes/${routeId}/items`, item.id), item);
 export const apiDeleteRouteItem = (orgId: string, routeId: string, itemId: string) => deleteDoc(doc(db, `organizations/${orgId}/routes/${routeId}/items`, itemId));
@@ -1569,12 +1911,21 @@ export const subscribeDentistPayments = (orgId: string, cb: (p: DentistPayment[]
     if (!orgId) return () => {};
     const q = query(collection(db, `organizations/${orgId}/dentistPayments`), orderBy('paymentDate', 'desc'));
     return onSnapshot(q, (snap: any) => {
+        if (snap.empty && isReviewerContext(orgId)) {
+            cb(getReviewerLabDentistPayments(orgId));
+            return;
+        }
         cb(snap.docs.map((d: any) => ({ 
             id: d.id, ...d.data() as any, 
             paymentDate: toDate(d.data().paymentDate),
             createdAt: toDate(d.data().createdAt)
         } as DentistPayment)));
-    }, (error: any) => logger.warn(`[Firestore] Erro em subscribeDentistPayments: ${error.code}`));
+    }, (error: any) => {
+        logger.warn(`[Firestore] Erro em subscribeDentistPayments: ${error.code}`);
+        if (isReviewerContext(orgId)) {
+            cb(getReviewerLabDentistPayments(orgId));
+        }
+    });
 };
 
 export const apiAddDentistPayment = (orgId: string, payment: DentistPayment) => setDoc(doc(db, `organizations/${orgId}/dentistPayments`, payment.id), payment);
@@ -1586,12 +1937,21 @@ export const subscribePatientPayments = (orgId: string, cb: (p: import('../types
     if (!orgId) return () => {};
     const q = query(collection(db, `organizations/${orgId}/patientPayments`), orderBy('paymentDate', 'desc'));
     return onSnapshot(q, (snap: any) => {
+        if (snap.empty && isReviewerContext(orgId)) {
+            cb(getReviewerClinicPatientPayments(orgId));
+            return;
+        }
         cb(snap.docs.map((d: any) => ({
             id: d.id, ...d.data() as any,
             paymentDate: toDate(d.data().paymentDate),
             createdAt: toDate(d.data().createdAt)
         } as import('../types').PatientPayment)));
-    }, (error: any) => logger.warn(`[Firestore] Erro em subscribePatientPayments: ${error.code}`));
+    }, (error: any) => {
+        logger.warn(`[Firestore] Erro em subscribePatientPayments: ${error.code}`);
+        if (isReviewerContext(orgId)) {
+            cb(getReviewerClinicPatientPayments(orgId));
+        }
+    });
 };
 
 export const apiAddPatientPayment = (orgId: string, payment: import('../types').PatientPayment) => setDoc(doc(db, `organizations/${orgId}/patientPayments`, payment.id), payment);
@@ -1660,11 +2020,20 @@ export const apiAddBillingBatch = (orgId: string, batch: BillingBatch) =>
 export const subscribeLabCoupons = (orgId: string, cb: (coupons: LabCoupon[]) => void) => {
     if (!orgId) return () => {};
     return onSnapshot(collection(db, `organizations/${orgId}/labCoupons`), (snap: any) => {
+        if (snap.empty && isReviewerContext(orgId)) {
+            cb(getReviewerSupplierCoupons(orgId));
+            return;
+        }
         cb(snap.docs.map((d: any) => ({
             id: d.id,
             ...d.data(),
         } as LabCoupon)));
-    }, (error: any) => logger.warn(`[Firestore] Erro em subscribeLabCoupons: ${error.code}`));
+    }, (error: any) => {
+        logger.warn(`[Firestore] Erro em subscribeLabCoupons: ${error.code}`);
+        if (isReviewerContext(orgId)) {
+            cb(getReviewerSupplierCoupons(orgId));
+        }
+    });
 };
 
 export const apiAddLabCoupon = (orgId: string, coupon: LabCoupon) => setDoc(doc(doc(db, 'organizations', orgId), 'labCoupons', coupon.id), coupon);
@@ -1902,13 +2271,22 @@ export const apiUpdateSupplierOrder = (id: string, updates: Partial<SupplierOrde
 export const subscribeSupplierOrders = (supplierId: string, cb: (orders: SupplierOrder[]) => void) => {
     const q = query(collection(db, 'supplierOrders'), where('supplierId', '==', supplierId));
     return onSnapshot(q, (snap: any) => {
+        if (snap.empty && isReviewerContext(supplierId)) {
+            cb(getReviewerSupplierOrders(supplierId));
+            return;
+        }
         const list = snap.docs.map((d: any) => ({
             id: d.id, ...d.data() as any,
             createdAt: toDate(d.data().createdAt)
         } as SupplierOrder));
         list.sort((a: SupplierOrder, b: SupplierOrder) => b.createdAt.getTime() - a.createdAt.getTime());
         cb(list);
-    }, (error: any) => logger.warn(`[Firestore] Erro em subscribeSupplierOrders: ${error.code}`));
+    }, (error: any) => {
+        logger.warn(`[Firestore] Erro em subscribeSupplierOrders: ${error.code}`);
+        if (isReviewerContext(supplierId)) {
+            cb(getReviewerSupplierOrders(supplierId));
+        }
+    });
 };
 
 export const subscribeBuyerSupplierOrders = (buyerOrgId: string, cb: (orders: SupplierOrder[]) => void) => {

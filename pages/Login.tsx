@@ -4,8 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { Logo } from '../components/Logo';
-import { UserRole } from '../types';
-import { ShieldCheck, Lock, Mail, Loader2, ArrowLeft, Send, CheckCircle } from 'lucide-react';
+import { UserRole, isClinicReviewer, isSupplierReviewer } from '../types';
+import { Lock, Mail, Loader2, ArrowLeft, Send, CheckCircle, HelpCircle } from 'lucide-react';
 import * as api from '../services/firebaseService';
 
 export const Login = () => {
@@ -36,6 +36,10 @@ export const Login = () => {
             navigate(redirect);
         } else if (currentUser.role === UserRole.HELPDESK) {
             navigate('/helpdesk');
+        } else if (isSupplierReviewer(currentUser) || currentUser.role === UserRole.SUPPLIER) {
+            navigate('/supplier/dashboard');
+        } else if (isClinicReviewer(currentUser)) {
+            navigate('/patients');
         } else if (currentUser.role === UserRole.CLIENT) {
             navigate('/store');
         } else if (currentUser.role === UserRole.SUPER_ADMIN) {
@@ -218,17 +222,33 @@ export const Login = () => {
             </button>
         </form>
 
-        <div className="mt-8 text-center border-t border-gray-200 pt-6">
+        <div className="mt-6 text-center border-t border-gray-200 pt-5 space-y-4">
             <p className="text-slate-500 text-xs font-normal">
                 {t('auth.noAccountYet', 'Não possui uma conta ainda?')}
                 <br />
                 <Link 
                     to={new URLSearchParams(location.search).get('redirect') ? `/register-lab?redirect=${encodeURIComponent(new URLSearchParams(location.search).get('redirect')!)}` : "/register-lab"} 
-                    className="font-bold text-[#00B8D9] hover:text-[#15263f] inline-flex items-center gap-1 mt-2 uppercase tracking-wide text-[10px] transition-colors"
+                    className="font-bold text-[#00B8D9] hover:text-[#15263f] inline-flex items-center gap-1 mt-1.5 uppercase tracking-wide text-[10px] transition-colors"
                 >
                     {t('auth.createAccountPrompt', 'Criar nova conta (Lab ou Clínica) →')}
                 </Link>
             </p>
+
+            {/* Public Compliance & Support Links Footer */}
+            <div className="pt-2 border-t border-slate-100 flex items-center justify-center gap-3 text-[11px] font-semibold text-slate-500">
+                <Link to="/privacy" className="hover:text-[#00B8D9] transition-colors">
+                    Privacidade (LGPD)
+                </Link>
+                <span>•</span>
+                <Link to="/terms" className="hover:text-[#00B8D9] transition-colors">
+                    Termos
+                </Link>
+                <span>•</span>
+                <Link to="/support" className="hover:text-[#00B8D9] transition-colors text-blue-600 font-bold flex items-center gap-1">
+                    <HelpCircle size={12} />
+                    Suporte Técnico
+                </Link>
+            </div>
         </div>
       </div>
     </div>
