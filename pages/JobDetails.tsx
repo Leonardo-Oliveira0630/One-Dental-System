@@ -112,7 +112,7 @@ export const calculateItemPriceWithDentist = (
       if (dentist.isCustomPricing) {
           const custom = dentist.customPrices?.find((p: any) => p.jobTypeId === jobType.id);
           if (custom) {
-              if (custom.fixedPrice !== undefined && custom.fixedPrice !== null && !isNaN(custom.fixedPrice) && Number(custom.fixedPrice) > 0) {
+              if (custom.fixedPrice !== undefined && custom.fixedPrice !== null && !isNaN(custom.fixedPrice) && Number(custom.fixedPrice) >= 0) {
                   basePrice = Number(custom.fixedPrice);
                   dentistDiscountRate = 0;
               } else if (custom.discountPercent !== undefined && custom.discountPercent !== null && !isNaN(custom.discountPercent)) {

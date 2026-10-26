@@ -375,7 +375,7 @@ const VariationConfigModal = ({ product, selectedLab, localPriceTables, onClose,
         const custom = currentUser.customPrices?.find(p => p.jobTypeId === type.id);
         if (currentUser.isCustomPricing) {
             if (custom) {
-                if (custom.fixedPrice !== undefined && custom.fixedPrice !== null && !isNaN(custom.fixedPrice) && Number(custom.fixedPrice) > 0) {
+                if (custom.fixedPrice !== undefined && custom.fixedPrice !== null && !isNaN(custom.fixedPrice) && Number(custom.fixedPrice) >= 0) {
                     basePrice = Number(custom.fixedPrice);
                     discountRate = 0;
                 } else if (custom.discountPercent !== undefined && custom.discountPercent !== null && !isNaN(custom.discountPercent)) {
@@ -1071,7 +1071,7 @@ export const Catalog = () => {
         if (currentUser.isCustomPricing) {
             const custom = currentUser.customPrices?.find(c => c.jobTypeId === type.id);
             if (custom) {
-                if (custom.fixedPrice !== undefined && custom.fixedPrice > 0) return { price: custom.fixedPrice, isCustom: true };
+                if (custom.fixedPrice !== undefined && custom.fixedPrice >= 0) return { price: custom.fixedPrice, isCustom: true };
                 if (custom.price !== undefined) return { price: custom.price, isCustom: true };
                 if (custom.discountPercent !== undefined) return { price: basePrice * (1 - custom.discountPercent / 100), isCustom: true };
             }

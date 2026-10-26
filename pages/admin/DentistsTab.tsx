@@ -371,7 +371,7 @@ export const DentistsTab = () => {
 
           if (dataToSave.isCustomPricing) {
               dataToSave.customPrices = (dataToSave.customPrices || []).filter((p: any) => {
-                  const hasFixed = p.fixedPrice !== undefined && p.fixedPrice !== null && p.fixedPrice > 0;
+                  const hasFixed = p.fixedPrice !== undefined && p.fixedPrice !== null && !isNaN(p.fixedPrice);
                   const hasDiscount = p.discountPercent !== undefined && p.discountPercent !== null && p.discountPercent > 0;
                   const hasVars = p.variations && Object.keys(p.variations).length > 0;
                   return hasFixed || hasDiscount || hasVars;
@@ -1631,7 +1631,7 @@ export const DentistsTab = () => {
                                             ) : (
                                                 sortedAndFilteredJobTypes.map((type: any) => {
                                           const cp = formData.customPrices?.find((p: any) => p.jobTypeId === type.id);
-                                          const hasCustomFixed = cp?.fixedPrice !== undefined && cp.fixedPrice !== null && cp.fixedPrice > 0;
+                                          const hasCustomFixed = cp?.fixedPrice !== undefined && cp.fixedPrice !== null && !isNaN(cp.fixedPrice);
                                           const hasCustomDiscount = cp?.discountPercent !== undefined && cp.discountPercent !== null && cp.discountPercent > 0;
                                           
                                           const assignedTable = priceTables.find(t => t.id === formData.priceTableId);
@@ -1687,13 +1687,13 @@ export const DentistsTab = () => {
                                                               step="any"
                                                               min="0"
                                                               disabled={!canEditPrices}
-                                                              value={cp?.fixedPrice !== undefined && cp.fixedPrice !== null && cp.fixedPrice > 0 ? cp.fixedPrice : ""}
+                                                              value={cp?.fixedPrice !== undefined && cp.fixedPrice !== null ? cp.fixedPrice : ""}
                                                               onClick={(e) => e.stopPropagation()}
                                                               onFocus={(e) => e.target.select()}
                                                               onChange={e => {
                                                                   const raw = e.target.value;
                                                                   const parsed = parseFloat(raw);
-                                                                   const newFixed = (raw === "" || isNaN(parsed) || parsed <= 0) ? undefined : parsed;
+                                                                   const newFixed = (raw === "" || isNaN(parsed)) ? undefined : parsed;
                                                                   const newCustomPrices = [...(formData.customPrices || [])];
                                                                   const idx = newCustomPrices.findIndex(p => p.jobTypeId === type.id);
                                                                   if (idx !== -1) {
@@ -1804,11 +1804,11 @@ export const DentistsTab = () => {
                                                                                           <span className="text-[9px] text-slate-400 pr-1">R$</span>
                                                                                           <input
                                                                                               type="number"
-                                                                                              value={customVarPrice !== undefined && customVarPrice !== null && customVarPrice > 0 ? customVarPrice : ''}
+                                                                                              value={customVarPrice !== undefined && customVarPrice !== null ? customVarPrice : ''}
                                                                                               onChange={e => {
                                                                                                   const raw = e.target.value;
                                                                                                   const parsed = parseFloat(raw);
-                                                                   const val = (raw === '' || isNaN(parsed) || parsed <= 0) ? undefined : parsed;
+                                                                   const val = (raw === '' || isNaN(parsed)) ? undefined : parsed;
                                                                                                   const newCustomPrices = [...(formData.customPrices || [])];
                                                                                                   let idx = newCustomPrices.findIndex((p: any) => p.jobTypeId === type.id);
                                                                                                   if (idx === -1) {

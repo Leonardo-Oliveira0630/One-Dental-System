@@ -369,12 +369,12 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
             // Priority: Explicit Custom Prices
             const custom = selectedDentistObj.customPrices?.find((p: any) => p.jobTypeId === activeJobType.id);
             if (custom) {
-                if (custom.fixedPrice !== undefined && custom.fixedPrice !== null && !isNaN(custom.fixedPrice) && Number(custom.fixedPrice) > 0) {
+                if (custom.fixedPrice !== undefined && custom.fixedPrice !== null && !isNaN(custom.fixedPrice) && Number(custom.fixedPrice) >= 0) {
                     basePrice = Number(custom.fixedPrice);
                     dentistDiscountRate = 0;
                 } else if (custom.discountPercent !== undefined && custom.discountPercent !== null && !isNaN(custom.discountPercent)) {
                     dentistDiscountRate = Number(custom.discountPercent) / 100;
-                } else if (custom.price !== undefined && custom.price !== null && !isNaN(custom.price) && Number(custom.price) > 0) {
+                } else if (custom.price !== undefined && custom.price !== null && !isNaN(custom.price) && Number(custom.price) >= 0) {
                     basePrice = Number(custom.price);
                     dentistDiscountRate = 0;
                 } else if (selectedDentistObj.globalDiscountPercent !== undefined && selectedDentistObj.globalDiscountPercent !== null && !isNaN(selectedDentistObj.globalDiscountPercent)) {
@@ -450,12 +450,12 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
         if (dentist.isCustomPricing) {
             const custom = dentist.customPrices?.find((p: any) => p.jobTypeId === jobType.id);
             if (custom) {
-                if (custom.fixedPrice !== undefined && custom.fixedPrice !== null && !isNaN(custom.fixedPrice) && Number(custom.fixedPrice) > 0) {
+                if (custom.fixedPrice !== undefined && custom.fixedPrice !== null && !isNaN(custom.fixedPrice) && Number(custom.fixedPrice) >= 0) {
                     basePrice = Number(custom.fixedPrice);
                     dentistDiscountRate = 0;
                 } else if (custom.discountPercent !== undefined && custom.discountPercent !== null && !isNaN(custom.discountPercent)) {
                     dentistDiscountRate = Number(custom.discountPercent) / 100;
-                } else if (custom.price !== undefined && custom.price !== null && !isNaN(custom.price) && Number(custom.price) > 0) {
+                } else if (custom.price !== undefined && custom.price !== null && !isNaN(custom.price) && Number(custom.price) >= 0) {
                     basePrice = Number(custom.price);
                     dentistDiscountRate = 0;
                 } else if (dentist.globalDiscountPercent !== undefined && dentist.globalDiscountPercent !== null && !isNaN(dentist.globalDiscountPercent)) {
