@@ -513,13 +513,13 @@ export const subscribeJobs = (orgId: string, userId: string | null, isClient: bo
         let q1 = query(
             collection(db, `organizations/${orgId}/jobs`), 
             where('dentistId', 'in', dentistIds),
-            limit(1000)
+            limit(2500)
         );
         
         let q2 = query(
             collection(db, `organizations/${orgId}/jobs`), 
             where('dentistUserId', '==', userId),
-            limit(1000)
+            limit(2500)
         );
 
         let jobsCache1: Map<string, Job> = new Map();
@@ -593,13 +593,14 @@ export const subscribeJobs = (orgId: string, userId: string | null, isClient: bo
 
     let q = query(
         collection(db, `organizations/${orgId}/jobs`),
-        limit(1000)
+        orderBy('createdAt', 'desc'),
+        limit(2500)
     );
 
     let qStore = query(
         collection(db, `organizations/${orgId}/jobs`),
         where('origin', 'in', ['ONLINE_ORDER', 'ONLINE_REQUISITION']),
-        limit(1000)
+        limit(2500)
     );
 
     // Cache local para exigir mapeamento integral apenas em updates deltas

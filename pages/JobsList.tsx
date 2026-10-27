@@ -601,6 +601,22 @@ export const JobsList = ({ isStoreContext, isBudgetMode }: { isStoreContext?: bo
     return () => clearTimeout(timer);
   }, [restoreScroll]);
 
+  // Auto-clear stale cached date filters from past days so recent cases are never hidden
+  useEffect(() => {
+    if (endDate) {
+      const endParts = endDate.split('-');
+      if (endParts.length === 3) {
+        const end = new Date(parseInt(endParts[0]), parseInt(endParts[1]) - 1, parseInt(endParts[2]), 23, 59, 59);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (end.getTime() < today.getTime()) {
+          setEndDate('');
+          if (startDate) setStartDate('');
+        }
+      }
+    }
+  }, [endDate, startDate, setEndDate, setStartDate]);
+
   const handleOpenJob = useCallback((jobId: string) => {
     saveScroll();
     navigate(`/jobs/${jobId}`);

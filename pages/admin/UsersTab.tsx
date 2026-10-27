@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '../../context/AppContext';
-import { UserRole, User, PermissionKey } from '../../types';
+import { UserRole, User, PermissionKey, ALL_SYSTEM_PERMISSIONS } from '../../types';
 import { 
   UserPlus, 
   Edit, 
@@ -291,7 +291,14 @@ export const UsersTab = () => {
     setIsSubmitting(true);
     try {
         const primarySector = userSectors.length > 0 ? userSectors[0] : '';
-        const res = await api.apiRegisterUserInOrg(userEmail, userPass, userName, userRole, currentOrg.id, primarySector, userSectors);
+        const defaultPermissions: PermissionKey[] = userRole === UserRole.ADMIN 
+            ? ALL_SYSTEM_PERMISSIONS 
+            : [
+                'dashboard:view',
+                'jobs:view', 'jobs:create', 'jobs:edit', 'jobs:return', 'jobs:finish', 'jobs:alert', 'jobs:print', 'jobs:production_view', 'jobs:service_details_view',
+                'catalog:view', 'clients:view', 'boxes:view'
+              ];
+        const res = await api.apiRegisterUserInOrg(userEmail, userPass, userName, userRole, currentOrg.id, primarySector, userSectors, { permissions: defaultPermissions });
         setIsAddingUser(false);
         resetForm();
         alert(res?.message || t('admin.users.userSavedSuccess', "Colaborador cadastrado com sucesso!"));
@@ -832,6 +839,40 @@ export const UsersTab = () => {
                           className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-200/80 rounded-xl transition-colors shrink-0"
                       >
                           <X size={20}/>
+                      </button>
+                  </div>
+
+                  {/* QUICK PRESET BUTTONS */}
+                  <div className="px-4 py-3 bg-blue-50/70 border-b border-blue-100 flex flex-wrap items-center justify-between gap-2 shrink-0">
+                      <div className="flex items-center gap-2">
+                          <span className="text-[11px] font-black uppercase text-blue-900 tracking-wider">Ações Rápidas:</span>
+                          <button
+                              type="button"
+                              onClick={() => {
+                                  setTempPerms([
+                                      'dashboard:view',
+                                      'jobs:view', 'jobs:create', 'jobs:edit', 'jobs:return', 'jobs:finish', 'jobs:alert', 'jobs:print', 'jobs:production_view', 'jobs:service_details_view',
+                                      'catalog:view', 'clients:view', 'boxes:view'
+                                  ]);
+                              }}
+                              className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition shadow-2xs cursor-pointer"
+                          >
+                              Permissões Padrão de Equipe
+                          </button>
+                          <button
+                              type="button"
+                              onClick={() => setTempPerms(ALL_SYSTEM_PERMISSIONS)}
+                              className="px-2.5 py-1 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-bold transition shadow-2xs cursor-pointer"
+                          >
+                              Marcar Todas
+                          </button>
+                      </div>
+                      <button
+                          type="button"
+                          onClick={() => setTempPerms([])}
+                          className="px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-600 border border-slate-200 rounded-lg text-xs font-bold transition cursor-pointer"
+                      >
+                          Limpar Todas
                       </button>
                   </div>
 

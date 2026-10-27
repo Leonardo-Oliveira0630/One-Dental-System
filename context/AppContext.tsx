@@ -497,8 +497,15 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             // For any user who has no permissions set yet (legacy user), or is admin/super_admin, grant all permissions
             if (profile.role === UserRole.ADMIN || profile.role === UserRole.SUPER_ADMIN) {
                 profile.permissions = ALL_SYSTEM_PERMISSIONS;
-            } else if (profile.permissions === undefined) {
-                profile.permissions = ALL_SYSTEM_PERMISSIONS;
+            } else if (!profile.permissions || profile.permissions.length === 0) {
+                if (profile.role !== UserRole.CLIENT && profile.role !== UserRole.DENTIST && (profile.role as any) !== 'DENTIST' && profile.role !== UserRole.SUPPLIER) {
+                    profile.permissions = [
+                        'dashboard:view',
+                        'jobs:view', 'jobs:create', 'jobs:edit', 'jobs:return', 'jobs:finish', 'jobs:alert', 'jobs:print', 'jobs:production_view', 'jobs:service_details_view',
+                        'catalog:view', 'clients:view', 'boxes:view'
+                    ];
+                    api.apiUpdateUser(profile.id, { permissions: profile.permissions }).catch(() => {});
+                }
             }
             
             if (profile.createdAt) {
