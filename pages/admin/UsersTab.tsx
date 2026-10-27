@@ -37,6 +37,7 @@ const AVAILABLE_PERMISSIONS: { key: PermissionKey, label: string, category: stri
     { key: 'jobs:delete', label: 'Excluir Trabalhos', category: 'Produção' },
     { key: 'jobs:return', label: 'Devolver Trabalho', category: 'Produção' },
     { key: 'jobs:finish', label: 'Finalizar Trabalho', category: 'Produção' },
+    { key: 'jobs:reopen', label: 'Reabrir Casos Concluídos/Entregues', category: 'Produção' },
     { key: 'jobs:alert', label: 'Usar Alerta (Chat/Notificações)', category: 'Produção' },
     { key: 'jobs:print', label: 'Imprimir Fichas e Etiquetas', category: 'Produção' },
     { key: 'jobs:chat_toggle', label: 'Habilitar/Desabilitar Chat', category: 'Produção' },

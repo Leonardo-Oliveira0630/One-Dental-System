@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '../context/AppContext';
-import { JobStatus, UrgencyLevel, UserRole, JobItem, LabRating, Job, DeliveryRoute, Attachment, JobNature, JobItemExecution, SectorMovement, CommissionStatus, JobProduct } from '../types';
+import { JobStatus, UrgencyLevel, UserRole, JobItem, LabRating, Job, DeliveryRoute, Attachment, JobNature, JobItemExecution, SectorMovement, CommissionStatus, JobProduct, PermissionKey } from '../types';
 import { 
   ArrowLeft, Calendar, Stethoscope, User, Clock, MapPin, Camera as CameraIcon,
   FileText, DollarSign, CheckCircle, AlertTriangle, AlertCircle,
@@ -808,27 +808,32 @@ export const JobDetails = () => {
 
   const isAdmin = currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.SUPER_ADMIN;
   const isManager = currentUser?.role === UserRole.MANAGER;
-  const isTech = currentUser?.role === UserRole.COLLABORATOR;
+  const isCollaboratorRole = currentUser?.role !== UserRole.CLIENT && currentUser?.role !== UserRole.DENTIST && (currentUser as any)?.role !== 'DENTIST' && currentUser?.role !== UserRole.SUPPLIER;
+  const isTech = isCollaboratorRole && !isAdmin && !isManager;
   const isClient = currentUser?.role === UserRole.CLIENT || currentUser?.role === UserRole.DENTIST || (currentUser as any)?.role === 'DENTIST' || currentOrg?.orgType === 'CLINIC';
-  const isLabStaff = !isClient && (isAdmin || isManager || isTech);
+  const isLabStaff = !isClient && (isAdmin || isManager || isCollaboratorRole);
   const targetLabOrg = isClient ? activeOrganization : currentOrg;
   const revealJobStatus = !isClient || (targetLabOrg?.revealJobStatusToDentist ?? false);
   const isFinished = job?.status === JobStatus.COMPLETED || job?.status === JobStatus.DELIVERED;
-  const canEdit = (isAdmin || isManager || (isTech && (job?.isBudget ? currentUser?.permissions?.includes('budgets:edit') : currentUser?.permissions?.includes('jobs:edit')))) && (!isFinished || Boolean(job?.isBudget));
-  const canDelete = isAdmin || isManager || (isTech && (job?.isBudget ? currentUser?.permissions?.includes('budgets:delete') : currentUser?.permissions?.includes('jobs:delete')));
-  const canManageCommissions = isAdmin || isManager || (isTech && currentUser?.permissions?.includes('commissions:edit'));
-  const canReturn = isAdmin || isManager || (isTech && currentUser?.permissions?.includes('jobs:return'));
-  const canFinish = isAdmin || isManager || (isTech && currentUser?.permissions?.includes('jobs:finish'));
-  const canAlert = isAdmin || isManager || (isTech && currentUser?.permissions?.includes('jobs:alert'));
-  const canPrint = isAdmin || isManager || (isTech && currentUser?.permissions?.includes('jobs:print'));
-  const canToggleChat = isAdmin || isManager || (isTech && currentUser?.permissions?.includes('jobs:chat_toggle'));
-  const canManageApproval = isAdmin || isManager || (isTech && currentUser?.permissions?.includes('jobs:approval'));
-  const canChangeStatus = isAdmin || isManager || (isTech && currentUser?.permissions?.includes('jobs:change_status'));
-  const canViewProduction = isAdmin || isManager || (isTech && currentUser?.permissions?.includes('jobs:production_view'));
-  const canEditProduction = isAdmin || isManager || (isTech && currentUser?.permissions?.includes('jobs:production_edit'));
-  const canViewServiceDetails = isAdmin || isManager || (isClient ? true : Boolean(currentUser?.permissions?.includes('jobs:service_details_view')));
-  const canViewJobPrices = isAdmin || isManager || (isClient ? true : Boolean(currentUser?.permissions?.includes('jobs:prices_view')));
-  const canEditServiceDetails = isLabStaff && (isAdmin || isManager || Boolean(currentUser?.permissions?.includes('jobs:service_details_edit'))) && (!isFinished || Boolean(job?.isBudget));
+
+  const hasPerm = (key: PermissionKey) => isAdmin || isManager || Boolean(currentUser?.permissions?.includes(key));
+
+  const canEdit = (isAdmin || isManager || (job?.isBudget ? hasPerm('budgets:edit') : hasPerm('jobs:edit'))) && (!isFinished || Boolean(job?.isBudget));
+  const canReopen = isLabStaff && (isAdmin || isManager || hasPerm('jobs:reopen')) && (isFinished || job?.status === JobStatus.RETURNED) && !job?.isBudget;
+  const canDelete = isAdmin || isManager || (job?.isBudget ? hasPerm('budgets:delete') : hasPerm('jobs:delete'));
+  const canManageCommissions = isAdmin || isManager || hasPerm('commissions:edit');
+  const canReturn = isAdmin || isManager || hasPerm('jobs:return');
+  const canFinish = isAdmin || isManager || hasPerm('jobs:finish');
+  const canAlert = isAdmin || isManager || hasPerm('jobs:alert');
+  const canPrint = isAdmin || isManager || hasPerm('jobs:print');
+  const canToggleChat = isAdmin || isManager || hasPerm('jobs:chat_toggle');
+  const canManageApproval = isAdmin || isManager || hasPerm('jobs:approval');
+  const canChangeStatus = isAdmin || isManager || hasPerm('jobs:change_status');
+  const canViewProduction = isAdmin || isManager || hasPerm('jobs:production_view');
+  const canEditProduction = isAdmin || isManager || hasPerm('jobs:production_edit');
+  const canViewServiceDetails = isAdmin || isManager || (isClient ? true : hasPerm('jobs:service_details_view'));
+  const canViewJobPrices = isAdmin || isManager || (isClient ? true : hasPerm('jobs:prices_view'));
+  const canEditServiceDetails = isLabStaff && (isAdmin || isManager || hasPerm('jobs:service_details_edit')) && (!isFinished || Boolean(job?.isBudget));
 
   // Buyer / Client Delivery Confirmation & Shopee-style Service Review
   const [showReviewModal, setShowReviewModal] = useState(false);
@@ -1927,7 +1932,6 @@ export const JobDetails = () => {
   const canFinalize = canFinish && !isFinished && job.status !== JobStatus.REJECTED && job.status !== JobStatus.CANCELED && job.status !== JobStatus.RETURNED;
   const canShowReturn = canReturn && job.status !== JobStatus.CANCELED && job.status !== JobStatus.RETURNED && job.status !== JobStatus.DELIVERED;
   const canShowCancel = (isAdmin || isManager || canDelete) && job.status !== JobStatus.CANCELED && job.status !== JobStatus.RETURNED && job.status !== JobStatus.DELIVERED;
-  const canReopen = isLabStaff && (job.status === JobStatus.COMPLETED || job.status === JobStatus.DELIVERED || job.status === JobStatus.RETURNED);
 
   const handleCancelJob = async () => {
       if (!window.confirm('Tem certeza que deseja CANCELAR este caso?')) return;

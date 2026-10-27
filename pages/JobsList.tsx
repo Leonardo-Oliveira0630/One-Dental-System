@@ -4,7 +4,7 @@ import React, { useState, useMemo, memo, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from '../src/i18n';
 import { useApp } from '../context/AppContext';
-import { JobStatus, UserRole, UrgencyLevel, Job } from '../types';
+import { JobStatus, UserRole, UrgencyLevel, Job, PermissionKey } from '../types';
 import { Search, Filter, FileDown, Eye, Clock, AlertCircle, Printer, X, ChevronRight, MapPin, User, SlidersHorizontal, RefreshCcw, Ban, Building, QrCode, Copy, Check, Globe, HardDrive, CheckCircle2, Truck, Loader2, Box, RotateCcw, Calendar, MoreHorizontal, PlusCircle, Camera } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getContrastColor } from '../services/mockData';
@@ -149,9 +149,14 @@ const JobRow = memo(({ isJobOverdue,
     revealJobStatus: boolean
 }) => {
     const { t } = useTranslation();
-    const canFinalize = isLabStaff && job.status !== JobStatus.COMPLETED && job.status !== JobStatus.DELIVERED && job.status !== JobStatus.REJECTED;
-    const canRoute = isLabStaff && job.status === JobStatus.COMPLETED && !job.routeId;
-    const canReopen = isLabStaff && (job.status === JobStatus.COMPLETED || job.status === JobStatus.DELIVERED || job.status === JobStatus.RETURNED);
+    const { currentUser } = useApp();
+    const isAdmin = currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.SUPER_ADMIN;
+    const isManager = currentUser?.role === UserRole.MANAGER;
+    const hasPerm = (key: PermissionKey) => isAdmin || isManager || Boolean(currentUser?.permissions?.includes(key));
+
+    const canFinalize = isLabStaff && hasPerm('jobs:finish') && job.status !== JobStatus.COMPLETED && job.status !== JobStatus.DELIVERED && job.status !== JobStatus.REJECTED;
+    const canRoute = isLabStaff && (hasPerm('logistics:view') || hasPerm('jobs:edit')) && job.status === JobStatus.COMPLETED && !job.routeId;
+    const canReopen = isLabStaff && hasPerm('jobs:reopen') && (job.status === JobStatus.COMPLETED || job.status === JobStatus.DELIVERED || job.status === JobStatus.RETURNED);
     const timeInfo = getSectorTimeInfo(job);
     const showAttention = !isClient && timeInfo.isAttention;
 
@@ -648,14 +653,17 @@ const handleUpdateStatus = async (jobId: string, status: JobStatus) => {
   const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
   const isAdmin = currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.SUPER_ADMIN;
   const isManager = currentUser?.role === UserRole.MANAGER;
-  const isLabStaff = isAdmin || isManager || currentUser?.role === UserRole.COLLABORATOR;
+  const isCollaboratorRole = currentUser?.role !== UserRole.CLIENT && currentUser?.role !== UserRole.DENTIST && (currentUser as any)?.role !== 'DENTIST' && currentUser?.role !== UserRole.SUPPLIER;
+  const isLabStaff = !isClient && (isAdmin || isManager || isCollaboratorRole);
+
+  const hasPerm = useCallback((key: PermissionKey) => isAdmin || isManager || Boolean(currentUser?.permissions?.includes(key)), [isAdmin, isManager, currentUser?.permissions]);
 
   const hasViewPerm = isClient || isAdmin || isManager || (isBudgetMode 
-    ? currentUser?.permissions?.includes('budgets:view')
-    : currentUser?.permissions?.includes('jobs:view'));
+    ? hasPerm('budgets:view')
+    : hasPerm('jobs:view'));
 
-  const canCreateBudget = !isClient && (isAdmin || isManager || currentUser?.permissions?.includes('budgets:create'));
-  const canCreateJob = !isClient && (isAdmin || isManager || currentUser?.permissions?.includes('jobs:create'));
+  const canCreateBudget = !isClient && hasPerm('budgets:create');
+  const canCreateJob = !isClient && hasPerm('jobs:create');
 
   const revealJobStatus = !isClient || (activeOrganization?.revealJobStatusToDentist ?? false);
 

@@ -359,7 +359,7 @@ export enum UserRole {
 
 export type PermissionKey = 
   | 'dashboard:view'
-  | 'jobs:view' | 'jobs:create' | 'jobs:edit' | 'jobs:delete' | 'jobs:return' | 'jobs:finish' | 'jobs:alert' | 'jobs:print' | 'jobs:chat_toggle' | 'jobs:approval' | 'jobs:change_status' | 'jobs:production_view' | 'jobs:production_edit' | 'jobs:service_details_view' | 'jobs:service_details_edit' | 'jobs:prices_view'
+  | 'jobs:view' | 'jobs:create' | 'jobs:edit' | 'jobs:delete' | 'jobs:return' | 'jobs:finish' | 'jobs:alert' | 'jobs:print' | 'jobs:chat_toggle' | 'jobs:approval' | 'jobs:change_status' | 'jobs:production_view' | 'jobs:production_edit' | 'jobs:service_details_view' | 'jobs:service_details_edit' | 'jobs:prices_view' | 'jobs:reopen'
   | 'budgets:view' | 'budgets:create' | 'budgets:edit' | 'budgets:delete'
   | 'reports:view'
   | 'reports:export'
@@ -401,7 +401,7 @@ export type PermissionKey =
 
 export const ALL_SYSTEM_PERMISSIONS: PermissionKey[] = [
   'dashboard:view',
-  'jobs:view', 'jobs:create', 'jobs:edit', 'jobs:delete', 'jobs:return', 'jobs:finish', 'jobs:alert', 'jobs:print', 'jobs:chat_toggle', 'jobs:approval', 'jobs:change_status', 'jobs:production_view', 'jobs:production_edit', 'jobs:service_details_view', 'jobs:service_details_edit', 'jobs:prices_view',
+  'jobs:view', 'jobs:create', 'jobs:edit', 'jobs:delete', 'jobs:return', 'jobs:finish', 'jobs:alert', 'jobs:print', 'jobs:chat_toggle', 'jobs:approval', 'jobs:change_status', 'jobs:production_view', 'jobs:production_edit', 'jobs:service_details_view', 'jobs:service_details_edit', 'jobs:prices_view', 'jobs:reopen',
   'budgets:view', 'budgets:create', 'budgets:edit', 'budgets:delete',
   'reports:view',
   'reports:export',

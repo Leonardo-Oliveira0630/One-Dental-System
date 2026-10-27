@@ -114,6 +114,12 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, PermissionKey[]> = {
   [UserRole.COLLABORATOR]: CLINIC_PERMISSIONS.map(p => p.key),
   [UserRole.CLIENT]: CLINIC_PERMISSIONS.map(p => p.key),
   [UserRole.SUPER_ADMIN]: CLINIC_PERMISSIONS.map(p => p.key),
+  [UserRole.COMPONENTS]: CLINIC_PERMISSIONS.map(p => p.key),
+  [UserRole.PRODUCTION_COORDINATOR]: CLINIC_PERMISSIONS.map(p => p.key),
+  [UserRole.FINANCIAL]: CLINIC_PERMISSIONS.map(p => p.key),
+  [UserRole.OPERATIONAL]: CLINIC_PERMISSIONS.map(p => p.key),
+  [UserRole.SECRETARY]: CLINIC_PERMISSIONS.map(p => p.key),
+  [UserRole.SECRETARY_2]: CLINIC_PERMISSIONS.map(p => p.key),
   [UserRole.HELPDESK]: [],
   [UserRole.SUPPLIER]: [],
   [UserRole.REVIEWER]: CLINIC_PERMISSIONS.map(p => p.key)

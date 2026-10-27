@@ -22,7 +22,7 @@ const { getToken, onMessage } = messagingPkg as any;
 
 import { db, auth, storage, functions, messaging } from './firebaseConfig';
 import { 
-  User, UserRole, PermissionKey, ALL_SYSTEM_PERMISSIONS, Job, JobStatus, JobType, Sector, JobAlert, ClinicPatient, 
+  User, UserRole, PermissionKey, ALL_SYSTEM_PERMISSIONS, Job, JobStatus, UrgencyLevel, JobType, Sector, JobAlert, ClinicPatient, 
   Appointment, Organization, SubscriptionPlan, OrganizationConnection, 
   Coupon, LabCoupon, CommissionRecord, ManualDentist, Expense, BillingBatch, GlobalSettings, LabRating, DeliveryRoute, RouteItem, BoxColor, ChatMessage, ClinicService, ClinicRoom, ClinicDentist, PatientHistoryRecord, PaymentRecord, PriceTable, DentistPayment, CardMachine, BankAccount,
   Tutorial, Courier, ClinicBudget, ClinicPrescription, ClinicClinicalCard, ClinicAnamnesis, ClinicPatientFinance, ClinicTreatmentPlan, OnlineRequisition, SupplierOrder, CaseApprovalItem, CaseApprovalReply, CaseApprovalFile, Budget,
@@ -925,7 +925,7 @@ export const subscribeCommissions = (orgId: string, cb: (c: CommissionRecord[]) 
             id: d.id, ...d.data() as any, createdAt: toDate(d.data().createdAt),
             paidAt: d.data().paidAt ? toDate(d.data().paidAt) : undefined
         } as CommissionRecord));
-        records.sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
+        records.sort((a: any, b: any) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
         cb(records);
     }, (error: any) => {
         logger.warn(`[Firestore] Erro em subscribeCommissions: ${error.code}`);
@@ -3060,7 +3060,8 @@ export const apiRecoverAndRepairJobs = async (orgId: string): Promise<{
     // Data fixa para os trabalhos do dia 01/10/2026
     const oct1Date = new Date(2026, 9, 1, 10, 0, 0); // 01/10/2026
 
-    for (const comm of commissions) {
+    for (const commRaw of commissions) {
+      const comm = commRaw as any;
       const osNumRaw = comm.osNumber || comm.jobId || '';
       const osDigits = String(osNumRaw).replace(/\D/g, '').padStart(4, '0');
       const osInt = parseInt(osDigits, 10);
@@ -3112,6 +3113,7 @@ export const apiRecoverAndRepairJobs = async (orgId: string): Promise<{
               quantity: 1,
               price: comm.amount ? comm.amount * 4 : defaultJobType.price || 200,
               nature: 'NORMAL',
+              selectedVariationIds: [],
               color: 'A2'
             }
           ],
@@ -3121,6 +3123,7 @@ export const apiRecoverAndRepairJobs = async (orgId: string): Promise<{
               action: `Caso ${formattedOS} cadastrado em 01/10/2026 e recuperado com sucesso via comissão.`,
               sector: 'RECEPCAO',
               timestamp: isOct1 ? commDate : oct1Date,
+              userId: 'sys',
               userName: 'Sistema de Recuperação Labprox'
             }
           ]
@@ -3151,6 +3154,7 @@ export const apiRecoverAndRepairJobs = async (orgId: string): Promise<{
               quantity: 1,
               price: job.totalValue || defaultJobType.price || 200,
               nature: 'NORMAL',
+              selectedVariationIds: [],
               color: 'A2'
             }
           ];
