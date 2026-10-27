@@ -14,6 +14,8 @@ const translatePaymentMethod = (method: string, t?: (key: string, def?: string) 
     switch (method) {
         case 'PIX': return t ? t('finance.paymentMethods.PIX', 'PIX') : 'PIX';
         case 'CASH': return t ? t('finance.paymentMethods.CASH', 'Dinheiro') : 'Dinheiro';
+        case 'CHEQUE':
+        case 'CHECK': return t ? t('finance.paymentMethods.CHEQUE', 'Cheque') : 'Cheque';
         case 'CREDIT_CARD': return t ? t('finance.paymentMethods.CREDIT_CARD', 'Cartão Crédito') : 'Cartão Crédito';
         case 'DEBIT_CARD': return t ? t('finance.paymentMethods.DEBIT_CARD', 'Cartão Débito') : 'Cartão Débito';
         case 'BANK_TRANSFER': return t ? t('finance.paymentMethods.BANK_TRANSFER', 'Transf. Bancária') : 'Transf. Bancária';

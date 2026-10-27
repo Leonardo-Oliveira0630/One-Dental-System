@@ -173,9 +173,37 @@ export const UsersTab = () => {
   }, [sortedTeamUsers, searchTerm, roleFilter]);
 
   const getRoleLabel = (role: UserRole | string) => {
-    if (role === UserRole.ADMIN) return t('admin.users.administrators', 'Administrador');
-    if (role === UserRole.MANAGER) return t('admin.users.managers', 'Gestor');
-    return t('admin.users.technicians', 'Técnico');
+    switch (role) {
+      case UserRole.ADMIN:
+      case 'ADMIN':
+        return t('admin.users.administrators', 'Administrador');
+      case UserRole.COMPONENTS:
+      case 'COMPONENTS':
+        return 'Componentes';
+      case UserRole.PRODUCTION_COORDINATOR:
+      case 'PRODUCTION_COORDINATOR':
+        return 'Coordenador de Produção';
+      case UserRole.FINANCIAL:
+      case 'FINANCIAL':
+        return 'Financeiro';
+      case UserRole.MANAGER:
+      case 'MANAGER':
+        return t('admin.users.managers', 'Gestor');
+      case UserRole.OPERATIONAL:
+      case 'OPERATIONAL':
+        return 'Operacional';
+      case UserRole.SECRETARY:
+      case 'SECRETARY':
+        return 'Secretaria';
+      case UserRole.SECRETARY_2:
+      case 'SECRETARY_2':
+        return 'Secretaria 2';
+      case UserRole.COLLABORATOR:
+      case 'COLLABORATOR':
+        return t('admin.users.technicians', 'Técnico');
+      default:
+        return role;
+    }
   };
 
   const handleExportExcel = () => {
@@ -464,14 +492,44 @@ export const UsersTab = () => {
             {t('admin.users.all', { count: activeTeamUsers.length, defaultValue: `Todos (${activeTeamUsers.length})` })}
           </button>
           <button
-            onClick={() => setRoleFilter(UserRole.COLLABORATOR)}
+            onClick={() => setRoleFilter(UserRole.ADMIN)}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${
-              roleFilter === UserRole.COLLABORATOR
-                ? 'bg-blue-600 text-white shadow-sm'
+              roleFilter === UserRole.ADMIN
+                ? 'bg-purple-600 text-white shadow-sm'
                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
-            {t('admin.users.technicians', 'Técnicos')}
+            {t('admin.users.administrators', 'Administradores')}
+          </button>
+          <button
+            onClick={() => setRoleFilter(UserRole.COMPONENTS)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${
+              roleFilter === UserRole.COMPONENTS
+                ? 'bg-cyan-600 text-white shadow-sm'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            Componentes
+          </button>
+          <button
+            onClick={() => setRoleFilter(UserRole.PRODUCTION_COORDINATOR)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${
+              roleFilter === UserRole.PRODUCTION_COORDINATOR
+                ? 'bg-amber-600 text-white shadow-sm'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            Coordenador de Produção
+          </button>
+          <button
+            onClick={() => setRoleFilter(UserRole.FINANCIAL)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${
+              roleFilter === UserRole.FINANCIAL
+                ? 'bg-emerald-600 text-white shadow-sm'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            Financeiro
           </button>
           <button
             onClick={() => setRoleFilter(UserRole.MANAGER)}
@@ -484,14 +542,44 @@ export const UsersTab = () => {
             {t('admin.users.managers', 'Gestores')}
           </button>
           <button
-            onClick={() => setRoleFilter(UserRole.ADMIN)}
+            onClick={() => setRoleFilter(UserRole.OPERATIONAL)}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${
-              roleFilter === UserRole.ADMIN
-                ? 'bg-purple-600 text-white shadow-sm'
+              roleFilter === UserRole.OPERATIONAL
+                ? 'bg-orange-600 text-white shadow-sm'
                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
-            {t('admin.users.administrators', 'Administradores')}
+            Operacional
+          </button>
+          <button
+            onClick={() => setRoleFilter(UserRole.SECRETARY)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${
+              roleFilter === UserRole.SECRETARY
+                ? 'bg-pink-600 text-white shadow-sm'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            Secretaria
+          </button>
+          <button
+            onClick={() => setRoleFilter(UserRole.SECRETARY_2)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${
+              roleFilter === UserRole.SECRETARY_2
+                ? 'bg-rose-600 text-white shadow-sm'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            Secretaria 2
+          </button>
+          <button
+            onClick={() => setRoleFilter(UserRole.COLLABORATOR)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${
+              roleFilter === UserRole.COLLABORATOR
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            {t('admin.users.technicians', 'Técnicos')}
           </button>
         </div>
       </div>
@@ -528,7 +616,17 @@ export const UsersTab = () => {
                         ? 'bg-purple-100 text-purple-700 border border-purple-200' 
                         : user.role === UserRole.MANAGER 
                           ? 'bg-indigo-100 text-indigo-700 border border-indigo-200' 
-                          : 'bg-blue-100 text-blue-700 border border-blue-200'
+                          : user.role === UserRole.PRODUCTION_COORDINATOR
+                            ? 'bg-amber-100 text-amber-700 border border-amber-200'
+                            : user.role === UserRole.FINANCIAL
+                              ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                              : user.role === UserRole.COMPONENTS
+                                ? 'bg-cyan-100 text-cyan-700 border border-cyan-200'
+                                : user.role === UserRole.OPERATIONAL
+                                  ? 'bg-orange-100 text-orange-700 border border-orange-200'
+                                  : user.role === UserRole.SECRETARY || user.role === UserRole.SECRETARY_2
+                                    ? 'bg-pink-100 text-pink-700 border border-pink-200'
+                                    : 'bg-blue-100 text-blue-700 border border-blue-200'
                     }`}>
                       {getRoleLabel(user.role)}
                     </span>
@@ -616,13 +714,19 @@ export const UsersTab = () => {
                       <div>
                           <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('admin.users.role', 'Cargo')}</label>
                           <select value={userRole} onChange={e => setUserRole(e.target.value as UserRole)} className="w-full px-4 py-2 border border-slate-200 rounded-xl bg-white font-medium text-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
-                              <option value={UserRole.COLLABORATOR}>{t('admin.users.technicians', 'Técnico')}</option>
-                              <option value={UserRole.MANAGER}>{t('admin.users.managers', 'Gestor')}</option>
                               <option value={UserRole.ADMIN}>{t('admin.users.administrators', 'Administrador')}</option>
+                              <option value={UserRole.COMPONENTS}>Componentes</option>
+                              <option value={UserRole.PRODUCTION_COORDINATOR}>Coordenador de Produção</option>
+                              <option value={UserRole.FINANCIAL}>Financeiro</option>
+                              <option value={UserRole.MANAGER}>{t('admin.users.managers', 'Gestor')}</option>
+                              <option value={UserRole.OPERATIONAL}>Operacional</option>
+                              <option value={UserRole.SECRETARY}>Secretaria</option>
+                              <option value={UserRole.SECRETARY_2}>Secretaria 2</option>
+                              <option value={UserRole.COLLABORATOR}>{t('admin.users.technicians', 'Técnico')}</option>
                           </select>
                       </div>
 
-                      {userRole === UserRole.COLLABORATOR && (
+                      {userRole !== UserRole.ADMIN && (
                           <div>
                               <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
                                   Grupo de Ganhos / Comissões

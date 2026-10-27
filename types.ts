@@ -341,7 +341,13 @@ export interface BillingBatch {
 
 export enum UserRole {
   ADMIN = 'ADMIN',
+  COMPONENTS = 'COMPONENTS',
+  PRODUCTION_COORDINATOR = 'PRODUCTION_COORDINATOR',
+  FINANCIAL = 'FINANCIAL',
   MANAGER = 'MANAGER',
+  OPERATIONAL = 'OPERATIONAL',
+  SECRETARY = 'SECRETARY',
+  SECRETARY_2 = 'SECRETARY_2',
   COLLABORATOR = 'COLLABORATOR',
   CLIENT = 'CLIENT',
   DENTIST = 'DENTIST',
@@ -1235,7 +1241,7 @@ export interface DentistPayment {
   interest?: number; // Juros
   fees?: number;     // Taxas
   discount?: number; // Desconto no ato do pagamento
-  paymentMethod: 'PIX' | 'BOLETO' | 'CARD' | 'CASH' | 'TRANSFER' | 'DISCOUNT' | 'CREDIT_CARD' | 'DEBIT_CARD' | 'BANK_TRANSFER' | 'CLIENT_CREDIT';
+  paymentMethod: 'PIX' | 'BOLETO' | 'CARD' | 'CASH' | 'CHEQUE' | 'CHECK' | 'TRANSFER' | 'DISCOUNT' | 'CREDIT_CARD' | 'DEBIT_CARD' | 'BANK_TRANSFER' | 'CLIENT_CREDIT';
   paymentDate: Date;
   cardMachineId?: string;
   bankAccountId?: string;

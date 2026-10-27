@@ -14,6 +14,8 @@ const translatePaymentMethod = (method: string) => {
     switch (method) {
         case 'PIX': return 'PIX';
         case 'CASH': return 'Dinheiro';
+        case 'CHEQUE':
+        case 'CHECK': return 'Cheque';
         case 'CREDIT_CARD': return 'Cartão Crédito';
         case 'DEBIT_CARD': return 'Cartão Débito';
         case 'BANK_TRANSFER': return 'Transf. Bancária';
@@ -2520,6 +2522,7 @@ export const Dentists = () => {
                                                     >
                                                         <option value="PIX">PIX</option>
                                                         <option value="CASH">{t('dentists.cash', 'Dinheiro')}</option>
+                                                        <option value="CHEQUE">Cheque</option>
                                                         <option value="CREDIT_CARD">{t('dentists.creditCard', 'Cartão de Crédito')}</option>
                                                         <option value="DEBIT_CARD">{t('dentists.debitCard', 'Cartão de Débito')}</option>
                                                         <option value="BANK_TRANSFER">{t('dentists.bankTransfer', 'Transferência Bancária')}</option>
