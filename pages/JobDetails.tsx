@@ -10,7 +10,7 @@ import {
   ArrowLeft, Calendar, Stethoscope, User, Clock, MapPin, Camera as CameraIcon,
   FileText, DollarSign, CheckCircle, AlertTriangle, AlertCircle,
   Printer, Box, Layers, ListChecks, Bell, Edit, Save, X, Plus, Trash2, Settings,
-  LogIn, LogOut, Flag, CheckSquare, File as FileIcon, Download, Loader2, CreditCard, ExternalLink, Copy, Check, Star, UploadCloud, ChevronDown, CheckCircle2, Truck, Navigation, RotateCcw, MessageCircle, MessageSquare, Lock, Crown, FileCode, FileSpreadsheet, FileWarning, XCircle, ArrowLeftCircle, ScanBarcode, Briefcase, Search, ArrowRightCircle, RefreshCw, Edit3, Package, Smartphone,
+  LogIn, LogOut, Flag, CheckSquare, File as FileIcon, Download, Loader2, CreditCard, ExternalLink, Copy, Check, Star, UploadCloud, ChevronDown, CheckCircle2, Truck, Navigation, RotateCcw, MessageCircle, MessageSquare, Lock, Crown, FileCode, FileSpreadsheet, FileWarning, XCircle, ArrowLeftCircle, ScanBarcode, Briefcase, Search, ArrowRightCircle, RefreshCw, Edit3, Package, Smartphone, Sliders,
   Eye, Edit2, LayoutGrid, List as ListIcon, Image as ImageLucide, Pin, StickyNote
 } from 'lucide-react';
 import { CreateAlertModal } from '../components/AlertSystem';
@@ -5159,6 +5159,11 @@ export const JobDetails = () => {
                             <Edit size={16} /> {t('common.edit', 'Editar')}
                         </button>
                     )}
+                    {canReturn && !job.isBudget && (
+                        <button onClick={() => setShowReturnModal(true)} className="w-full sm:w-auto px-4 py-2.5 bg-purple-600 text-white font-black text-[10px] rounded-xl hover:bg-purple-700 shadow-xl shadow-purple-100 flex items-center justify-center gap-2 uppercase tracking-widest transition-all transform active:scale-95 cursor-pointer">
+                            <RefreshCw size={16} /> Cadastrar Retorno
+                        </button>
+                    )}
                     {canShowReturn && !job.isBudget && (
                         <button onClick={handleReturnJob} disabled={isUpdatingStatus} className="w-full sm:w-auto px-4 py-2.5 bg-orange-50 border border-orange-100 text-orange-600 rounded-xl font-bold flex items-center justify-center gap-2 text-[10px] uppercase tracking-widest transition-all hover:bg-orange-100">
                             {isUpdatingStatus ? <Loader2 size={16} className="animate-spin" /> : <ArrowLeftCircle size={16} />} {t('jobDetails.returnJob', 'Devolver')}
@@ -7545,6 +7550,124 @@ export const JobDetails = () => {
              setIsWebcamOpen(false);
            }}
          />
+       )}
+
+       {showReturnModal && job && (
+         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" id="jobReturnModal">
+           <div className="bg-white rounded-[32px] p-6 w-full max-w-lg shadow-2xl border border-slate-100 animate-in zoom-in-95 duration-200 space-y-5">
+             <div className="flex justify-between items-center border-b pb-4">
+               <div>
+                 <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
+                   <RefreshCw size={20} className="text-purple-600" />
+                   Cadastrar Retorno do Caso #{job.osNumber || job.id}
+                 </h3>
+                 <p className="text-xs text-slate-500 font-medium mt-0.5">
+                   Selecione o tipo de retorno para gerar uma nova OS de continuidade, repetição ou ajuste
+                 </p>
+               </div>
+               <button
+                 type="button"
+                 onClick={() => setShowReturnModal(false)}
+                 className="text-slate-400 hover:text-slate-600 p-1.5 rounded-full hover:bg-slate-100 transition cursor-pointer"
+               >
+                 <X size={20} />
+               </button>
+             </div>
+
+             <div className="space-y-3">
+               {/* Opção 1: Continuidade / Prosseguimento */}
+               <button
+                 type="button"
+                 onClick={() => {
+                   setShowReturnModal(false);
+                   handleReturnAction('PROSSEGUIMENTO');
+                 }}
+                 className="w-full text-left p-4 rounded-2xl bg-blue-50/60 hover:bg-blue-100/80 border border-blue-200/80 transition-all flex items-start gap-3.5 group cursor-pointer active:scale-98"
+               >
+                 <div className="p-3 bg-blue-600 text-white rounded-xl shrink-0 group-hover:scale-105 transition-transform shadow-md">
+                   <ArrowRightCircle size={22} />
+                 </div>
+                 <div className="min-w-0 flex-1">
+                   <div className="flex items-center justify-between">
+                     <h4 className="font-black text-slate-800 text-sm uppercase tracking-tight">
+                       Continuidade / Prosseguimento
+                     </h4>
+                     <span className="text-[9px] font-black uppercase bg-blue-200 text-blue-800 px-2 py-0.5 rounded-md">
+                       Nova Etapa
+                     </span>
+                   </div>
+                   <p className="text-xs text-slate-600 font-medium mt-1 leading-snug">
+                     Gera uma nova OS vinculada para dar continuidade às próximas etapas de trabalho (ex: nova prova de infraestrutura, moldagem de transferência, etc).
+                   </p>
+                 </div>
+               </button>
+
+               {/* Opção 2: Repetição */}
+               <button
+                 type="button"
+                 onClick={() => {
+                   setShowReturnModal(false);
+                   handleReturnAction('REPETICAO');
+                 }}
+                 className="w-full text-left p-4 rounded-2xl bg-amber-50/60 hover:bg-amber-100/80 border border-amber-200/80 transition-all flex items-start gap-3.5 group cursor-pointer active:scale-98"
+               >
+                 <div className="p-3 bg-amber-500 text-white rounded-xl shrink-0 group-hover:scale-105 transition-transform shadow-md">
+                   <RotateCcw size={22} />
+                 </div>
+                 <div className="min-w-0 flex-1">
+                   <div className="flex items-center justify-between">
+                     <h4 className="font-black text-slate-800 text-sm uppercase tracking-tight">
+                       Repetição
+                     </h4>
+                     <span className="text-[9px] font-black uppercase bg-amber-200 text-amber-900 px-2 py-0.5 rounded-md">
+                       Sem Custo / Refazer
+                     </span>
+                   </div>
+                   <p className="text-xs text-slate-600 font-medium mt-1 leading-snug">
+                     Gera uma nova OS com os itens configurados com natureza de REPETIÇÃO (sem cobrança e sem comissão).
+                   </p>
+                 </div>
+               </button>
+
+               {/* Opção 3: Ajuste */}
+               <button
+                 type="button"
+                 onClick={() => {
+                   setShowReturnModal(false);
+                   handleReturnAction('AJUSTE');
+                 }}
+                 className="w-full text-left p-4 rounded-2xl bg-purple-50/60 hover:bg-purple-100/80 border border-purple-200/80 transition-all flex items-start gap-3.5 group cursor-pointer active:scale-98"
+               >
+                 <div className="p-3 bg-purple-600 text-white rounded-xl shrink-0 group-hover:scale-105 transition-transform shadow-md">
+                   <Sliders size={22} />
+                 </div>
+                 <div className="min-w-0 flex-1">
+                   <div className="flex items-center justify-between">
+                     <h4 className="font-black text-slate-800 text-sm uppercase tracking-tight">
+                       Ajuste
+                     </h4>
+                     <span className="text-[9px] font-black uppercase bg-purple-200 text-purple-900 px-2 py-0.5 rounded-md">
+                       Retoque / Ajustes
+                     </span>
+                   </div>
+                   <p className="text-xs text-slate-600 font-medium mt-1 leading-snug">
+                     Gera uma nova OS para pequenas modificações ou ajustes de oclusão/ponto de contato (natureza AJUSTE).
+                   </p>
+                 </div>
+               </button>
+             </div>
+
+             <div className="flex justify-end pt-2">
+               <button
+                 type="button"
+                 onClick={() => setShowReturnModal(false)}
+                 className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl text-xs font-black uppercase tracking-tight transition active:scale-95 cursor-pointer"
+               >
+                 Cancelar
+               </button>
+             </div>
+           </div>
+         </div>
        )}
       </div>
     </div>

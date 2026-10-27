@@ -35,7 +35,7 @@ const AVAILABLE_PERMISSIONS: { key: PermissionKey, label: string, category: stri
     { key: 'jobs:create', label: 'Criar Novos Casos (OS)', category: 'Produção' },
     { key: 'jobs:edit', label: 'Editar Dados de Trabalhos', category: 'Produção' },
     { key: 'jobs:delete', label: 'Excluir Trabalhos', category: 'Produção' },
-    { key: 'jobs:return', label: 'Devolver Trabalho', category: 'Produção' },
+    { key: 'jobs:return', label: 'Cadastrar Retorno (Repetição, Continuidade, Ajuste)', category: 'Produção' },
     { key: 'jobs:finish', label: 'Finalizar Trabalho', category: 'Produção' },
     { key: 'jobs:reopen', label: 'Reabrir Casos Concluídos/Entregues', category: 'Produção' },
     { key: 'jobs:alert', label: 'Usar Alerta (Chat/Notificações)', category: 'Produção' },
