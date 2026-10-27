@@ -12,7 +12,6 @@ import { MultiSelect } from '../components/MultiSelect';
 import { usePageFilterCache, cachedNormalizeText } from '../utils/pageCache';
 
 import { StoreTopMenu } from '../components/StoreTopMenu';
-import { apiRecoverAndRepairJobs } from '../services/firebaseService';
 
 // Helper function to extract and style the origin of a job
 export const getJobOriginInfo = (job: any) => {
@@ -615,15 +614,6 @@ export const JobsList = ({ isStoreContext, isBudgetMode }: { isStoreContext?: bo
   const [routeDate, setRouteDate] = useState(new Date().toISOString().split('T')[0]);
   const [routeObservations, setRouteObservations] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isRecovering, setIsRecovering] = useState(false);
-  const [recoveryResult, setRecoveryResult] = useState<{
-    success: boolean;
-    recoveredJobsCount: number;
-    repairedJobsCount: number;
-    repairedCommissionsCount: number;
-    message: string;
-    details: string[];
-  } | null>(null);
 
   const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
   const isPast12PM = useMemo(() => new Date().getHours() >= 12, []);
@@ -671,26 +661,7 @@ const handleUpdateStatus = async (jobId: string, status: JobStatus) => {
 
   const currentOrgId = activeOrganization?.id || currentUser?.organizationId;
 
-  const handleRunRecovery = async () => {
-    if (!currentOrgId) return;
-    setIsRecovering(true);
-    setRecoveryResult(null);
-    try {
-      const res = await apiRecoverAndRepairJobs(currentOrgId);
-      setRecoveryResult(res);
-    } catch (err: any) {
-      setRecoveryResult({
-        success: false,
-        recoveredJobsCount: 0,
-        repairedJobsCount: 0,
-        repairedCommissionsCount: 0,
-        message: 'Falha ao executar o diagnóstico de recuperação.',
-        details: []
-      });
-    } finally {
-      setIsRecovering(false);
-    }
-  };
+
 
   const dentistOptions = useMemo(() => [
     ...manualDentists.map(d => ({ value: d.id, label: d.name })),
@@ -1164,17 +1135,7 @@ const handleUpdateStatus = async (jobId: string, status: JobStatus) => {
           <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400">{t('orders.showingResults', { count: filteredJobs.length, defaultValue: `Mostrando ${filteredJobs.length} registros encontrados.` })}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {!isClient && (isAdmin || isManager) && (
-             <button 
-               onClick={handleRunRecovery} 
-               disabled={isRecovering}
-               className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-3 rounded-xl font-bold uppercase tracking-tight flex items-center gap-2 active:scale-95 transition-transform text-xs sm:text-sm shadow-sm cursor-pointer disabled:opacity-50"
-               title="Diagnosticar e Restaurar Casos (OS 0001 a 0043 do dia 01/10/2026)"
-             >
-                {isRecovering ? <Loader2 size={18} className="animate-spin" /> : <RefreshCcw size={18} />} 
-                {isRecovering ? 'Restaurando...' : 'Recuperar Casos (01/10)'}
-             </button>
-          )}
+
           {isBudgetMode && canCreateBudget && (
              <button onClick={() => navigate('/new-budget')} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-xl font-bold uppercase tracking-tight flex items-center gap-2 active:scale-95 transition-transform text-xs sm:text-sm shadow-sm">
                 <PlusCircle size={18} /> {t('orders.newBudget', 'Novo Orçamento')}
@@ -1562,69 +1523,7 @@ const handleUpdateStatus = async (jobId: string, status: JobStatus) => {
               </div>
           </div>
       )}
-      {recoveryResult && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-[#131B2A] rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in duration-200">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 mb-4">
-              <div className="flex items-center gap-3">
-                <div className={`p-3 rounded-2xl ${recoveryResult.success ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400' : 'bg-rose-100 text-rose-600 dark:bg-rose-950/50 dark:text-rose-400'}`}>
-                  {recoveryResult.success ? <CheckCircle2 size={24} /> : <AlertCircle size={24} />}
-                </div>
-                <div>
-                  <h3 className="font-black text-slate-900 dark:text-slate-100 text-lg">Relatório de Restauração</h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">Diagnóstico da base de dados (OS 0001 - OS 0043)</p>
-                </div>
-              </div>
-              <button 
-                onClick={() => setRecoveryResult(null)}
-                className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg"
-              >
-                <X size={20} />
-              </button>
-            </div>
 
-            <div className="space-y-4">
-              <div className="p-4 bg-slate-50 dark:bg-slate-900/60 rounded-2xl border border-slate-200 dark:border-slate-800 text-sm font-medium text-slate-700 dark:text-slate-300">
-                {recoveryResult.message}
-              </div>
-
-              <div className="grid grid-cols-3 gap-3 text-center">
-                <div className="p-3 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/50 rounded-2xl">
-                  <span className="text-xl font-black text-blue-600 dark:text-blue-400 block">{recoveryResult.recoveredJobsCount}</span>
-                  <span className="text-[10px] font-bold uppercase text-blue-700 dark:text-blue-300">Casos Criados</span>
-                </div>
-                <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/50 rounded-2xl">
-                  <span className="text-xl font-black text-emerald-600 dark:text-emerald-400 block">{recoveryResult.repairedJobsCount}</span>
-                  <span className="text-[10px] font-bold uppercase text-emerald-700 dark:text-emerald-300">Casos Corrigidos</span>
-                </div>
-                <div className="p-3 bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-900/50 rounded-2xl">
-                  <span className="text-xl font-black text-purple-600 dark:text-purple-400 block">{recoveryResult.repairedCommissionsCount}</span>
-                  <span className="text-[10px] font-bold uppercase text-purple-700 dark:text-purple-300">Comissões Salvas</span>
-                </div>
-              </div>
-
-              {recoveryResult.details && recoveryResult.details.length > 0 && (
-                <div className="max-h-48 overflow-y-auto p-3 bg-slate-100 dark:bg-slate-900 rounded-xl space-y-1 font-mono text-xs text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800">
-                  {recoveryResult.details.map((detail, idx) => (
-                    <div key={idx} className="flex items-center gap-1.5">
-                      <span className="text-emerald-500 font-bold">✓</span> {detail}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="mt-6 flex justify-end">
-              <button
-                onClick={() => setRecoveryResult(null)}
-                className="w-full py-3 bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 font-black rounded-xl hover:opacity-90 transition-opacity uppercase tracking-wider text-xs cursor-pointer"
-              >
-                Concluído
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
     </div>
   );

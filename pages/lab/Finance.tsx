@@ -3315,6 +3315,7 @@ export const Finance = () => {
                                                     >
                                                         <option value="PIX">PIX</option>
                                                         <option value="CASH">Dinheiro</option>
+                                                        <option value="CHEQUE">Cheque</option>
                                                         <option value="CREDIT_CARD">Cartão de Crédito</option>
                                                         <option value="DEBIT_CARD">Cartão de Débito</option>
                                                         <option value="BANK_TRANSFER">Transferência Bancária</option>
@@ -3925,6 +3926,7 @@ export const Finance = () => {
                                       >
                                           <option value="PIX">PIX</option>
                                           <option value="CASH">Dinheiro</option>
+                                           <option value="CHEQUE">Cheque</option>
                                           <option value="CREDIT_CARD">Cartão de Crédito</option>
                                           <option value="DEBIT_CARD">Cartão de Débito</option>
                                           <option value="BANK_TRANSFER">Transferência Bancária</option>
