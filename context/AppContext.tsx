@@ -1121,8 +1121,51 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       const orgId = activeDataId;
       if (!orgId) throw new Error("Nenhum laboratório ativo.");
       const now = new Date();
-      const jobId = `job_${Date.now()}`;
+      const jobId = `job_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
       
+      // Strict Context-Level OS Uniqueness Check
+      let finalOs = String(j.osNumber || '').trim();
+      if (!finalOs) {
+          let max = 0;
+          [...jobs, ...(budgets || []).map(b => ({ osNumber: b.osNumber }))].forEach(item => {
+              const osStr = String(item.osNumber || '').trim();
+              const basePart = osStr.split('-')[0].replace(/\D/g, '');
+              const num = parseInt(basePart, 10);
+              if (!isNaN(num) && num > max) max = num;
+          });
+          finalOs = (max + 1).toString().padStart(4, '0');
+      } else {
+          // Check if finalOs already exists in local jobs or budgets state
+          const isDuplicate = jobs.some(existing => String(existing.osNumber || '').trim().toLowerCase() === finalOs.toLowerCase());
+          if (isDuplicate) {
+              if ((j as any).entryType === 'CONTINUATION' || finalOs.includes('-')) {
+                  const baseOs = finalOs.split('-')[0];
+                  const matching = jobs.filter(existing => String(existing.osNumber || '').trim().toLowerCase().startsWith(baseOs.toLowerCase()));
+                  let maxSeq = 1;
+                  matching.forEach(m => {
+                      const mOs = String(m.osNumber || '').trim();
+                      if (mOs.includes('-')) {
+                          const seq = parseInt(mOs.split('-')[1], 10);
+                          if (!isNaN(seq) && seq >= maxSeq) maxSeq = seq + 1;
+                      } else {
+                          if (maxSeq === 1) maxSeq = 2;
+                      }
+                  });
+                  finalOs = `${baseOs}-${maxSeq}`;
+              } else {
+                  // Standalone new OS duplicate: automatically assign next available numeric OS
+                  let max = 0;
+                  [...jobs, ...(budgets || []).map(b => ({ osNumber: b.osNumber }))].forEach(item => {
+                      const osStr = String(item.osNumber || '').trim();
+                      const basePart = osStr.split('-')[0].replace(/\D/g, '');
+                      const num = parseInt(basePart, 10);
+                      if (!isNaN(num) && num > max) max = num;
+                  });
+                  finalOs = (max + 1).toString().padStart(4, '0');
+              }
+          }
+      }
+
       // Auto-include client's fixed external notes if defined and not already included
       let finalJobNotes = j.notes || '';
       const matchedClient = manualDentists.find(d => d.id === j.dentistId || (d as any).userId === j.dentistId) ||
@@ -1136,6 +1179,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
       await api.apiAddJob(orgId, { 
           ...j, 
+          osNumber: finalOs,
           notes: finalJobNotes,
           id: jobId, 
           organizationId: orgId,
@@ -1155,7 +1199,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
               senderId: currentUser?.id,
               data: {
                   jobId: jobId,
-                  osNumber: j.osNumber,
+                  osNumber: finalOs,
                   patientName: j.patientName,
                   url: '/incoming-orders'
               }
@@ -1168,7 +1212,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const addBudget = async (b: Omit<Budget, 'id'|'organizationId'>) => {
       const orgId = activeDataId;
       if (!orgId) throw new Error("Nenhum laboratório ativo.");
-      const budgetId = `bud_${Date.now()}`;
+      const budgetId = `bud_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
       await api.apiAddBudget(orgId, { 
           ...b, 
           id: budgetId, 

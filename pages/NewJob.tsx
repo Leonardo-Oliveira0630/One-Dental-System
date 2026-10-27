@@ -598,7 +598,8 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
     let max = 0;
     const all = [...jobs, ...(budgets || []).map(b => ({ osNumber: b.osNumber }))];
     for (let i = 0; i < all.length; i++) {
-      const osStr = String(all[i].osNumber || '');
+      const osStr = String(all[i].osNumber || '').trim();
+      if (!osStr) continue;
       const basePart = osStr.split('-')[0].replace(/\D/g, '');
       const num = parseInt(basePart, 10);
       if (!isNaN(num) && num > max) {
