@@ -512,14 +512,12 @@ export const subscribeJobs = (orgId: string, userId: string | null, isClient: bo
         
         let q1 = query(
             collection(db, `organizations/${orgId}/jobs`), 
-            where('dentistId', 'in', dentistIds),
-            limit(2500)
+            where('dentistId', 'in', dentistIds)
         );
         
         let q2 = query(
             collection(db, `organizations/${orgId}/jobs`), 
-            where('dentistUserId', '==', userId),
-            limit(2500)
+            where('dentistUserId', '==', userId)
         );
 
         let jobsCache1: Map<string, Job> = new Map();
@@ -593,14 +591,12 @@ export const subscribeJobs = (orgId: string, userId: string | null, isClient: bo
 
     let q = query(
         collection(db, `organizations/${orgId}/jobs`),
-        orderBy('createdAt', 'desc'),
-        limit(2500)
+        orderBy('createdAt', 'desc')
     );
 
     let qStore = query(
         collection(db, `organizations/${orgId}/jobs`),
-        where('origin', 'in', ['ONLINE_ORDER', 'ONLINE_REQUISITION']),
-        limit(2500)
+        where('origin', 'in', ['ONLINE_ORDER', 'ONLINE_REQUISITION'])
     );
 
     // Cache local para exigir mapeamento integral apenas em updates deltas
@@ -686,12 +682,26 @@ export const subscribeBudgets = (orgId: string, callback: (budgets: Budget[]) =>
 export const apiAddJob = (orgId: string, job: Job) => setDoc(doc(db, `organizations/${orgId}/jobs`, job.id), job);
 export const apiUpdateJob = (orgId: string, id: string, updates: Partial<Job>) => updateDoc(doc(db, `organizations/${orgId}/jobs`, id), updates);
 
+export const apiCheckOsExists = async (orgId: string, osNumber: string): Promise<boolean> => {
+    if (!orgId || !osNumber) return false;
+    try {
+        const q = query(
+            collection(db, `organizations/${orgId}/jobs`),
+            where('osNumber', '==', osNumber),
+            limit(1)
+        );
+        const snap = await getDocs(q);
+        return !snap.empty;
+    } catch {
+        return false;
+    }
+};
+
 export const subscribeDentistJobs = (orgId: string, dentistId: string, cb: (jobs: Job[]) => void) => {
     if (!orgId || !dentistId) return () => {};
     const q = query(
         collection(db, `organizations/${orgId}/jobs`), 
-        where('dentistId', '==', dentistId),
-        limit(1000)
+        where('dentistId', '==', dentistId)
     );
 
     let jobsCache: Map<string, Job> = new Map();

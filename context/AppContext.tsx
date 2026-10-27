@@ -1130,9 +1130,10 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       const now = new Date();
       const jobId = `job_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
       
-      // Strict Context-Level OS Uniqueness Check
+      // Strict Context-Level and Database-Level OS Uniqueness Verification
       let finalOs = String(j.osNumber || '').trim();
-      if (!finalOs) {
+
+      const calculateMaxNumericOs = () => {
           let max = 0;
           [...jobs, ...(budgets || []).map(b => ({ osNumber: b.osNumber }))].forEach(item => {
               const osStr = String(item.osNumber || '').trim();
@@ -1140,11 +1141,15 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
               const num = parseInt(basePart, 10);
               if (!isNaN(num) && num > max) max = num;
           });
-          finalOs = (max + 1).toString().padStart(4, '0');
+          return max;
+      };
+
+      if (!finalOs) {
+          finalOs = (calculateMaxNumericOs() + 1).toString().padStart(4, '0');
       } else {
           // Check if finalOs already exists in local jobs or budgets state
-          const isDuplicate = jobs.some(existing => String(existing.osNumber || '').trim().toLowerCase() === finalOs.toLowerCase());
-          if (isDuplicate) {
+          const isDuplicateLocal = jobs.some(existing => String(existing.osNumber || '').trim().toLowerCase() === finalOs.toLowerCase());
+          if (isDuplicateLocal) {
               if ((j as any).entryType === 'CONTINUATION' || finalOs.includes('-')) {
                   const baseOs = finalOs.split('-')[0];
                   const matching = jobs.filter(existing => String(existing.osNumber || '').trim().toLowerCase().startsWith(baseOs.toLowerCase()));
@@ -1161,16 +1166,21 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
                   finalOs = `${baseOs}-${maxSeq}`;
               } else {
                   // Standalone new OS duplicate: automatically assign next available numeric OS
-                  let max = 0;
-                  [...jobs, ...(budgets || []).map(b => ({ osNumber: b.osNumber }))].forEach(item => {
-                      const osStr = String(item.osNumber || '').trim();
-                      const basePart = osStr.split('-')[0].replace(/\D/g, '');
-                      const num = parseInt(basePart, 10);
-                      if (!isNaN(num) && num > max) max = num;
-                  });
-                  finalOs = (max + 1).toString().padStart(4, '0');
+                  finalOs = (calculateMaxNumericOs() + 1).toString().padStart(4, '0');
               }
           }
+      }
+
+      // Safety Verification: Direct Firestore Query to prevent duplicate OS if concurrent entry occurs
+      try {
+          const existsInFirestore = await api.apiCheckOsExists(orgId, finalOs);
+          if (existsInFirestore) {
+              logger.warn(`[addJob] Concorrência detectada para OS #${finalOs}. Atribuindo número superior para evitar duplicidade.`);
+              const highestLocal = calculateMaxNumericOs();
+              finalOs = (highestLocal + 1).toString().padStart(4, '0');
+          }
+      } catch (checkErr) {
+          logger.warn({ err: checkErr }, "[addJob] Falha na checagem em tempo real de OS no Firestore");
       }
 
       // Auto-include client's fixed external notes if defined and not already included
