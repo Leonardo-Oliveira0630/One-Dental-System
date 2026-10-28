@@ -2,8 +2,8 @@
 import React, { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '../context/AppContext';
-import { UserRole, CommissionStatus, Job } from '../types';
-import { DollarSign, CheckCircle, Clock, Calendar, User, Search, Filter, Download, FileText, FileSpreadsheet, Users, Layers, Trash2, RefreshCw, CheckCircle2, Loader2, AlertCircle, X } from 'lucide-react';
+import { UserRole, CommissionStatus, Job, CommissionRecord } from '../types';
+import { DollarSign, CheckCircle, Clock, Calendar, User, Search, Filter, Download, FileText, FileSpreadsheet, Users, Layers, Trash2, RefreshCw, CheckCircle2, Loader2, AlertCircle, AlertTriangle, X } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
@@ -270,12 +270,34 @@ export const Commissions = () => {
       }
 
       // Cópia de trabalho em memória para rastrear atualizações e novas inserções no mesmo ciclo
-      // Isso impede que múltiplos lançamentos da mesma OS colidam ou sobrescrevam registros em lote!
       const workingCommissions: CommissionRecord[] = [...commissions];
       const usedLegacyRecordIds = new Set<string>();
       const processedUnitKeys = new Set<string>();
 
-      // Faturar/persistir cada unidade de serviço ou etapa encontrada
+      // 1. Limpeza preventiva imediata de duplicidades pendentes pré-existentes no banco de dados
+      const seenExistingKeys = new Map<string, CommissionRecord>();
+      const initialDupsToDelete: string[] = [];
+      for (const c of workingCommissions) {
+        if (c.status === CommissionStatus.PENDING && c.jobId && c.userId) {
+          const normStage = (c.stageName || 'Produção Base').trim();
+          const normItem = (c.itemId || c.sector || 'geral').trim();
+          const key = `${c.jobId}_${c.userId}_${normItem}_${normStage}`;
+          if (seenExistingKeys.has(key)) {
+            initialDupsToDelete.push(c.id);
+          } else {
+            seenExistingKeys.set(key, c);
+          }
+        }
+      }
+      if (initialDupsToDelete.length > 0) {
+        for (const id of initialDupsToDelete) {
+          await deleteCommissionRecord(id);
+          const idx = workingCommissions.findIndex(c => c.id === id);
+          if (idx !== -1) workingCommissions.splice(idx, 1);
+        }
+      }
+
+      // 2. Faturar/persistir cada unidade de serviço ou etapa encontrada
       for (const unit of billableUnits) {
         const unitKey = `${unit.jobId}_${unit.userId}_${unit.itemId}_${unit.stageName}`;
         if (processedUnitKeys.has(unitKey)) {
@@ -283,16 +305,35 @@ export const Commissions = () => {
         }
         processedUnitKeys.add(unitKey);
 
-        // 1. Procurar correspondência exata por item e etapa
-        const exactMatchIndex = workingCommissions.findIndex(c => 
-          c.jobId === unit.jobId && 
-          c.userId === unit.userId && 
-          c.itemId === unit.itemId && 
-          (c.stageName === unit.stageName || (!c.stageName && unit.stageName === 'Produção Base'))
-        );
+        // Procurar correspondência exata por item e etapa
+        const matchingIndices: number[] = [];
+        workingCommissions.forEach((c, idx) => {
+          if (
+            c.jobId === unit.jobId && 
+            c.userId === unit.userId && 
+            c.itemId === unit.itemId && 
+            (c.stageName === unit.stageName || (!c.stageName && unit.stageName === 'Produção Base'))
+          ) {
+            matchingIndices.push(idx);
+          }
+        });
 
-        if (exactMatchIndex !== -1) {
+        if (matchingIndices.length > 0) {
+          const exactMatchIndex = matchingIndices[0];
           const existing = workingCommissions[exactMatchIndex];
+
+          // Se houver mais de uma correspondência para o mesmo item/etapa, deletar as duplicatas redundantes!
+          if (matchingIndices.length > 1) {
+            for (let i = 1; i < matchingIndices.length; i++) {
+              const dupComm = workingCommissions[matchingIndices[i]];
+              if (dupComm.status === CommissionStatus.PENDING) {
+                await deleteCommissionRecord(dupComm.id);
+                const rmIdx = workingCommissions.findIndex(c => c.id === dupComm.id);
+                if (rmIdx !== -1) workingCommissions.splice(rmIdx, 1);
+              }
+            }
+          }
+
           // Nunca alterar lançamentos já pagos!
           if (existing.status === CommissionStatus.PENDING) {
             const existingTime = existing.createdAt ? new Date(existing.createdAt).getTime() : 0;
@@ -320,7 +361,7 @@ export const Commissions = () => {
             }
           }
         } else {
-          // 2. Procurar registro legado pendente do mesmo trabalho/usuário que ainda não tenha sido reaproveitado
+          // Procurar registro legado pendente do mesmo trabalho/usuário que ainda não tenha sido reaproveitado
           const legacyIndex = workingCommissions.findIndex(c => 
             c.jobId === unit.jobId && 
             c.userId === unit.userId && 
@@ -347,7 +388,7 @@ export const Commissions = () => {
             workingCommissions[legacyIndex] = { ...legacyRecord, ...updatedFields };
             updatedCount++;
           } else {
-            // 3. Criar novo registro detalhado de comissão
+            // Criar novo registro detalhado de comissão
             const newId = `comm_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
             const newRecord: CommissionRecord = {
               id: newId,
@@ -378,7 +419,8 @@ export const Commissions = () => {
         `• ${jobs.length} trabalhos analisados no laboratório.\n` +
         `• ${billableUnits.length} etapas/serviços com saída no período identificados.\n` +
         `• ${createdCount} novos lançamentos de comissão faturados.\n` +
-        `• ${updatedCount} lançamentos existentes atualizados com a data correta de saída.`
+        `• ${updatedCount} lançamentos existentes atualizados com a data correta de saída.` +
+        (initialDupsToDelete.length > 0 ? `\n• ${initialDupsToDelete.length} comissões duplicadas antigas foram limpas com sucesso.` : '')
       );
     } catch (err: any) {
       console.error(err);
@@ -390,95 +432,240 @@ export const Commissions = () => {
 
   const isManager = currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.MANAGER || currentUser?.role === UserRole.SUPER_ADMIN || !!currentUser?.permissions?.includes('commissions:view');
 
+  const [isDeduplicating, setIsDeduplicating] = useState(false);
+
+  // Rastrear lançamentos duplicados no banco de dados para alerta e limpeza
+  const duplicatePendingRecords = useMemo(() => {
+    const seen = new Map<string, string[]>();
+    commissions.forEach(c => {
+      if (c.status === CommissionStatus.PENDING && c.jobId && c.userId) {
+        const normStage = (c.stageName || 'Produção Base').trim();
+        const normItem = (c.itemId || c.sector || 'geral').trim();
+        const key = `${c.jobId}_${c.userId}_${normItem}_${normStage}`;
+        const list = seen.get(key) || [];
+        list.push(c.id);
+        seen.set(key, list);
+      }
+    });
+    const dupIds: string[] = [];
+    seen.forEach(ids => {
+      if (ids.length > 1) {
+        // Mantém o primeiro, marca as demais cópias como duplicatas
+        dupIds.push(...ids.slice(1));
+      }
+    });
+    return dupIds;
+  }, [commissions]);
+
+  const handleDeduplicateCommissions = async () => {
+    if (duplicatePendingRecords.length === 0) {
+      alert("Nenhuma duplicidade encontrada no banco de dados.");
+      return;
+    }
+    const confirmed = window.confirm(
+      `Deseja realmente remover ${duplicatePendingRecords.length} lançamentos de comissão duplicados do banco de dados?\n\n` +
+      `• Os lançamentos legítimos originais serão mantidos intactos.\n` +
+      `• Apenas as cópias duplicadas serão excluídas com segurança.`
+    );
+    if (!confirmed) return;
+
+    setIsDeduplicating(true);
+    try {
+      let deletedCount = 0;
+      for (const id of duplicatePendingRecords) {
+        await deleteCommissionRecord(id);
+        deletedCount++;
+      }
+      alert(`Limpeza de duplicidades realizada com sucesso!\n\n${deletedCount} registros duplicados foram excluídos.`);
+    } catch (err: any) {
+      console.error(err);
+      alert(`Erro ao limpar duplicidades: ${err.message || 'Erro desconhecido'}`);
+    } finally {
+      setIsDeduplicating(false);
+    }
+  };
+
   // Desmembrar e enriquecer dados de comissões por cada tipo de serviço ou etapa executada separadamente
+  // BLINDADO CONTRA DUPLICIDADES: Cada serviço/etapa aparece exatamente uma vez!
   const enrichedCommissions: EnrichedCommission[] = useMemo(() => {
-    // 1. Agrupar lançamentos por chave de consolidação ou individual
-    const groupsMap = new Map<string, {
-      ids: string[];
-      comm: any;
-      totalAmount: number;
-      latestCreatedAt: Date;
-      sectors: Set<string>;
-      itemsDirect: { itemName?: string; stageName?: string; quantity?: number; itemId?: string; amount?: number }[];
-    }>();
+    // Modo 1: Consolidado por Caso / OS
+    if (consolidateByJob) {
+      const jobGroups = new Map<string, {
+        ids: string[];
+        comm: any;
+        totalAmount: number;
+        latestCreatedAt: Date;
+        sectors: Set<string>;
+        detailsMap: Map<string, EnrichedItemExecutionDetail>;
+        totalQuantity: number;
+      }>();
 
-    commissions.forEach(comm => {
-      const groupKey = (consolidateByJob && comm.jobId) 
-        ? `${comm.jobId}_${comm.userId}_${comm.status}`
-        : comm.id;
+      commissions.forEach(comm => {
+        const groupKey = `${comm.jobId || comm.id}_${comm.userId}_${comm.status}`;
+        const commDate = parseSafeDate(comm.createdAt) || new Date();
+        const existing = jobGroups.get(groupKey);
 
-      const commDate = parseSafeDate(comm.createdAt) || new Date();
-      const existing = groupsMap.get(groupKey);
-      if (existing) {
-        existing.ids.push(comm.id);
-        existing.totalAmount += (comm.amount || 0);
-        if (commDate > existing.latestCreatedAt) {
-          existing.latestCreatedAt = commDate;
-        }
-        if (comm.sector) existing.sectors.add(comm.sector);
-        if (comm.itemName || comm.stageName || comm.itemId) {
-          existing.itemsDirect.push({ 
-            itemId: comm.itemId, 
-            itemName: comm.itemName, 
-            stageName: comm.stageName, 
-            quantity: comm.quantity,
-            amount: comm.amount
+        const stageName = comm.stageName || 'Produção Base';
+        const serviceName = comm.itemName || 'Serviço';
+        const detailKey = `${serviceName}_${stageName}`;
+
+        if (existing) {
+          existing.ids.push(comm.id);
+          existing.totalAmount += (comm.amount || 0);
+          if (commDate > existing.latestCreatedAt) {
+            existing.latestCreatedAt = commDate;
+          }
+          if (comm.sector) existing.sectors.add(comm.sector);
+          
+          if (!existing.detailsMap.has(detailKey)) {
+            existing.detailsMap.set(detailKey, {
+              serviceTypeName: serviceName,
+              stagesExecuted: stageName !== 'Produção Base' ? [stageName] : [],
+              isBaseOnly: stageName === 'Produção Base',
+              quantity: comm.quantity || 1
+            });
+            existing.totalQuantity += (comm.quantity || 1);
+          }
+        } else {
+          const sectors = new Set<string>();
+          if (comm.sector) sectors.add(comm.sector);
+          const detailsMap = new Map<string, EnrichedItemExecutionDetail>();
+          detailsMap.set(detailKey, {
+            serviceTypeName: serviceName,
+            stagesExecuted: stageName !== 'Produção Base' ? [stageName] : [],
+            isBaseOnly: stageName === 'Produção Base',
+            quantity: comm.quantity || 1
+          });
+
+          jobGroups.set(groupKey, {
+            ids: [comm.id],
+            comm: comm,
+            totalAmount: comm.amount || 0,
+            latestCreatedAt: commDate,
+            sectors: sectors,
+            detailsMap: detailsMap,
+            totalQuantity: comm.quantity || 1
           });
         }
-      } else {
-        const sectors = new Set<string>();
-        if (comm.sector) sectors.add(comm.sector);
-        groupsMap.set(groupKey, {
-          ids: [comm.id],
-          comm: comm,
-          totalAmount: comm.amount || 0,
-          latestCreatedAt: commDate,
-          sectors: sectors,
-          itemsDirect: (comm.itemName || comm.stageName || comm.itemId) 
-            ? [{ 
-                itemId: comm.itemId, 
-                itemName: comm.itemName, 
-                stageName: comm.stageName, 
-                quantity: comm.quantity,
-                amount: comm.amount
-              }] 
-            : []
+      });
+
+      const list: EnrichedCommission[] = [];
+      jobGroups.forEach(grp => {
+        const comm = grp.comm;
+        const job = jobs.find(j => j.id === comm.jobId);
+        const details = Array.from(grp.detailsMap.values());
+        const serviceTypesFormatted = details.map(d => {
+          const stg = d.stagesExecuted.length > 0 ? ` (${d.stagesExecuted.join(', ')})` : ' (Produção Base)';
+          return `${d.serviceTypeName}${stg}`;
+        }).join(' | ');
+
+        list.push({
+          id: comm.id,
+          ids: grp.ids,
+          userId: comm.userId,
+          userName: comm.userName,
+          jobId: comm.jobId,
+          osNumber: comm.osNumber || (job?.osNumber || 'N/A'),
+          patientName: comm.patientName || (job?.patientName || 'N/A'),
+          dentistName: job?.dentistName || 'N/A',
+          serviceTypes: serviceTypesFormatted,
+          executedDetails: details,
+          quantity: grp.totalQuantity,
+          sector: Array.from(grp.sectors).join(', ') || comm.sector || 'Geral',
+          amount: Math.round(grp.totalAmount * 100) / 100,
+          status: comm.status,
+          createdAt: grp.latestCreatedAt
         });
+      });
+      return list;
+    }
+
+    // Modo 2: Lançamentos Detalhados (1 linha por tipo de serviço ou etapa executada, sem duplicações!)
+    const resultList: EnrichedCommission[] = [];
+    const seenBillableKeys = new Map<string, EnrichedCommission>();
+
+    // Conjunto de jobs que já possuem lançamentos detalhados com itemId/stageName
+    const jobsWithDetailedComms = new Set<string>();
+    commissions.forEach(c => {
+      if (c.jobId && (c.itemId || c.stageName)) {
+        jobsWithDetailedComms.add(`${c.jobId}_${c.userId}`);
       }
     });
 
-    const resultList: EnrichedCommission[] = [];
-
-    // 2. Para cada grupo, extrair e desmembrar cada tipo de serviço / etapa em uma linha separada
-    groupsMap.forEach(group => {
-      const comm = group.comm;
+    for (const comm of commissions) {
       const job = jobs.find(j => j.id === comm.jobId);
-      const user = allUsers.find(u => u.id === comm.userId);
+      const exactRowDate = parseSafeDate(comm.createdAt) || new Date();
 
-      interface SubItem {
-        serviceTypeName: string;
-        stageName: string;
-        quantity: number;
-        calculatedAmount: number;
-        sector: string;
-        exitDate?: Date;
+      // Caso A: Lançamento que JÁ É de item/etapa específico (faturado ou com itemId/stageName)
+      if (comm.itemId || comm.stageName) {
+        const srvName = comm.itemName || job?.items?.find((i: any) => i.id === comm.itemId)?.name || 'Serviço';
+        const stgName = comm.stageName || 'Produção Base';
+        const stgText = stgName !== 'Produção Base' ? `Etapa: ${stgName}` : 'Produção Base';
+        const serviceTypesFormatted = `${srvName} (${stgText})`;
+
+        // Chave estrita de unicidade anti-duplicidade:
+        // Se já existe no banco mais de um registro para a mesma OS, colaborador, item e etapa, agregamos os IDs e NÃO mostramos linha duplicada!
+        const normItem = (comm.itemId || srvName).trim();
+        const normStage = stgName.trim();
+        const dedupKey = `${comm.jobId}_${comm.userId}_${normItem}_${normStage}_${comm.status}`;
+
+        if (seenBillableKeys.has(dedupKey)) {
+          const existing = seenBillableKeys.get(dedupKey)!;
+          existing.ids.push(comm.id);
+          if (exactRowDate > existing.createdAt) {
+            existing.createdAt = exactRowDate;
+          }
+          // Nunca somar duas vezes nem duplicar a linha!
+          continue;
+        }
+
+        const enriched: EnrichedCommission = {
+          id: comm.id,
+          ids: [comm.id],
+          userId: comm.userId,
+          userName: comm.userName,
+          jobId: comm.jobId,
+          osNumber: comm.osNumber || (job?.osNumber || 'N/A'),
+          patientName: comm.patientName || (job?.patientName || 'N/A'),
+          dentistName: job?.dentistName || 'N/A',
+          serviceTypeName: srvName,
+          stageName: stgName,
+          serviceTypes: serviceTypesFormatted,
+          executedDetails: [{
+            serviceTypeName: srvName,
+            stagesExecuted: stgName !== 'Produção Base' ? [stgName] : [],
+            isBaseOnly: stgName === 'Produção Base',
+            quantity: comm.quantity || 1
+          }],
+          quantity: comm.quantity || 1,
+          sector: comm.sector || 'Geral',
+          amount: comm.amount || 0,
+          status: comm.status,
+          createdAt: exactRowDate
+        };
+
+        seenBillableKeys.set(dedupKey, enriched);
+        resultList.push(enriched);
+        continue;
       }
 
-      const subItems: SubItem[] = [];
+      // Caso B: Lançamento legado sem itemId e sem stageName
+      // Se este mesmo trabalho e colaborador já possui lançamentos detalhados faturados, este legado é redundante/obsoleto
+      if (comm.jobId && jobsWithDetailedComms.has(`${comm.jobId}_${comm.userId}`)) {
+        continue;
+      }
+
+      // Desmembrar o registro legado único através das execuções do trabalho (se houver)
+      const user = allUsers.find(u => u.id === comm.userId);
+      const subItems: { serviceTypeName: string; stageName: string; quantity: number; calculatedAmount: number; sector: string; exitDate?: Date }[] = [];
 
       if (job && job.itemExecutions && job.itemExecutions.length > 0) {
         let userExecutions = job.itemExecutions.filter(
           (e: any) => e.userId === comm.userId || (e.stageTimes && Object.values(e.stageTimes).some((st: any) => st?.exitUserId === comm.userId || st?.entryUserId === comm.userId))
         );
-
-        if (!consolidateByJob && group.ids.length === 1) {
-          if (comm.itemId) {
-            const matched = userExecutions.filter((e: any) => e.itemId === comm.itemId);
-            if (matched.length > 0) userExecutions = matched;
-          } else if (comm.sector) {
-            const bySector = userExecutions.filter((e: any) => e.sector === comm.sector);
-            if (bySector.length > 0) userExecutions = bySector;
-          }
+        if (comm.sector) {
+          const bySector = userExecutions.filter((e: any) => e.sector === comm.sector);
+          if (bySector.length > 0) userExecutions = bySector;
         }
 
         userExecutions.forEach((exec: any) => {
@@ -506,7 +693,6 @@ export const Commissions = () => {
           const isBaseForUser = (exec.isBaseChecked !== false) &&
             (!exec.stageTimes?.['BASE']?.exitUserId || exec.stageTimes?.['BASE']?.exitUserId === comm.userId || exec.userId === comm.userId);
 
-          // Etapas executadas
           if (stagesForUser.length > 0) {
             stagesForUser.forEach((stg: string) => {
               let stageQty = secQty;
@@ -516,11 +702,7 @@ export const Commissions = () => {
                   stageQty = (customQty === 1 && secQty > 1) ? secQty : customQty;
                 }
               }
-
-              const stgAmt = user ? calculateItemCommission(
-                item, jt, user, secQty, sec, [stg], false, commissionGroups
-              ) : 0;
-
+              const stgAmt = user ? calculateItemCommission(item, jt, user, secQty, sec, [stg], false, commissionGroups) : 0;
               const stData = exec.stageTimes?.[stg];
               const stExitDate = parseSafeDate(stData?.exitTime) || parseSafeDate(stData?.entryTime) || parseSafeDate(exec.exitTime) || parseSafeDate(exec.timestamp);
 
@@ -535,16 +717,10 @@ export const Commissions = () => {
             });
           }
 
-          // Serviço Base executado
           if (isBaseForUser) {
-            const fullWithBase = user ? calculateItemCommission(
-              item, jt, user, secQty, sec, stagesForUser, true, commissionGroups
-            ) : 0;
-            const fullWithoutBase = user ? calculateItemCommission(
-              item, jt, user, secQty, sec, stagesForUser, false, commissionGroups
-            ) : 0;
+            const fullWithBase = user ? calculateItemCommission(item, jt, user, secQty, sec, stagesForUser, true, commissionGroups) : 0;
+            const fullWithoutBase = user ? calculateItemCommission(item, jt, user, secQty, sec, stagesForUser, false, commissionGroups) : 0;
             const baseAmt = Math.max(0, fullWithBase - fullWithoutBase);
-
             const baseData = exec.stageTimes?.['BASE'];
             const baseExitDate = parseSafeDate(baseData?.exitTime) || parseSafeDate(baseData?.entryTime) || parseSafeDate(exec.exitTime) || parseSafeDate(exec.timestamp);
 
@@ -560,78 +736,42 @@ export const Commissions = () => {
         });
       }
 
-      // Fallback se não houver execuções detalhadas
       if (subItems.length === 0) {
-        if (group.itemsDirect.length > 0) {
-          group.itemsDirect.forEach(d => {
-            subItems.push({
-              serviceTypeName: d.itemName || 'Serviço',
-              stageName: d.stageName || 'Produção Base',
-              quantity: d.quantity || 1,
-              calculatedAmount: d.amount || (group.totalAmount / group.itemsDirect.length),
-              sector: comm.sector || 'Geral'
-            });
-          });
-        } else if (comm.itemName || comm.stageName) {
-          subItems.push({
-            serviceTypeName: comm.itemName || 'Serviço',
-            stageName: comm.stageName || 'Produção Base',
-            quantity: comm.quantity || 1,
-            calculatedAmount: group.totalAmount,
-            sector: comm.sector || 'Geral'
-          });
-        } else if (job && job.items && job.items.length > 0) {
-          const validItems = job.items.filter((i: any) => !i.commissionDisabled);
-          const perItemAmt = group.totalAmount / (validItems.length || 1);
-          validItems.forEach((i: any) => {
-            subItems.push({
-              serviceTypeName: i.name,
-              stageName: 'Produção Base',
-              quantity: i.quantity || 1,
-              calculatedAmount: perItemAmt,
-              sector: comm.sector || 'Geral'
-            });
-          });
-        } else {
-          subItems.push({
-            serviceTypeName: 'Serviço',
-            stageName: 'Produção Base',
-            quantity: comm.quantity || 1,
-            calculatedAmount: group.totalAmount,
-            sector: comm.sector || 'Geral'
-          });
-        }
+        subItems.push({
+          serviceTypeName: comm.itemName || 'Serviço',
+          stageName: comm.stageName || 'Produção Base',
+          quantity: comm.quantity || 1,
+          calculatedAmount: comm.amount || 0,
+          sector: comm.sector || 'Geral',
+          exitDate: exactRowDate
+        });
       }
 
-      // Proporcionalizar os valores calculados para somar exatamente group.totalAmount
       const totalCalc = subItems.reduce((acc, s) => acc + s.calculatedAmount, 0);
-      const targetAmount = group.totalAmount;
+      const targetAmount = comm.amount || 0;
 
-      const subItemsWithFinalAmount = subItems.map(s => {
+      subItems.forEach((sub, idx) => {
         let finalAmt = 0;
         if (totalCalc > 0) {
-          finalAmt = (s.calculatedAmount / totalCalc) * targetAmount;
+          finalAmt = (sub.calculatedAmount / totalCalc) * targetAmount;
         } else {
           finalAmt = targetAmount / subItems.length;
         }
-        return {
-          ...s,
-          amount: Math.round(finalAmt * 100) / 100
-        };
-      });
+        finalAmt = Math.round(finalAmt * 100) / 100;
 
-      // Gerar um registro EnrichedCommission para cada item/etapa desmembrado
-      subItemsWithFinalAmount.forEach((sub, idx) => {
-        const stageText = sub.stageName && sub.stageName !== 'Produção Base' 
-          ? `Etapa: ${sub.stageName}` 
-          : 'Produção Base';
+        const stageText = sub.stageName && sub.stageName !== 'Produção Base' ? `Etapa: ${sub.stageName}` : 'Produção Base';
         const serviceTypesFormatted = `${sub.serviceTypeName} (${stageText})`;
+        const dedupKey = `${comm.jobId}_${comm.userId}_${sub.serviceTypeName}_${sub.stageName}_${comm.status}`;
 
-        const exactRowDate = sub.exitDate || parseSafeDate(comm.createdAt) || group.latestCreatedAt || new Date();
+        if (seenBillableKeys.has(dedupKey)) {
+          const existing = seenBillableKeys.get(dedupKey)!;
+          existing.ids.push(comm.id);
+          return;
+        }
 
-        resultList.push({
-          id: subItemsWithFinalAmount.length === 1 ? comm.id : `${comm.id}_${idx}`,
-          ids: group.ids,
+        const enriched: EnrichedCommission = {
+          id: subItems.length === 1 ? comm.id : `${comm.id}_${idx}`,
+          ids: [comm.id],
           userId: comm.userId,
           userName: comm.userName,
           jobId: comm.jobId,
@@ -649,12 +789,15 @@ export const Commissions = () => {
           }],
           quantity: sub.quantity,
           sector: sub.sector,
-          amount: sub.amount,
+          amount: finalAmt,
           status: comm.status,
-          createdAt: exactRowDate
-        });
+          createdAt: sub.exitDate || exactRowDate
+        };
+
+        seenBillableKeys.set(dedupKey, enriched);
+        resultList.push(enriched);
       });
-    });
+    }
 
     return resultList;
   }, [commissions, jobs, allUsers, jobTypes, commissionGroups, consolidateByJob]);
@@ -904,6 +1047,33 @@ export const Commissions = () => {
           </div>
         </div>
       </div>
+
+      {/* Alerta e Limpeza de Duplicidades */}
+      {isManager && duplicatePendingRecords.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-amber-100 text-amber-700 rounded-xl shrink-0">
+              <AlertTriangle size={20} />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-amber-900">
+                Detectamos {duplicatePendingRecords.length} lançamento{duplicatePendingRecords.length > 1 ? 's' : ''} de comissão duplicado{duplicatePendingRecords.length > 1 ? 's' : ''} no banco de dados
+              </p>
+              <p className="text-xs text-amber-700">
+                A visualização atual já está blindada contra duplicidades. Clique no botão ao lado para remover as cópias duplicadas do banco de dados com segurança.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleDeduplicateCommissions}
+            disabled={isDeduplicating}
+            className="px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-sm active:scale-95 transition-all flex items-center gap-2 cursor-pointer shrink-0"
+          >
+            {isDeduplicating ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
+            Limpar Duplicidades ({duplicatePendingRecords.length})
+          </button>
+        </div>
+      )}
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
