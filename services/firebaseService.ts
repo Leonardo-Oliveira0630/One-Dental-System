@@ -948,8 +948,7 @@ export const subscribeCommissions = (orgId: string, cb: (c: CommissionRecord[]) 
     if (!orgId) return () => {};
 
     const q = query(
-        collection(db, `organizations/${orgId}/commissions`),
-        limit(1000)
+        collection(db, `organizations/${orgId}/commissions`)
     );
     return onSnapshot(q, (snap: any) => {
         if (snap.empty && isReviewerContext(orgId)) {

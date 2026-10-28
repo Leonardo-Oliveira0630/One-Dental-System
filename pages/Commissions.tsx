@@ -100,94 +100,43 @@ export const Commissions = () => {
       for (const job of jobs) {
         if (!job) continue;
 
+        const hasItemExecs = job.itemExecutions && job.itemExecutions.length > 0;
+
         (job.items || []).forEach((item: any) => {
           if (item.commissionDisabled) return;
 
           const jt = jobTypes.find(t => t.id === item.jobTypeId);
-          const executions = (job.itemExecutions || []).filter((e: any) => e.itemId === item.id);
+          const executions = (job.itemExecutions || []).filter((e: any) => e.itemId === item.id || (!e.itemId && e.sector));
 
-          executions.forEach((exec: any) => {
-            const sec = exec.sector || 'Geral';
-            if (item.sectorCommissionDisabled?.[sec]) return;
+          if (executions.length > 0) {
+            executions.forEach((exec: any) => {
+              const sec = exec.sector || 'Geral';
+              if (item.sectorCommissionDisabled?.[sec]) return;
 
-            const secQty = (item.sectorQuantities && sec && item.sectorQuantities[sec] !== undefined)
-              ? Number(item.sectorQuantities[sec])
-              : Number(item.quantity) || 1;
+              const secQty = (item.sectorQuantities && sec && item.sectorQuantities[sec] !== undefined)
+                ? Number(item.sectorQuantities[sec])
+                : Number(item.quantity) || 1;
 
-            // 1. Verificar etapas específicas executadas
-            const stageNames = new Set<string>();
-            (exec.executedStages || []).forEach((s: string) => stageNames.add(s));
-            if (exec.stageTimes) {
-              Object.keys(exec.stageTimes).forEach((s: string) => {
-                if (s !== 'BASE') stageNames.add(s);
-              });
-            }
-
-            stageNames.forEach((stg: string) => {
-              const stData = exec.stageTimes?.[stg];
-              const uid = stData?.exitUserId || stData?.entryUserId || exec.userId;
-              if (!uid) return;
-              const userObj = allUsers.find(u => u.id === uid);
-              if (!userObj) return;
-
-              // Extrair data exata de saída da etapa
-              let exitDate = parseSafeDate(stData?.exitTime) || 
-                             parseSafeDate(stData?.entryTime) || 
-                             parseSafeDate(exec.exitTime) || 
-                             parseSafeDate(exec.timestamp);
-
-              if (!exitDate) {
-                const mov = (job.sectorMovements || []).find((m: any) => m.sector === sec && (m.exitUserId === uid || m.entryUserId === uid));
-                if (mov) exitDate = parseSafeDate(mov.exitTime) || parseSafeDate(mov.entryTime);
-              }
-              if (!exitDate) {
-                const hist = (job.history || []).slice().reverse().find((h: any) => h.userId === uid && (h.sector === sec || h.action?.includes(stg)));
-                if (hist) exitDate = parseSafeDate(hist.timestamp);
-              }
-              if (!exitDate) {
-                exitDate = parseSafeDate(job.createdAt) || new Date();
+              // 1. Verificar etapas específicas executadas
+              const stageNames = new Set<string>();
+              (exec.executedStages || []).forEach((s: string) => stageNames.add(s));
+              if (exec.stageTimes) {
+                Object.keys(exec.stageTimes).forEach((s: string) => {
+                  if (s !== 'BASE') stageNames.add(s);
+                });
               }
 
-              // Verifica se a saída do colaborador ocorreu dentro do período de sincronização
-              if (exitDate >= start && exitDate <= end) {
-                let stageQty = secQty;
-                if (sec && item.stageQuantities?.[sec]?.[stg] !== undefined) {
-                  const customQty = Number(item.stageQuantities[sec][stg]);
-                  if (!isNaN(customQty) && customQty > 0) {
-                    stageQty = (customQty === 1 && secQty > 1) ? secQty : customQty;
-                  }
-                }
+              if (stageNames.size > 0) {
+                stageNames.forEach((stg: string) => {
+                  const stData = exec.stageTimes?.[stg];
+                  const uid = stData?.exitUserId || stData?.entryUserId || exec.userId;
+                  if (!uid) return;
+                  const userObj = allUsers.find(u => u.id === uid);
+                  if (!userObj) return;
 
-                const stgComm = calculateItemCommission(item, jt, userObj, secQty, sec, [stg], false, commissionGroups);
-                if (stgComm > 0) {
-                  billableUnits.push({
-                    jobId: job.id,
-                    osNumber: job.osNumber || 'N/A',
-                    patientName: job.patientName,
-                    userId: uid,
-                    userName: userObj.name || '',
-                    sector: sec,
-                    itemId: item.id,
-                    itemName: item.name,
-                    stageName: stg,
-                    quantity: stageQty,
-                    amount: stgComm,
-                    createdAt: exitDate
-                  });
-                }
-              }
-            });
-
-            // 2. Verificar produção base executada
-            const baseData = exec.stageTimes?.['BASE'];
-            const isBaseChecked = exec.isBaseChecked !== false;
-            if (isBaseChecked || baseData) {
-              const uid = baseData?.exitUserId || baseData?.entryUserId || exec.userId;
-              if (uid) {
-                const userObj = allUsers.find(u => u.id === uid);
-                if (userObj) {
-                  let exitDate = parseSafeDate(baseData?.exitTime) || 
-                                 parseSafeDate(baseData?.entryTime) || 
+                  // Extrair data exata de saída da etapa
+                  let exitDate = parseSafeDate(stData?.exitTime) || 
+                                 parseSafeDate(stData?.entryTime) || 
                                  parseSafeDate(exec.exitTime) || 
                                  parseSafeDate(exec.timestamp);
 
@@ -196,16 +145,25 @@ export const Commissions = () => {
                     if (mov) exitDate = parseSafeDate(mov.exitTime) || parseSafeDate(mov.entryTime);
                   }
                   if (!exitDate) {
-                    const hist = (job.history || []).slice().reverse().find((h: any) => h.userId === uid && h.sector === sec);
+                    const hist = (job.history || []).slice().reverse().find((h: any) => h.userId === uid && (h.sector === sec || h.action?.includes(stg)));
                     if (hist) exitDate = parseSafeDate(hist.timestamp);
                   }
                   if (!exitDate) {
                     exitDate = parseSafeDate(job.createdAt) || new Date();
                   }
 
+                  // Verifica se a saída do colaborador ocorreu dentro do período de sincronização
                   if (exitDate >= start && exitDate <= end) {
-                    const baseComm = calculateItemCommission(item, jt, userObj, secQty, sec, [], true, commissionGroups);
-                    if (baseComm > 0) {
+                    let stageQty = secQty;
+                    if (sec && item.stageQuantities?.[sec]?.[stg] !== undefined) {
+                      const customQty = Number(item.stageQuantities[sec][stg]);
+                      if (!isNaN(customQty) && customQty > 0) {
+                        stageQty = (customQty === 1 && secQty > 1) ? secQty : customQty;
+                      }
+                    }
+
+                    const stgComm = calculateItemCommission(item, jt, userObj, secQty, sec, [stg], false, commissionGroups);
+                    if (stgComm > 0) {
                       billableUnits.push({
                         jobId: job.id,
                         osNumber: job.osNumber || 'N/A',
@@ -215,45 +173,139 @@ export const Commissions = () => {
                         sector: sec,
                         itemId: item.id,
                         itemName: item.name,
-                        stageName: 'Produção Base',
-                        quantity: secQty,
-                        amount: baseComm,
+                        stageName: stg,
+                        quantity: stageQty,
+                        amount: stgComm,
                         createdAt: exitDate
                       });
                     }
                   }
+                });
+              }
+
+              // 2. Verificar produção base executada (quando não há sub-etapas ou quando BASE é explicitamente registrado)
+              const baseData = exec.stageTimes?.['BASE'];
+              const isBaseProduction = !!baseData || (stageNames.size === 0 && exec.isBaseChecked !== false);
+              if (isBaseProduction) {
+                const uid = baseData?.exitUserId || baseData?.entryUserId || exec.userId;
+                if (uid) {
+                  const userObj = allUsers.find(u => u.id === uid);
+                  if (userObj) {
+                    let exitDate = parseSafeDate(baseData?.exitTime) || 
+                                   parseSafeDate(baseData?.entryTime) || 
+                                   parseSafeDate(exec.exitTime) || 
+                                   parseSafeDate(exec.timestamp);
+
+                    if (!exitDate) {
+                      const mov = (job.sectorMovements || []).find((m: any) => m.sector === sec && (m.exitUserId === uid || m.entryUserId === uid));
+                      if (mov) exitDate = parseSafeDate(mov.exitTime) || parseSafeDate(mov.entryTime);
+                    }
+                    if (!exitDate) {
+                      const hist = (job.history || []).slice().reverse().find((h: any) => h.userId === uid && h.sector === sec);
+                      if (hist) exitDate = parseSafeDate(hist.timestamp);
+                    }
+                    if (!exitDate) {
+                      exitDate = parseSafeDate(job.createdAt) || new Date();
+                    }
+
+                    if (exitDate >= start && exitDate <= end) {
+                      const baseComm = calculateItemCommission(item, jt, userObj, secQty, sec, [], true, commissionGroups);
+                      if (baseComm > 0) {
+                        billableUnits.push({
+                          jobId: job.id,
+                          osNumber: job.osNumber || 'N/A',
+                          patientName: job.patientName,
+                          userId: uid,
+                          userName: userObj.name || '',
+                          sector: sec,
+                          itemId: item.id,
+                          itemName: item.name,
+                          stageName: 'Produção Base',
+                          quantity: secQty,
+                          amount: baseComm,
+                          createdAt: exitDate
+                        });
+                      }
+                    }
+                  }
                 }
               }
-            }
-          });
+            });
+          } else if (!hasItemExecs && job.sectorMovements && job.sectorMovements.length > 0) {
+            // Caso legado sem itemExecutions: verificar saídas registradas em sectorMovements
+            job.sectorMovements.forEach((mov: any) => {
+              const sec = mov.sector || 'Geral';
+              if (item.sectorCommissionDisabled?.[sec]) return;
+              const uid = mov.exitUserId || mov.entryUserId;
+              if (!uid) return;
+              const userObj = allUsers.find(u => u.id === uid);
+              if (!userObj) return;
+
+              const exitDate = parseSafeDate(mov.exitTime) || parseSafeDate(mov.entryTime) || parseSafeDate(job.createdAt);
+              if (exitDate && exitDate >= start && exitDate <= end) {
+                const secQty = (item.sectorQuantities && item.sectorQuantities[sec] !== undefined)
+                  ? Number(item.sectorQuantities[sec])
+                  : Number(item.quantity) || 1;
+                const baseComm = calculateItemCommission(item, jt, userObj, secQty, sec, [], true, commissionGroups);
+                if (baseComm > 0) {
+                  billableUnits.push({
+                    jobId: job.id,
+                    osNumber: job.osNumber || 'N/A',
+                    patientName: job.patientName,
+                    userId: uid,
+                    userName: userObj.name || '',
+                    sector: sec,
+                    itemId: item.id,
+                    itemName: item.name,
+                    stageName: 'Produção Base',
+                    quantity: secQty,
+                    amount: baseComm,
+                    createdAt: exitDate
+                  });
+                }
+              }
+            });
+          }
         });
       }
 
+      // Cópia de trabalho em memória para rastrear atualizações e novas inserções no mesmo ciclo
+      // Isso impede que múltiplos lançamentos da mesma OS colidam ou sobrescrevam registros em lote!
+      const workingCommissions: CommissionRecord[] = [...commissions];
+      const usedLegacyRecordIds = new Set<string>();
+      const processedUnitKeys = new Set<string>();
+
       // Faturar/persistir cada unidade de serviço ou etapa encontrada
       for (const unit of billableUnits) {
-        // Encontrar se já existe um lançamento exato para essa etapa/serviço
-        const matchingComms = commissions.filter(c => 
+        const unitKey = `${unit.jobId}_${unit.userId}_${unit.itemId}_${unit.stageName}`;
+        if (processedUnitKeys.has(unitKey)) {
+          continue; // Já processado nesta rodada
+        }
+        processedUnitKeys.add(unitKey);
+
+        // 1. Procurar correspondência exata por item e etapa
+        const exactMatchIndex = workingCommissions.findIndex(c => 
           c.jobId === unit.jobId && 
           c.userId === unit.userId && 
-          (
-            (c.itemId === unit.itemId && (c.stageName === unit.stageName || (!c.stageName && unit.stageName === 'Produção Base'))) ||
-            (!c.itemId && c.sector === unit.sector && c.status === CommissionStatus.PENDING)
-          )
+          c.itemId === unit.itemId && 
+          (c.stageName === unit.stageName || (!c.stageName && unit.stageName === 'Produção Base'))
         );
 
-        if (matchingComms.length > 0) {
-          const existing = matchingComms[0];
+        if (exactMatchIndex !== -1) {
+          const existing = workingCommissions[exactMatchIndex];
           // Nunca alterar lançamentos já pagos!
           if (existing.status === CommissionStatus.PENDING) {
             const existingTime = existing.createdAt ? new Date(existing.createdAt).getTime() : 0;
             const newTime = unit.createdAt.getTime();
-            if (
+            const needsUpdate = 
               Math.abs((existing.amount || 0) - unit.amount) > 0.01 || 
               Math.abs(existingTime - newTime) > 60000 ||
               existing.stageName !== unit.stageName ||
-              existing.itemId !== unit.itemId
-            ) {
-              await updateCommissionRecord(existing.id, {
+              existing.itemId !== unit.itemId ||
+              existing.quantity !== unit.quantity;
+
+            if (needsUpdate) {
+              const updatedFields = {
                 amount: unit.amount,
                 createdAt: unit.createdAt, // Data exata de saída da etapa!
                 quantity: unit.quantity,
@@ -261,42 +313,70 @@ export const Commissions = () => {
                 itemName: unit.itemName,
                 stageName: unit.stageName,
                 sector: unit.sector
-              });
+              };
+              await updateCommissionRecord(existing.id, updatedFields);
+              workingCommissions[exactMatchIndex] = { ...existing, ...updatedFields };
               updatedCount++;
             }
           }
-          // Limpar eventuais duplicatas pendentes
-          for (let i = 1; i < matchingComms.length; i++) {
-            if (matchingComms[i].status === CommissionStatus.PENDING) {
-              await deleteCommissionRecord(matchingComms[i].id);
-            }
-          }
         } else {
-          // Criar novo registro detalhado de comissão
-          await addCommissionRecord({
-            jobId: unit.jobId,
-            osNumber: unit.osNumber,
-            patientName: unit.patientName,
-            sector: unit.sector,
-            userId: unit.userId,
-            userName: unit.userName,
-            itemId: unit.itemId,
-            itemName: unit.itemName,
-            stageName: unit.stageName,
-            quantity: unit.quantity,
-            amount: unit.amount,
-            status: CommissionStatus.PENDING,
-            createdAt: unit.createdAt // Data exata de saída da etapa!
-          });
-          createdCount++;
+          // 2. Procurar registro legado pendente do mesmo trabalho/usuário que ainda não tenha sido reaproveitado
+          const legacyIndex = workingCommissions.findIndex(c => 
+            c.jobId === unit.jobId && 
+            c.userId === unit.userId && 
+            c.sector === unit.sector && 
+            c.status === CommissionStatus.PENDING && 
+            !c.itemId &&
+            !usedLegacyRecordIds.has(c.id)
+          );
+
+          if (legacyIndex !== -1) {
+            const legacyRecord = workingCommissions[legacyIndex];
+            usedLegacyRecordIds.add(legacyRecord.id); // Marca como utilizado para NÃO sobrescrever múltiplos itens no mesmo registro!
+
+            const updatedFields = {
+              amount: unit.amount,
+              createdAt: unit.createdAt,
+              quantity: unit.quantity,
+              itemId: unit.itemId,
+              itemName: unit.itemName,
+              stageName: unit.stageName,
+              sector: unit.sector
+            };
+            await updateCommissionRecord(legacyRecord.id, updatedFields);
+            workingCommissions[legacyIndex] = { ...legacyRecord, ...updatedFields };
+            updatedCount++;
+          } else {
+            // 3. Criar novo registro detalhado de comissão
+            const newId = `comm_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+            const newRecord: CommissionRecord = {
+              id: newId,
+              jobId: unit.jobId,
+              osNumber: unit.osNumber,
+              patientName: unit.patientName,
+              sector: unit.sector,
+              userId: unit.userId,
+              userName: unit.userName,
+              itemId: unit.itemId,
+              itemName: unit.itemName,
+              stageName: unit.stageName,
+              quantity: unit.quantity,
+              amount: unit.amount,
+              status: CommissionStatus.PENDING,
+              createdAt: unit.createdAt // Data exata de saída da etapa!
+            };
+            await addCommissionRecord(newRecord);
+            workingCommissions.push(newRecord); // Imediatamente disponível para as próximas iterações do loop!
+            createdCount++;
+          }
         }
         totalValueSynced += unit.amount;
       }
 
       setSyncResultMsg(
-        `Sincronização concluída com sucesso!\n\n` +
+        `Sincronização concluída com sucesso em rodada única!\n\n` +
         `• ${jobs.length} trabalhos analisados no laboratório.\n` +
-        `• ${billableUnits.length} etapas/serviços com saída no período encontrados.\n` +
+        `• ${billableUnits.length} etapas/serviços com saída no período identificados.\n` +
         `• ${createdCount} novos lançamentos de comissão faturados.\n` +
         `• ${updatedCount} lançamentos existentes atualizados com a data correta de saída.`
       );
