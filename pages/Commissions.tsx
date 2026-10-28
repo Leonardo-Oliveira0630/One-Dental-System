@@ -151,6 +151,10 @@ export const Commissions = () => {
               await updateCommissionRecord(existingComm.id, { amount: totalUserComm });
               updatedCount++;
             }
+            // Clean up duplicate pending records if any existed previously
+            for (let i = 1; i < matchingComms.length; i++) {
+              await deleteCommissionRecord(matchingComms[i].id);
+            }
           } else {
             await addCommissionRecord({
               jobId: job.id,
