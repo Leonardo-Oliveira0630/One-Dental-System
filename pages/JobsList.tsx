@@ -227,20 +227,25 @@ const JobRow = memo(({ isJobOverdue,
                 </td>
             )}
             
-            {/* 6. Setor / Tempo (antes de Status) */}
+            {/* 6. Data de Cadastro (substitui Setor/Tempo) */}
             {!isBudgetMode && (
-                <td className="p-4">
-                    <div className="flex flex-col">
-                        <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-                            {revealJobStatus ? (job.currentSector || t('sectors.screening', 'Triagem')) : t('common.unavailable', 'Indisponível')}
-                        </span>
-                        {revealJobStatus && !isClient && (
-                            <div className={`flex items-center gap-1 text-xs font-bold ${timeInfo.isAttention ? 'text-amber-600 dark:text-amber-400' : 'text-slate-500 dark:text-slate-400'}`}>
-                                <Clock size={12} /> {timeInfo.label}
-                                {timeInfo.isAttention && <AlertCircle size={12} className="animate-pulse" />}
-                            </div>
-                        )}
-                    </div>
+                <td className="p-4 whitespace-nowrap">
+                    {job.createdAt ? (
+                        <div className="flex flex-col">
+                            <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                                {job.createdAt instanceof Date 
+                                    ? job.createdAt.toLocaleDateString('pt-BR')
+                                    : new Date((job.createdAt as any).seconds ? (job.createdAt as any).seconds * 1000 : job.createdAt).toLocaleDateString('pt-BR')}
+                            </span>
+                            <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500">
+                                {job.createdAt instanceof Date
+                                    ? job.createdAt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+                                    : new Date((job.createdAt as any).seconds ? (job.createdAt as any).seconds * 1000 : job.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                        </div>
+                    ) : (
+                        <span className="text-xs text-slate-400 dark:text-slate-500">-</span>
+                    )}
                 </td>
             )}
 
@@ -438,10 +443,15 @@ const JobCard = memo(({ isJobOverdue,
                    )}
 
                    {!isBudgetMode && (
-                       <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg ${revealJobStatus ? (showAttention ? 'bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300' : 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300') : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500'}`}>
-                           <MapPin size={14} className={revealJobStatus ? (showAttention ? 'text-amber-500' : 'text-blue-400') : 'text-slate-400'} />
-                           <span className="text-xs font-bold truncate max-w-[100px]">{revealJobStatus ? (job.currentSector || t('sectors.reception', 'Recepção')) : t('common.unavailable', 'Indisponível')}</span>
-                           {revealJobStatus && !isClient && <span className="text-[10px] font-black border-l border-current pl-1.5 ml-0.5">{timeInfo.label}</span>}
+                       <div className="flex items-center gap-1.5 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 px-2.5 py-1 rounded-lg border border-blue-100 dark:border-blue-900/40">
+                           <Calendar size={13} className="text-blue-500 dark:text-blue-400" />
+                           <span className="text-xs font-bold">
+                               Cadastrado: {job.createdAt ? (
+                                   job.createdAt instanceof Date 
+                                       ? job.createdAt.toLocaleDateString('pt-BR')
+                                       : new Date((job.createdAt as any).seconds ? (job.createdAt as any).seconds * 1000 : job.createdAt).toLocaleDateString('pt-BR')
+                               ) : '-'}
+                           </span>
                        </div>
                    )}
                    {!isBudgetMode && (() => {
@@ -1349,7 +1359,7 @@ const handleUpdateStatus = async (jobId: string, status: JobStatus) => {
                         
                         {!isBudgetMode && <th className="p-4">{t('orders.table.origin', 'Origem')}</th>}
 
-                        {!isBudgetMode && <th className="p-4">{isClient ? t('orders.table.sector', 'Setor') : t('orders.table.sectorTime', 'Setor/Tempo')}</th>}
+                        {!isBudgetMode && <th className="p-4">{t('orders.table.createdAt', 'Data de Cadastro')}</th>}
                         {!isBudgetMode && <th className="p-4">{t('orders.table.status', 'Status')}</th>}
                         
                         <th className="p-4">{isBudgetMode ? t('orders.table.createdAt', 'Data de Criação') : t('orders.table.dueDate', 'Entrega')}</th>

@@ -61,6 +61,30 @@ const toDate = (val: any) => {
     return new Date(val);
 };
 
+const parseItemExecutions = (executions: any[]): any[] => {
+    return (executions || []).map((e: any) => {
+        let stageTimes: Record<string, any> | undefined = undefined;
+        if (e.stageTimes && typeof e.stageTimes === 'object') {
+            stageTimes = {};
+            Object.entries(e.stageTimes).forEach(([stg, stData]: [string, any]) => {
+                if (stData) {
+                    stageTimes![stg] = {
+                        ...stData,
+                        entryTime: stData.entryTime ? toDate(stData.entryTime) : undefined,
+                        exitTime: stData.exitTime ? toDate(stData.exitTime) : undefined,
+                    };
+                }
+            });
+        }
+        return {
+            ...e,
+            timestamp: e.timestamp ? toDate(e.timestamp) : undefined,
+            exitTime: e.exitTime ? toDate(e.exitTime) : undefined,
+            stageTimes: stageTimes || e.stageTimes
+        };
+    });
+};
+
 export const isReviewerContext = (orgId?: string): boolean => {
     if (orgId && (orgId === 'org_reviewer_demo' || orgId === 'org_reviewer_clinic' || orgId === 'org_reviewer_supplier' || orgId.includes('reviewer'))) {
         return true;
@@ -542,7 +566,7 @@ export const subscribeJobs = (orgId: string, userId: string | null, isClient: bo
                             entryTime: toDate(m.entryTime),
                             exitTime: m.exitTime ? toDate(m.exitTime) : undefined
                         })),
-                        itemExecutions: (data.itemExecutions || []).map((e: any) => ({ ...e, timestamp: toDate(e.timestamp) }))
+                        itemExecutions: parseItemExecutions(data.itemExecutions)
                     } as Job;
                     cache.set(docId, job);
                 }
@@ -625,7 +649,7 @@ export const subscribeJobs = (orgId: string, userId: string | null, isClient: bo
                         entryTime: toDate(m.entryTime),
                         exitTime: m.exitTime ? toDate(m.exitTime) : undefined
                     })),
-                    itemExecutions: (data.itemExecutions || []).map((e: any) => ({ ...e, timestamp: toDate(e.timestamp) }))
+                    itemExecutions: parseItemExecutions(data.itemExecutions)
                 } as Job;
                 jobsCache.set(docId, job);
                 hasChanges = true;
@@ -728,7 +752,7 @@ export const subscribeDentistJobs = (orgId: string, dentistId: string, cb: (jobs
                             entryTime: toDate(m.entryTime),
                             exitTime: m.exitTime ? toDate(m.exitTime) : undefined
                         })),
-                        itemExecutions: (data.itemExecutions || []).map((e: any) => ({ ...e, timestamp: toDate(e.timestamp) }))
+                        itemExecutions: parseItemExecutions(data.itemExecutions)
                     } as Job;
                     jobsCache.set(docId, job);
                     hasChanges = true;
@@ -770,7 +794,7 @@ export const getDentistJobs = async (orgId: string, dentistId: string): Promise<
                 entryTime: toDate(m.entryTime),
                 exitTime: m.exitTime ? toDate(m.exitTime) : undefined
             })),
-            itemExecutions: (data.itemExecutions || []).map((e: any) => ({ ...e, timestamp: toDate(e.timestamp) }))
+            itemExecutions: parseItemExecutions(data.itemExecutions)
         } as Job;
     });
 };

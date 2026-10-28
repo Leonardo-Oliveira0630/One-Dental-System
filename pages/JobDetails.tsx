@@ -2353,12 +2353,33 @@ export const JobDetails = () => {
               }
           });
 
+          // Determinar a data de saída exata do colaborador neste setor, se disponível
+          let userExitTime: Date | undefined = undefined;
+          const userExecs = (executionsToUse || []).filter((e: any) => e.sector === sector && (e.userId === userId || (e.stageTimes && Object.values(e.stageTimes).some((st: any) => st?.exitUserId === userId))));
+          for (const ue of userExecs) {
+              if (ue.stageTimes) {
+                  for (const st of Object.values(ue.stageTimes) as any[]) {
+                      if (st?.exitTime && (st.exitUserId === userId || !st.exitUserId)) {
+                          userExitTime = st.exitTime instanceof Date ? st.exitTime : new Date((st.exitTime as any).seconds ? (st.exitTime as any).seconds * 1000 : st.exitTime);
+                          break;
+                      }
+                  }
+              }
+              if (!userExitTime && ue.exitTime) {
+                  userExitTime = ue.exitTime instanceof Date ? ue.exitTime : new Date((ue.exitTime as any).seconds ? (ue.exitTime as any).seconds * 1000 : ue.exitTime);
+              }
+              if (userExitTime) break;
+          }
+
           const matchingComms = commissions.filter(c => c.jobId === job.id && c.sector === sector && c.userId === userId && c.status === CommissionStatus.PENDING);
           const existingComm = matchingComms[0];
           const hasExecutionsInSector = userItemsInSector.length > 0;
           if (hasExecutionsInSector) {
               if (existingComm) {
-                  await updateCommissionRecord(existingComm.id, { amount: totalUserComm });
+                  await updateCommissionRecord(existingComm.id, { 
+                      amount: totalUserComm,
+                      createdAt: userExitTime || existingComm.createdAt || new Date()
+                  });
                   for (let i = 1; i < matchingComms.length; i++) {
                       await deleteCommissionRecord(matchingComms[i].id);
                   }
@@ -2372,7 +2393,7 @@ export const JobDetails = () => {
                       userName: selectedUser?.name || '',
                       amount: totalUserComm,
                       status: CommissionStatus.PENDING,
-                      createdAt: new Date()
+                      createdAt: userExitTime || new Date()
                   });
               }
           } else if (matchingComms.length > 0) {
