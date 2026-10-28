@@ -3,10 +3,11 @@ import React, { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '../context/AppContext';
 import { UserRole, CommissionStatus, Job } from '../types';
-import { DollarSign, CheckCircle, Clock, Calendar, User, Search, Filter, Download, FileText, FileSpreadsheet, Users, Layers, Trash2 } from 'lucide-react';
+import { DollarSign, CheckCircle, Clock, Calendar, User, Search, Filter, Download, FileText, FileSpreadsheet, Users, Layers, Trash2, RefreshCw, CheckCircle2, Loader2, AlertCircle, X } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
+import { calculateItemCommission } from '../utils/commissionUtils';
 
 interface EnrichedItemExecutionDetail {
   serviceTypeName: string;
@@ -35,13 +36,152 @@ interface EnrichedCommission {
 
 export const Commissions = () => {
   const { t } = useTranslation();
-  const { commissions, currentUser, updateCommissionStatus, deleteCommissionRecord, allUsers, jobs, activeOrganization } = useApp();
+  const { commissions, currentUser, updateCommissionStatus, deleteCommissionRecord, allUsers, jobs, activeOrganization, jobTypes, commissionGroups, addCommissionRecord, updateCommissionRecord } = useApp();
   const [filterUser, setFilterUser] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [consolidateByJob, setConsolidateByJob] = useState(true);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+
+  // Sync Modal States
+  const [showSyncModal, setShowSyncModal] = useState(false);
+  const [syncStartDate, setSyncStartDate] = useState('2026-10-21');
+  const [syncEndDate, setSyncEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncResultMsg, setSyncResultMsg] = useState<string | null>(null);
+
+  const handleSyncCommissions = async () => {
+    setIsSyncing(true);
+    setSyncResultMsg(null);
+    try {
+      const start = new Date(`${syncStartDate}T00:00:00`);
+      const end = new Date(`${syncEndDate}T23:59:59`);
+
+      // Filter jobs created or active in date range
+      const periodJobs = jobs.filter(j => {
+        if (!j) return false;
+        const d = j.createdAt ? (j.createdAt instanceof Date ? j.createdAt : new Date((j.createdAt as any).seconds ? (j.createdAt as any).seconds * 1000 : j.createdAt)) : null;
+        if (!d || isNaN(d.getTime())) return true;
+        return d >= start && d <= end;
+      });
+
+      let createdCount = 0;
+      let updatedCount = 0;
+      let totalValueSynced = 0;
+
+      for (const job of periodJobs) {
+        if (!job.itemExecutions || job.itemExecutions.length === 0) continue;
+
+        const sectorUserPairs = new Map<string, { sector: string; userId: string }>();
+
+        job.itemExecutions.forEach((e: any) => {
+          if (e.sector && e.userId) {
+            sectorUserPairs.set(`${e.sector}_${e.userId}`, { sector: e.sector, userId: e.userId });
+          }
+          if (e.stageTimes && e.sector) {
+            Object.values(e.stageTimes).forEach((st: any) => {
+              const uid = st?.exitUserId || st?.entryUserId;
+              if (uid) {
+                sectorUserPairs.set(`${e.sector}_${uid}`, { sector: e.sector, userId: uid });
+              }
+            });
+          }
+        });
+
+        // Also check history for sector movements
+        (job.history || []).forEach((h: any) => {
+          if (h?.sector && h?.userId) {
+            sectorUserPairs.set(`${h.sector}_${h.userId}`, { sector: h.sector, userId: h.userId });
+          }
+        });
+
+        for (const { sector, userId } of sectorUserPairs.values()) {
+          const selectedUser = allUsers.find(u => u.id === userId);
+          if (!selectedUser) continue;
+
+          const userItemsInSector = (job.itemExecutions || [])
+            .filter((e: any) => e.sector === sector && (e.userId === userId || (e.stageTimes && Object.values(e.stageTimes).some((st: any) => st?.exitUserId === userId || st?.entryUserId === userId))))
+            .map((e: any) => e.itemId);
+
+          let totalUserComm = 0;
+          (job.items || []).forEach((item: any) => {
+            if (userItemsInSector.includes(item.id) && !item.commissionDisabled) {
+              const sectorDisabled = item.sectorCommissionDisabled?.[sector];
+              if (!sectorDisabled) {
+                const secQty = (item.sectorQuantities && item.sectorQuantities[sector] !== undefined)
+                  ? item.sectorQuantities[sector]
+                  : item.quantity;
+                const jt = jobTypes.find(t => t.id === item.jobTypeId);
+                const exec = (job.itemExecutions || []).find((e: any) => e.itemId === item.id && e.sector === sector);
+                if (exec) {
+                  let stagesForThisUser = exec.executedStages || [];
+                  if (exec.stageTimes) {
+                    stagesForThisUser = (exec.executedStages || []).filter((stg: string) => {
+                      const stData = exec.stageTimes?.[stg];
+                      if (stData?.exitUserId) return stData.exitUserId === userId;
+                      return exec.userId === userId;
+                    });
+                  }
+                  const isBaseForThisUser = (exec.isBaseChecked !== false) &&
+                    (!exec.stageTimes?.['BASE']?.exitUserId || exec.stageTimes?.['BASE']?.exitUserId === userId || exec.userId === userId);
+
+                  totalUserComm += calculateItemCommission(
+                    item,
+                    jt,
+                    selectedUser,
+                    Number(secQty) || 1,
+                    sector,
+                    stagesForThisUser,
+                    isBaseForThisUser,
+                    commissionGroups
+                  );
+                }
+              }
+            }
+          });
+
+          if (totalUserComm <= 0) continue;
+
+          const matchingComms = commissions.filter(c => c.jobId === job.id && c.sector === sector && c.userId === userId && c.status === CommissionStatus.PENDING);
+          const existingComm = matchingComms[0];
+
+          if (existingComm) {
+            if (Math.abs((existingComm.amount || 0) - totalUserComm) > 0.01) {
+              await updateCommissionRecord(existingComm.id, { amount: totalUserComm });
+              updatedCount++;
+            }
+          } else {
+            await addCommissionRecord({
+              jobId: job.id,
+              osNumber: job.osNumber || 'N/A',
+              patientName: job.patientName,
+              sector: sector,
+              userId: userId,
+              userName: selectedUser?.name || '',
+              amount: totalUserComm,
+              status: CommissionStatus.PENDING,
+              createdAt: job.createdAt instanceof Date ? job.createdAt : new Date()
+            });
+            createdCount++;
+          }
+          totalValueSynced += totalUserComm;
+        }
+      }
+
+      setSyncResultMsg(
+        `Sincronização concluída com sucesso!\n\n` +
+        `• ${periodJobs.length} trabalhos analisados no período.\n` +
+        `• ${createdCount} novos lançamentos de comissão gerados.\n` +
+        `• ${updatedCount} lançamentos existentes atualizados.`
+      );
+    } catch (err: any) {
+      console.error(err);
+      setSyncResultMsg(`Erro ao sincronizar comissões: ${err.message || 'Falha de conexão'}`);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   const isManager = currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.MANAGER || currentUser?.role === UserRole.SUPER_ADMIN || !!currentUser?.permissions?.includes('commissions:view');
 
@@ -373,7 +513,11 @@ export const Commissions = () => {
       });
 
       // Totais
-      const finalY = (doc as any).lastAutoTable.finalY + 10;
+      let finalY = (doc as any).lastAutoTable.finalY + 10;
+      if (finalY + 20 > 275) {
+          doc.addPage();
+          finalY = 20;
+      }
       doc.setFontSize(10);
       doc.text(`${t('commissions.totalPending', 'Total Pendente:')} R$ ${stats.pending.toFixed(2)}`, 14, finalY);
       doc.text(`${t('commissions.totalPaid', 'Total Pago:')} R$ ${stats.paid.toFixed(2)}`, 14, finalY + 5);
@@ -434,7 +578,11 @@ export const Commissions = () => {
           headStyles: { fillColor: [41, 128, 185] }
         });
 
-        const finalY = (doc as any).lastAutoTable.finalY + 10;
+        let finalY = (doc as any).lastAutoTable.finalY + 10;
+        if (finalY + 20 > 275) {
+            doc.addPage();
+            finalY = 20;
+        }
         doc.setFontSize(10);
         doc.text(`${t('commissions.totalPending', 'Total Pendente:')} R$ ${userPending.toFixed(2)}`, 14, finalY);
         doc.text(`${t('commissions.totalPaid', 'Total Pago:')} R$ ${userPaid.toFixed(2)}`, 14, finalY + 5);
@@ -454,27 +602,42 @@ export const Commissions = () => {
           <p className="text-slate-500">{t('commissions.subtitle', 'Relatório de ganhos por produção e produtividade.')}</p>
         </div>
         
-        <div className="relative">
-          <button 
-            onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
-            className="flex items-center gap-2 px-4 py-2 border border-slate-200 bg-white text-slate-700 rounded-lg hover:bg-slate-50 font-medium shadow-sm"
-          >
-            <Download size={18} /> {t('commissions.export', 'Exportar Relatório')}
-          </button>
-          
-          {isExportMenuOpen && (
-            <div className="absolute right-0 mt-2 w-56 bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in duration-200">
-              <button onClick={exportToExcel} className="w-full text-left px-4 py-3 hover:bg-slate-50 flex items-center gap-3 text-sm text-slate-700">
-                <FileSpreadsheet size={16} className="text-green-600" /> {t('commissions.exportExcel', 'Excel (Geral)')}
-              </button>
-              <button onClick={() => exportToPDF('GENERAL')} className="w-full text-left px-4 py-3 hover:bg-slate-50 flex items-center gap-3 text-sm text-slate-700">
-                <FileText size={16} className="text-red-600" /> {t('commissions.exportPdf', 'PDF (Geral)')}
-              </button>
-              <button onClick={() => exportToPDF('BATCH')} className="w-full text-left px-4 py-3 hover:bg-slate-50 flex items-center gap-3 text-sm text-slate-700 border-t border-slate-100">
-                <Users size={16} className="text-blue-600" /> {t('commissions.exportByEmployee', 'PDF (Por Funcionário)')}
-              </button>
-            </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {isManager && (
+            <button
+              onClick={() => {
+                setSyncResultMsg(null);
+                setShowSyncModal(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold shadow-sm active:scale-95 transition-all text-sm cursor-pointer"
+              title="Analisar trabalhos e recalcular comissões do período"
+            >
+              <RefreshCw size={18} /> Sincronizar Comissões
+            </button>
           )}
+
+          <div className="relative">
+            <button 
+              onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
+              className="flex items-center gap-2 px-4 py-2 border border-slate-200 bg-white text-slate-700 rounded-lg hover:bg-slate-50 font-medium shadow-sm cursor-pointer"
+            >
+              <Download size={18} /> {t('commissions.export', 'Exportar Relatório')}
+            </button>
+            
+            {isExportMenuOpen && (
+              <div className="absolute right-0 mt-2 w-56 bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in duration-200">
+                <button onClick={exportToExcel} className="w-full text-left px-4 py-3 hover:bg-slate-50 flex items-center gap-3 text-sm text-slate-700 cursor-pointer">
+                  <FileSpreadsheet size={16} className="text-green-600" /> {t('commissions.exportExcel', 'Excel (Geral)')}
+                </button>
+                <button onClick={() => exportToPDF('GENERAL')} className="w-full text-left px-4 py-3 hover:bg-slate-50 flex items-center gap-3 text-sm text-slate-700 cursor-pointer">
+                  <FileText size={16} className="text-red-600" /> {t('commissions.exportPdf', 'PDF (Geral)')}
+                </button>
+                <button onClick={() => exportToPDF('BATCH')} className="w-full text-left px-4 py-3 hover:bg-slate-50 flex items-center gap-3 text-sm text-slate-700 border-t border-slate-100 cursor-pointer">
+                  <Users size={16} className="text-blue-600" /> {t('commissions.exportByEmployee', 'PDF (Por Funcionário)')}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -661,6 +824,100 @@ export const Commissions = () => {
             </table>
         </div>
       </div>
+
+      {/* MODAL DE SINCRONIZAÇÃO DE COMISSÕES */}
+      {showSyncModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-2xl border border-slate-100 animate-in zoom-in-95 duration-200 space-y-6">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl">
+                  <RefreshCw size={24} className={isSyncing ? "animate-spin" : ""} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-900 tracking-tight">Sincronizar Comissões do Período</h3>
+                  <p className="text-xs text-slate-500 font-medium">Recalcula e gera lançamentos de comissão para os colaboradores</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowSyncModal(false)}
+                disabled={isSyncing}
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-full hover:bg-slate-100 transition cursor-pointer"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-900 space-y-1">
+              <div className="font-bold flex items-center gap-1.5 text-amber-900">
+                <AlertCircle size={15} className="text-amber-600 shrink-0" />
+                <span>Instrução de Re-sincronização</span>
+              </div>
+              <p className="text-amber-800 leading-relaxed">
+                Esta ferramenta analisa todos os trabalhos executados no período selecionado e recalcula com segurança as comissões devidas de cada colaborador. Nenhum histórico existente é apagado.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Data Inicial</label>
+                <input 
+                  type="date"
+                  value={syncStartDate}
+                  onChange={(e) => setSyncStartDate(e.target.value)}
+                  disabled={isSyncing}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold bg-slate-50 text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Data Final</label>
+                <input 
+                  type="date"
+                  value={syncEndDate}
+                  onChange={(e) => setSyncEndDate(e.target.value)}
+                  disabled={isSyncing}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold bg-slate-50 text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+            </div>
+
+            {syncResultMsg && (
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-mono whitespace-pre-line text-slate-800 animate-in fade-in duration-200">
+                {syncResultMsg}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setShowSyncModal(false)}
+                disabled={isSyncing}
+                className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-black uppercase tracking-tight transition cursor-pointer"
+              >
+                {syncResultMsg ? 'Fechar' : 'Cancelar'}
+              </button>
+              <button
+                type="button"
+                onClick={handleSyncCommissions}
+                disabled={isSyncing}
+                className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-tight shadow-md flex items-center gap-2 active:scale-95 transition cursor-pointer"
+              >
+                {isSyncing ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    Sincronizando...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw size={16} />
+                    Iniciar Sincronização
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 

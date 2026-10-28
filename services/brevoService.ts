@@ -420,10 +420,18 @@ export async function generateClientStatementPDF(params: {
     columnStyles: { 0: { cellWidth: 25 }, 2: { halign: 'left', cellWidth: 35 }, 3: { halign: 'left', cellWidth: 35 } }
   });
 
-  const finalY = (doc as any).lastAutoTable?.finalY ? (doc as any).lastAutoTable.finalY + 15 : 180;
+  const lastY = (doc as any).lastAutoTable?.finalY ? (doc as any).lastAutoTable.finalY + 15 : 180;
+  let cY = lastY;
+
+  // Safety check: A4 page height is 297mm. Summary box takes ~45mm.
+  // If starting cY + 45mm exceeds 275mm, create a clean new page.
+  if (cY + 45 > 275) {
+      doc.addPage();
+      cY = 25;
+  }
+
   const summaryX = 80;
   const valX = 195;
-  let cY = finalY;
 
   doc.setFontSize(9);
   doc.setFont("helvetica", "bold");

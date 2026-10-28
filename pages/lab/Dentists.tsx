@@ -714,7 +714,16 @@ export const Dentists = () => {
             columnStyles: { 0: { cellWidth: 25 }, 2: { halign: 'left', cellWidth: 35 }, 3: { halign: 'left', cellWidth: 35 } }
         });
 
-        const finalY = (doc as any).lastAutoTable.finalY + 15;
+        const lastY = (doc as any).lastAutoTable?.finalY || 180;
+        let cY = lastY + 15;
+
+        // Safety check: A4 page height is 297mm. Summary box takes ~50mm.
+        // If starting cY + 50mm exceeds 275mm, create a clean new page.
+        if (cY + 50 > 275) {
+            doc.addPage();
+            cY = 25;
+        }
+
         const totalServices = chronoHistory.history.filter(i => i.type === 'DEBIT').reduce((acc, curr) => acc + curr.amount, 0);
         const totalPayments = chronoHistory.history.filter(i => i.type !== 'DEBIT').reduce((acc, curr) => acc + curr.amount, 0);
         const currentBalance = chronoHistory.history.length > 0 ? chronoHistory.history[chronoHistory.history.length - 1].balanceAfter : chronoHistory.previousBalance;
@@ -725,7 +734,6 @@ export const Dentists = () => {
         
         const summaryX = 80;
         const valX = 195;
-        let cY = finalY;
 
         doc.text(t('dentists.previousBalance', 'Saldo anterior'), summaryX, cY);
         doc.setTextColor(239, 68, 68);
@@ -852,7 +860,11 @@ export const Dentists = () => {
             columnStyles: { 0: { cellWidth: 30 }, 2: { cellWidth: 40 } }
         });
 
-        const finalY = (doc as any).lastAutoTable.finalY + 20;
+        let finalY = (doc as any).lastAutoTable.finalY + 20;
+        if (finalY + 25 > 275) {
+            doc.addPage();
+            finalY = 30;
+        }
         doc.setFontSize(9);
         doc.text("_____________________________________________________", 105, finalY, { align: 'center' });
         doc.text(currentOrg.name || t('dentists.lab', 'Laboratório'), 105, finalY + 5, { align: 'center' });
