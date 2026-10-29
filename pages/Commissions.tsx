@@ -1010,19 +1010,6 @@ export const Commissions = () => {
         </div>
         
         <div className="flex flex-wrap items-center gap-2">
-          {isManager && (
-            <button
-              onClick={() => {
-                setSyncResultMsg(null);
-                setShowSyncModal(true);
-              }}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold shadow-sm active:scale-95 transition-all text-sm cursor-pointer"
-              title="Analisar trabalhos e recalcular comissões do período"
-            >
-              <RefreshCw size={18} /> Sincronizar Comissões
-            </button>
-          )}
-
           <div className="relative">
             <button 
               onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
@@ -1047,33 +1034,6 @@ export const Commissions = () => {
           </div>
         </div>
       </div>
-
-      {/* Alerta e Limpeza de Duplicidades */}
-      {isManager && duplicatePendingRecords.length > 0 && (
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-amber-100 text-amber-700 rounded-xl shrink-0">
-              <AlertTriangle size={20} />
-            </div>
-            <div>
-              <p className="text-sm font-bold text-amber-900">
-                Detectamos {duplicatePendingRecords.length} lançamento{duplicatePendingRecords.length > 1 ? 's' : ''} de comissão duplicado{duplicatePendingRecords.length > 1 ? 's' : ''} no banco de dados
-              </p>
-              <p className="text-xs text-amber-700">
-                A visualização atual já está blindada contra duplicidades. Clique no botão ao lado para remover as cópias duplicadas do banco de dados com segurança.
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={handleDeduplicateCommissions}
-            disabled={isDeduplicating}
-            className="px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-sm active:scale-95 transition-all flex items-center gap-2 cursor-pointer shrink-0"
-          >
-            {isDeduplicating ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
-            Limpar Duplicidades ({duplicatePendingRecords.length})
-          </button>
-        </div>
-      )}
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
