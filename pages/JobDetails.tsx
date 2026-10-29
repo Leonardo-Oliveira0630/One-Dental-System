@@ -823,6 +823,7 @@ export const JobDetails = () => {
   const canDelete = isAdmin || isManager || (job?.isBudget ? hasPerm('budgets:delete') : hasPerm('jobs:delete'));
   const canManageCommissions = isAdmin || isManager || hasPerm('commissions:edit');
   const canReturn = isAdmin || isManager || hasPerm('jobs:return');
+  const canRegisterReturn = isLabStaff && canReturn && (isFinished || job?.status === JobStatus.RETURNED) && !job?.isBudget;
   const canFinish = isAdmin || isManager || hasPerm('jobs:finish');
   const canAlert = isAdmin || isManager || hasPerm('jobs:alert');
   const canPrint = isAdmin || isManager || hasPerm('jobs:print');
@@ -4926,15 +4927,15 @@ export const JobDetails = () => {
                       <CheckCircle2 size={12} /> {t('jobDetails.approveAndGenerateOs', 'Aprovar e Gerar OS')}
                   </button>
               )}
+              {canRegisterReturn && (
+                  <button onClick={() => setShowReturnModal(true)} disabled={isUpdatingStatus} className="px-3 py-1.5 bg-indigo-50 border border-indigo-100 text-indigo-600 rounded-lg hover:bg-indigo-100 font-bold flex items-center gap-1.5 text-[9px] uppercase tracking-widest transition-all">
+                      <Plus size={12} /> {t('jobDetails.registerReturn', 'Cadastrar Retorno')}
+                  </button>
+              )}
               {canReopen && !job.isBudget && (
-                  <>
-                    <button onClick={() => setShowReturnModal(true)} disabled={isUpdatingStatus} className="px-3 py-1.5 bg-indigo-50 border border-indigo-100 text-indigo-600 rounded-lg hover:bg-indigo-100 font-bold flex items-center gap-1.5 text-[9px] uppercase tracking-widest transition-all">
-                        <Plus size={12} /> {t('jobDetails.registerReturn', 'Cadastrar Retorno')}
-                    </button>
-                    <button onClick={handleReopenJob} disabled={isUpdatingStatus} className="px-3 py-1.5 bg-amber-50 border border-amber-100 text-amber-600 rounded-lg hover:bg-amber-100 font-bold flex items-center gap-1.5 text-[9px] uppercase tracking-widest transition-all">
-                      {isUpdatingStatus ? <Loader2 size={12} className="animate-spin" /> : <RotateCcw size={12} />} {t('jobDetails.reopen', 'Reabrir')}
-                    </button>
-                  </>
+                  <button onClick={handleReopenJob} disabled={isUpdatingStatus} className="px-3 py-1.5 bg-amber-50 border border-amber-100 text-amber-600 rounded-lg hover:bg-amber-100 font-bold flex items-center gap-1.5 text-[9px] uppercase tracking-widest transition-all">
+                    {isUpdatingStatus ? <Loader2 size={12} className="animate-spin" /> : <RotateCcw size={12} />} {t('jobDetails.reopen', 'Reabrir')}
+                  </button>
               )}
               {canPrint && job.status !== JobStatus.REJECTED && (
                   <>
