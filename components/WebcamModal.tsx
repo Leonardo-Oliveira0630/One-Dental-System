@@ -9,11 +9,14 @@ import {
   FlashlightOff, 
   Image as ImageIcon, 
   Smartphone,
-  Sparkles
+  Sparkles,
+  Video as VideoIcon,
+  Square
 } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { CameraDevice, getAvailableCameras, getSmartCameraSelection } from '../utils/cameraUtils';
+import { smartCompress } from '../services/compressionService';
 
 interface WebcamModalProps {
   onClose: () => void;
@@ -24,7 +27,7 @@ interface WebcamModalProps {
 export const WebcamModal: React.FC<WebcamModalProps> = ({ 
   onClose, 
   onCapture,
-  title = "Foto do Caso"
+  title = "Mídia do Caso"
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
@@ -35,6 +38,14 @@ export const WebcamModal: React.FC<WebcamModalProps> = ({
   const [hasTorch, setHasTorch] = useState(false);
   const [isTorchOn, setIsTorchOn] = useState(false);
   const [isFlashing, setIsFlashing] = useState(false);
+
+  // Capture mode: Photo vs Video
+  const [captureMode, setCaptureMode] = useState<'PHOTO' | 'VIDEO'>('PHOTO');
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordedChunksRef = useRef<Blob[]>([]);
+  const timerIntervalRef = useRef<any>(null);
 
   const [cameraResolution, setCameraResolution] = useState<{ width: number; height: number } | null>(null);
   const [focusAnimation, setFocusAnimation] = useState<{ x: number; y: number } | null>(null);
@@ -113,7 +124,7 @@ export const WebcamModal: React.FC<WebcamModalProps> = ({
         } catch (e1) {
           console.warn("Attempt 1 (exact ID + FHD) failed:", e1);
           try {
-            // Attempt 2: Exact camera ID without resolution locks
+            // Attempt 2: Exact camera ID
             stream = await navigator.mediaDevices.getUserMedia({
               video: exactConstraint
             });
@@ -125,11 +136,8 @@ export const WebcamModal: React.FC<WebcamModalProps> = ({
                 video: idealConstraint
               });
             } catch (e3) {
-              console.warn("Attempt 3 (ideal ID) failed, falling back to default video:", e3);
-              // Attempt 4: Flexible default video
-              stream = await navigator.mediaDevices.getUserMedia({
-                video: true
-              });
+              console.warn("Attempt 3 failed, falling back to default video:", e3);
+              stream = await navigator.mediaDevices.getUserMedia({ video: true });
             }
           }
         }
@@ -149,7 +157,6 @@ export const WebcamModal: React.FC<WebcamModalProps> = ({
                   });
                 }
               }
-              // Check torch capability
               try {
                 const track = stream?.getVideoTracks()[0];
                 const caps = (track?.getCapabilities ? track.getCapabilities() : {}) as any;
@@ -185,6 +192,10 @@ export const WebcamModal: React.FC<WebcamModalProps> = ({
     return () => {
       isMounted = false;
       if (safetyTimeout) clearTimeout(safetyTimeout);
+      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        try { mediaRecorderRef.current.stop(); } catch (e) {}
+      }
       if (stream) {
         stream.getTracks().forEach(t => t.stop());
       }
@@ -224,12 +235,13 @@ export const WebcamModal: React.FC<WebcamModalProps> = ({
           const response = await fetch(photo.webPath);
           const blob = await response.blob();
           const ext = photo.format || 'jpg';
-          const file = new File(
+          const rawFile = new File(
             [blob], 
             `foto-caso-${Date.now()}.${ext}`, 
             { type: `image/${ext === 'png' ? 'png' : 'jpeg'}` }
           );
-          onCapture(file);
+          const processed = await smartCompress(rawFile);
+          onCapture(processed);
           onClose();
         }
       } catch (err: any) {
@@ -238,32 +250,25 @@ export const WebcamModal: React.FC<WebcamModalProps> = ({
         }
       }
     } else {
-      // On web browser, trigger native camera file picker
       galleryInputRef.current?.click();
     }
   };
 
-  const handleGallerySelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleGallerySelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      onCapture(file);
+      setIsLoading(true);
+      const processed = await smartCompress(file);
+      onCapture(processed);
+      setIsLoading(false);
       onClose();
     }
   };
 
   const triggerShutterFeedback = () => {
-    // Haptic vibration
-    try {
-      if (navigator.vibrate) {
-        navigator.vibrate(40);
-      }
-    } catch (e) {}
-
-    // Shutter flash effect
+    try { if (navigator.vibrate) navigator.vibrate(40); } catch (e) {}
     setIsFlashing(true);
-    setTimeout(() => {
-      setIsFlashing(false);
-    }, 150);
+    setTimeout(() => setIsFlashing(false), 150);
   };
 
   const handleViewfinderClick = async (e: React.MouseEvent<HTMLDivElement>) => {
@@ -275,7 +280,6 @@ export const WebcamModal: React.FC<WebcamModalProps> = ({
     setFocusAnimation({ x, y });
     setTimeout(() => setFocusAnimation(null), 1200);
 
-    // Try hardware focus constraint if available
     try {
       if (videoRef.current.srcObject) {
         const stream = videoRef.current.srcObject as MediaStream;
@@ -294,94 +298,125 @@ export const WebcamModal: React.FC<WebcamModalProps> = ({
     }
   };
 
+  // Capturar Foto
   const capturePhoto = useCallback(async () => {
     if (!videoRef.current) return;
     const video = videoRef.current;
     
-    // If video width is 0, fall back to native camera if available
-    if (video.videoWidth === 0 && Capacitor.isNativePlatform()) {
+    // Certifica que o vídeo está pronto e com dimensões válidas
+    if ((video.readyState < 2 || video.videoWidth === 0) && Capacitor.isNativePlatform()) {
       handleNativeCamera();
+      return;
+    }
+
+    if (video.readyState < 2 || video.videoWidth === 0) {
+      console.warn("Vídeo ainda não pronto para captura");
       return;
     }
 
     triggerShutterFeedback();
 
-    const stream = video.srcObject as MediaStream;
-    const track = stream?.getVideoTracks()[0];
-
-    // Priority 1: Hardware-level ImageCapture API for true sensor resolution (12MP/48MP/4K)
-    if (track && (window as any).ImageCapture) {
-      try {
-        const imageCapture = new (window as any).ImageCapture(track);
-        
-        // Trigger auto-focus right before taking photo if supported
-        try {
-          const caps = (track.getCapabilities ? track.getCapabilities() : {}) as any;
-          if (caps.focusMode && (caps.focusMode.includes('single-shot') || caps.focusMode.includes('continuous'))) {
-            await track.applyConstraints({ advanced: [{ focusMode: 'continuous' } as any] });
-          }
-        } catch (fErr) {}
-
-        let photoSettings: any = {};
-        try {
-          if (imageCapture.getPhotoCapabilities) {
-            const photoCaps = await imageCapture.getPhotoCapabilities();
-            if (photoCaps.imageWidth?.max) {
-              photoSettings.imageWidth = photoCaps.imageWidth.max;
-            }
-            if (photoCaps.imageHeight?.max) {
-              photoSettings.imageHeight = photoCaps.imageHeight.max;
-            }
-            if (isTorchOn && photoCaps.fillLightMode?.includes('flash')) {
-              photoSettings.fillLightMode = 'flash';
-            }
-          }
-        } catch (capsErr) {
-          console.warn("Could not query photo capabilities, using defaults:", capsErr);
-        }
-
-        const blob = await imageCapture.takePhoto(photoSettings);
-
-        if (blob && blob.size > 0) {
-          const file = new File(
-            [blob], 
-            `foto-caso-hd-${Date.now()}.jpg`, 
-            { type: 'image/jpeg' }
-          );
-          console.log(`[LABPROX CAMERA] Foto de alta resolução capturada via ImageCapture (${(blob.size / 1024).toFixed(1)}KB)`);
-          onCapture(file);
-          onClose();
-          return;
-        }
-      } catch (icErr) {
-        console.warn("ImageCapture takePhoto fallback to high-resolution Canvas:", icErr);
-      }
-    }
-
-    // Priority 2: High-resolution Canvas capture with bicubic smoothing
     const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth || 1920;
-    canvas.height = video.videoHeight || 1080;
+    canvas.width = video.videoWidth || 1280;
+    canvas.height = video.videoHeight || 720;
     const ctx = canvas.getContext('2d', { alpha: false });
     if (!ctx) return;
     
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     
-    canvas.toBlob((blob) => {
-      if (blob) {
+    const supportsWebp = canvas.toDataURL('image/webp').startsWith('data:image/webp');
+    const mimeType = supportsWebp ? 'image/webp' : 'image/jpeg';
+    const ext = supportsWebp ? '.webp' : '.jpg';
+
+    canvas.toBlob(async (blob) => {
+      if (blob && blob.size > 0) {
         const file = new File(
           [blob], 
-          `foto-caso-hd-${Date.now()}.jpg`, 
-          { type: 'image/jpeg' }
+          `foto-caso-${Date.now()}${ext}`, 
+          { type: mimeType }
         );
-        console.log(`[LABPROX CAMERA] Foto capturada via Canvas HD (${canvas.width}x${canvas.height}): ${(blob.size / 1024).toFixed(1)}KB`);
-        onCapture(file);
+        const processed = await smartCompress(file);
+        console.log(`[LABPROX CAMERA] Foto capturada e otimizada: ${(processed.size / 1024).toFixed(1)}KB`);
+        onCapture(processed);
         onClose();
       }
-    }, 'image/jpeg', 0.98);
-  }, [onCapture, onClose, isTorchOn]);
+    }, mimeType, 0.85);
+  }, [onCapture, onClose]);
+
+  // Gravar Vídeo (Início/Parada)
+  const stopRecording = useCallback(() => {
+    if (timerIntervalRef.current) {
+      clearInterval(timerIntervalRef.current);
+      timerIntervalRef.current = null;
+    }
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      try {
+        mediaRecorderRef.current.stop();
+      } catch (e) {
+        console.error("Erro ao parar gravação:", e);
+      }
+    }
+    setIsRecording(false);
+  }, []);
+
+  const startRecording = useCallback(() => {
+    if (!videoRef.current || !videoRef.current.srcObject) return;
+    const stream = videoRef.current.srcObject as MediaStream;
+
+    let mimeType = 'video/webm;codecs=vp9,opus';
+    if (!MediaRecorder.isTypeSupported(mimeType)) {
+      mimeType = 'video/webm';
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        mimeType = 'video/mp4';
+      }
+    }
+
+    try {
+      const mediaRecorder = new MediaRecorder(stream, { mimeType });
+      recordedChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) {
+          recordedChunksRef.current.push(e.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
+        const blob = new Blob(recordedChunksRef.current, { type: mimeType });
+        if (blob.size > 0) {
+          const rawVideoFile = new File([blob], `video-caso-${Date.now()}.${ext}`, { type: mimeType });
+          const processed = await smartCompress(rawVideoFile);
+          console.log(`[LABPROX VIDEO] Vídeo gravado e processado: ${(processed.size / 1024 / 1024).toFixed(2)}MB`);
+          onCapture(processed);
+          onClose();
+        }
+      };
+
+      mediaRecorder.start(200);
+      mediaRecorderRef.current = mediaRecorder;
+      setIsRecording(true);
+      setRecordingSeconds(0);
+
+      timerIntervalRef.current = setInterval(() => {
+        setRecordingSeconds(prev => {
+          if (prev >= 30) {
+            stopRecording();
+            return 30;
+          }
+          return prev + 1;
+        });
+      }, 1000);
+
+    } catch (err) {
+      console.error("Erro ao iniciar gravação de vídeo:", err);
+      alert("Não foi possível iniciar a gravação de vídeo neste dispositivo.");
+    }
+  }, [onCapture, onClose, stopRecording]);
 
   const cycleCamera = () => {
     if (cameras.length > 1 && selectedCameraId) {
@@ -391,14 +426,19 @@ export const WebcamModal: React.FC<WebcamModalProps> = ({
     }
   };
 
+  const formatTimer = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
   return (
     <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-slate-950/95 backdrop-blur-md p-0 sm:p-4 animate-in fade-in duration-200">
-      {/* Hidden gallery file input */}
+      {/* Input de arquivo para seleção de galeria de imagens/vídeos */}
       <input 
         type="file" 
         ref={galleryInputRef} 
-        accept="image/*" 
-        capture="environment"
+        accept="image/*,video/*" 
         className="hidden" 
         onChange={handleGallerySelect} 
       />
@@ -411,31 +451,40 @@ export const WebcamModal: React.FC<WebcamModalProps> = ({
           <button 
             type="button"
             onClick={onClose} 
-            className="w-10 h-10 bg-black/40 hover:bg-black/80 text-white rounded-full flex items-center justify-center border border-white/15 backdrop-blur-md active:scale-95 transition-all shadow-lg"
+            className="w-10 h-10 bg-black/40 hover:bg-black/80 text-white rounded-full flex items-center justify-center border border-white/15 backdrop-blur-md active:scale-95 transition-all shadow-lg cursor-pointer"
             title="Fechar Câmera"
           >
             <X size={20} />
           </button>
 
-          {/* Title & HD Resolution Pill */}
-          <div className="flex items-center gap-1.5">
-            <div className="px-3.5 py-1.5 bg-black/50 border border-white/15 rounded-full backdrop-blur-md flex items-center gap-2 shadow-lg">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-xs font-black uppercase tracking-wider text-white">
-                {title}
-              </span>
-            </div>
-            {cameraResolution && (
-              <div className="hidden sm:flex px-2.5 py-1 bg-blue-600/60 border border-blue-400/40 rounded-full backdrop-blur-md items-center gap-1 shadow-lg text-[10px] font-black text-white uppercase tracking-tight">
-                <Sparkles size={11} className="text-blue-300" />
-                {cameraResolution.width >= 3840 ? '4K Ultra HD' : cameraResolution.width >= 1920 ? 'Full HD' : `${cameraResolution.width}x${cameraResolution.height}`}
-              </div>
-            )}
+          {/* Mode Selector Tabs (Foto vs Vídeo) */}
+          <div className="flex items-center bg-black/60 border border-white/20 rounded-full p-1 backdrop-blur-md shadow-lg">
+            <button
+              type="button"
+              onClick={() => { if (!isRecording) setCaptureMode('PHOTO'); }}
+              disabled={isRecording}
+              className={`px-3 py-1 rounded-full text-xs font-black uppercase transition-all flex items-center gap-1.5 ${
+                captureMode === 'PHOTO' ? 'bg-white text-slate-950 shadow-md' : 'text-slate-300 hover:text-white'
+              }`}
+            >
+              <CameraIcon size={14} />
+              <span>Foto</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => { if (!isRecording) setCaptureMode('VIDEO'); }}
+              disabled={isRecording}
+              className={`px-3 py-1 rounded-full text-xs font-black uppercase transition-all flex items-center gap-1.5 ${
+                captureMode === 'VIDEO' ? 'bg-red-600 text-white shadow-md shadow-red-600/30' : 'text-slate-300 hover:text-white'
+              }`}
+            >
+              <VideoIcon size={14} />
+              <span>Vídeo</span>
+            </button>
           </div>
 
           {/* Right Action Icons */}
           <div className="flex items-center gap-2">
-            {/* Torch toggle */}
             {hasTorch && (
               <button 
                 type="button"
@@ -451,12 +500,11 @@ export const WebcamModal: React.FC<WebcamModalProps> = ({
               </button>
             )}
 
-            {/* Switch Camera */}
-            {cameras.length > 1 && (
+            {cameras.length > 1 && !isRecording && (
               <button 
                 type="button"
                 onClick={cycleCamera} 
-                className="w-10 h-10 bg-black/40 hover:bg-black/80 text-white rounded-full flex items-center justify-center border border-white/15 backdrop-blur-md active:scale-95 transition-all shadow-lg"
+                className="w-10 h-10 bg-black/40 hover:bg-black/80 text-white rounded-full flex items-center justify-center border border-white/15 backdrop-blur-md active:scale-95 transition-all shadow-lg cursor-pointer"
                 title="Alternar Câmera"
               >
                 <SwitchCamera size={18} />
@@ -465,8 +513,18 @@ export const WebcamModal: React.FC<WebcamModalProps> = ({
           </div>
         </div>
 
-        {/* Camera Selector Sub-bar for External USB and Notebook Webcams */}
-        {cameras.length > 0 && (
+        {/* Live Recording Counter */}
+        {isRecording && (
+          <div className="absolute top-16 inset-x-0 mx-auto w-fit z-40 animate-pulse">
+            <div className="bg-red-600/90 border border-red-400 text-white font-mono font-black text-sm px-4 py-1.5 rounded-full backdrop-blur-md shadow-2xl flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-white animate-ping" />
+              <span>GRAVANDO: {formatTimer(recordingSeconds)} / 00:30</span>
+            </div>
+          </div>
+        )}
+
+        {/* Camera Selector Sub-bar */}
+        {cameras.length > 0 && !isRecording && (
           <div className="absolute top-16 inset-x-0 mx-auto w-11/12 max-w-sm z-30 flex justify-center">
             <div className="bg-black/75 border border-white/20 rounded-full px-3 py-1.5 backdrop-blur-md shadow-2xl flex items-center gap-2 w-full max-w-xs">
               <span className="text-[10px] font-black uppercase text-blue-400 shrink-0 flex items-center gap-1">
@@ -493,14 +551,14 @@ export const WebcamModal: React.FC<WebcamModalProps> = ({
           className="relative flex-1 w-full bg-black flex items-center justify-center overflow-hidden cursor-crosshair"
           title="Toque na tela para focar"
         >
-          {/* Shutter White Flash Feedback */}
+          {/* Shutter Flash Effect */}
           <div 
             className={`absolute inset-0 bg-white pointer-events-none z-40 transition-opacity duration-150 ${
               isFlashing ? 'opacity-90' : 'opacity-0'
             }`} 
           />
 
-          {/* Dynamic Tap-to-Focus Reticle */}
+          {/* Tap-to-Focus Reticle */}
           {focusAnimation && (
             <div 
               style={{ left: `${focusAnimation.x - 32}px`, top: `${focusAnimation.y - 32}px` }}
@@ -508,7 +566,7 @@ export const WebcamModal: React.FC<WebcamModalProps> = ({
             />
           )}
 
-          {/* Rule of Thirds Alignment Grid */}
+          {/* Rule of Thirds Grid */}
           <div className="absolute inset-0 pointer-events-none grid grid-cols-3 grid-rows-3 z-10 opacity-20">
             <div className="border-r border-b border-white" />
             <div className="border-r border-b border-white" />
@@ -521,10 +579,9 @@ export const WebcamModal: React.FC<WebcamModalProps> = ({
             <div />
           </div>
 
-          {/* Center Focus Reticle */}
+          {/* Center Focus Frame */}
           <div className="absolute w-44 h-44 sm:w-52 sm:h-52 border border-white/30 rounded-2xl pointer-events-none z-10 flex items-center justify-center">
             <div className="w-2.5 h-2.5 rounded-full bg-white/40" />
-            {/* Corner brackets */}
             <div className="absolute -top-1 -left-1 w-4 h-4 border-t-2 border-l-2 border-white/70 rounded-tl" />
             <div className="absolute -top-1 -right-1 w-4 h-4 border-t-2 border-r-2 border-white/70 rounded-tr" />
             <div className="absolute -bottom-1 -left-1 w-4 h-4 border-b-2 border-l-2 border-white/70 rounded-bl" />
@@ -540,9 +597,6 @@ export const WebcamModal: React.FC<WebcamModalProps> = ({
               <span className="text-sm font-black uppercase tracking-wider text-slate-200">
                 Iniciando câmera...
               </span>
-              <span className="text-xs text-slate-400 font-medium max-w-xs">
-                Ajustando foco e resolução do sensor
-              </span>
             </div>
           )}
 
@@ -554,7 +608,7 @@ export const WebcamModal: React.FC<WebcamModalProps> = ({
               </div>
               <div>
                 <h4 className="text-base font-black uppercase tracking-tight text-white mb-1">
-                  Acesso à Câmera Indisponível
+                  Câmera Indisponível
                 </h4>
                 <p className="text-xs text-slate-300 font-medium leading-relaxed">
                   {cameraError}
@@ -565,16 +619,16 @@ export const WebcamModal: React.FC<WebcamModalProps> = ({
                 <button 
                   type="button"
                   onClick={handleNativeCamera}
-                  className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs font-black uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-all"
+                  className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs font-black uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-all cursor-pointer"
                 >
-                  <Smartphone size={16} /> Abrir Câmera Nativa do Celular
+                  <Smartphone size={16} /> Usar Câmera do Celular
                 </button>
                 <button 
                   type="button"
                   onClick={() => galleryInputRef.current?.click()}
-                  className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-2xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all"
+                  className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-2xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer"
                 >
-                  <ImageIcon size={16} /> Escolher da Galeria
+                  <ImageIcon size={16} /> Selecionar das Mídias
                 </button>
               </div>
             </div>
@@ -590,50 +644,76 @@ export const WebcamModal: React.FC<WebcamModalProps> = ({
           />
         </div>
 
-        {/* Bottom Camera Control Dock */}
+        {/* Bottom Control Dock */}
         <div className="relative z-30 p-6 bg-gradient-to-t from-black via-black/90 to-transparent flex items-center justify-around gap-4">
-          {/* Left: Gallery Picker */}
+          {/* Gallery Picker */}
           <button 
             type="button"
             onClick={() => galleryInputRef.current?.click()}
-            className="flex flex-col items-center gap-1 text-slate-300 hover:text-white transition-all active:scale-90 w-16"
-            title="Escolher Foto da Galeria"
+            disabled={isRecording}
+            className="flex flex-col items-center gap-1 text-slate-300 hover:text-white transition-all active:scale-90 w-16 disabled:opacity-30 cursor-pointer"
+            title="Escolher Mídia da Galeria"
           >
             <div className="w-12 h-12 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/15 backdrop-blur-md flex items-center justify-center text-slate-200 shadow-md">
               <ImageIcon size={20} />
             </div>
             <span className="text-[9px] font-black uppercase tracking-wider text-slate-300">
-              Galeria
+              Mídias
             </span>
           </button>
 
-          {/* Center: Premium Shutter Button */}
-          <button 
-            type="button"
-            onClick={capturePhoto}
-            disabled={isLoading && !cameraError}
-            className="relative group p-1 active:scale-90 transition-transform disabled:opacity-50"
-            title="Tirar Foto"
-          >
-            <div className="w-20 h-20 rounded-full border-4 border-white/90 p-1 flex items-center justify-center transition-all group-hover:border-white group-hover:scale-105 shadow-2xl shadow-black/80">
-              <div className="w-full h-full rounded-full bg-white group-active:bg-slate-200 transition-colors shadow-inner flex items-center justify-center">
-                <CameraIcon size={26} className="text-slate-950" />
+          {/* Center Action Button (Foto vs Gravar Vídeo) */}
+          {captureMode === 'PHOTO' ? (
+            <button 
+              type="button"
+              onClick={capturePhoto}
+              disabled={isLoading && !cameraError}
+              className="relative group p-1 active:scale-90 transition-transform disabled:opacity-50 cursor-pointer"
+              title="Tirar Foto"
+            >
+              <div className="w-20 h-20 rounded-full border-4 border-white/90 p-1 flex items-center justify-center transition-all group-hover:border-white group-hover:scale-105 shadow-2xl shadow-black/80">
+                <div className="w-full h-full rounded-full bg-white group-active:bg-slate-200 transition-colors shadow-inner flex items-center justify-center">
+                  <CameraIcon size={26} className="text-slate-950" />
+                </div>
               </div>
-            </div>
-          </button>
+            </button>
+          ) : (
+            <button 
+              type="button"
+              onClick={isRecording ? stopRecording : startRecording}
+              disabled={isLoading && !cameraError}
+              className="relative group p-1 active:scale-90 transition-transform disabled:opacity-50 cursor-pointer"
+              title={isRecording ? "Parar Gravação" : "Iniciar Gravação de Vídeo"}
+            >
+              <div className={`w-20 h-20 rounded-full border-4 p-1 flex items-center justify-center transition-all shadow-2xl ${
+                isRecording ? 'border-red-500 animate-pulse' : 'border-red-600/90 group-hover:border-red-500'
+              }`}>
+                <div className={`w-full h-full rounded-full transition-all flex items-center justify-center ${
+                  isRecording ? 'bg-red-600 rounded-2xl scale-75' : 'bg-red-600 group-active:bg-red-700'
+                }`}>
+                  {isRecording ? (
+                    <Square size={20} className="text-white fill-white" />
+                  ) : (
+                    <VideoIcon size={26} className="text-white" />
+                  )}
+                </div>
+              </div>
+            </button>
+          )}
 
-          {/* Right: Native Camera Option */}
+          {/* Native Camera Option */}
           <button
             type="button"
             onClick={handleNativeCamera}
-            className="flex flex-col items-center gap-1 text-slate-300 hover:text-white transition-all active:scale-90 w-20"
-            title="Abrir Câmera Nativa com Qualidade Total"
+            disabled={isRecording}
+            className="flex flex-col items-center gap-1 text-slate-300 hover:text-white transition-all active:scale-90 w-20 disabled:opacity-30 cursor-pointer"
+            title="Câmera do Dispositivo"
           >
             <div className="w-12 h-12 rounded-2xl bg-emerald-600/30 hover:bg-emerald-600/50 border border-emerald-400/40 backdrop-blur-md flex items-center justify-center text-emerald-300 shadow-md">
               <Smartphone size={20} />
             </div>
             <span className="text-[9px] font-black uppercase tracking-wider text-emerald-300 text-center leading-tight">
-              Câmera Nativa
+              Câmera
             </span>
           </button>
         </div>

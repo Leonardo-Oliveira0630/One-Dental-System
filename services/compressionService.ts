@@ -1,28 +1,30 @@
-
 import JSZip from 'jszip';
 
 /**
- * Comprime imagens usando Canvas preservando máxima fidelidade e nitidez.
- * Para fotos odontológicas clínicas e detalhes de prótese em alta resolução (até 4K).
+ * Comprime e converte imagens para formato web otimizado (WebP / JPEG)
+ * Evita telas pretas, reduz drasticamente o tamanho e previne travamentos.
  */
-export const compressImage = async (file: File, maxWidth = 4096, quality = 0.98): Promise<File> => {
-  // Se o arquivo for menor que 10MB e formato padrão de foto, mantém original intacto com 100% de nitidez
-  if (file.size < 10 * 1024 * 1024 && (file.type === 'image/jpeg' || file.type === 'image/png' || file.type === 'image/webp')) {
+export const compressImage = async (file: File, maxWidth = 1920, quality = 0.82): Promise<File> => {
+  if (!file || !file.type.startsWith('image/') && !['jpg', 'jpeg', 'png', 'webp', 'heic', 'bmp'].some(ext => file.name.toLowerCase().endsWith(ext))) {
     return file;
   }
 
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = (event) => {
-      const img = new Image();
-      img.src = event.target?.result as string;
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        let width = img.width;
-        let height = img.height;
+  return new Promise((resolve) => {
+    let objectUrl = '';
+    try {
+      objectUrl = URL.createObjectURL(file);
+    } catch (e) {
+      return resolve(file);
+    }
 
-        // Limita apenas se exceder resolução Ultra HD (4096px)
+    const img = new Image();
+    img.src = objectUrl;
+
+    img.onload = () => {
+      try {
+        let width = img.naturalWidth || img.width || 1200;
+        let height = img.naturalHeight || img.height || 800;
+
         if (width > maxWidth || height > maxWidth) {
           if (width > height) {
             height = Math.round((maxWidth / width) * height);
@@ -33,90 +35,142 @@ export const compressImage = async (file: File, maxWidth = 4096, quality = 0.98)
           }
         }
 
+        const canvas = document.createElement('canvas');
         canvas.width = width;
         canvas.height = height;
 
         const ctx = canvas.getContext('2d', { alpha: false });
-        if (!ctx) return resolve(file);
-        
+        if (!ctx) {
+          URL.revokeObjectURL(objectUrl);
+          return resolve(file);
+        }
+
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, width, height);
         ctx.drawImage(img, 0, 0, width, height);
+
+        // Suporta conversão para WebP (formato web moderno) com fallback para JPEG
+        const supportsWebp = canvas.toDataURL('image/webp').startsWith('data:image/webp');
+        const mimeType = supportsWebp ? 'image/webp' : 'image/jpeg';
+        const ext = supportsWebp ? '.webp' : '.jpg';
 
         canvas.toBlob(
           (blob) => {
-            if (blob) {
-              const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", {
-                type: 'image/jpeg',
+            URL.revokeObjectURL(objectUrl);
+            if (blob && blob.size > 0) {
+              const baseName = file.name.replace(/\.[^/.]+$/, "");
+              const compressedFile = new File([blob], `${baseName}${ext}`, {
+                type: mimeType,
                 lastModified: Date.now(),
               });
-              console.log(`[LABPROX HD] Imagem processada em alta definição (${width}x${height}): ${(file.size / 1024).toFixed(1)}KB -> ${(compressedFile.size / 1024).toFixed(1)}KB`);
+              console.log(`[LABPROX COMPRESS] Imagem convertida para web (${width}x${height}): ${(file.size / 1024).toFixed(1)}KB -> ${(compressedFile.size / 1024).toFixed(1)}KB`);
               resolve(compressedFile);
             } else {
               resolve(file);
             }
           },
-          'image/jpeg',
+          mimeType,
           quality
         );
-      };
-      img.onerror = () => resolve(file);
+      } catch (err) {
+        console.warn("[LABPROX] Falha no canvas ao processar imagem:", err);
+        URL.revokeObjectURL(objectUrl);
+        resolve(file);
+      }
     };
-    reader.onerror = () => resolve(file);
+
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(file);
+    };
   });
 };
 
 /**
- * Converte e comprime imagem diretamente para string Base64 leve (ideal para Firestore < 100KB)
+ * Converte e comprime imagem diretamente para string Base64 leve (ideal para previnir estouro de memória no Firestore)
  */
-export const compressImageToBase64 = async (file: File, maxWidth = 1200, quality = 0.8): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = (event) => {
-      const rawDataUrl = (event.target?.result as string) || '';
-      const img = new Image();
-      img.src = rawDataUrl;
-      img.onload = () => {
-        try {
-          const canvas = document.createElement('canvas');
-          let width = img.width;
-          let height = img.height;
+export const compressImageToBase64 = async (file: File, maxWidth = 1200, quality = 0.78): Promise<string> => {
+  if (!file) return '';
 
-          if (width > maxWidth) {
-            height = Math.round((maxWidth / width) * height);
-            width = maxWidth;
-          }
+  return new Promise((resolve) => {
+    let objectUrl = '';
+    try {
+      objectUrl = URL.createObjectURL(file);
+    } catch (e) {
+      return resolve('');
+    }
 
-          canvas.width = width;
-          canvas.height = height;
+    const img = new Image();
+    img.src = objectUrl;
 
-          const ctx = canvas.getContext('2d');
-          if (!ctx) return resolve(rawDataUrl);
-          
-          ctx.imageSmoothingEnabled = true;
-          ctx.imageSmoothingQuality = 'high';
-          ctx.drawImage(img, 0, 0, width, height);
+    img.onload = () => {
+      try {
+        let width = img.naturalWidth || img.width || 800;
+        let height = img.naturalHeight || img.height || 600;
 
-          const base64 = canvas.toDataURL('image/jpeg', quality);
-          console.log(`[LABPROX] Imagem Base64 gerada: ${(base64.length / 1024).toFixed(1)}KB`);
-          resolve(base64);
-        } catch (canvasErr) {
-          console.warn("[LABPROX] Falha no canvas, usando dataURL original:", canvasErr);
-          resolve(rawDataUrl);
+        if (width > maxWidth) {
+          height = Math.round((maxWidth / width) * height);
+          width = maxWidth;
         }
-      };
-      img.onerror = () => {
-        // Fallback for mobile / browser un-decodable formats (e.g. HEIC on older engines)
-        if (rawDataUrl) {
-          resolve(rawDataUrl);
-        } else {
-          reject(new Error("Erro ao carregar imagem"));
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          URL.revokeObjectURL(objectUrl);
+          return resolve('');
         }
-      };
+
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const base64 = canvas.toDataURL('image/jpeg', quality);
+        URL.revokeObjectURL(objectUrl);
+        console.log(`[LABPROX BASE64] Imagem leve gerada: ${(base64.length / 1024).toFixed(1)}KB`);
+        resolve(base64);
+      } catch (canvasErr) {
+        console.warn("[LABPROX] Falha na conversão para base64:", canvasErr);
+        URL.revokeObjectURL(objectUrl);
+        resolve('');
+      }
     };
-    reader.onerror = (err) => reject(err);
+
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve('');
+    };
   });
+};
+
+/**
+ * Otimiza e valida vídeos para formato web leve (WebM / MP4)
+ */
+export const processVideoFile = async (file: File): Promise<File> => {
+  if (!file || !file.type.startsWith('video/')) return file;
+  
+  console.log(`[LABPROX VIDEO] Vídeo recebido para formato web: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
+  
+  // Garantir extensão web apropriada (.webm ou .mp4)
+  const isWebM = file.type.includes('webm');
+  const isMp4 = file.type.includes('mp4') || file.name.toLowerCase().endsWith('.mp4');
+  
+  if (!isWebM && !isMp4) {
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    const newName = file.name.replace(new RegExp(`\\.${ext}$`, 'i'), '.mp4');
+    return new File([file], newName, {
+      type: 'video/mp4',
+      lastModified: Date.now()
+    });
+  }
+
+  return file;
 };
 
 /**
@@ -126,12 +180,11 @@ export const processSTLFile = async (file: File): Promise<File> => {
   if (file.size < 3 * 1024 * 1024) return file;
 
   const zip = new JSZip();
-  // Padronização LABPROX: prefixo 3D_ para fácil identificação
   zip.file(`3D_${file.name}`, file);
   const blob = await zip.generateAsync({ 
     type: 'blob', 
     compression: 'DEFLATE',
-    compressionOptions: { level: 6 } // Nível 6 é o melhor equilíbrio entre CPU e ganho de compressão
+    compressionOptions: { level: 6 }
   });
 
   const zippedFile = new File([blob], `${file.name}.zip`, {
@@ -144,21 +197,26 @@ export const processSTLFile = async (file: File): Promise<File> => {
 };
 
 /**
- * Função mestre que decide a estratégia de compressão baseada na extensão.
+ * Função mestre de otimização de mídias e arquivos para a Web no ato da importação.
  */
 export const smartCompress = async (file: File): Promise<File> => {
-  const ext = file.name.split('.').pop()?.toLowerCase();
+  if (!file) return file;
+  const ext = file.name.split('.').pop()?.toLowerCase() || '';
   
   try {
-    if (['jpg', 'jpeg', 'png', 'webp', 'heic'].includes(ext || '')) {
+    if (file.type.startsWith('image/') || ['jpg', 'jpeg', 'png', 'webp', 'heic', 'bmp'].includes(ext)) {
       return await compressImage(file);
     }
     
+    if (file.type.startsWith('video/') || ['mp4', 'mov', 'webm', 'avi', 'mkv'].includes(ext)) {
+      return await processVideoFile(file);
+    }
+
     if (ext === 'stl') {
       return await processSTLFile(file);
     }
   } catch (e) {
-    console.error("[LABPROX] Falha na compressão, usando original:", e);
+    console.error("[LABPROX] Falha no processamento de mídia, mantendo original:", e);
   }
 
   return file;

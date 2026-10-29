@@ -29,7 +29,7 @@ import { db } from '../services/firebaseConfig';
 import { getCarrierBadgeConfig } from '../services/frenetService';
 import { LabServiceReviewModal } from '../components/LabServiceReviewModal';
 import { WebcamModal } from '../components/WebcamModal';
-import { capturePhotoWithNativePreference } from '../utils/cameraUtils';
+import { capturePhotoWithNativePreference, isMobileDevice } from '../utils/cameraUtils';
 import { filterAndSortClients, filterAndSortProducts, matchesSearchQuery, normalizeText } from '../utils/stringUtils';
 
 const { doc, onSnapshot, deleteField, collection, getDocs } = firestorePkg as any;
@@ -6576,61 +6576,87 @@ export const JobDetails = () => {
                                 }}
                             />
 
-                            {/* Upload and Camera Buttons */}
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                                {/* Button 1: File Upload */}
-                                <div className="p-4 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/80 group hover:border-blue-400 hover:bg-blue-50/40 transition-all text-center relative shrink-0">
-                                    <input 
-                                        type="file" 
-                                        multiple 
-                                        onChange={handleFileSelect} 
-                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" 
-                                        accept=".stl,.ply,.obj,.pdf,.doc,.docx,.xls,.xlsx,.html,.png,.jpg,.jpeg,.webp" 
-                                    />
-                                    <div className="flex flex-col items-center gap-1.5 pointer-events-none">
-                                        <UploadCloud size={24} className="text-slate-400 group-hover:text-blue-500 transition-colors" />
-                                        <span className="text-[11px] font-black text-slate-600 uppercase tracking-wider">
-                                            Anexar Arquivos
-                                        </span>
-                                        <span className="text-[9px] text-slate-400 font-medium">
-                                            STL, PDF, Imagens
-                                        </span>
-                                    </div>
-                                </div>
+                            {/* Upload and Camera Buttons Adaptados para o Dispositivo */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                {!isMobileDevice() ? (
+                                    <>
+                                        {/* PC / Desktop Option 1: Anexar Arquivos, Imagens e Vídeos */}
+                                        <div className="p-4 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/80 group hover:border-blue-400 hover:bg-blue-50/40 transition-all text-center relative shrink-0">
+                                            <input 
+                                                type="file" 
+                                                multiple 
+                                                onChange={handleFileSelect} 
+                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" 
+                                                accept="image/*,video/*,.stl,.ply,.obj,.pdf,.doc,.docx,.xls,.xlsx,application/*" 
+                                            />
+                                            <div className="flex flex-col items-center gap-1.5 pointer-events-none">
+                                                <UploadCloud size={24} className="text-slate-400 group-hover:text-blue-500 transition-colors" />
+                                                <span className="text-[11px] font-black text-slate-600 uppercase tracking-wider">
+                                                    Anexar Arquivos, Imagens e Vídeos
+                                                </span>
+                                                <span className="text-[9px] text-slate-400 font-medium">
+                                                    Imagens, Vídeos, STL, Documentos
+                                                </span>
+                                            </div>
+                                        </div>
 
-                                {/* Button 2: Native Camera Capture (Full Original Quality) */}
-                                <button 
-                                    type="button"
-                                    onClick={() => nativeCameraInputRef.current?.click()}
-                                    disabled={isUploadingFiles}
-                                    className="p-4 border-2 border-dashed border-emerald-300/80 rounded-2xl bg-emerald-50/50 group hover:border-emerald-500 hover:bg-emerald-50 transition-all flex flex-col items-center justify-center gap-1.5 shrink-0 disabled:opacity-50 cursor-pointer"
-                                    title="Tirar foto com a câmera nativa do aparelho em qualidade máxima"
-                                >
-                                    <Smartphone size={24} className="text-emerald-600 group-hover:scale-110 transition-transform" />
-                                    <span className="text-[11px] font-black text-emerald-800 uppercase tracking-wider text-center leading-tight">
-                                        Câmera Nativa
-                                    </span>
-                                    <span className="text-[9px] text-emerald-600/80 font-bold">
-                                        Qualidade Total
-                                    </span>
-                                </button>
+                                        {/* PC / Desktop Option 2: Câmera Web */}
+                                        <button 
+                                            type="button"
+                                            onClick={() => setIsWebcamOpen(true)}
+                                            disabled={isUploadingFiles}
+                                            className="p-4 border-2 border-dashed border-blue-200 rounded-2xl bg-blue-50/50 group hover:border-blue-500 hover:bg-blue-50 transition-all flex flex-col items-center justify-center gap-1.5 shrink-0 disabled:opacity-50 cursor-pointer"
+                                            title="Abrir Câmera Web para Fotos e Vídeos"
+                                        >
+                                            <CameraIcon size={24} className="text-blue-600 group-hover:scale-110 transition-transform" />
+                                            <span className="text-[11px] font-black text-blue-900 uppercase tracking-wider text-center leading-tight">
+                                                Câmera Web
+                                            </span>
+                                            <span className="text-[9px] text-blue-600/80 font-bold">
+                                                Foto e Gravação de Vídeo
+                                            </span>
+                                        </button>
+                                    </>
+                                ) : (
+                                    <>
+                                        {/* Dispositivo Móvel Option 1: Câmera */}
+                                        <button 
+                                            type="button"
+                                            onClick={() => setIsWebcamOpen(true)}
+                                            disabled={isUploadingFiles}
+                                            className="p-4 border-2 border-dashed border-emerald-300/80 rounded-2xl bg-emerald-50/50 group hover:border-emerald-500 hover:bg-emerald-50 transition-all flex flex-col items-center justify-center gap-1.5 shrink-0 disabled:opacity-50 cursor-pointer"
+                                            title="Abrir Câmera para Foto e Gravação de Vídeo"
+                                        >
+                                            <Smartphone size={24} className="text-emerald-600 group-hover:scale-110 transition-transform" />
+                                            <span className="text-[11px] font-black text-emerald-800 uppercase tracking-wider text-center leading-tight">
+                                                Câmera
+                                            </span>
+                                            <span className="text-[9px] text-emerald-600/80 font-bold">
+                                                Foto e Gravação de Vídeo
+                                            </span>
+                                        </button>
 
-                                {/* Button 3: Webcam PC / USB */}
-                                <button 
-                                    type="button"
-                                    onClick={() => setIsWebcamOpen(true)}
-                                    disabled={isUploadingFiles}
-                                    className="p-4 border-2 border-dashed border-blue-200 rounded-2xl bg-blue-50/50 group hover:border-blue-500 hover:bg-blue-50 transition-all flex flex-col items-center justify-center gap-1.5 shrink-0 disabled:opacity-50 cursor-pointer"
-                                    title="Abrir câmera ao vivo com seletor de Webcam Externa USB ou Integrada"
-                                >
-                                    <CameraIcon size={24} className="text-blue-600 group-hover:scale-110 transition-transform" />
-                                    <span className="text-[11px] font-black text-blue-900 uppercase tracking-wider text-center leading-tight">
-                                        Webcam PC / USB
-                                    </span>
-                                    <span className="text-[9px] text-blue-600/80 font-bold">
-                                        Seletor de Câmeras
-                                    </span>
-                                </button>
+                                        {/* Dispositivo Móvel Option 2: Anexar Arquivos, Imagens e Vídeos */}
+                                        <div className="p-4 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/80 group hover:border-blue-400 hover:bg-blue-50/40 transition-all text-center relative shrink-0">
+                                            <input 
+                                                type="file" 
+                                                multiple 
+                                                onChange={handleFileSelect} 
+                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" 
+                                                accept="image/*,video/*,.stl,.ply,.obj,.pdf,.doc,.docx,.xls,.xlsx,application/*" 
+                                            />
+                                            <div className="flex flex-col items-center gap-1.5 pointer-events-none">
+                                                <UploadCloud size={24} className="text-slate-400 group-hover:text-blue-500 transition-colors" />
+                                                <span className="text-[11px] font-black text-slate-600 uppercase tracking-wider">
+                                                    Anexar Arquivos, Imagens e Vídeos
+                                                </span>
+                                                <span className="text-[9px] text-slate-400 font-medium">
+                                                    Galeria, Arquivos e Mídias
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
                             </div>
 
                             {/* Queue of files to upload */}

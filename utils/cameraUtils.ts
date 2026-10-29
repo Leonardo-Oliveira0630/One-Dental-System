@@ -6,6 +6,15 @@ export interface CameraDevice {
     label: string;
 }
 
+export const isMobileDevice = (): boolean => {
+    if (typeof window === 'undefined') return false;
+    const ua = navigator.userAgent || navigator.vendor || (window as any).opera || '';
+    const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+    const isTouchTablet = 'ontouchstart' in window && navigator.maxTouchPoints > 1 && window.innerWidth <= 1024;
+    const isNative = Capacitor ? Capacitor.isNativePlatform() : false;
+    return isMobileUA || isTouchTablet || isNative;
+};
+
 export const getAvailableCameras = async (): Promise<CameraDevice[]> => {
     try {
         if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
