@@ -945,10 +945,9 @@ export const JobDetails = () => {
   }, [newItemTypeId, newItemVariationIds, editDentistId, job?.dentistId, allUsers, manualDentists, priceTables, jobTypes]);
 
   const newItemEffectiveUnitPrice = useMemo(() => {
-    if (newItemNature === 'REPETITION' || newItemNature === 'ADJUSTMENT') return 0;
     const base = newItemCustomPrice !== '' && !isNaN(Number(newItemCustomPrice)) && Number(newItemCustomPrice) >= 0
       ? Number(newItemCustomPrice)
-      : newItemCalculatedBasePrice;
+      : ((newItemNature === 'REPETITION' || newItemNature === 'ADJUSTMENT') ? 0 : newItemCalculatedBasePrice);
     const val = Number(newItemDiscount) || 0;
     if (newItemAdjustmentMode === 'SURCHARGE') {
       if (newItemDiscountType === 'FIXED') {
@@ -1339,7 +1338,7 @@ export const JobDetails = () => {
       let appliedSurPct = 0;
       let appliedSurFixed = 0;
 
-      if (newItemNature === 'REPETITION' || newItemNature === 'ADJUSTMENT') {
+      if ((newItemNature === 'REPETITION' || newItemNature === 'ADJUSTMENT') && (newItemCustomPrice === '' || isNaN(Number(newItemCustomPrice)))) {
           finalItemPrice = 0;
       } else {
           if (newItemAdjustmentMode === 'SURCHARGE') {
@@ -1471,29 +1470,25 @@ export const JobDetails = () => {
                       updated.basePriceBeforeDiscount = basePrice;
                   }
 
-                  if (updated.nature === 'REPETITION' || updated.nature === 'ADJUSTMENT') {
-                      updated.price = 0;
-                  } else {
-                      const base = updated.basePriceBeforeDiscount !== undefined ? Number(updated.basePriceBeforeDiscount) : (type?.basePrice || 0);
-                      const isSur = updated.priceAdjustmentType === 'SURCHARGE' || (Boolean(updated.appliedSurcharge) && Number(updated.appliedSurcharge) > 0) || (Boolean(updated.appliedSurchargeFixed) && Number(updated.appliedSurchargeFixed) > 0);
-                      if (isSur) {
-                          const pctSur = Number(updated.appliedSurcharge) || 0;
-                          const fixSur = Number(updated.appliedSurchargeFixed) || 0;
-                          if (fixSur > 0) {
-                              updated.price = base + fixSur;
-                          } else {
-                              updated.price = base * (1 + (pctSur / 100));
-                          }
-                      } else {
-                          const pctDisc = Number(updated.appliedDiscount) || 0;
-                          const fixDisc = Number(updated.appliedDiscountFixed) || 0;
-                          if (fixDisc > 0) {
-                              updated.price = Math.max(0, base - fixDisc);
-                          } else {
-                              updated.price = Math.max(0, base * (1 - (pctDisc / 100)));
-                          }
-                      }
-                  }
+                   const base = updated.basePriceBeforeDiscount !== undefined ? Number(updated.basePriceBeforeDiscount) : ((updated.nature === 'REPETITION' || updated.nature === 'ADJUSTMENT') ? 0 : (type?.basePrice || 0));
+                   const isSur = updated.priceAdjustmentType === 'SURCHARGE' || (Boolean(updated.appliedSurcharge) && Number(updated.appliedSurcharge) > 0) || (Boolean(updated.appliedSurchargeFixed) && Number(updated.appliedSurchargeFixed) > 0);
+                   if (isSur) {
+                       const pctSur = Number(updated.appliedSurcharge) || 0;
+                       const fixSur = Number(updated.appliedSurchargeFixed) || 0;
+                       if (fixSur > 0) {
+                           updated.price = base + fixSur;
+                       } else {
+                           updated.price = base * (1 + (pctSur / 100));
+                       }
+                   } else {
+                       const pctDisc = Number(updated.appliedDiscount) || 0;
+                       const fixDisc = Number(updated.appliedDiscountFixed) || 0;
+                       if (fixDisc > 0) {
+                           updated.price = Math.max(0, base - fixDisc);
+                       } else {
+                           updated.price = Math.max(0, base * (1 - (pctDisc / 100)));
+                       }
+                   }
               }
               itemsTotal += (updated.price * (updated.quantity || 1));
               return updated;
@@ -2631,9 +2626,7 @@ export const JobDetails = () => {
       const appliedSurchargeFixed = isSur ? Math.max(0, parseFloat(String(itemEditForm.appliedSurchargeFixed)) || 0) : 0;
 
       let finalPrice = newBasePrice;
-      if (itemEditForm.nature === 'REPETITION' || itemEditForm.nature === 'ADJUSTMENT') {
-          finalPrice = 0;
-      } else if (isSur) {
+      if (isSur) {
           if (appliedSurchargeFixed > 0) finalPrice += appliedSurchargeFixed;
           else finalPrice = finalPrice * (1 + appliedSurcharge / 100);
       } else {
@@ -4007,7 +4000,7 @@ export const JobDetails = () => {
                                                        {/* Resumo com Preço Final */}
                                                        <div className="flex items-center justify-between bg-blue-100/70 p-2.5 rounded-xl text-xs font-bold text-blue-900 shadow-2xs">
                                                            <span>
-                                                               {item.nature === 'REPETITION' ? '(Repetição: R$ 0,00)' : item.nature === 'ADJUSTMENT' ? '(Ajuste: R$ 0,00)' : isItemSurcharge ? `Preço com Acrésc.: R$ ${(item.price || 0).toFixed(2)}/un.` : `Preço com Desc: R$ ${(item.price || 0).toFixed(2)}/un.`}
+                                                               {item.nature === 'REPETITION' ? `(Repetição: R$ ${(item.price || 0).toFixed(2)})` : item.nature === 'ADJUSTMENT' ? `(Ajuste: R$ ${(item.price || 0).toFixed(2)})` : isItemSurcharge ? `Preço com Acrésc.: R$ ${(item.price || 0).toFixed(2)}/un.` : `Preço com Desc: R$ ${(item.price || 0).toFixed(2)}/un.`}
                                                            </span>
                                                            <span className="font-black text-sm">
                                                                Total: R$ ${((item.price || 0) * (Number(item.quantity) || 1)).toFixed(2)}
@@ -4198,7 +4191,7 @@ export const JobDetails = () => {
                                               <div className="text-xs font-bold text-slate-700 truncate">{getNaturePrefix(item.nature)}{formatItemNameWithVariations(item, jobTypes)}</div>
                                               <div className="flex items-center gap-2 mt-1 flex-wrap text-[10px]">
                                                   <span className="font-black text-slate-500 uppercase tracking-wider">
-                                                      {item.nature === 'REPETITION' ? 'REPETIÇÃO (R$ 0)' : item.nature === 'ADJUSTMENT' ? 'AJUSTE (R$ 0)' : `R$ ${(item.basePriceBeforeDiscount !== undefined ? item.basePriceBeforeDiscount : item.price).toFixed(2)}/un.`}
+                                                      {item.nature === 'REPETITION' ? `REPETIÇÃO (R$ ${(item.price || 0).toFixed(2)})` : item.nature === 'ADJUSTMENT' ? `AJUSTE (R$ ${(item.price || 0).toFixed(2)})` : `R$ ${(item.basePriceBeforeDiscount !== undefined ? item.basePriceBeforeDiscount : item.price).toFixed(2)}/un.`}
                                                   </span>
                                                    {item.nature === 'NORMAL' && (
                                                        (item.priceAdjustmentType === 'SURCHARGE' || (Boolean(item.appliedSurcharge) && Number(item.appliedSurcharge) > 0) || (Boolean(item.appliedSurchargeFixed) && Number(item.appliedSurchargeFixed) > 0)) ? (
@@ -4487,7 +4480,7 @@ export const JobDetails = () => {
                                         {/* Resumo do Preço com Desconto */}
                                         <div className="flex items-center justify-between bg-emerald-50/70 border border-emerald-100 p-2.5 rounded-xl text-xs font-bold text-emerald-900 shadow-2xs">
                                             <span>
-                                                {newItemNature === 'REPETITION' ? '(Repetição: R$ 0,00)' : newItemNature === 'ADJUSTMENT' ? '(Ajuste: R$ 0,00)' : newItemAdjustmentMode === 'SURCHARGE' ? `Preço com Acrésc.: R$ ${newItemEffectiveUnitPrice.toFixed(2)}/un.` : `Preço com Desc: R$ ${newItemEffectiveUnitPrice.toFixed(2)}/un.`}
+                                                {newItemNature === 'REPETITION' ? `(Repetição: R$ ${newItemEffectiveUnitPrice.toFixed(2)})` : newItemNature === 'ADJUSTMENT' ? `(Ajuste: R$ ${newItemEffectiveUnitPrice.toFixed(2)})` : newItemAdjustmentMode === 'SURCHARGE' ? `Preço com Acrésc.: R$ ${newItemEffectiveUnitPrice.toFixed(2)}/un.` : `Preço com Desc: R$ ${newItemEffectiveUnitPrice.toFixed(2)}/un.`}
                                             </span>
                                             <span className="font-black text-sm text-emerald-950">
                                                 Total: R$ ${(newItemEffectiveUnitPrice * (Number(newItemQty) || 1)).toFixed(2)}
@@ -5874,25 +5867,25 @@ export const JobDetails = () => {
                                                         {/* Resumo do Valor Total do Item */}
                                                         <div className="col-span-1 sm:col-span-2 lg:col-span-4 flex items-center justify-between bg-blue-100/70 p-3 rounded-xl text-xs font-bold text-blue-900">
                                                             <span>
-                                                                {itemEditForm.nature === 'REPETITION' ? '(Repetição: R$ 0,00)' : itemEditForm.nature === 'ADJUSTMENT' ? '(Ajuste: R$ 0,00)' : (() => {
+                                                                {(() => { const naturePrefix = itemEditForm.nature === 'REPETITION' ? '(Repetição) ' : itemEditForm.nature === 'ADJUSTMENT' ? '(Ajuste) ' : '';
                                                                     const base = parseFloat(String(itemEditForm.price)) || 0;
                                                                     const isSur = itemEditForm.priceAdjustmentType === 'SURCHARGE';
                                                                     if (isSur) {
                                                                         const sPerc = itemEditForm.discountType === 'PERCENTAGE' ? (parseFloat(String(itemEditForm.appliedSurcharge)) || 0) : 0;
                                                                         const sFix = itemEditForm.discountType === 'FIXED' ? (parseFloat(String(itemEditForm.appliedSurchargeFixed)) || 0) : 0;
                                                                         const unitFinal = sFix > 0 ? (base + sFix) : (base * (1 + sPerc / 100));
-                                                                        return `Preço com Acrésc.: R$ ${unitFinal.toFixed(2)}`;
+                                                                        return `${naturePrefix}Preço com Acrésc.: R$ ${unitFinal.toFixed(2)}`;
                                                                     } else {
                                                                         const dPerc = itemEditForm.discountType === 'PERCENTAGE' ? (parseFloat(String(itemEditForm.appliedDiscount)) || 0) : 0;
                                                                         const dFix = itemEditForm.discountType === 'FIXED' ? (parseFloat(String(itemEditForm.appliedDiscountFixed)) || 0) : 0;
                                                                         const unitFinal = Math.max(0, (base * (1 - dPerc / 100)) - dFix);
-                                                                        return `Preço Final Unit.: R$ ${unitFinal.toFixed(2)}`;
+                                                                        return `${naturePrefix}Preço Final Unit.: R$ ${unitFinal.toFixed(2)}`;
                                                                     }
                                                                 })()}
                                                             </span>
                                                             <span className="font-black text-sm">
                                                                 Total: R$ {(() => {
-                                                                    if (itemEditForm.nature === 'REPETITION' || itemEditForm.nature === 'ADJUSTMENT') return '0.00';
+                                                                    // Allow total calculation for repetition or adjustment if non-zero price is set
                                                                     const base = parseFloat(String(itemEditForm.price)) || 0;
                                                                     const isSur = itemEditForm.priceAdjustmentType === 'SURCHARGE';
                                                                     let unitFinal = base;

@@ -1251,6 +1251,16 @@ export interface DentistPayment {
   createdAt: Date;
   attachmentUrl?: string;
   attachmentName?: string;
+  // Complementary Check fields
+  checkBank?: string;
+  checkAgency?: string;
+  checkAccount?: string;
+  checkName?: string;
+  checkGoodForDate?: string;
+  checkNumber?: string;
+  // Complementary Credit Card fields
+  cardInstallments?: number;
+  cardAuthorizationCode?: string;
 }
 
 export interface CardMachine {

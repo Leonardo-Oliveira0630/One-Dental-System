@@ -1109,6 +1109,19 @@ export const Finance = () => {
   const [paymentBankAccountId, setPaymentBankAccountId] = useState<string>('');
   const [paymentType, setPaymentType] = useState<DentistPayment['type']>('PAYMENT');
   const [paymentNotes, setPaymentNotes] = useState('');
+
+  // Cheque Fields
+  const [paymentCheckBank, setPaymentCheckBank] = useState<string>('');
+  const [paymentCheckAgency, setPaymentCheckAgency] = useState<string>('');
+  const [paymentCheckAccount, setPaymentCheckAccount] = useState<string>('');
+  const [paymentCheckName, setPaymentCheckName] = useState<string>('');
+  const [paymentCheckGoodForDate, setPaymentCheckGoodForDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [paymentCheckNumber, setPaymentCheckNumber] = useState<string>('');
+
+  // Credit Card Fields
+  const [paymentCardInstallments, setPaymentCardInstallments] = useState<number>(1);
+  const [paymentCardAuthorizationCode, setPaymentCardAuthorizationCode] = useState<string>('');
+
   const [showBoletoModal, setShowBoletoModal] = useState(false);
   const [customBoletoAmount, setCustomBoletoAmount] = useState<number>(0);
   const [customBoletoDueDate, setCustomBoletoDueDate] = useState<string>(() => {
@@ -1139,6 +1152,16 @@ export const Finance = () => {
   const [editDetailAttachmentUrl, setEditDetailAttachmentUrl] = useState('');
   const [editDetailAttachmentName, setEditDetailAttachmentName] = useState('');
   const [uploadingEditAttachment, setUploadingEditAttachment] = useState(false);
+
+  // Edit Detail Cheque & Credit Card Fields
+  const [editDetailCheckBank, setEditDetailCheckBank] = useState<string>('');
+  const [editDetailCheckAgency, setEditDetailCheckAgency] = useState<string>('');
+  const [editDetailCheckAccount, setEditDetailCheckAccount] = useState<string>('');
+  const [editDetailCheckName, setEditDetailCheckName] = useState<string>('');
+  const [editDetailCheckGoodForDate, setEditDetailCheckGoodForDate] = useState<string>('');
+  const [editDetailCheckNumber, setEditDetailCheckNumber] = useState<string>('');
+  const [editDetailCardInstallments, setEditDetailCardInstallments] = useState<number>(1);
+  const [editDetailCardAuthorizationCode, setEditDetailCardAuthorizationCode] = useState<string>('');
 
   // Expense Form State
   const [showExpenseModal, setShowExpenseModal] = useState(false);
@@ -1628,12 +1651,20 @@ export const Finance = () => {
             discount: paymentDiscount,
             paymentMethod: paymentMethod,
             cardMachineId: (paymentMethod === 'CREDIT_CARD' || paymentMethod === 'DEBIT_CARD') ? paymentCardMachineId : undefined,
-            bankAccountId: paymentMethod === 'BANK_TRANSFER' ? paymentBankAccountId : undefined,
+            bankAccountId: (paymentMethod === 'BANK_TRANSFER' || paymentMethod === 'CHEQUE') ? paymentBankAccountId : undefined,
             paymentDate: new Date(),
             type: paymentType,
             notes: paymentNotes,
             attachmentUrl: paymentAttachmentUrl || undefined,
-            attachmentName: paymentAttachmentName || undefined
+            attachmentName: paymentAttachmentName || undefined,
+            checkBank: paymentMethod === 'CHEQUE' ? paymentCheckBank : undefined,
+            checkAgency: paymentMethod === 'CHEQUE' ? paymentCheckAgency : undefined,
+            checkAccount: paymentMethod === 'CHEQUE' ? paymentCheckAccount : undefined,
+            checkName: paymentMethod === 'CHEQUE' ? paymentCheckName : undefined,
+            checkGoodForDate: paymentMethod === 'CHEQUE' ? paymentCheckGoodForDate : undefined,
+            checkNumber: paymentMethod === 'CHEQUE' ? paymentCheckNumber : undefined,
+            cardInstallments: paymentMethod === 'CREDIT_CARD' ? paymentCardInstallments : undefined,
+            cardAuthorizationCode: paymentMethod === 'CREDIT_CARD' ? paymentCardAuthorizationCode : undefined
         });
         setPaymentAmount(0);
         setPaymentInterest(0);
@@ -1644,6 +1675,14 @@ export const Finance = () => {
         setPaymentNotes('');
         setPaymentAttachmentUrl('');
         setPaymentAttachmentName('');
+        setPaymentCheckBank('');
+        setPaymentCheckAgency('');
+        setPaymentCheckAccount('');
+        setPaymentCheckName('');
+        setPaymentCheckGoodForDate(new Date().toISOString().split('T')[0]);
+        setPaymentCheckNumber('');
+        setPaymentCardInstallments(1);
+        setPaymentCardAuthorizationCode('');
         setShowPaymentForm(false);
     } catch (err) {
         console.error(err);
@@ -3339,7 +3378,7 @@ export const Finance = () => {
 
                                                 {(paymentMethod === 'CREDIT_CARD' || paymentMethod === 'DEBIT_CARD') && (
                                                     <div className="md:col-span-1 animate-in slide-in-from-top-2">
-                                                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Máquina</label>
+                                                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Cartão / Máquina</label>
                                                         <select 
                                                             value={paymentCardMachineId}
                                                             onChange={e => setPaymentCardMachineId(e.target.value)}
@@ -3351,6 +3390,34 @@ export const Finance = () => {
                                                             ))}
                                                         </select>
                                                     </div>
+                                                )}
+
+                                                {paymentMethod === 'CREDIT_CARD' && (
+                                                    <>
+                                                        <div className="md:col-span-1 animate-in slide-in-from-top-2">
+                                                            <label className="block text-[10px] font-black text-red-500 uppercase mb-1 tracking-widest">Parcelamento *</label>
+                                                            <select 
+                                                                value={paymentCardInstallments}
+                                                                onChange={e => setPaymentCardInstallments(parseInt(e.target.value) || 1)}
+                                                                className="w-full px-4 py-2.5 bg-slate-50 border border-red-200 rounded-xl focus:ring-2 focus:ring-red-500 outline-none font-bold text-slate-700 h-[46px]"
+                                                            >
+                                                                <option value={1}>1x (À vista)</option>
+                                                                {[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(n => (
+                                                                    <option key={n} value={n}>{n}x parcelado</option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
+                                                        <div className="md:col-span-1 animate-in slide-in-from-top-2">
+                                                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Autorização</label>
+                                                            <input 
+                                                                type="text"
+                                                                value={paymentCardAuthorizationCode}
+                                                                onChange={e => setPaymentCardAuthorizationCode(e.target.value)}
+                                                                placeholder="Código da transação"
+                                                                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none font-bold text-slate-700 h-[46px]"
+                                                            />
+                                                        </div>
+                                                    </>
                                                 )}
 
                                                 {paymentMethod === 'BANK_TRANSFER' && (
@@ -3366,6 +3433,83 @@ export const Finance = () => {
                                                                 <option key={b.id} value={b.id}>{b.name}</option>
                                                             ))}
                                                         </select>
+                                                    </div>
+                                                )}
+
+                                                {paymentMethod === 'CHEQUE' && (
+                                                    <div className="md:col-span-full bg-blue-50/40 p-4 rounded-2xl border border-blue-100 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 animate-in slide-in-from-top-2 my-1">
+                                                        <div>
+                                                            <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 tracking-widest">Conta Bancária</label>
+                                                            <select 
+                                                                value={paymentBankAccountId}
+                                                                onChange={e => setPaymentBankAccountId(e.target.value)}
+                                                                className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-700 h-[42px] text-xs"
+                                                            >
+                                                                <option value="">Selecione a conta...</option>
+                                                                {bankAccounts.map(b => (
+                                                                    <option key={b.id} value={b.id}>{b.name}</option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 tracking-widest">Banco</label>
+                                                            <input 
+                                                                type="text"
+                                                                value={paymentCheckBank}
+                                                                onChange={e => setPaymentCheckBank(e.target.value)}
+                                                                placeholder="Ex: Itaú, Bradesco, Banco do Brasil..."
+                                                                className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-700 text-xs h-[42px]"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 tracking-widest">Agência</label>
+                                                            <input 
+                                                                type="text"
+                                                                value={paymentCheckAgency}
+                                                                onChange={e => setPaymentCheckAgency(e.target.value)}
+                                                                placeholder="Agência"
+                                                                className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-700 text-xs h-[42px]"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 tracking-widest">Conta corrente</label>
+                                                            <input 
+                                                                type="text"
+                                                                value={paymentCheckAccount}
+                                                                onChange={e => setPaymentCheckAccount(e.target.value)}
+                                                                placeholder="Conta corrente"
+                                                                className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-700 text-xs h-[42px]"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 tracking-widest">Nome do Titular</label>
+                                                            <input 
+                                                                type="text"
+                                                                value={paymentCheckName}
+                                                                onChange={e => setPaymentCheckName(e.target.value)}
+                                                                placeholder="Nome impresso no cheque"
+                                                                className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-700 text-xs h-[42px]"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-[10px] font-black text-blue-600 uppercase mb-1 tracking-widest">Bom para *</label>
+                                                            <input 
+                                                                type="date"
+                                                                value={paymentCheckGoodForDate}
+                                                                onChange={e => setPaymentCheckGoodForDate(e.target.value)}
+                                                                className="w-full px-4 py-2 bg-white border border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-blue-800 text-xs h-[42px]"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 tracking-widest">Número do Cheque</label>
+                                                            <input 
+                                                                type="text"
+                                                                value={paymentCheckNumber}
+                                                                onChange={e => setPaymentCheckNumber(e.target.value)}
+                                                                placeholder="Número do cheque"
+                                                                className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-700 text-xs h-[42px]"
+                                                            />
+                                                        </div>
                                                     </div>
                                                 )}
 
@@ -4091,7 +4235,15 @@ export const Finance = () => {
                                                   paymentDate: new Date(`${editDetailDate}T12:00:00`),
                                                   notes: editDetailNotes,
                                                   attachmentUrl: editDetailAttachmentUrl || undefined,
-                                                  attachmentName: editDetailAttachmentName || undefined
+                                                  attachmentName: editDetailAttachmentName || undefined,
+                                                   checkBank: editDetailMethod === 'CHEQUE' ? editDetailCheckBank : undefined,
+                                                   checkAgency: editDetailMethod === 'CHEQUE' ? editDetailCheckAgency : undefined,
+                                                   checkAccount: editDetailMethod === 'CHEQUE' ? editDetailCheckAccount : undefined,
+                                                   checkName: editDetailMethod === 'CHEQUE' ? editDetailCheckName : undefined,
+                                                   checkGoodForDate: editDetailMethod === 'CHEQUE' ? editDetailCheckGoodForDate : undefined,
+                                                   checkNumber: editDetailMethod === 'CHEQUE' ? editDetailCheckNumber : undefined,
+                                                   cardInstallments: editDetailMethod === 'CREDIT_CARD' ? editDetailCardInstallments : undefined,
+                                                   cardAuthorizationCode: editDetailMethod === 'CREDIT_CARD' ? editDetailCardAuthorizationCode : undefined
                                               };
                                               await updateDentistPayment(selectedPaymentForDetail.id, updates);
                                               setSelectedPaymentForDetail({ ...selectedPaymentForDetail, ...updates });
@@ -4142,6 +4294,44 @@ export const Finance = () => {
                                       <p className="text-xs font-bold text-slate-700">{new Date(selectedPaymentForDetail.paymentDate).toLocaleDateString('pt-BR')}</p>
                                   </div>
                               </div>
+
+                               {selectedPaymentForDetail.paymentMethod === 'CHEQUE' && (
+                                   <div className="bg-blue-50/60 p-4 rounded-2xl border border-blue-100 grid grid-cols-2 md:grid-cols-3 gap-3">
+                                       <div>
+                                           <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest">Banco</p>
+                                           <p className="text-xs font-bold text-blue-900">{selectedPaymentForDetail.checkBank || '-'}</p>
+                                       </div>
+                                       <div>
+                                           <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest">Agência / Conta</p>
+                                           <p className="text-xs font-bold text-blue-900">{selectedPaymentForDetail.checkAgency || '-'} / {selectedPaymentForDetail.checkAccount || '-'}</p>
+                                       </div>
+                                       <div>
+                                           <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest">Titular</p>
+                                           <p className="text-xs font-bold text-blue-900">{selectedPaymentForDetail.checkName || '-'}</p>
+                                       </div>
+                                       <div>
+                                           <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest">Bom para</p>
+                                           <p className="text-xs font-bold text-blue-900">{selectedPaymentForDetail.checkGoodForDate ? new Date(`${selectedPaymentForDetail.checkGoodForDate}T12:00:00`).toLocaleDateString('pt-BR') : '-'}</p>
+                                       </div>
+                                       <div>
+                                           <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest">Nº do Cheque</p>
+                                           <p className="text-xs font-bold text-blue-900">{selectedPaymentForDetail.checkNumber || '-'}</p>
+                                       </div>
+                                   </div>
+                               )}
+
+                               {selectedPaymentForDetail.paymentMethod === 'CREDIT_CARD' && (
+                                   <div className="bg-indigo-50/60 p-4 rounded-2xl border border-indigo-100 grid grid-cols-2 md:grid-cols-3 gap-3">
+                                       <div>
+                                           <p className="text-[9px] font-black text-indigo-500 uppercase tracking-widest">Parcelamento</p>
+                                           <p className="text-xs font-bold text-indigo-900">{selectedPaymentForDetail.cardInstallments || 1}x</p>
+                                       </div>
+                                       <div>
+                                           <p className="text-[9px] font-black text-indigo-500 uppercase tracking-widest">Autorização</p>
+                                           <p className="text-xs font-bold text-indigo-900">{selectedPaymentForDetail.cardAuthorizationCode || '-'}</p>
+                                       </div>
+                                   </div>
+                               )}
 
                               {selectedPaymentForDetail.notes && (
                                   <div>

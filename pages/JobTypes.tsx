@@ -165,6 +165,7 @@ export const JobTypes = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
+  const modalBackdropMouseDownRef = useRef(false);
 
   // Main Tabs State (Services vs Promotions)
   const [mainTab, setMainTab] = useState<'SERVICES' | 'PROMOTIONS'>('SERVICES');
@@ -1025,7 +1026,19 @@ export const JobTypes = () => {
       {isModalOpen && (
         <div 
           className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-6 overflow-y-auto animate-in fade-in duration-200"
-          onClick={handleCloseModal}
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) {
+              modalBackdropMouseDownRef.current = true;
+            } else {
+              modalBackdropMouseDownRef.current = false;
+            }
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget && modalBackdropMouseDownRef.current) {
+              modalBackdropMouseDownRef.current = false;
+              handleCloseModal();
+            }
+          }}
         >
           <div 
             className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-100"

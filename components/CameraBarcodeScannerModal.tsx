@@ -5,9 +5,6 @@ import {
   Zap,
   ZapOff,
   SwitchCamera,
-  Camera,
-  Image,
-  Keyboard,
   Loader2,
   ScanBarcode,
   AlertCircle,
@@ -71,9 +68,6 @@ export const CameraBarcodeScannerModal: React.FC<CameraBarcodeScannerModalProps>
   const [isTorchOn, setIsTorchOn] = useState(false);
   const [zoomLevel, setZoomLevel] = useState<number>(1);
   const [maxHardwareZoom, setMaxHardwareZoom] = useState<number>(1);
-  const [showManualInput, setShowManualInput] = useState(false);
-  const [manualCode, setManualCode] = useState('');
-  const [isProcessingImage, setIsProcessingImage] = useState(false);
   const [lastDetectedCode, setLastDetectedCode] = useState<string | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -82,7 +76,6 @@ export const CameraBarcodeScannerModal: React.FC<CameraBarcodeScannerModalProps>
   const hasScannedRef = useRef<boolean>(false);
   const scanLoopIdRef = useRef<number | null>(null);
   const isScanningFrameRef = useRef<boolean>(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Stop camera tracks and engine scanning safely
   const stopScanner = useCallback(() => {
@@ -212,7 +205,7 @@ export const CameraBarcodeScannerModal: React.FC<CameraBarcodeScannerModalProps>
     setIsLoading(true);
     setCameraError(null);
 
-    // Initialize Barcode Engine (Native BarcodeDetector + Dual-Axis ZXing)
+    // Initialize Barcode Engine
     const engine = new BarcodeScannerEngine();
     engineRef.current = engine;
 
@@ -237,18 +230,17 @@ export const CameraBarcodeScannerModal: React.FC<CameraBarcodeScannerModalProps>
           return;
         }
 
-        // Set critical iOS Safari / WKWebView inline playback attributes
+        // Set critical inline playback attributes
         videoElement.setAttribute('playsinline', 'true');
         videoElement.setAttribute('webkit-playsinline', 'true');
         videoElement.setAttribute('autoplay', 'true');
         videoElement.muted = true;
         videoElement.srcObject = stream;
 
-        // On iOS WebKit, play() can reject if called before loadedmetadata or during gesture transitions
         try {
           await videoElement.play();
         } catch (playErr) {
-          console.warn('[CameraScanner] Direct play() interrupted, awaiting loadedmetadata on iOS:', playErr);
+          console.warn('[CameraScanner] Direct play() interrupted, awaiting loadedmetadata:', playErr);
           await new Promise<void>((resolve) => {
             let done = false;
             const finish = () => {
@@ -284,8 +276,7 @@ export const CameraBarcodeScannerModal: React.FC<CameraBarcodeScannerModalProps>
             setMaxHardwareZoom(1);
           }
 
-          // Start continuous high-speed scan loop (16-20 FPS)
-          // Throttled to ~60ms to keep 60/120 FPS iOS UI silky smooth while decoding in <80ms
+          // Start continuous high-speed scan loop
           let lastScanTime = 0;
           const SCAN_INTERVAL_MS = 60;
 
@@ -327,7 +318,7 @@ export const CameraBarcodeScannerModal: React.FC<CameraBarcodeScannerModalProps>
           setCameraError(
             err.name === 'NotAllowedError'
               ? 'Permissão de câmera negada. Ative o acesso à câmera nas configurações do seu aparelho ou navegador.'
-              : err.message || 'Não foi possível acessar a câmera de alta definição para leitura de códigos.'
+              : err.message || 'Não foi possível acessar a câmera para leitura de códigos.'
           );
         }
       }
@@ -369,81 +360,6 @@ export const CameraBarcodeScannerModal: React.FC<CameraBarcodeScannerModalProps>
     setSelectedCameraId(cameras[nextIndex].deviceId);
   };
 
-  // Handle Manual Code Submission
-  const handleManualSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!manualCode.trim()) return;
-    stopScanner();
-    onScan(manualCode.trim());
-    onClose();
-  };
-
-  // Handle Photo from Device Native Camera (Capacitor)
-  const handleNativeCameraSnap = async () => {
-    try {
-      const { Camera, CameraResultType, CameraSource, CameraDirection } = await import('@capacitor/camera');
-      const photo = await Camera.getPhoto({
-        quality: 100,
-        allowEditing: false,
-        resultType: CameraResultType.Uri,
-        source: CameraSource.Camera,
-        direction: CameraDirection.Rear
-      });
-
-      if (photo.webPath) {
-        setIsProcessingImage(true);
-        try {
-          if (!engineRef.current) {
-            engineRef.current = new BarcodeScannerEngine();
-          }
-          const code = await engineRef.current.decodeStaticImage(photo.webPath);
-          if (code) {
-            handleBarcodeFound(code);
-            return;
-          } else {
-            setCameraError('Nenhum código de barras identificado na foto capturada. Tente aproximar da ficha A4 ou etiqueta térmica.');
-          }
-        } catch (decodeErr) {
-          setCameraError('Erro ao processar imagem capturada.');
-        } finally {
-          setIsProcessingImage(false);
-        }
-      }
-    } catch (err: any) {
-      if (!err.message?.includes('User cancelled')) {
-        console.warn('[CameraScanner] Native capture error:', err);
-      }
-    }
-  };
-
-  // Handle Image File Selection (Gallery / File Explorer)
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setIsProcessingImage(true);
-    setCameraError(null);
-
-    try {
-      if (!engineRef.current) {
-        engineRef.current = new BarcodeScannerEngine();
-      }
-      const code = await engineRef.current.decodeStaticImage(file);
-      if (code) {
-        handleBarcodeFound(code);
-      } else {
-        setCameraError('Código de barras não identificado na imagem enviada. Certifique-se de que esteja focado e bem iluminado.');
-      }
-    } catch (err) {
-      setCameraError('Não foi possível processar a imagem do arquivo selecionado.');
-    } finally {
-      setIsProcessingImage(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    }
-  };
-
   if (!isOpen) return null;
 
   return (
@@ -457,15 +373,6 @@ export const CameraBarcodeScannerModal: React.FC<CameraBarcodeScannerModalProps>
           <div className={`p-2 rounded-xl transition-all ${lastDetectedCode ? 'bg-emerald-500/30 border border-emerald-500/50 text-emerald-400' : 'bg-blue-600/30 border border-blue-500/30 text-blue-400'}`}>
             <ScanBarcode size={22} />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-sm font-black tracking-wide text-white uppercase">Leitor Rápido Labprox</h2>
-              <span className="px-1.5 py-0.5 bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-[9px] font-black uppercase rounded tracking-wider">
-                Ultra HD
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-300">Ficha A4 e Etiqueta Térmica na horizontal</p>
-          </div>
         </div>
 
         <div className="flex items-center gap-2">
@@ -473,7 +380,7 @@ export const CameraBarcodeScannerModal: React.FC<CameraBarcodeScannerModalProps>
           <button
             onClick={handleCycleZoom}
             className="px-2.5 py-1.5 bg-white/10 hover:bg-white/20 text-white font-mono font-bold text-xs rounded-full flex items-center gap-1 transition-all border border-white/10"
-            title="Ajustar Zoom (Ideal para Etiqueta Térmica)"
+            title="Ajustar Zoom"
           >
             <ZoomIn size={14} className="text-blue-400" />
             <span>{zoomLevel}x</span>
@@ -505,15 +412,6 @@ export const CameraBarcodeScannerModal: React.FC<CameraBarcodeScannerModalProps>
             </button>
           )}
 
-          {/* Quick Photo Capture (iOS Native / Gallery Fallback) */}
-          <button
-            onClick={Capacitor.isNativePlatform() ? handleNativeCameraSnap : () => fileInputRef.current?.click()}
-            className="p-2.5 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all"
-            title="Tirar foto com câmera de alta definição"
-          >
-            <Camera size={18} />
-          </button>
-
           {/* Close */}
           <button
             onClick={() => {
@@ -534,15 +432,7 @@ export const CameraBarcodeScannerModal: React.FC<CameraBarcodeScannerModalProps>
         {isLoading && (
           <div className="absolute inset-0 flex flex-col items-center justify-center z-10 text-white space-y-3">
             <Loader2 size={36} className="animate-spin text-blue-500" />
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-300">Iniciando câmera Full HD...</p>
-          </div>
-        )}
-
-        {/* Processing Image Overlay */}
-        {isProcessingImage && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center z-20 bg-black/85 text-white space-y-3">
-            <Loader2 size={40} className="animate-spin text-blue-400" />
-            <p className="text-sm font-bold text-white">Analisando imagem em alta resolução...</p>
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-300">Iniciando câmera...</p>
           </div>
         )}
 
@@ -625,97 +515,20 @@ export const CameraBarcodeScannerModal: React.FC<CameraBarcodeScannerModalProps>
             </div>
             <p className="text-xs font-semibold text-slate-200 leading-relaxed">{cameraError}</p>
             <div className="flex flex-col gap-2 pt-2">
-              {Capacitor.isNativePlatform() && (
-                <button
-                  onClick={handleNativeCameraSnap}
-                  className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg flex items-center justify-center gap-2"
-                >
-                  <Camera size={16} /> Tirar Foto com Câmera Nativa
-                </button>
-              )}
               <button
-                onClick={() => fileInputRef.current?.click()}
-                className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 border border-slate-600"
+                onClick={() => {
+                  stopScanner();
+                  onClose();
+                }}
+                className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg"
               >
-                <Image size={16} /> Carregar Imagem da Galeria
-              </button>
-              <button
-                onClick={() => setShowManualInput(true)}
-                className="w-full py-2.5 bg-white/10 text-slate-300 font-bold text-xs uppercase tracking-wider rounded-xl hover:bg-white/20 transition-all"
-              >
-                Digitar OS Manualmente
+                Fechar Leitor
               </button>
             </div>
           </div>
         )}
       </div>
-
-      {/* Bottom Controls Bar */}
-      <div className="relative z-20 p-4 bg-gradient-to-t from-black/95 via-black/85 to-transparent space-y-3 pb-[env(safe-area-inset-bottom)]">
-        {/* Manual Input Form */}
-        {showManualInput ? (
-          <form onSubmit={handleManualSubmit} className="flex gap-2 max-w-md mx-auto animate-in slide-in-from-bottom duration-150">
-            <input
-              type="text"
-              autoFocus
-              value={manualCode}
-              onChange={e => setManualCode(e.target.value)}
-              placeholder="Digite o número da OS ou Caixa..."
-              className="flex-1 px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-sm font-bold text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 placeholder:text-slate-400 font-mono"
-            />
-            <button
-              type="submit"
-              className="px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg shrink-0"
-            >
-              Buscar
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowManualInput(false)}
-              className="px-3 py-3 bg-slate-800 text-slate-400 hover:text-white rounded-xl"
-            >
-              <X size={18} />
-            </button>
-          </form>
-        ) : (
-          <div className="flex items-center justify-center gap-3 max-w-md mx-auto">
-            {Capacitor.isNativePlatform() && (
-              <button
-                onClick={handleNativeCameraSnap}
-                className="flex-1 py-3 px-4 bg-white/10 hover:bg-white/20 active:scale-95 text-white text-xs font-black uppercase tracking-wider rounded-2xl flex items-center justify-center gap-2 backdrop-blur-md transition-all border border-white/10"
-              >
-                <Camera size={16} className="text-blue-400" />
-                Câmera Nativa
-              </button>
-            )}
-
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="flex-1 py-3 px-4 bg-white/10 hover:bg-white/20 active:scale-95 text-white text-xs font-black uppercase tracking-wider rounded-2xl flex items-center justify-center gap-2 backdrop-blur-md transition-all border border-white/10"
-            >
-              <Image size={16} className="text-emerald-400" />
-              Galeria
-            </button>
-
-            <button
-              onClick={() => setShowManualInput(true)}
-              className="flex-1 py-3 px-4 bg-white/10 hover:bg-white/20 active:scale-95 text-white text-xs font-black uppercase tracking-wider rounded-2xl flex items-center justify-center gap-2 backdrop-blur-md transition-all border border-white/10"
-            >
-              <Keyboard size={16} className="text-amber-400" />
-              Digitar OS
-            </button>
-          </div>
-        )}
-
-        {/* Hidden File Input for Gallery */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          onChange={handleFileChange}
-          className="hidden"
-        />
-      </div>
     </div>
   );
 };
+

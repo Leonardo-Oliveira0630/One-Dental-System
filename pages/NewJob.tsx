@@ -511,6 +511,12 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
     if (addedItems.length > 0) {
       const updated = addedItems.map(item => {
         if (item.nature === 'REPETITION' || item.nature === 'ADJUSTMENT') {
+          if (item.basePriceBeforeDiscount !== undefined && item.basePriceBeforeDiscount > 0) {
+            return item;
+          }
+          if (item.price !== undefined && item.price > 0) {
+            return item;
+          }
           return {
             ...item,
             price: 0,
