@@ -169,6 +169,15 @@ export const Dentists = () => {
     const [paymentBankAccountId, setPaymentBankAccountId] = useState<string>('');
     const [paymentType, setPaymentType] = useState<DentistPayment['type']>('PAYMENT');
     const [paymentNotes, setPaymentNotes] = useState('');
+    const [paymentDateStr, setPaymentDateStr] = useState<string>(() => new Date().toISOString().split('T')[0]);
+    const [paymentCardInstallments, setPaymentCardInstallments] = useState<number>(1);
+    const [paymentCardAuthorizationCode, setPaymentCardAuthorizationCode] = useState<string>('');
+    const [paymentCheckBank, setPaymentCheckBank] = useState('');
+    const [paymentCheckAgency, setPaymentCheckAgency] = useState('');
+    const [paymentCheckAccount, setPaymentCheckAccount] = useState('');
+    const [paymentCheckName, setPaymentCheckName] = useState('');
+    const [paymentCheckGoodForDate, setPaymentCheckGoodForDate] = useState(() => new Date().toISOString().split('T')[0]);
+    const [paymentCheckNumber, setPaymentCheckNumber] = useState('');
     const [showBoletoModal, setShowBoletoModal] = useState(false);
     const [customBoletoAmount, setCustomBoletoAmount] = useState<number>(0);
     const [customBoletoDueDate, setCustomBoletoDueDate] = useState<string>(() => {
@@ -392,20 +401,66 @@ export const Dentists = () => {
         if (!statementClient || paymentAmount <= 0) return;
         setIsSaving(true);
         try {
-            await addDentistPayment({
-                dentistId: statementClient.id,
-                dentistName: statementClient.name,
-                amount: paymentAmount,
-                interest: paymentInterest,
-                fees: paymentFees,
-                discount: paymentDiscount,
-                paymentMethod: paymentMethod,
-                cardMachineId: (paymentMethod === 'CREDIT_CARD' || paymentMethod === 'DEBIT_CARD') ? paymentCardMachineId : undefined,
-                bankAccountId: paymentMethod === 'BANK_TRANSFER' ? paymentBankAccountId : undefined,
-                paymentDate: new Date(),
-                type: paymentType,
-                notes: paymentNotes
-            });
+            const netTotal = Math.max(0, paymentAmount + paymentInterest - paymentDiscount - paymentFees);
+            const baseDate = paymentDateStr ? new Date(`${paymentDateStr}T12:00:00`) : new Date();
+
+            if (paymentMethod === 'CREDIT_CARD' && paymentCardInstallments > 1) {
+                const totalInstallments = paymentCardInstallments;
+                const baseInstVal = Math.floor((netTotal / totalInstallments) * 100) / 100;
+                const remainderCents = Math.round((netTotal - (baseInstVal * totalInstallments)) * 100) / 100;
+                const groupId = `inst_grp_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+
+                for (let i = 1; i <= totalInstallments; i++) {
+                    const instDate = new Date(baseDate);
+                    instDate.setMonth(instDate.getMonth() + (i - 1));
+                    const instAmount = i === 1 ? baseInstVal + remainderCents : baseInstVal;
+                    const instNotes = paymentNotes ? `Parcela (${i}/${totalInstallments}) - ${paymentNotes}` : `Parcela (${i}/${totalInstallments})`;
+
+                    await addDentistPayment({
+                        dentistId: statementClient.id,
+                        dentistName: statementClient.name,
+                        amount: instAmount,
+                        interest: i === 1 ? paymentInterest : 0,
+                        fees: i === 1 ? paymentFees : 0,
+                        discount: i === 1 ? paymentDiscount : 0,
+                        paymentMethod: paymentMethod,
+                        cardMachineId: paymentCardMachineId || undefined,
+                        bankAccountId: paymentBankAccountId || undefined,
+                        paymentDate: instDate,
+                        type: paymentType,
+                        notes: instNotes,
+                        cardInstallments: totalInstallments,
+                        cardAuthorizationCode: paymentCardAuthorizationCode || undefined,
+                        installmentGroup: groupId,
+                        installmentNumber: i,
+                        totalInstallments: totalInstallments
+                    });
+                }
+            } else {
+                await addDentistPayment({
+                    dentistId: statementClient.id,
+                    dentistName: statementClient.name,
+                    amount: paymentAmount,
+                    interest: paymentInterest,
+                    fees: paymentFees,
+                    discount: paymentDiscount,
+                    paymentMethod: paymentMethod,
+                    cardMachineId: (paymentMethod === 'CREDIT_CARD' || paymentMethod === 'DEBIT_CARD') ? paymentCardMachineId : undefined,
+                    bankAccountId: (paymentMethod === 'BANK_TRANSFER' || paymentMethod === 'CHEQUE') ? paymentBankAccountId : undefined,
+                    paymentDate: baseDate,
+                    type: paymentType,
+                    notes: paymentNotes,
+                    cardInstallments: paymentMethod === 'CREDIT_CARD' ? paymentCardInstallments : undefined,
+                    cardAuthorizationCode: paymentMethod === 'CREDIT_CARD' ? paymentCardAuthorizationCode : undefined,
+                    checkBank: paymentMethod === 'CHEQUE' ? paymentCheckBank : undefined,
+                    checkAgency: paymentMethod === 'CHEQUE' ? paymentCheckAgency : undefined,
+                    checkAccount: paymentMethod === 'CHEQUE' ? paymentCheckAccount : undefined,
+                    checkName: paymentMethod === 'CHEQUE' ? paymentCheckName : undefined,
+                    checkGoodForDate: paymentMethod === 'CHEQUE' ? paymentCheckGoodForDate : undefined,
+                    checkNumber: paymentMethod === 'CHEQUE' ? paymentCheckNumber : undefined
+                });
+            }
+
             setPaymentAmount(0);
             setPaymentInterest(0);
             setPaymentFees(0);
@@ -413,6 +468,13 @@ export const Dentists = () => {
             setPaymentCardMachineId('');
             setPaymentBankAccountId('');
             setPaymentNotes('');
+            setPaymentCardInstallments(1);
+            setPaymentCardAuthorizationCode('');
+            setPaymentCheckBank('');
+            setPaymentCheckAgency('');
+            setPaymentCheckAccount('');
+            setPaymentCheckName('');
+            setPaymentCheckNumber('');
             setShowPaymentForm(false);
         } catch (err) {
             console.error(err);
@@ -486,6 +548,46 @@ export const Dentists = () => {
 
         const clientJobs = (dentistJobs && dentistJobs.length > 0 ? dentistJobs : jobs).filter(j => j.dentistId && equivalentIds.has(j.dentistId) && (j.status === JobStatus.COMPLETED || j.status === JobStatus.DELIVERED));
         const clientPayments = dentistPayments.filter(p => p.dentistId && equivalentIds.has(p.dentistId));
+
+        const processedPayments: any[] = [];
+        const handledGroups = new Set<string>();
+
+        clientPayments.forEach(p => {
+            if (p.installmentGroup) {
+                if (handledGroups.has(p.installmentGroup)) return;
+                handledGroups.add(p.installmentGroup);
+
+                const groupItems = clientPayments.filter(gp => gp.installmentGroup === p.installmentGroup);
+                const totalGroupAmount = groupItems.reduce((acc, curr) => acc + (Number(curr.amount || 0) + Number(curr.discount || 0)), 0);
+                const firstInst = groupItems.slice().sort((a, b) => new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime())[0];
+                const instCount = p.totalInstallments || groupItems.length;
+
+                const rawNote = (firstInst.notes || '').replace(/^Parcela \(\d+\/\d+\)\s*-?\s*/i, '');
+
+                processedPayments.push({
+                    id: firstInst.id,
+                    date: firstInst.paymentDate,
+                    type: 'PAYMENT' as const,
+                    description: `Pagamento: Cartão Crédito ${instCount}x${rawNote ? ` - ${rawNote}` : ''}`,
+                    amount: totalGroupAmount,
+                    payment: firstInst
+                });
+            } else {
+                processedPayments.push({
+                    id: p.id,
+                    date: p.paymentDate,
+                    type: (p.type === 'DISCOUNT' || p.type === 'MANUAL_CREDIT' ? 'CREDIT' : p.type === 'MANUAL_DEBIT' ? 'DEBIT' : 'PAYMENT') as 'CREDIT' | 'PAYMENT' | 'DEBIT',
+                    description: p.type === 'DISCOUNT' ? `Desconto: ${p.notes || ''}` : 
+                                 p.type === 'MANUAL_DEBIT' ? `Débito Manual${p.notes ? ': ' + p.notes : ''}` :
+                                 p.type === 'MANUAL_CREDIT' ? `Crédito Manual${p.notes ? ': ' + p.notes : ''}` :
+                                 `Pagamento: ${translatePaymentMethod(p.paymentMethod)}${p.cardInstallments && p.cardInstallments > 1 ? ` ${p.cardInstallments}x` : ''} ${p.notes ? `- ${p.notes}` : ''}`,
+                    amount: p.type === 'DISCOUNT' ? Number(p.amount || 0) : 
+                            (p.type === 'MANUAL_DEBIT' || p.type === 'MANUAL_CREDIT') ? Number(p.amount || 0) :
+                            (Number(p.amount || 0) + Number(p.discount || 0)),
+                    payment: p
+                });
+            }
+        });
         
         const history = [
             ...clientJobs.map(j => ({
@@ -496,19 +598,7 @@ export const Dentists = () => {
                 amount: j.totalValue || 0,
                 job: j
             })),
-            ...clientPayments.map(p => ({
-                id: p.id,
-                date: p.paymentDate,
-                type: (p.type === 'DISCOUNT' || p.type === 'MANUAL_CREDIT' ? 'CREDIT' : p.type === 'MANUAL_DEBIT' ? 'DEBIT' : 'PAYMENT') as 'CREDIT' | 'PAYMENT' | 'DEBIT',
-                description: p.type === 'DISCOUNT' ? `Desconto: ${p.notes || ''}` : 
-                             p.type === 'MANUAL_DEBIT' ? `Débito Manual${p.notes ? ': ' + p.notes : ''}` :
-                             p.type === 'MANUAL_CREDIT' ? `Crédito Manual${p.notes ? ': ' + p.notes : ''}` :
-                             `Pagamento: ${translatePaymentMethod(p.paymentMethod)} ${p.notes ? `- ${p.notes}` : ''}`,
-                amount: p.type === 'DISCOUNT' ? Number(p.amount || 0) : 
-                        (p.type === 'MANUAL_DEBIT' || p.type === 'MANUAL_CREDIT') ? Number(p.amount || 0) :
-                        (Number(p.amount || 0) + Number(p.discount || 0)),
-                payment: p
-            }))
+            ...processedPayments
         ];
         
         const sorted = history.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());

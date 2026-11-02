@@ -171,7 +171,7 @@ const getReviewerSeedConfig = (cleanEmail: string, uid: string) => {
                 id: uid,
                 name: 'Dra. Mariana Costa (Clínica Review)',
                 email: cleanEmail,
-                role: UserRole.CLIENT,
+                role: UserRole.ADMIN,
                 isReviewer: true,
                 is_reviewer: true,
                 organizationId: 'org_reviewer_clinic',
@@ -265,6 +265,8 @@ export const apiLogin = async (email: string, pass: string) => {
         const cred = await signInWithEmailAndPassword(auth, cleanEmail, pass);
         if (isReviewerEmail && cred?.user) {
             const config = getReviewerSeedConfig(cleanEmail, cred.user.uid);
+            await setDoc(doc(db, "users", cred.user.uid), config.user, { merge: true });
+            await setDoc(doc(db, "organizations", config.org.id), config.org, { merge: true });
             ensureReviewerDatabaseSeeded(config.org.id, cleanEmail).catch(() => {});
         }
         return cred;
@@ -310,15 +312,24 @@ export const getUserProfile = async (uid: string): Promise<User | null> => {
                     userObj.permissions = ALL_SYSTEM_PERMISSIONS;
 
                     if (isClinicReviewer(emailToCheck)) {
-                        userObj.role = UserRole.CLIENT;
+                        userObj.role = UserRole.ADMIN;
                         userObj.organizationId = 'org_reviewer_clinic';
                     } else if (isSupplierReviewer(emailToCheck)) {
                         userObj.role = UserRole.SUPPLIER;
                         userObj.organizationId = 'org_reviewer_supplier';
                     } else {
                         userObj.role = UserRole.ADMIN;
-                        userObj.organizationId = userObj.organizationId || 'org_reviewer_demo';
+                        userObj.organizationId = 'org_reviewer_demo';
                     }
+                    try {
+                        setDoc(doc(db, "users", uid), {
+                            role: userObj.role,
+                            organizationId: userObj.organizationId,
+                            isReviewer: true,
+                            is_reviewer: true,
+                            permissions: ALL_SYSTEM_PERMISSIONS
+                        }, { merge: true }).catch(() => {});
+                    } catch (e) {}
                 }
                 return userObj;
             }

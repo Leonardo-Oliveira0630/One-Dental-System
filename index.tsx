@@ -9,6 +9,15 @@ if (window.location.pathname.startsWith('/store')) {
   window.location.replace(window.location.origin + '/#/store' + cleanPath + window.location.search);
 }
 
+// Register Service Worker for offline asset & stylesheet caching
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch((err) => {
+      console.warn('SW registration warning:', err);
+    });
+  });
+}
+
 const rootElement = document.getElementById('root');
 if (!rootElement) {
   throw new Error("Could not find root element to mount to");

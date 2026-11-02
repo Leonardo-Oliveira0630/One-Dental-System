@@ -1,6 +1,6 @@
 
 {
-  "appId": "com.Labprox.app",
+  "appId": "br.com.labprox.app",
   "appName": "Labprox",
   "webDir": "dist",
   "server": {

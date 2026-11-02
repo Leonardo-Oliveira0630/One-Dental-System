@@ -1226,6 +1226,46 @@ export const Finance = () => {
     const clientJobs = (dentistJobs && dentistJobs.length > 0 ? dentistJobs : jobs).filter(j => j.dentistId && equivalentIds.has(j.dentistId) && (j.status === JobStatus.COMPLETED || j.status === JobStatus.DELIVERED));
     const clientPayments = dentistPayments.filter(p => p.dentistId && equivalentIds.has(p.dentistId));
     
+    const processedPayments: any[] = [];
+    const handledGroups = new Set<string>();
+
+    clientPayments.forEach(p => {
+        if (p.installmentGroup) {
+            if (handledGroups.has(p.installmentGroup)) return;
+            handledGroups.add(p.installmentGroup);
+
+            const groupItems = clientPayments.filter(gp => gp.installmentGroup === p.installmentGroup);
+            const totalGroupAmount = groupItems.reduce((acc, curr) => acc + (Number(curr.amount || 0) + Number(curr.discount || 0)), 0);
+            const firstInst = groupItems.slice().sort((a, b) => new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime())[0];
+            const instCount = p.totalInstallments || groupItems.length;
+
+            const rawNote = (firstInst.notes || '').replace(/^Parcela \(\d+\/\d+\)\s*-?\s*/i, '');
+
+            processedPayments.push({
+                id: firstInst.id,
+                date: firstInst.paymentDate,
+                type: 'PAYMENT' as const,
+                description: `Pagamento: Cartão Crédito ${instCount}x${rawNote ? ` - ${rawNote}` : ''}`,
+                amount: totalGroupAmount,
+                payment: firstInst
+            });
+        } else {
+            processedPayments.push({
+                id: p.id,
+                date: p.paymentDate,
+                type: (p.type === 'DISCOUNT' || p.type === 'MANUAL_CREDIT' ? 'CREDIT' : p.type === 'MANUAL_DEBIT' ? 'DEBIT' : 'PAYMENT') as 'CREDIT' | 'PAYMENT' | 'DEBIT',
+                description: p.type === 'DISCOUNT' ? `Desconto: ${p.notes || ''}` : 
+                             p.type === 'MANUAL_DEBIT' ? `Débito Manual${p.notes ? ': ' + p.notes : ''}` : 
+                             p.type === 'MANUAL_CREDIT' ? `Crédito Manual${p.notes ? ': ' + p.notes : ''}` : 
+                             `Pagamento: ${translatePaymentMethod(p.paymentMethod)}${p.cardInstallments && p.cardInstallments > 1 ? ` ${p.cardInstallments}x` : ''} ${p.notes ? `- ${p.notes}` : ''}`,
+                amount: p.type === 'DISCOUNT' ? Number(p.amount || 0) : 
+                        (p.type === 'MANUAL_DEBIT' || p.type === 'MANUAL_CREDIT') ? Number(p.amount || 0) : 
+                        (Number(p.amount || 0) + Number(p.discount || 0)),
+                payment: p
+            });
+        }
+    });
+
     const history = [
         ...clientJobs.map(j => ({
             id: j.id,
@@ -1235,19 +1275,7 @@ export const Finance = () => {
             amount: j.totalValue || 0,
             job: j
         })),
-        ...clientPayments.map(p => ({
-            id: p.id,
-            date: p.paymentDate,
-            type: (p.type === 'DISCOUNT' || p.type === 'MANUAL_CREDIT' ? 'CREDIT' : p.type === 'MANUAL_DEBIT' ? 'DEBIT' : 'PAYMENT') as 'CREDIT' | 'PAYMENT' | 'DEBIT',
-            description: p.type === 'DISCOUNT' ? `Desconto: ${p.notes || ''}` : 
-                         p.type === 'MANUAL_DEBIT' ? `Débito Manual${p.notes ? ': ' + p.notes : ''}` : 
-                         p.type === 'MANUAL_CREDIT' ? `Crédito Manual${p.notes ? ': ' + p.notes : ''}` : 
-                         `Pagamento: ${translatePaymentMethod(p.paymentMethod)} ${p.notes ? `- ${p.notes}` : ''}`,
-            amount: p.type === 'DISCOUNT' ? Number(p.amount || 0) : 
-                    (p.type === 'MANUAL_DEBIT' || p.type === 'MANUAL_CREDIT') ? Number(p.amount || 0) : 
-                    (Number(p.amount || 0) + Number(p.discount || 0)),
-            payment: p
-        }))
+        ...processedPayments
     ];
     
     const sorted = history.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -1642,30 +1670,70 @@ export const Finance = () => {
     if (!statementClient || paymentAmount <= 0) return;
     setIsSaving(true);
     try {
-        await addDentistPayment({
-            dentistId: statementClient.id,
-            dentistName: statementClient.name,
-            amount: paymentAmount,
-            interest: paymentInterest,
-            fees: paymentFees,
-            discount: paymentDiscount,
-            paymentMethod: paymentMethod,
-            cardMachineId: (paymentMethod === 'CREDIT_CARD' || paymentMethod === 'DEBIT_CARD') ? paymentCardMachineId : undefined,
-            bankAccountId: (paymentMethod === 'BANK_TRANSFER' || paymentMethod === 'CHEQUE') ? paymentBankAccountId : undefined,
-            paymentDate: new Date(),
-            type: paymentType,
-            notes: paymentNotes,
-            attachmentUrl: paymentAttachmentUrl || undefined,
-            attachmentName: paymentAttachmentName || undefined,
-            checkBank: paymentMethod === 'CHEQUE' ? paymentCheckBank : undefined,
-            checkAgency: paymentMethod === 'CHEQUE' ? paymentCheckAgency : undefined,
-            checkAccount: paymentMethod === 'CHEQUE' ? paymentCheckAccount : undefined,
-            checkName: paymentMethod === 'CHEQUE' ? paymentCheckName : undefined,
-            checkGoodForDate: paymentMethod === 'CHEQUE' ? paymentCheckGoodForDate : undefined,
-            checkNumber: paymentMethod === 'CHEQUE' ? paymentCheckNumber : undefined,
-            cardInstallments: paymentMethod === 'CREDIT_CARD' ? paymentCardInstallments : undefined,
-            cardAuthorizationCode: paymentMethod === 'CREDIT_CARD' ? paymentCardAuthorizationCode : undefined
-        });
+        const netTotal = Math.max(0, paymentAmount + paymentInterest - paymentDiscount - paymentFees);
+        const baseDate = new Date();
+
+        if (paymentMethod === 'CREDIT_CARD' && paymentCardInstallments > 1) {
+            const totalInstallments = paymentCardInstallments;
+            const baseInstVal = Math.floor((netTotal / totalInstallments) * 100) / 100;
+            const remainderCents = Math.round((netTotal - (baseInstVal * totalInstallments)) * 100) / 100;
+            const groupId = `inst_grp_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+
+            for (let i = 1; i <= totalInstallments; i++) {
+                const instDate = new Date(baseDate);
+                instDate.setMonth(instDate.getMonth() + (i - 1));
+                const instAmount = i === 1 ? baseInstVal + remainderCents : baseInstVal;
+                const instNotes = paymentNotes ? `Parcela (${i}/${totalInstallments}) - ${paymentNotes}` : `Parcela (${i}/${totalInstallments})`;
+
+                await addDentistPayment({
+                    dentistId: statementClient.id,
+                    dentistName: statementClient.name,
+                    amount: instAmount,
+                    interest: i === 1 ? paymentInterest : 0,
+                    fees: i === 1 ? paymentFees : 0,
+                    discount: i === 1 ? paymentDiscount : 0,
+                    paymentMethod: paymentMethod,
+                    cardMachineId: paymentCardMachineId || undefined,
+                    bankAccountId: paymentBankAccountId || undefined,
+                    paymentDate: instDate,
+                    type: paymentType,
+                    notes: instNotes,
+                    cardInstallments: totalInstallments,
+                    cardAuthorizationCode: paymentCardAuthorizationCode || undefined,
+                    installmentGroup: groupId,
+                    installmentNumber: i,
+                    totalInstallments: totalInstallments,
+                    attachmentUrl: paymentAttachmentUrl || undefined,
+                    attachmentName: paymentAttachmentName || undefined
+                });
+            }
+        } else {
+            await addDentistPayment({
+                dentistId: statementClient.id,
+                dentistName: statementClient.name,
+                amount: paymentAmount,
+                interest: paymentInterest,
+                fees: paymentFees,
+                discount: paymentDiscount,
+                paymentMethod: paymentMethod,
+                cardMachineId: (paymentMethod === 'CREDIT_CARD' || paymentMethod === 'DEBIT_CARD') ? paymentCardMachineId : undefined,
+                bankAccountId: (paymentMethod === 'BANK_TRANSFER' || paymentMethod === 'CHEQUE') ? paymentBankAccountId : undefined,
+                paymentDate: baseDate,
+                type: paymentType,
+                notes: paymentNotes,
+                attachmentUrl: paymentAttachmentUrl || undefined,
+                attachmentName: paymentAttachmentName || undefined,
+                checkBank: paymentMethod === 'CHEQUE' ? paymentCheckBank : undefined,
+                checkAgency: paymentMethod === 'CHEQUE' ? paymentCheckAgency : undefined,
+                checkAccount: paymentMethod === 'CHEQUE' ? paymentCheckAccount : undefined,
+                checkName: paymentMethod === 'CHEQUE' ? paymentCheckName : undefined,
+                checkGoodForDate: paymentMethod === 'CHEQUE' ? paymentCheckGoodForDate : undefined,
+                checkNumber: paymentMethod === 'CHEQUE' ? paymentCheckNumber : undefined,
+                cardInstallments: paymentMethod === 'CREDIT_CARD' ? paymentCardInstallments : undefined,
+                cardAuthorizationCode: paymentMethod === 'CREDIT_CARD' ? paymentCardAuthorizationCode : undefined
+            });
+        }
+
         setPaymentAmount(0);
         setPaymentInterest(0);
         setPaymentFees(0);
@@ -3528,6 +3596,48 @@ export const Finance = () => {
                                                         placeholder="Ex: Ref. OS 123, Promoção especial..."
                                                     />
                                                 </div>
+
+                                                {/* DEMONSTRATIVO DO PARCELAMENTO */}
+                                                {paymentMethod === "CREDIT_CARD" && paymentCardInstallments > 1 && (paymentAmount + paymentInterest - paymentDiscount - paymentFees) > 0 && (
+                                                    <div className="md:col-span-full bg-blue-50/80 border border-blue-200 rounded-2xl p-4 animate-in fade-in slide-in-from-top-2 my-2">
+                                                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-3 border-b border-blue-200/80 pb-2">
+                                                            <div className="flex items-center gap-2 text-blue-900 font-extrabold text-xs uppercase tracking-wider">
+                                                                <CreditCard size={18} className="text-blue-600" />
+                                                                Demonstrativo do Parcelamento no Cartão de Crédito ({paymentCardInstallments}x)
+                                                            </div>
+                                                            <span className="bg-blue-600 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase">
+                                                                {paymentCardInstallments}x de R$ {((paymentAmount + paymentInterest - paymentDiscount - paymentFees) / paymentCardInstallments).toFixed(2)}
+                                                            </span>
+                                                        </div>
+
+                                                        <p className="text-[11px] text-blue-800 font-medium mb-3 leading-relaxed">
+                                                            Ao confirmar este recebimento, as <strong>{paymentCardInstallments} parcelas</strong> serão lançadas individualmente mês a mês na aba <strong>Recebimentos</strong>. No <strong>Extrato</strong> do cliente, o valor total de <strong>R$ {(paymentAmount + paymentInterest - paymentDiscount - paymentFees).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</strong> abaterá a dívida na data do pagamento.
+                                                        </p>
+
+                                                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                                                            {Array.from({ length: paymentCardInstallments }).map((_, idx) => {
+                                                                const netTot = Math.max(0, paymentAmount + paymentInterest - paymentDiscount - paymentFees);
+                                                                const baseVal = Math.floor((netTot / paymentCardInstallments) * 100) / 100;
+                                                                const rem = Math.round((netTot - (baseVal * paymentCardInstallments)) * 100) / 100;
+                                                                const instVal = idx === 0 ? baseVal + rem : baseVal;
+                                                                const instD = new Date();
+                                                                instD.setMonth(instD.getMonth() + idx);
+
+                                                                return (
+                                                                    <div key={idx} className="bg-white p-2.5 rounded-xl border border-blue-100 flex items-center justify-between text-xs shadow-xs">
+                                                                        <div className="flex flex-col">
+                                                                            <span className="font-extrabold text-slate-800">Parcela ({idx + 1}/{paymentCardInstallments})</span>
+                                                                            <span className="text-[10px] text-slate-400 font-bold">{instD.toLocaleDateString("pt-BR")}</span>
+                                                                        </div>
+                                                                        <span className="font-black text-blue-700 font-mono">
+                                                                            R$ {instVal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                                                                        </span>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                )}
                                                 <div className="md:col-span-full border-t border-slate-100 pt-3">
                                                     <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest flex items-center gap-1.5">
                                                         <FileText size={12} /> Comprovante de Recebimento

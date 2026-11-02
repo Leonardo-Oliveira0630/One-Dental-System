@@ -348,43 +348,45 @@ export const StoreProductDetailModal: React.FC<StoreProductDetailModalProps> = (
                   </span>
                 </div>
 
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center bg-zinc-100 dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 rounded-xl p-1">
-                    <button
-                      type="button"
-                      disabled={quantity <= 1}
-                      onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                      className="w-8 h-8 flex items-center justify-center text-zinc-700 dark:text-slate-300 hover:text-zinc-950 dark:hover:text-white disabled:opacity-30 transition-colors"
-                    >
-                      <Minus size={14} />
-                    </button>
-                    <span className="w-12 text-center font-mono font-bold text-sm text-zinc-900 dark:text-white">
-                      {quantity}
-                    </span>
-                    <button
-                      type="button"
-                      disabled={quantity >= availableStock}
-                      onClick={() => setQuantity((q) => Math.min(availableStock, q + 1))}
-                      className="w-8 h-8 flex items-center justify-center text-zinc-700 dark:text-slate-300 hover:text-zinc-950 dark:hover:text-white disabled:opacity-30 transition-colors"
-                    >
-                      <Plus size={14} />
-                    </button>
-                  </div>
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                  <div className="flex items-center justify-between sm:justify-start gap-2">
+                    <div className="flex items-center bg-zinc-100 dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 rounded-xl p-1 shrink-0">
+                      <button
+                        type="button"
+                        disabled={quantity <= 1}
+                        onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                        className="w-8 h-8 flex items-center justify-center text-zinc-700 dark:text-slate-300 hover:text-zinc-950 dark:hover:text-white disabled:opacity-30 transition-colors"
+                      >
+                        <Minus size={14} />
+                      </button>
+                      <span className="w-10 sm:w-12 text-center font-mono font-bold text-sm text-zinc-900 dark:text-white">
+                        {quantity}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={quantity >= availableStock}
+                        onClick={() => setQuantity((q) => Math.min(availableStock, q + 1))}
+                        className="w-8 h-8 flex items-center justify-center text-zinc-700 dark:text-slate-300 hover:text-zinc-950 dark:hover:text-white disabled:opacity-30 transition-colors"
+                      >
+                        <Plus size={14} />
+                      </button>
+                    </div>
 
-                  {onOpenChat && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onClose();
-                        onOpenChat(product);
-                      }}
-                      className="p-3.5 bg-zinc-100 dark:bg-slate-800 hover:bg-zinc-200 dark:hover:bg-slate-700 text-zinc-900 dark:text-slate-100 font-bold rounded-2xl transition-all border border-zinc-200 dark:border-slate-700 flex items-center justify-center gap-1.5 text-xs shrink-0"
-                      title="Tirar dúvidas com o fornecedor"
-                    >
-                      <MessageSquare size={16} />
-                      <span className="hidden sm:inline">Dúvidas?</span>
-                    </button>
-                  )}
+                    {onOpenChat && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onClose();
+                          onOpenChat(product);
+                        }}
+                        className="p-3 bg-zinc-100 dark:bg-slate-800 hover:bg-zinc-200 dark:hover:bg-slate-700 text-zinc-900 dark:text-slate-100 font-bold rounded-xl transition-all border border-zinc-200 dark:border-slate-700 flex items-center justify-center gap-1.5 text-xs shrink-0"
+                        title="Tirar dúvidas com o fornecedor"
+                      >
+                        <MessageSquare size={16} />
+                        <span className="inline">Dúvidas?</span>
+                      </button>
+                    )}
+                  </div>
 
                   <button
                     type="button"
@@ -393,9 +395,9 @@ export const StoreProductDetailModal: React.FC<StoreProductDetailModalProps> = (
                       onAddToCart(product, selectedVariation, selectedOptions, quantity);
                       onClose();
                     }}
-                    className="flex-1 py-3.5 px-6 bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-300 dark:disabled:bg-slate-700 text-white font-bold rounded-2xl transition-all shadow-md active:scale-98 flex items-center justify-center gap-2 text-sm"
+                    className="w-full sm:flex-1 py-3.5 px-4 sm:px-6 bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-300 dark:disabled:bg-slate-700 text-white font-bold rounded-2xl transition-all shadow-md active:scale-98 flex items-center justify-center gap-2 text-sm whitespace-nowrap"
                   >
-                    <ShoppingBag size={18} />
+                    <ShoppingBag size={18} className="shrink-0" />
                     <span>{isOutOfStock ? 'Produto Esgotado' : 'Adicionar ao Carrinho'}</span>
                   </button>
                 </div>

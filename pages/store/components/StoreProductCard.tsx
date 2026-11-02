@@ -100,17 +100,17 @@ export const StoreProductCard: React.FC<StoreProductCardProps> = ({
         </div>
       </div>
 
-      {/* Price & Action Section */}
-      <div className="mt-4 pt-3 border-t border-zinc-100 dark:border-slate-800 flex items-center justify-between gap-2">
-        <div>
+      {/* Price & Action Section - Fully Mobile Responsive */}
+      <div className="mt-3 pt-2.5 border-t border-zinc-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div className="shrink-0 min-w-0">
           {isPromo && product.promotionalPrice && product.sellPrice > product.promotionalPrice && (
-            <span className="block text-[11px] text-zinc-400 dark:text-slate-400 line-through font-mono">
+            <span className="block text-[10px] text-zinc-400 dark:text-slate-400 line-through font-mono">
               R$ {product.sellPrice.toFixed(2)}
             </span>
           )}
-          <div className="flex items-baseline gap-1">
-            <span className="text-xs font-bold text-zinc-500 dark:text-slate-400 font-mono">R$</span>
-            <span className="text-base font-extrabold text-zinc-950 dark:text-white font-mono tracking-tight">
+          <div className="flex items-baseline gap-0.5 whitespace-nowrap">
+            <span className="text-[11px] font-bold text-zinc-500 dark:text-slate-400 font-mono">R$</span>
+            <span className="text-sm sm:text-base font-black text-zinc-950 dark:text-white font-mono tracking-tight">
               {displayPrice.toFixed(2)}
             </span>
           </div>
@@ -122,10 +122,10 @@ export const StoreProductCard: React.FC<StoreProductCardProps> = ({
             e.stopPropagation();
             onOpenDetail(product);
           }}
-          className="px-3 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-bold rounded-xl transition-all shadow-xs flex items-center gap-1.5 shrink-0 cursor-pointer"
+          className="w-full sm:w-auto px-2.5 sm:px-3 py-1.5 sm:py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-bold rounded-xl transition-all shadow-xs flex items-center justify-center gap-1 shrink-0 cursor-pointer"
         >
-          <Plus size={14} />
-          <span>{t('store.buy', 'Comprar')}</span>
+          <Plus size={14} className="shrink-0" />
+          <span className="whitespace-nowrap">{t('store.buy', 'Comprar')}</span>
         </button>
       </div>
     </div>

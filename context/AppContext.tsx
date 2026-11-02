@@ -2057,7 +2057,15 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const deleteDentistPayment = async (id: string) => {
     const orgId = currentUser?.organizationId;
     if (!orgId) return;
-    await api.apiDeleteDentistPayment(orgId, id);
+    const target = dentistPayments.find(p => p.id === id);
+    if (target?.installmentGroup) {
+      const groupPayments = dentistPayments.filter(p => p.installmentGroup === target.installmentGroup);
+      for (const p of groupPayments) {
+        await api.apiDeleteDentistPayment(orgId, p.id);
+      }
+    } else {
+      await api.apiDeleteDentistPayment(orgId, id);
+    }
   };
 
   const updateBillingBatchStatus = async (id: string, status: BillingBatch['status']) => {

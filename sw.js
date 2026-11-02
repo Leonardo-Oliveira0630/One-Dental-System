@@ -1,14 +1,20 @@
 // Labprox PWA Service Worker
-const CACHE_NAME = 'labprox-v3';
+const CACHE_NAME = 'labprox-v4';
 const ASSETS = [
   '/',
   '/index.html',
-  '/manifest.json'
+  '/manifest.json',
+  '/logo labprox.svg',
+  'https://cdn.tailwindcss.com',
+  'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap'
 ];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS)).then(() => self.skipWaiting())
+    caches.open(CACHE_NAME).then((cache) => {
+      // Pre-cache core assets gracefully (don't fail install if a external font is unreachable during setup)
+      return Promise.allSettled(ASSETS.map(url => cache.add(url)));
+    }).then(() => self.skipWaiting())
   );
 });
 
@@ -23,7 +29,9 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Pass-through network requests with cache fallback for app shell
+  const url = new URL(event.request.url);
+
+  // App Navigation Shell
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request).catch(() => caches.match('/index.html') || fetch(event.request))
@@ -31,9 +39,38 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Cache-First with Stale-While-Revalidate for Tailwind CDN script, Google Fonts, and Static JS/CSS Assets
+  if (
+    url.hostname === 'cdn.tailwindcss.com' ||
+    url.hostname.includes('fonts.googleapis.com') ||
+    url.hostname.includes('fonts.gstatic.com') ||
+    event.request.destination === 'style' ||
+    event.request.destination === 'script' ||
+    event.request.destination === 'image'
+  ) {
+    event.respondWith(
+      caches.match(event.request).then((cachedResponse) => {
+        const fetchPromise = fetch(event.request).then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));
+          }
+          return networkResponse;
+        }).catch(() => {
+          // Silent catch on network failure (offline mode)
+        });
+
+        return cachedResponse || fetchPromise;
+      })
+    );
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request).then((response) => {
-      return response || fetch(event.request);
+      return response || fetch(event.request).catch(() => {
+        // Fallback for offline if asset not cached
+      });
     })
   );
 });

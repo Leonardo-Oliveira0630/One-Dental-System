@@ -2727,6 +2727,18 @@ export const JobDetails = () => {
 
   const showChatTab = true;
 
+  if (!job) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] p-8 text-center animate-in fade-in duration-300">
+        <Loader2 size={40} className="text-blue-600 dark:text-blue-400 animate-spin mb-4" />
+        <h3 className="text-lg font-black text-slate-800 dark:text-slate-100">Carregando detalhes do caso...</h3>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm">
+          Buscando informações da ordem de serviço, histórico e anexos no sistema.
+        </p>
+      </div>
+    );
+  }
+
   if (isFreeLab) {
     return (
       <div className="max-w-2xl mx-auto py-8 px-4 sm:px-6 space-y-6 animate-in fade-in duration-500">
@@ -6574,7 +6586,7 @@ export const JobDetails = () => {
                                 {!isMobileDevice() ? (
                                     <>
                                         {/* PC / Desktop Option 1: Anexar Arquivos, Imagens e Vídeos */}
-                                        <div className="p-4 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/80 group hover:border-blue-400 hover:bg-blue-50/40 transition-all text-center relative shrink-0">
+                                        <div className="p-4 border-2 border-dashed border-slate-200 dark:border-slate-700/80 rounded-2xl bg-slate-50/80 dark:bg-slate-800/60 group hover:border-blue-400 dark:hover:border-blue-500 hover:bg-blue-50/40 dark:hover:bg-slate-800 transition-all text-center relative shrink-0">
                                             <input 
                                                 type="file" 
                                                 multiple 
@@ -6584,7 +6596,7 @@ export const JobDetails = () => {
                                             />
                                             <div className="flex flex-col items-center gap-1.5 pointer-events-none">
                                                 <UploadCloud size={24} className="text-slate-400 group-hover:text-blue-500 transition-colors" />
-                                                <span className="text-[11px] font-black text-slate-600 uppercase tracking-wider">
+                                                <span className="text-[11px] font-black text-slate-600 dark:text-slate-200 uppercase tracking-wider">
                                                     Anexar Arquivos, Imagens e Vídeos
                                                 </span>
                                                 <span className="text-[9px] text-slate-400 font-medium">
@@ -6598,14 +6610,14 @@ export const JobDetails = () => {
                                             type="button"
                                             onClick={() => setIsWebcamOpen(true)}
                                             disabled={isUploadingFiles}
-                                            className="p-4 border-2 border-dashed border-blue-200 rounded-2xl bg-blue-50/50 group hover:border-blue-500 hover:bg-blue-50 transition-all flex flex-col items-center justify-center gap-1.5 shrink-0 disabled:opacity-50 cursor-pointer"
+                                            className="p-4 border-2 border-dashed border-blue-200 dark:border-blue-800/60 rounded-2xl bg-blue-50/50 dark:bg-blue-950/40 group hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/40 transition-all flex flex-col items-center justify-center gap-1.5 shrink-0 disabled:opacity-50 cursor-pointer"
                                             title="Abrir Câmera Web para Fotos e Vídeos"
                                         >
                                             <CameraIcon size={24} className="text-blue-600 group-hover:scale-110 transition-transform" />
-                                            <span className="text-[11px] font-black text-blue-900 uppercase tracking-wider text-center leading-tight">
+                                            <span className="text-[11px] font-black text-blue-900 dark:text-blue-200 uppercase tracking-wider text-center leading-tight">
                                                 Câmera Web
                                             </span>
-                                            <span className="text-[9px] text-blue-600/80 font-bold">
+                                            <span className="text-[9px] text-blue-600/80 dark:text-blue-400/90 font-bold">
                                                 Foto e Gravação de Vídeo
                                             </span>
                                         </button>
@@ -6617,14 +6629,14 @@ export const JobDetails = () => {
                                             type="button"
                                             onClick={() => setIsWebcamOpen(true)}
                                             disabled={isUploadingFiles}
-                                            className="p-4 border-2 border-dashed border-emerald-300/80 rounded-2xl bg-emerald-50/50 group hover:border-emerald-500 hover:bg-emerald-50 transition-all flex flex-col items-center justify-center gap-1.5 shrink-0 disabled:opacity-50 cursor-pointer"
+                                            className="p-4 border-2 border-dashed border-emerald-300/80 dark:border-emerald-600/50 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/30 group hover:border-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/40 transition-all flex flex-col items-center justify-center gap-1.5 shrink-0 disabled:opacity-50 cursor-pointer"
                                             title="Abrir Câmera para Foto e Gravação de Vídeo"
                                         >
-                                            <Smartphone size={24} className="text-emerald-600 group-hover:scale-110 transition-transform" />
-                                            <span className="text-[11px] font-black text-emerald-800 uppercase tracking-wider text-center leading-tight">
+                                            <Smartphone size={24} className="text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform" />
+                                            <span className="text-[11px] font-black text-emerald-800 dark:text-emerald-300 uppercase tracking-wider text-center leading-tight">
                                                 Câmera
                                             </span>
-                                            <span className="text-[9px] text-emerald-600/80 font-bold">
+                                            <span className="text-[9px] text-emerald-600/80 dark:text-emerald-400/90 font-bold">
                                                 Foto e Gravação de Vídeo
                                             </span>
                                         </button>
@@ -6752,7 +6764,7 @@ export const JobDetails = () => {
 
                                     if (filtered.length === 0) {
                                         return (
-                                            <div className="text-center py-10 border border-dashed border-slate-200 rounded-3xl bg-slate-50/50 p-6">
+                                            <div className="text-center py-10 border border-dashed border-slate-200 dark:border-slate-800 rounded-3xl bg-slate-50/50 dark:bg-slate-800/30 p-6">
                                                 <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">
                                                     Nenhum arquivo encontrado nesta categoria.
                                                 </p>

@@ -1,0 +1,19 @@
+{
+  "id": "/",
+  "name": "Labprox",
+  "short_name": "Labprox",
+  "description": "Sistema de Gestão para Laboratórios de Prótese Dentária e Clínicas Odontológicas",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0b0f17",
+  "theme_color": "#0F4C81",
+  "icons": [
+    {
+      "src": "/logo labprox.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

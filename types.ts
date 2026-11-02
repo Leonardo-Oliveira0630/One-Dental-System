@@ -1261,6 +1261,10 @@ export interface DentistPayment {
   // Complementary Credit Card fields
   cardInstallments?: number;
   cardAuthorizationCode?: string;
+  // Installment group details
+  installmentGroup?: string;
+  installmentNumber?: number;
+  totalInstallments?: number;
 }
 
 export interface CardMachine {

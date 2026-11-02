@@ -525,6 +525,15 @@ export const JobsList = ({ isStoreContext, isBudgetMode }: { isStoreContext?: bo
   const { jobs, budgets, currentUser, updateJob, sectors, activeOrganization, addJobToRoute, allUsers, manualDentists, couriers, onlineRequisitions, activeManualDentistId, currentPlan, currentOrg, routes } = useApp();
   const navigate = useNavigate();
   
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsDataLoaded(true);
+    }, 600);
+    return () => clearTimeout(timer);
+  }, []);
+
   const location = useLocation();
 
   const cacheKey = isBudgetMode ? 'budgets_list_cache' : 'jobs_list_cache';
@@ -1368,25 +1377,44 @@ const handleUpdateStatus = async (jobId: string, status: JobStatus) => {
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
-                    {filteredJobs.slice(0, visibleCount).map(job => (
-                        <JobRow 
-                            key={job.id} 
-                            job={job} 
-                            isClient={isClient}
-                            isBudgetMode={isBudgetMode}
-                            isLabStaff={isLabStaff}
-                            navigate={navigate}
-                            onOpenJob={handleOpenJob}
-                            handleFinalizeJob={handleFinalizeJob}
-                            handleReopenJob={handleReopenJob}
-                            setRouteModalJob={setRouteModalJob}
-                            getStatusColor={getStatusColor}
-                            getTranslatedStatus={getTranslatedStatus}
-                            isJobOverdue={isJobOverdue}
-                            getSectorTimeInfo={getSectorTimeInfo}
-                            revealJobStatus={revealJobStatus}
-                        />
-                    ))}
+                    {!isDataLoaded && filteredJobs.length === 0 ? (
+                        <tr>
+                            <td colSpan={8} className="py-16 text-center">
+                                <div className="flex flex-col items-center justify-center gap-3">
+                                    <Loader2 className="w-8 h-8 text-blue-600 dark:text-blue-400 animate-spin" />
+                                    <p className="text-xs font-bold text-slate-500 dark:text-slate-400">
+                                        {isBudgetMode ? 'Carregando orçamentos...' : 'Carregando lista de trabalhos...'}
+                                    </p>
+                                </div>
+                            </td>
+                        </tr>
+                    ) : filteredJobs.length === 0 ? (
+                        <tr>
+                            <td colSpan={8} className="py-16 text-center text-slate-400 dark:text-slate-500 font-bold">
+                                {isBudgetMode ? 'Nenhum orçamento encontrado.' : t('orders.noOrdersFound', 'Nenhum pedido encontrado.')}
+                            </td>
+                        </tr>
+                    ) : (
+                        filteredJobs.slice(0, visibleCount).map(job => (
+                            <JobRow 
+                                key={job.id} 
+                                job={job} 
+                                isClient={isClient}
+                                isBudgetMode={isBudgetMode}
+                                isLabStaff={isLabStaff}
+                                navigate={navigate}
+                                onOpenJob={handleOpenJob}
+                                handleFinalizeJob={handleFinalizeJob}
+                                handleReopenJob={handleReopenJob}
+                                setRouteModalJob={setRouteModalJob}
+                                getStatusColor={getStatusColor}
+                                getTranslatedStatus={getTranslatedStatus}
+                                isJobOverdue={isJobOverdue}
+                                getSectorTimeInfo={getSectorTimeInfo}
+                                revealJobStatus={revealJobStatus}
+                            />
+                        ))
+                    )}
 
                     
                     {filteredJobs.length > visibleCount && (
@@ -1409,8 +1437,15 @@ const handleUpdateStatus = async (jobId: string, status: JobStatus) => {
       {/* VIEW PARA MOBILE (CARDS) */}
 
       <div className="md:hidden space-y-4">
-        {filteredJobs.length === 0 ? (
-            <div className="py-20 text-center text-slate-400 dark:text-slate-500 bg-white dark:bg-[#131B2A] rounded-3xl border border-dashed border-slate-200 dark:border-slate-800">{t('orders.noOrdersFound', 'Nenhum pedido encontrado.')}</div>
+        {!isDataLoaded && filteredJobs.length === 0 ? (
+            <div className="py-16 text-center bg-white dark:bg-[#131B2A] rounded-3xl border border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center gap-3">
+                <Loader2 className="w-8 h-8 text-blue-600 dark:text-blue-400 animate-spin" />
+                <p className="text-xs font-bold text-slate-500 dark:text-slate-400">
+                    {isBudgetMode ? 'Carregando orçamentos...' : 'Carregando lista de trabalhos...'}
+                </p>
+            </div>
+        ) : filteredJobs.length === 0 ? (
+            <div className="py-20 text-center text-slate-400 dark:text-slate-500 bg-white dark:bg-[#131B2A] rounded-3xl border border-dashed border-slate-200 dark:border-slate-800 font-bold">{t('orders.noOrdersFound', 'Nenhum pedido encontrado.')}</div>
         ) : (
             filteredJobs.slice(0, visibleCount).map(job => (
                 <JobCard 

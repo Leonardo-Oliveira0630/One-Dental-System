@@ -10,7 +10,7 @@ import * as api from '../services/firebaseService';
 
 export const Login = () => {
   const { t } = useTranslation();
-  const { login, currentUser, isLoadingAuth } = useApp();
+  const { login, currentUser, isLoadingAuth, currentOrg } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
   
@@ -36,9 +36,9 @@ export const Login = () => {
             navigate(redirect);
         } else if (currentUser.role === UserRole.HELPDESK) {
             navigate('/helpdesk');
-        } else if (isSupplierReviewer(currentUser) || currentUser.role === UserRole.SUPPLIER) {
+        } else if (isSupplierReviewer(currentUser) || currentUser.role === UserRole.SUPPLIER || currentOrg?.orgType === 'SUPPLIER') {
             navigate('/supplier/dashboard');
-        } else if (isClinicReviewer(currentUser)) {
+        } else if (isClinicReviewer(currentUser) || currentOrg?.orgType === 'CLINIC') {
             navigate('/patients');
         } else if (currentUser.role === UserRole.CLIENT) {
             navigate('/store');
@@ -95,7 +95,7 @@ export const Login = () => {
   if (view === 'FORGOT_PASSWORD') {
       return (
         <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-4">
-            <div className="bg-white w-full max-w-md p-4 sm:p-8 rounded-card shadow-premium border border-gray-200 animate-in fade-in zoom-in duration-300">
+            <div className="bg-white dark:bg-white text-slate-900 dark:text-slate-900 w-full max-w-md p-4 sm:p-8 rounded-card shadow-premium border border-gray-200 relative z-10 animate-in fade-in zoom-in duration-300">
                 <button onClick={() => { setView('LOGIN'); setResetSent(false); setError(null); }} className="flex items-center gap-2 text-slate-500 hover:text-[#15263f] mb-8 font-semibold text-sm transition-colors">
                     <ArrowLeft size={16} /> {t('auth.backToLogin', 'Voltar para o Login')}
                 </button>
@@ -158,7 +158,7 @@ export const Login = () => {
       <div className="absolute top-1/4 -left-1/4 w-[500px] h-[500px] rounded-full bg-[#0F4C81]/10 blur-[120px] pointer-events-none" />
       <div className="absolute bottom-1/4 -right-1/4 w-[500px] h-[500px] rounded-full bg-[#00B8D9]/10 blur-[120px] pointer-events-none" />
 
-      <div className="bg-white w-full max-w-md p-4 sm:p-8 md:p-10 rounded-card shadow-premium border border-slate-200 relative z-10 animate-in fade-in zoom-in duration-500">
+      <div className="bg-white dark:bg-white text-slate-900 dark:text-slate-900 w-full max-w-md p-4 sm:p-8 md:p-10 rounded-card shadow-premium border border-slate-200 relative z-10 animate-in fade-in zoom-in duration-500">
         <div className="flex flex-col items-center text-center mb-2">
             <Link to="/" className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-[#15263f] transition-colors mb-1">
                 <ArrowLeft size={14} /> {t('auth.backToSite', 'Voltar para o Site')}
