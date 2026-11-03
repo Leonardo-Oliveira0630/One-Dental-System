@@ -5,7 +5,8 @@ import {
   FileText, Download, Filter, Calendar, Users, Building2, Package, Search, X, 
   DollarSign, TrendingUp, ChevronDown, ChevronUp, ChevronRight, FileSpreadsheet, 
   ArrowUpDown, Wallet, UserCheck, Stethoscope, CheckCircle2, Clock, AlertCircle,
-  BarChart3, Sparkles, Lock, ArrowLeft, User as UserIcon, Layers, History, ShieldAlert
+  BarChart3, Sparkles, Lock, ArrowLeft, User as UserIcon, Layers, History, ShieldAlert,
+  Receipt
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
@@ -37,7 +38,7 @@ export interface ClientSummaryStat {
 export default function Reports() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { jobs, allUsers, manualDentists, sectors, jobTypes, currentOrg, currentUser } = useApp();
+  const { jobs, allUsers, manualDentists, sectors, jobTypes, currentOrg, currentUser, dentistPayments, billingBatches } = useApp();
   
   const isAdmin = currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.SUPER_ADMIN;
   const isManager = currentUser?.role === UserRole.MANAGER;
@@ -100,7 +101,7 @@ export default function Reports() {
   // Available report types for navigation based on view permissions
   const availableReportTabs = useMemo(() => {
     const tabs: {
-      type: 'CLIENT_SUMMARY' | 'PRODUCTION' | 'DETAILED_ORDERS' | 'SERVICE_TYPES';
+      type: 'CLIENT_SUMMARY' | 'PRODUCTION' | 'DETAILED_ORDERS' | 'SERVICE_TYPES' | 'DEBTORS_CREDITORS';
       label: string;
       icon: any;
       activeColor: string;
@@ -115,6 +116,14 @@ export default function Reports() {
         icon: Users,
         activeColor: 'bg-white text-teal-700 shadow-sm border border-slate-200/60',
         textColor: 'text-teal-600',
+        canExport: canExportClientSummary
+      });
+      tabs.push({
+        type: 'DEBTORS_CREDITORS',
+        label: t('reports.debtorsCreditors', 'Devedores / Credores'),
+        icon: Receipt,
+        activeColor: 'bg-white text-rose-700 shadow-sm border border-slate-200/60',
+        textColor: 'text-rose-600',
         canExport: canExportClientSummary
       });
     }
@@ -194,7 +203,7 @@ export default function Reports() {
   const [statusFilter, setStatusFilter] = useState('');
   const [urgencyFilter, setUrgencyFilter] = useState('');
   const [groupBy, setGroupBy] = useState<'DATE' | 'JOB_TYPE' | 'LIST' | 'COLLABORATOR'>('DATE');
-  const [reportType, setReportType] = useState<'CLIENT_SUMMARY' | 'PRODUCTION' | 'DETAILED_ORDERS' | 'SERVICE_TYPES'>('CLIENT_SUMMARY');
+  const [reportType, setReportType] = useState<'CLIENT_SUMMARY' | 'PRODUCTION' | 'DETAILED_ORDERS' | 'SERVICE_TYPES' | 'DEBTORS_CREDITORS'>('CLIENT_SUMMARY');
 
   // Handle outside clicks to close dropdowns
   useEffect(() => {
@@ -585,6 +594,215 @@ export default function Reports() {
     });
   }, [clientSummaryData.clients, clientSearch, clientSortBy]);
 
+  // Devedores / Credores Data
+  const debtorsData = useMemo(() => {
+    const map = new Map<string, {
+      id: string;
+      code: string;
+      name: string;
+      clinicName: string;
+      phone?: string;
+      email?: string;
+    }>();
+
+    manualDentists.forEach((d, i) => {
+      map.set(d.id, {
+        id: d.id,
+        code: String((d as any).code || (d as any).osNumber || (i + 1)),
+        name: d.name,
+        clinicName: d.clinicName || (d as any).address || 'Geral',
+        phone: (d as any).phone || (d as any).whatsapp,
+        email: d.email
+      });
+    });
+
+    allUsers.filter(u => u.role === UserRole.DENTIST || (u.role as any) === 'CLIENT').forEach((u, i) => {
+      if (!map.has(u.id)) {
+        map.set(u.id, {
+          id: u.id,
+          code: String((u as any).code || (i + 100)),
+          name: u.name,
+          clinicName: (u as any).clinicName || 'Geral',
+          phone: (u as any).phone || (u as any).whatsapp,
+          email: u.email
+        });
+      }
+    });
+
+    jobs.forEach(j => {
+      if (j.dentistId && !map.has(j.dentistId)) {
+        map.set(j.dentistId, {
+          id: j.dentistId,
+          code: 'Geral',
+          name: j.dentistName || 'Cliente',
+          clinicName: j.clinicName || 'Geral'
+        });
+      }
+    });
+
+    const clientList = Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+
+    const rawRows = clientList.map((client, idx) => {
+      // Find all jobs for this client
+      const clientJobs = jobs.filter(j => 
+        (j.dentistId && j.dentistId === client.id) || 
+        (j.dentistName && j.dentistName === client.name)
+      );
+
+      // Find all valid jobs (excluding canceled/rejected)
+      const validJobs = clientJobs.filter(j => j.status !== 'CANCELED' && j.status !== 'REJECTED');
+
+      // Filter jobs up to cutoff date if endDate is provided
+      const jobsUpToCutoff = validJobs.filter(j => {
+        if (!endDate) return true;
+        const jobDate = new Date(dateType === 'CREATED' ? j.createdAt : j.dueDate);
+        jobDate.setHours(0, 0, 0, 0);
+        const end = new Date(endDate);
+        end.setMinutes(end.getMinutes() + end.getTimezoneOffset());
+        end.setHours(23, 59, 59, 999);
+        return jobDate <= end;
+      });
+
+      // Filter payments up to cutoff date if endDate is provided
+      const clientPayments = (dentistPayments || []).filter(p => p.dentistId === client.id || p.dentistName === client.name);
+      const paymentsUpToCutoff = clientPayments.filter(p => {
+        if (!endDate) return true;
+        const payDate = new Date(p.paymentDate || (p as any).createdAt);
+        payDate.setHours(0, 0, 0, 0);
+        const end = new Date(endDate);
+        end.setMinutes(end.getMinutes() + end.getTimezoneOffset());
+        end.setHours(23, 59, 59, 999);
+        return payDate <= end;
+      });
+
+      // Period jobs (within startDate and endDate)
+      const periodJobs = validJobs.filter(j => {
+        const jobDate = new Date(dateType === 'CREATED' ? j.createdAt : j.dueDate);
+        jobDate.setHours(0, 0, 0, 0);
+
+        if (startDate) {
+          const start = new Date(startDate);
+          start.setMinutes(start.getMinutes() + start.getTimezoneOffset());
+          start.setHours(0, 0, 0, 0);
+          if (jobDate < start) return false;
+        }
+        if (endDate) {
+          const end = new Date(endDate);
+          end.setMinutes(end.getMinutes() + end.getTimezoneOffset());
+          end.setHours(23, 59, 59, 999);
+          if (jobDate > end) return false;
+        }
+        return true;
+      });
+
+      // Last job date
+      const sortedJobs = [...clientJobs].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      const lastJob = sortedJobs[0];
+      const lastJobDate = lastJob ? new Date(lastJob.createdAt).toLocaleDateString('pt-BR') : '-';
+
+      // Last payment info
+      const sortedPayments = [...clientPayments].sort((a, b) => new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime());
+      const lastPay = sortedPayments[0];
+      const lastPaymentStr = lastPay 
+        ? `${new Date(lastPay.paymentDate).toLocaleDateString('pt-BR')} - R$ ${Number(lastPay.amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+        : '-';
+
+      // Base balance (Faturamento de trabalhos no período selecionado)
+      const baseBalance = periodJobs.reduce((sum, j) => sum + (j.totalValue || 0), 0);
+
+      // Débitos Acumulados do Cliente (Todas as OSs + Débitos Manuais) -> Saldo Gaveta
+      const totalOSDebits = jobsUpToCutoff.reduce((sum, j) => sum + (j.totalValue || 0), 0);
+      const manualDebits = paymentsUpToCutoff.filter(p => p.type === 'MANUAL_DEBIT').reduce((sum, p) => sum + Number(p.amount || 0), 0);
+      const debits = totalOSDebits + manualDebits;
+
+      // Créditos Acumulados do Cliente (Pagamentos, Créditos Manuais e Descontos) -> Saldo Gaveta
+      const credits = paymentsUpToCutoff.reduce((sum, p) => {
+        if (p.type === 'MANUAL_DEBIT') return sum;
+        const amt = Number(p.amount || 0) + Number(p.discount || 0);
+        return sum + amt;
+      }, 0);
+
+      // Saldo Atual Real do Cliente na Gaveta (Resultado real devendo ou em crédito)
+      const currentBalance = debits - credits;
+
+      // Pagamentos Pendentes em Faturas
+      const pendingBatches = (billingBatches || []).filter(b => (b.dentistId === client.id || b.dentistName === client.name) && b.status === 'PENDING');
+      const pendingPayments = pendingBatches.reduce((sum, b) => sum + Number(b.totalAmount || 0), 0);
+
+      // Saldo Devedor Total (Reflete o Saldo Acumulado na Gaveta)
+      const totalDebtorBalance = currentBalance;
+
+      return {
+        idx: idx + 1,
+        code: client.code || String(idx + 1),
+        clientId: client.id,
+        clientName: client.name,
+        clinicName: client.clinicName,
+        phone: client.phone,
+        lastJobDate,
+        lastPaymentStr,
+        baseBalance,
+        credits,
+        debits,
+        currentBalance,
+        pendingPayments,
+        totalDebtorBalance
+      };
+    });
+
+    // Exclude clients with zero balance/movement (zerados) and apply user search/dentist filters
+    const filteredRows = rawRows.filter(r => {
+      const hasFinancialActivity = Math.abs(r.totalDebtorBalance) > 0.001 || 
+                                   Math.abs(r.currentBalance) > 0.001 || 
+                                   Math.abs(r.credits) > 0.001 || 
+                                   Math.abs(r.debits) > 0.001 || 
+                                   Math.abs(r.pendingPayments) > 0.001 ||
+                                   Math.abs(r.baseBalance) > 0.001;
+      
+      if (!hasFinancialActivity) {
+        return false;
+      }
+
+      if (dentistId && r.clientId !== dentistId && (!selectedDentist || r.clientName !== selectedDentist.name)) {
+        return false;
+      }
+      if (clientSearch.trim()) {
+        const term = clientSearch.toLowerCase().trim();
+        return r.clientName.toLowerCase().includes(term) || r.clinicName.toLowerCase().includes(term);
+      }
+      return true;
+    });
+
+    const rowsWithIdx = filteredRows.map((r, i) => ({ ...r, idx: i + 1 }));
+
+    let grandBaseBalance = 0;
+    let grandCredits = 0;
+    let grandDebits = 0;
+    let grandCurrentBalance = 0;
+    let grandPendingPayments = 0;
+    let grandTotalDebtor = 0;
+
+    rowsWithIdx.forEach(r => {
+      grandBaseBalance += r.baseBalance;
+      grandCredits += r.credits;
+      grandDebits += r.debits;
+      grandCurrentBalance += r.currentBalance;
+      grandPendingPayments += r.pendingPayments;
+      grandTotalDebtor += r.totalDebtorBalance;
+    });
+
+    return {
+      rows: rowsWithIdx,
+      grandBaseBalance,
+      grandCredits,
+      grandDebits,
+      grandCurrentBalance,
+      grandPendingPayments,
+      grandTotalDebtor,
+      debtorsCount: rowsWithIdx.filter(r => r.totalDebtorBalance > 0.001).length
+    };
+  }, [jobs, manualDentists, allUsers, dentistPayments, billingBatches, startDate, endDate, dateType, clientSearch, dentistId, selectedDentist]);
+
   // Group jobs for production/detailed report
   const groupedJobs = useMemo(() => {
     const groups: Record<string, typeof jobs> = {};
@@ -683,13 +901,14 @@ export default function Reports() {
       alert(t('reports.noExportPermission', 'Você não tem permissão para exportar este relatório. Solicite autorização ao administrador.'));
       return;
     }
-    const isLandscape = reportType === 'DETAILED_ORDERS' || reportType === 'CLIENT_SUMMARY';
+    const isLandscape = reportType === 'DETAILED_ORDERS' || reportType === 'CLIENT_SUMMARY' || reportType === 'DEBTORS_CREDITORS';
     const doc = new jsPDF(isLandscape ? 'landscape' : 'portrait');
     const orgName = currentOrg?.name || 'Laboratório';
     
     doc.setFontSize(18);
     let title = t('reports.pdfReportTitleProduction', 'Relatório de Produção - {{org}}', { org: orgName });
     if (reportType === 'CLIENT_SUMMARY') title = t('reports.pdfReportTitleClientSummary', 'Relatório de Faturamento e Casos por Cliente - {{org}}', { org: orgName });
+    if (reportType === 'DEBTORS_CREDITORS') title = `Relatório de Devedores / Credores - ${orgName}`;
     if (reportType === 'DETAILED_ORDERS') title = t('reports.pdfReportTitleDetailedOrders', 'Relatório Detalhado de Pedidos - {{org}}', { org: orgName });
     if (reportType === 'SERVICE_TYPES') title = t('reports.pdfReportTitleServiceTypes', 'Relatório de Tipos de Serviço - {{org}}', { org: orgName });
     doc.text(title, 14, 20);
@@ -707,6 +926,83 @@ export default function Reports() {
         });
     doc.text(t('reports.pdfGeneratedAt', 'Gerado em: {{date}}', { date: new Date().toLocaleString() }) + `  |  ${dateRangeStr}`, 14, 27);
     
+    // --- PDF: DEBTORS_CREDITORS ---
+    if (reportType === 'DEBTORS_CREDITORS') {
+      doc.setFontSize(11);
+      doc.setTextColor(30, 41, 59);
+      doc.text(
+        `Total Saldo Devedor: R$ ${debtorsData.grandTotalDebtor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}  |  Clientes Devedores: ${debtorsData.debtorsCount}`, 
+        14, 34
+      );
+
+      const tableData = debtorsData.rows.map(r => [
+        r.code,
+        r.clientName,
+        r.lastJobDate,
+        r.lastPaymentStr,
+        `R$ ${r.baseBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        `R$ ${r.credits.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        `R$ ${r.debits.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        `R$ ${r.currentBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        `R$ ${r.pendingPayments.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        `R$ ${r.totalDebtorBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+      ]);
+
+      // Total Row
+      tableData.push([
+        'TOTAL',
+        '-',
+        '-',
+        '-',
+        `R$ ${debtorsData.grandBaseBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        `R$ ${debtorsData.grandCredits.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        `R$ ${debtorsData.grandDebits.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        `R$ ${debtorsData.grandCurrentBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        `R$ ${debtorsData.grandPendingPayments.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        `R$ ${debtorsData.grandTotalDebtor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+      ]);
+
+      autoTable(doc, {
+        startY: 40,
+        head: [[
+          'Nº',
+          'Cliente',
+          'Último Pedido',
+          'Último Pagam.',
+          'Saldo Base',
+          'Créditos',
+          'Débitos',
+          'Saldo Atual',
+          'Pag. Pendentes',
+          'Saldo Devedor Total'
+        ]],
+        body: tableData,
+        theme: 'grid',
+        headStyles: { fillColor: [225, 29, 72] }, // Rose 600
+        styles: { fontSize: 7, cellPadding: 2.5 },
+        columnStyles: {
+          0: { fontStyle: 'bold', halign: 'center' },
+          1: { fontStyle: 'bold' },
+          4: { halign: 'right' },
+          5: { halign: 'right' },
+          6: { halign: 'right' },
+          7: { halign: 'right' },
+          8: { halign: 'right' },
+          9: { fontStyle: 'bold', halign: 'right' }
+        },
+        didParseCell: (data) => {
+          if (data.row.index === tableData.length - 1) {
+            data.cell.styles.fontStyle = 'bold';
+            data.cell.styles.fillColor = [255, 241, 242];
+            data.cell.styles.textColor = [159, 18, 57];
+          }
+        }
+      });
+      
+      doc.save(`relatorio-devedores-credores-${new Date().getTime()}.pdf`);
+      return;
+    }
+
     // --- PDF: CLIENT_SUMMARY ---
     if (reportType === 'CLIENT_SUMMARY') {
       doc.setFontSize(11);
@@ -911,6 +1207,41 @@ export default function Reports() {
   const exportToExcel = () => {
     if (!canExportCurrentReport) {
       alert(t('reports.noExportPermission', 'Você não tem permissão para exportar este relatório. Solicite autorização ao administrador.'));
+      return;
+    }
+    if (reportType === 'DEBTORS_CREDITORS') {
+      const rows = debtorsData.rows.map((r) => ({
+        'Nº': r.code,
+        'Cliente': r.clientName,
+        'Clínica': r.clinicName || '-',
+        'Último Pedido': r.lastJobDate,
+        'Último Pagamento': r.lastPaymentStr,
+        'Saldo Base (R$)': Number(r.baseBalance.toFixed(2)),
+        'Créditos (R$)': Number(r.credits.toFixed(2)),
+        'Débitos (R$)': Number(r.debits.toFixed(2)),
+        'Saldo Atual (R$)': Number(r.currentBalance.toFixed(2)),
+        'Pag. Pendentes (R$)': Number(r.pendingPayments.toFixed(2)),
+        'Saldo Devedor Total (R$)': Number(r.totalDebtorBalance.toFixed(2))
+      }));
+
+      rows.push({
+        'Nº': 'TOTAL',
+        'Cliente': 'TOTAL GERAL',
+        'Clínica': '-',
+        'Último Pedido': '-',
+        'Último Pagamento': '-',
+        'Saldo Base (R$)': Number(debtorsData.grandBaseBalance.toFixed(2)),
+        'Créditos (R$)': Number(debtorsData.grandCredits.toFixed(2)),
+        'Débitos (R$)': Number(debtorsData.grandDebits.toFixed(2)),
+        'Saldo Atual (R$)': Number(debtorsData.grandCurrentBalance.toFixed(2)),
+        'Pag. Pendentes (R$)': Number(debtorsData.grandPendingPayments.toFixed(2)),
+        'Saldo Devedor Total (R$)': Number(debtorsData.grandTotalDebtor.toFixed(2))
+      });
+
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Devedores_Credores');
+      XLSX.writeFile(wb, `devedores_credores_${currentOrg?.name || 'labprox'}_${new Date().toISOString().split('T')[0]}.xlsx`);
       return;
     }
     if (reportType === 'CLIENT_SUMMARY') {
@@ -1155,6 +1486,63 @@ export default function Reports() {
           );
         })}
       </div>
+
+      {/* KPI Cards when in DEBTORS_CREDITORS mode */}
+      {reportType === 'DEBTORS_CREDITORS' && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white p-5 rounded-2xl border border-rose-100 shadow-sm flex items-center gap-4">
+            <div className="w-12 h-12 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center shrink-0">
+              <DollarSign size={24} />
+            </div>
+            <div className="min-w-0">
+              <span className="text-[10px] font-black uppercase tracking-widest text-rose-700">Total Saldo Devedor</span>
+              <p className="text-xl font-black text-rose-700 truncate">
+                R$ {debtorsData.grandTotalDebtor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+              <span className="text-xs text-slate-400 font-medium">Saldo devedor acumulado</span>
+            </div>
+          </div>
+
+          <div className="bg-white p-5 rounded-2xl border border-amber-100 shadow-sm flex items-center gap-4">
+            <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center shrink-0">
+              <Users size={24} />
+            </div>
+            <div className="min-w-0">
+              <span className="text-[10px] font-black uppercase tracking-widest text-amber-700">Clientes Devedores</span>
+              <p className="text-xl font-black text-slate-900 truncate">
+                {debtorsData.debtorsCount} <span className="text-sm font-bold text-slate-400">clientes</span>
+              </p>
+              <span className="text-xs text-slate-400 font-medium">Com saldo em aberto</span>
+            </div>
+          </div>
+
+          <div className="bg-white p-5 rounded-2xl border border-blue-100 shadow-sm flex items-center gap-4">
+            <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shrink-0">
+              <Wallet size={24} />
+            </div>
+            <div className="min-w-0">
+              <span className="text-[10px] font-black uppercase tracking-widest text-blue-700">Saldo Base (Faturamento)</span>
+              <p className="text-xl font-black text-slate-900 truncate">
+                R$ {debtorsData.grandBaseBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+              <span className="text-xs text-slate-400 font-medium">Faturamento do período</span>
+            </div>
+          </div>
+
+          <div className="bg-white p-5 rounded-2xl border border-emerald-100 shadow-sm flex items-center gap-4">
+            <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center shrink-0">
+              <CheckCircle2 size={24} />
+            </div>
+            <div className="min-w-0">
+              <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700">Total Créditos / Pagam.</span>
+              <p className="text-xl font-black text-slate-900 truncate">
+                R$ {debtorsData.grandCredits.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+              <span className="text-xs text-slate-400 font-medium">Pagamentos Efetuados</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* KPI Cards when in CLIENT_SUMMARY mode */}
       {reportType === 'CLIENT_SUMMARY' && (
@@ -1614,8 +2002,130 @@ export default function Reports() {
 
       {/* Main Results Container */}
       <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
-        {/* --- VIEW 1: CLIENT_SUMMARY (Resumo por Cliente) --- */}
-        {reportType === 'CLIENT_SUMMARY' ? (
+        {/* --- VIEW: DEBTORS_CREDITORS (Devedores / Credores) --- */}
+        {reportType === 'DEBTORS_CREDITORS' ? (
+          <div>
+            <div className="p-5 sm:p-6 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-50/50">
+              <div>
+                <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
+                  <Receipt className="text-rose-600" size={20} />
+                  Devedores / Credores
+                </h3>
+                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                  <span className="text-xs font-bold text-slate-600 bg-rose-50 border border-rose-200/80 text-rose-900 px-2.5 py-0.5 rounded-lg">
+                    Devedor | Período de cobrança: {startDate ? startDate : 'Todos'} até {endDate ? endDate : 'Todos'} | Status: Todos
+                  </span>
+                </div>
+              </div>
+
+              <div className="relative flex-1 sm:w-64">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={clientSearch}
+                  onChange={(e) => setClientSearch(e.target.value)}
+                  placeholder="Buscar devedor pelo nome..."
+                  className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:ring-2 focus:ring-rose-500 outline-none shadow-sm"
+                />
+                {clientSearch && (
+                  <button onClick={() => setClientSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer">
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {debtorsData.rows.length === 0 ? (
+              <div className="text-center py-16 text-slate-400">
+                <Search size={48} className="mx-auto mb-4 opacity-20" />
+                <p className="font-bold text-base text-slate-600">Nenhum registro encontrado no relatório de Devedores / Credores.</p>
+                <p className="text-xs text-slate-400 mt-1">Ajuste os filtros de data ou a busca pelo nome do cliente.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-slate-50 text-slate-500 text-[10px] uppercase tracking-widest font-black border-b border-slate-100">
+                      <th className="p-3.5 pl-6 text-center">Nº</th>
+                      <th className="p-3.5">Cliente</th>
+                      <th className="p-3.5 text-center">Último pedido</th>
+                      <th className="p-3.5 text-center">Último pagam.</th>
+                      <th className="p-3.5 text-right">Saldo base</th>
+                      <th className="p-3.5 text-right">Créditos</th>
+                      <th className="p-3.5 text-right">Débitos</th>
+                      <th className="p-3.5 text-right">Saldo atual</th>
+                      <th className="p-3.5 text-right">Pag. pendentes</th>
+                      <th className="p-3.5 pr-6 text-right">Saldo devedor total</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {debtorsData.rows.map((row) => (
+                      <tr key={row.clientId} className="hover:bg-rose-50/20 transition-colors">
+                        <td className="p-3.5 pl-6 text-center font-mono font-bold text-slate-500">
+                          {row.code}
+                        </td>
+                        <td className="p-3.5 font-bold text-slate-900">
+                          <span className="block">{row.clientName}</span>
+                          {row.clinicName && <span className="text-[10px] text-slate-400 font-normal">{row.clinicName}</span>}
+                        </td>
+                        <td className="p-3.5 text-center text-slate-600 font-medium">
+                          {row.lastJobDate}
+                        </td>
+                        <td className="p-3.5 text-center text-slate-600 font-medium">
+                          {row.lastPaymentStr}
+                        </td>
+                        <td className="p-3.5 text-right font-bold text-slate-700">
+                          R$ {row.baseBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                        <td className="p-3.5 text-right font-bold text-emerald-600">
+                          R$ {row.credits.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                        <td className="p-3.5 text-right font-bold text-slate-700">
+                          R$ {row.debits.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                        <td className="p-3.5 text-right font-bold text-slate-800">
+                          R$ {row.currentBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                        <td className="p-3.5 text-right font-bold text-amber-600">
+                          R$ {row.pendingPayments.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                        <td className={`p-3.5 pr-6 text-right font-black ${row.totalDebtorBalance > 0 ? 'text-rose-600' : 'text-slate-700'}`}>
+                          R$ {row.totalDebtorBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="bg-rose-50/70 border-t-2 border-rose-200 font-black text-xs text-slate-900">
+                      <td className="p-3.5 pl-6 text-center font-bold text-rose-900">TOTAL</td>
+                      <td className="p-3.5 text-rose-900 font-bold">{debtorsData.rows.length} clientes</td>
+                      <td className="p-3.5 text-center text-rose-900">-</td>
+                      <td className="p-3.5 text-center text-rose-900">-</td>
+                      <td className="p-3.5 text-right text-rose-900">
+                        R$ {debtorsData.grandBaseBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </td>
+                      <td className="p-3.5 text-right text-rose-900">
+                        R$ {debtorsData.grandCredits.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </td>
+                      <td className="p-3.5 text-right text-rose-900">
+                        R$ {debtorsData.grandDebits.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </td>
+                      <td className="p-3.5 text-right text-rose-900">
+                        R$ {debtorsData.grandCurrentBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </td>
+                      <td className="p-3.5 text-right text-rose-900">
+                        R$ {debtorsData.grandPendingPayments.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </td>
+                      <td className="p-3.5 pr-6 text-right text-sm text-rose-900 font-black">
+                        R$ {debtorsData.grandTotalDebtor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            )}
+          </div>
+        ) : reportType === 'CLIENT_SUMMARY' ? (
           <div>
             <div className="p-5 sm:p-6 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-50/50">
               <div>

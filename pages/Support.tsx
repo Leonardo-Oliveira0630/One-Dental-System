@@ -16,7 +16,7 @@ export const Support = () => {
     const faqItems = [
         {
             question: "Como solicitar suporte técnico ou atendimento especializado?",
-            answer: "Você pode falar diretamente com nossa equipe técnica através do canal oficial no WhatsApp ou pelo e-mail suporte@labprox.com.br. Nosso atendimento funciona de segunda a sexta-feira, das 08:00 às 18:00 (horário de Brasília)."
+            answer: "Você pode falar diretamente com nossa equipe técnica através do canal oficial no WhatsApp (+55 27 99759-9833) ou pelo e-mail contato@labprox.com.br. Nosso atendimento funciona de segunda a sexta-feira, das 08:00 às 18:00 (horário de Brasília)."
         },
         {
             question: "Como funcionam os backups e a segurança dos dados clínicos e laboratoriais?",
@@ -28,7 +28,7 @@ export const Support = () => {
         },
         {
             question: "Como solicitar a exclusão da minha conta e dados pessoais (LGPD)?",
-            answer: "Em conformidade com a LGPD e as diretrizes da Apple/Google, você pode solicitar a exclusão completa da sua conta acessando 'Meu Perfil' > 'Excluir Conta' dentro do aplicativo, ou enviando uma solicitação formal para dpo@labprox.com.br com o assunto 'Solicitação de Exclusão de Dados'."
+            answer: "Em conformidade com a LGPD e as diretrizes da Apple/Google, você pode solicitar a exclusão completa da sua conta acessando 'Meu Perfil' > 'Excluir Conta' dentro do aplicativo, ou enviando uma solicitação formal para contato@labprox.com.br com o assunto 'Solicitação de Exclusão de Dados'."
         },
         {
             question: "Como conectar um laboratório a uma clínica odontológica parceira?",
@@ -43,11 +43,11 @@ export const Support = () => {
                 {/* Header Back Button */}
                 <div className="flex items-center justify-between">
                     <button 
-                        onClick={() => navigate('/')} 
+                        onClick={() => navigate(-1)} 
                         className="flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors"
                     >
                         <ArrowLeft size={20} />
-                        <span className="font-bold text-xs uppercase tracking-widest">Voltar para o Início</span>
+                        <span className="font-bold text-xs uppercase tracking-widest">Voltar</span>
                     </button>
                     <Link 
                         to="/login" 
@@ -81,12 +81,12 @@ export const Support = () => {
                             Atendimento rápido via mensagens de texto e áudio com nossa equipe de suporte.
                         </p>
                         <a 
-                            href="https://wa.me/5511999999999?text=Ol%C3%A1%2C+preciso+de+suporte+no+Labprox" 
+                            href="https://wa.me/5527997599833?text=Ol%C3%A1%2C+preciso+de+suporte+no+Labprox" 
                             target="_blank" 
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm transition-all"
                         >
-                            <span>Iniciar Conversa no WhatsApp</span>
+                            <span>WhatsApp: +55 (27) 99759-9833</span>
                             <ExternalLink size={14} />
                         </a>
                     </div>
@@ -100,10 +100,10 @@ export const Support = () => {
                             Envie dúvidas, reportes de problemas ou solicitações técnicas por e-mail.
                         </p>
                         <a 
-                            href="mailto:suporte@labprox.com.br" 
+                            href="mailto:contato@labprox.com.br" 
                             className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-sm transition-all"
                         >
-                            <span>suporte@labprox.com.br</span>
+                            <span>contato@labprox.com.br</span>
                             <Mail size={14} />
                         </a>
                     </div>

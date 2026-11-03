@@ -168,7 +168,7 @@ export const PrivacyPolicy = () => {
                                 <span>Canal Oficial de Privacidade e DPO</span>
                             </div>
                             <p className="text-xs text-slate-300">
-                                <strong>E-mail do DPO:</strong> dpo@Labprox.com.br / leooliveira0630@gmail.com
+                                <strong>E-mail de Contato & DPO:</strong> contato@labprox.com.br | WhatsApp: +55 (27) 99759-9833
                             </p>
                             <p className="text-xs text-slate-400">
                                 Prazo de resposta para requisições de titulares: Até 15 dias úteis, conforme regulamentação da ANPD.
