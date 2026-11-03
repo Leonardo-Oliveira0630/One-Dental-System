@@ -10,8 +10,29 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { getContrastColor } from '../services/mockData';
 import { MultiSelect } from '../components/MultiSelect';
 import { usePageFilterCache, cachedNormalizeText } from '../utils/pageCache';
+import { matchesSearchQuery } from '../utils/stringUtils';
 
 import { StoreTopMenu } from '../components/StoreTopMenu';
+
+export const parseSafeTimestamp = (val: any): number => {
+  if (!val) return 0;
+  if (val instanceof Date) return isNaN(val.getTime()) ? 0 : val.getTime();
+  if (typeof val === 'number') return val;
+  if (val.seconds !== undefined && typeof val.seconds === 'number') {
+    return val.seconds * 1000;
+  }
+  if (typeof val === 'string') {
+    const parsed = new Date(val).getTime();
+    return isNaN(parsed) ? 0 : parsed;
+  }
+  if (typeof val === 'object' && val.toDate && typeof val.toDate === 'function') {
+    try {
+      const d = val.toDate();
+      return d instanceof Date ? d.getTime() : 0;
+    } catch (e) {}
+  }
+  return 0;
+};
 
 // Helper function to extract and style the origin of a job
 export const getJobOriginInfo = (job: any) => {
@@ -620,22 +641,6 @@ export const JobsList = ({ isStoreContext, isBudgetMode }: { isStoreContext?: bo
     return () => clearTimeout(timer);
   }, [restoreScroll]);
 
-  // Auto-clear stale cached date filters from past days so recent cases are never hidden
-  useEffect(() => {
-    if (endDate) {
-      const endParts = endDate.split('-');
-      if (endParts.length === 3) {
-        const end = new Date(parseInt(endParts[0]), parseInt(endParts[1]) - 1, parseInt(endParts[2]), 23, 59, 59);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        if (end.getTime() < today.getTime()) {
-          setEndDate('');
-          if (startDate) setStartDate('');
-        }
-      }
-    }
-  }, [endDate, startDate, setEndDate, setStartDate]);
-
   const handleOpenJob = useCallback((jobId: string) => {
     saveScroll();
     navigate(`/jobs/${jobId}`);
@@ -776,7 +781,6 @@ const handleUpdateStatus = async (jobId: string, status: JobStatus) => {
   }, [jobs, budgets, onlineRequisitions, isClient, currentUser?.id, currentUser?.manualDentistId, activeManualDentistId, isBudgetMode]);
 
   const filteredJobs = useMemo(() => {
-    const searchLower = cachedNormalizeText(filterText);
     const hasStatusFilter = statusFilter !== 'ALL';
     const hasSelectedStatuses = selectedStatuses.length > 0;
     const hasOverdueSelected = selectedStatuses.includes('OVERDUE');
@@ -784,16 +788,20 @@ const handleUpdateStatus = async (jobId: string, status: JobStatus) => {
 
     let startTimestamp: number | null = null;
     if (startDate) {
-      const start = new Date(startDate);
-      start.setHours(0, 0, 0, 0);
-      startTimestamp = start.getTime();
+      const parts = startDate.split('-');
+      if (parts.length === 3) {
+        const start = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10), 0, 0, 0, 0);
+        startTimestamp = start.getTime();
+      }
     }
 
     let endTimestamp: number | null = null;
     if (endDate) {
-      const end = new Date(endDate);
-      end.setHours(23, 59, 59, 999);
-      endTimestamp = end.getTime();
+      const parts = endDate.split('-');
+      if (parts.length === 3) {
+        const end = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10), 23, 59, 59, 999);
+        endTimestamp = end.getTime();
+      }
     }
 
     const nowTime = Date.now();
@@ -808,13 +816,19 @@ const handleUpdateStatus = async (jobId: string, status: JobStatus) => {
             !job.isPseudo
         ) return false;
 
-        if (searchLower) {
-          const matchText = 
-            cachedNormalizeText(job.osNumber || '').includes(searchLower) ||
-            cachedNormalizeText(job.boxNumber || '').includes(searchLower) ||
-            cachedNormalizeText(job.patientName || '').includes(searchLower) ||
-            cachedNormalizeText(job.dentistName || '').includes(searchLower);
-          if (!matchText) return false;
+        if (filterText.trim()) {
+          const itemNames = (job.items || []).map((i: any) => i.name).join(' ');
+          const isMatch = matchesSearchQuery(
+            filterText,
+            job.patientName,
+            job.dentistName,
+            job.osNumber,
+            job.boxNumber,
+            job.clinicName,
+            itemNames,
+            job.notes
+          );
+          if (!isMatch) return false;
         }
 
         if (hasSelectedStatuses) {
@@ -842,14 +856,14 @@ const handleUpdateStatus = async (jobId: string, status: JobStatus) => {
             }
         }
 
+        const createdTime = parseSafeTimestamp(job.createdAt);
+
         if (startTimestamp !== null) {
-            const timeVal = job.createdAt ? new Date(job.createdAt).getTime() : 0;
-            if (timeVal < startTimestamp) return false;
+            if (createdTime > 0 && createdTime < startTimestamp) return false;
         }
 
         if (endTimestamp !== null) {
-            const timeVal = job.createdAt ? new Date(job.createdAt).getTime() : 0;
-            if (timeVal > endTimestamp) return false;
+            if (createdTime > 0 && createdTime > endTimestamp) return false;
         }
 
         if (selectedDentists.length > 0 && !selectedDentists.includes(job.dentistId)) return false;
@@ -876,8 +890,8 @@ const handleUpdateStatus = async (jobId: string, status: JobStatus) => {
 
         return true;
       }).sort((a, b) => {
-        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        const timeA = parseSafeTimestamp(a.createdAt);
+        const timeB = parseSafeTimestamp(b.createdAt);
         return timeB - timeA;
       });
   }, [combinedJobs, isBudgetMode, isClient, currentUser?.id, currentUser?.manualDentistId, activeManualDentistId, filterText, statusFilter, selectedStatuses, startDate, endDate, selectedDentists, selectedSectors, selectedCollaborators, filterUrgency, filterAttention, filterOrigin]);

@@ -649,8 +649,13 @@ export default function Reports() {
         (j.dentistName && j.dentistName === client.name)
       );
 
-      // Find all valid jobs (excluding canceled/rejected)
-      const validJobs = clientJobs.filter(j => j.status !== 'CANCELED' && j.status !== 'REJECTED');
+      // Find all billable jobs (only COMPLETED or DELIVERED cases generate debt, matching Finance Contas a Receber)
+      const validJobs = clientJobs.filter(j => {
+        if (j.status === 'CANCELED' || j.status === 'REJECTED') return false;
+        const isOnline = j.origin === 'ONLINE_ORDER' || j.origin === 'ONLINE_REQUISITION';
+        const isCompleted = j.status === 'COMPLETED' || j.status === 'DELIVERED';
+        return isCompleted || (isOnline && (j.paymentStatus === 'PAID' || isCompleted));
+      });
 
       // Filter jobs up to cutoff date if endDate is provided
       const jobsUpToCutoff = validJobs.filter(j => {
@@ -707,29 +712,29 @@ export default function Reports() {
         ? `${new Date(lastPay.paymentDate).toLocaleDateString('pt-BR')} - R$ ${Number(lastPay.amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
         : '-';
 
-      // Base balance (Faturamento de trabalhos no período selecionado)
+      // Base balance (Faturamento de trabalhos finalizados no período selecionado)
       const baseBalance = periodJobs.reduce((sum, j) => sum + (j.totalValue || 0), 0);
 
-      // Débitos Acumulados do Cliente (Todas as OSs + Débitos Manuais) -> Saldo Gaveta
+      // Débitos Acumulados do Cliente (Apenas OSs Finalizadas + Débitos Manuais)
       const totalOSDebits = jobsUpToCutoff.reduce((sum, j) => sum + (j.totalValue || 0), 0);
       const manualDebits = paymentsUpToCutoff.filter(p => p.type === 'MANUAL_DEBIT').reduce((sum, p) => sum + Number(p.amount || 0), 0);
       const debits = totalOSDebits + manualDebits;
 
-      // Créditos Acumulados do Cliente (Pagamentos, Créditos Manuais e Descontos) -> Saldo Gaveta
+      // Créditos Acumulados do Cliente (Pagamentos, Créditos Manuais e Descontos)
       const credits = paymentsUpToCutoff.reduce((sum, p) => {
         if (p.type === 'MANUAL_DEBIT') return sum;
         const amt = Number(p.amount || 0) + Number(p.discount || 0);
         return sum + amt;
       }, 0);
 
-      // Saldo Atual Real do Cliente na Gaveta (Resultado real devendo ou em crédito)
+      // Saldo Atual Real do Cliente na Gaveta (Resultado real devendo ou em crédito de casos finalizados)
       const currentBalance = debits - credits;
 
       // Pagamentos Pendentes em Faturas
       const pendingBatches = (billingBatches || []).filter(b => (b.dentistId === client.id || b.dentistName === client.name) && b.status === 'PENDING');
       const pendingPayments = pendingBatches.reduce((sum, b) => sum + Number(b.totalAmount || 0), 0);
 
-      // Saldo Devedor Total (Reflete o Saldo Acumulado na Gaveta)
+      // Saldo Devedor Total (Reflete o Saldo Acumulado de Casos Finalizados)
       const totalDebtorBalance = currentBalance;
 
       return {
@@ -750,16 +755,13 @@ export default function Reports() {
       };
     });
 
-    // Exclude clients with zero balance/movement (zerados) and apply user search/dentist filters
+    // Filter only clients with open balance/debt and apply search/dentist filters
     const filteredRows = rawRows.filter(r => {
-      const hasFinancialActivity = Math.abs(r.totalDebtorBalance) > 0.001 || 
-                                   Math.abs(r.currentBalance) > 0.001 || 
-                                   Math.abs(r.credits) > 0.001 || 
-                                   Math.abs(r.debits) > 0.001 || 
-                                   Math.abs(r.pendingPayments) > 0.001 ||
-                                   Math.abs(r.baseBalance) > 0.001;
+      const hasOpenBalance = Math.abs(r.totalDebtorBalance) > 0.001 || 
+                             Math.abs(r.currentBalance) > 0.001 || 
+                             Math.abs(r.pendingPayments) > 0.001;
       
-      if (!hasFinancialActivity) {
+      if (!hasOpenBalance) {
         return false;
       }
 

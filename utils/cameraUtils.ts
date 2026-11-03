@@ -22,12 +22,19 @@ export const getAvailableCameras = async (): Promise<CameraDevice[]> => {
             return [];
         }
 
-        // Request permission using rear camera constraint (environment) to avoid defaulting to front camera on Android
+        // Only request a temporary stream if video device labels are empty (initial permission prompt needed)
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: { ideal: 'environment' } }
-            });
-            stream.getTracks().forEach(track => track.stop());
+            const initialDevices = await navigator.mediaDevices.enumerateDevices();
+            const hasVideoLabels = initialDevices.some(d => d.kind === 'videoinput' && Boolean(d.label));
+            if (!hasVideoLabels) {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: { ideal: 'environment' } }
+                });
+                stream.getTracks().forEach(track => {
+                    track.enabled = false;
+                    track.stop();
+                });
+            }
         } catch (err) {
             console.warn("Permission check stream error (enumeration will proceed):", err);
         }

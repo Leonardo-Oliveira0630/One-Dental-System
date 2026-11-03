@@ -26,6 +26,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { getJobNatureBadge } from '../JobsList';
+import { matchesSearchQuery } from '../../utils/stringUtils';
 
 export const Kanban = () => {
   const { t } = useTranslation();
@@ -96,27 +97,29 @@ export const Kanban = () => {
   };
 
   // Filtro de busca geral (Paciente, Dentista, Número de OS, Número de Caixa)
-  const searchNormalized = searchTerm.trim().toLowerCase();
-
   const searchFilteredJobs = useMemo(() => {
-    if (!searchNormalized) return [];
+    if (!searchTerm.trim()) return [];
     
     return allActiveJobs.filter(job => {
-      const matchPatient = (job.patientName || '').toLowerCase().includes(searchNormalized);
-      const matchDentist = (job.dentistName || '').toLowerCase().includes(searchNormalized);
-      const matchOs = (job.osNumber || '').toLowerCase().includes(searchNormalized) || 
-                      job.id.toLowerCase().includes(searchNormalized);
-      const matchBox = (job.boxNumber || '').toLowerCase().includes(searchNormalized);
-
-      return matchPatient || matchDentist || matchOs || matchBox;
+      const itemNames = (job.items || []).map((i: any) => i.name).join(' ');
+      return matchesSearchQuery(
+        searchTerm,
+        job.patientName,
+        job.dentistName,
+        job.osNumber,
+        job.boxNumber,
+        job.clinicName,
+        job.id,
+        itemNames
+      );
     });
-  }, [allActiveJobs, searchNormalized]);
+  }, [allActiveJobs, searchTerm]);
 
   // Lista de trabalhos a ser exibida nos Kanbans (se houver busca, filtra os quadros)
   const displayJobs = useMemo(() => {
-    if (!searchNormalized) return allActiveJobs;
+    if (!searchTerm.trim()) return allActiveJobs;
     return searchFilteredJobs;
-  }, [allActiveJobs, searchFilteredJobs, searchNormalized]);
+  }, [allActiveJobs, searchFilteredJobs, searchTerm]);
 
   // -------------------------------------------------------------
   // 1. AGRUPAMENTO POR SETORES (Container 1)

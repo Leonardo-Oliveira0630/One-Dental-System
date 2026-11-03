@@ -9,7 +9,6 @@ import {
   FlashlightOff, 
   Image as ImageIcon, 
   Smartphone,
-  Sparkles,
   Video as VideoIcon,
   Square
 } from 'lucide-react';
@@ -31,6 +30,8 @@ export const WebcamModal: React.FC<WebcamModalProps> = ({
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
+  const activeStreamRef = useRef<MediaStream | null>(null);
+
   const [cameras, setCameras] = useState<CameraDevice[]>([]);
   const [selectedCameraId, setSelectedCameraId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -50,6 +51,52 @@ export const WebcamModal: React.FC<WebcamModalProps> = ({
   const [cameraResolution, setCameraResolution] = useState<{ width: number; height: number } | null>(null);
   const [focusAnimation, setFocusAnimation] = useState<{ x: number; y: number } | null>(null);
 
+  // Safely stop all active webcam tracks and video srcObject
+  const stopActiveStream = useCallback(() => {
+    if (timerIntervalRef.current) {
+      clearInterval(timerIntervalRef.current);
+      timerIntervalRef.current = null;
+    }
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      try {
+        mediaRecorderRef.current.stop();
+      } catch (e) {}
+    }
+    setIsRecording(false);
+
+    if (activeStreamRef.current) {
+      try {
+        activeStreamRef.current.getTracks().forEach(track => {
+          track.enabled = false;
+          track.stop();
+        });
+      } catch (e) {}
+      activeStreamRef.current = null;
+    }
+
+    if (videoRef.current) {
+      if (videoRef.current.srcObject) {
+        try {
+          const stream = videoRef.current.srcObject as MediaStream;
+          stream.getTracks().forEach(track => {
+            track.enabled = false;
+            track.stop();
+          });
+        } catch (e) {}
+        videoRef.current.srcObject = null;
+      }
+      try {
+        videoRef.current.pause();
+      } catch (e) {}
+    }
+  }, []);
+
+  const handleSafeClose = useCallback(() => {
+    stopActiveStream();
+    onClose();
+  }, [stopActiveStream, onClose]);
+
+  // Fetch available cameras once or when device changes
   useEffect(() => {
     let isMounted = true;
     const fetchCameras = async () => {
@@ -74,20 +121,24 @@ export const WebcamModal: React.FC<WebcamModalProps> = ({
 
     fetchCameras();
 
+    const handleDeviceChange = () => {
+      fetchCameras();
+    };
+
     if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
-      navigator.mediaDevices.addEventListener('devicechange', fetchCameras);
+      navigator.mediaDevices.addEventListener('devicechange', handleDeviceChange);
     }
 
     return () => { 
       isMounted = false; 
       if (navigator.mediaDevices && navigator.mediaDevices.removeEventListener) {
-        navigator.mediaDevices.removeEventListener('devicechange', fetchCameras);
+        navigator.mediaDevices.removeEventListener('devicechange', handleDeviceChange);
       }
     };
   }, []);
 
+  // Main camera start effect with strict stream cleanup
   useEffect(() => {
-    let stream: MediaStream | null = null;
     let isMounted = true;
     let safetyTimeout: any = null;
 
@@ -98,92 +149,102 @@ export const WebcamModal: React.FC<WebcamModalProps> = ({
       setIsTorchOn(false);
       setCameraResolution(null);
 
-      try {
-        if (videoRef.current && videoRef.current.srcObject) {
-          const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
-          tracks.forEach(t => t.stop());
-        }
+      // Clean up previous active stream before starting a new request!
+      stopActiveStream();
 
-        const exactConstraint = selectedCameraId !== 'default' 
-          ? { deviceId: { exact: selectedCameraId } }
-          : { facingMode: { ideal: 'environment' } };
+      const exactConstraint = selectedCameraId !== 'default' 
+        ? { deviceId: { exact: selectedCameraId } }
+        : { facingMode: { ideal: 'environment' } };
 
-        const idealConstraint = selectedCameraId !== 'default' 
-          ? { deviceId: { ideal: selectedCameraId } }
-          : { facingMode: { ideal: 'environment' } };
+      const idealConstraint = selectedCameraId !== 'default' 
+        ? { deviceId: { ideal: selectedCameraId } }
+        : { facingMode: { ideal: 'environment' } };
 
-        // Attempt 1: Exact camera ID + Full HD 1080p
+      let stream: MediaStream | null = null;
+
+      // Safe wrapper for getUserMedia that guarantees cleanup on failure
+      const tryGetUserMedia = async (constraints: MediaStreamConstraints): Promise<MediaStream | null> => {
         try {
-          stream = await navigator.mediaDevices.getUserMedia({
-            video: {
-              ...exactConstraint,
-              width: { ideal: 1920 },
-              height: { ideal: 1080 }
+          return await navigator.mediaDevices.getUserMedia(constraints);
+        } catch (err) {
+          return null;
+        }
+      };
+
+      // Attempt 1: Exact camera ID + Full HD 1080p
+      stream = await tryGetUserMedia({
+        video: {
+          ...exactConstraint,
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        }
+      });
+
+      // Attempt 2: Exact camera ID
+      if (!stream) {
+        stream = await tryGetUserMedia({ video: exactConstraint });
+      }
+
+      // Attempt 3: Ideal camera ID
+      if (!stream) {
+        stream = await tryGetUserMedia({ video: idealConstraint });
+      }
+
+      // Attempt 4: Default video
+      if (!stream) {
+        stream = await tryGetUserMedia({ video: true });
+      }
+
+      // If modal unmounted while getUserMedia was resolving, stop the newly acquired stream immediately!
+      if (!isMounted) {
+        if (stream) {
+          stream.getTracks().forEach(t => t.stop());
+        }
+        return;
+      }
+
+      if (!stream) {
+        setIsLoading(false);
+        setCameraError(
+          'Não foi possível acessar a câmera do dispositivo. Verifique se outra aplicação não está utilizando a webcam ou reabra a janela.'
+        );
+        return;
+      }
+
+      // Save to ref and video element
+      activeStreamRef.current = stream;
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        
+        const handleReady = () => {
+          if (isMounted) {
+            setIsLoading(false);
+            if (videoRef.current) {
+              videoRef.current.play().catch(console.error);
+              if (videoRef.current.videoWidth && videoRef.current.videoHeight) {
+                setCameraResolution({
+                  width: videoRef.current.videoWidth,
+                  height: videoRef.current.videoHeight
+                });
+              }
             }
-          });
-        } catch (e1) {
-          console.warn("Attempt 1 (exact ID + FHD) failed:", e1);
-          try {
-            // Attempt 2: Exact camera ID
-            stream = await navigator.mediaDevices.getUserMedia({
-              video: exactConstraint
-            });
-          } catch (e2) {
-            console.warn("Attempt 2 (exact ID) failed:", e2);
             try {
-              // Attempt 3: Ideal camera ID
-              stream = await navigator.mediaDevices.getUserMedia({
-                video: idealConstraint
-              });
-            } catch (e3) {
-              console.warn("Attempt 3 failed, falling back to default video:", e3);
-              stream = await navigator.mediaDevices.getUserMedia({ video: true });
+              const track = stream?.getVideoTracks()[0];
+              const caps = (track?.getCapabilities ? track.getCapabilities() : {}) as any;
+              setHasTorch(Boolean(caps?.torch));
+            } catch (tErr) {
+              setHasTorch(false);
             }
           }
-        }
+        };
 
-        if (isMounted && videoRef.current && stream) {
-          videoRef.current.srcObject = stream;
-          
-          const handleReady = () => {
-            if (isMounted) {
-              setIsLoading(false);
-              if (videoRef.current) {
-                videoRef.current.play().catch(console.error);
-                if (videoRef.current.videoWidth && videoRef.current.videoHeight) {
-                  setCameraResolution({
-                    width: videoRef.current.videoWidth,
-                    height: videoRef.current.videoHeight
-                  });
-                }
-              }
-              try {
-                const track = stream?.getVideoTracks()[0];
-                const caps = (track?.getCapabilities ? track.getCapabilities() : {}) as any;
-                setHasTorch(Boolean(caps?.torch));
-              } catch (tErr) {
-                setHasTorch(false);
-              }
-            }
-          };
+        videoRef.current.onloadedmetadata = handleReady;
+        videoRef.current.oncanplay = handleReady;
 
-          videoRef.current.onloadedmetadata = handleReady;
-          videoRef.current.oncanplay = handleReady;
-
-          safetyTimeout = setTimeout(() => {
-            if (isMounted) setIsLoading(false);
-          }, 2000);
-        }
-      } catch (err: any) {
-        console.error("Failed to start camera", err);
-        if (isMounted) {
-          setIsLoading(false);
-          setCameraError(
-            err.name === 'NotAllowedError' 
-              ? 'Permissão de acesso à câmera negada. Permita o uso da câmera nas configurações do seu navegador ou sistema.' 
-              : (err.message || 'Não foi possível acessar a câmera do dispositivo.')
-          );
-        }
+        safetyTimeout = setTimeout(() => {
+          if (isMounted) setIsLoading(false);
+        }, 2000);
       }
     };
 
@@ -192,24 +253,14 @@ export const WebcamModal: React.FC<WebcamModalProps> = ({
     return () => {
       isMounted = false;
       if (safetyTimeout) clearTimeout(safetyTimeout);
-      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-        try { mediaRecorderRef.current.stop(); } catch (e) {}
-      }
-      if (stream) {
-        stream.getTracks().forEach(t => t.stop());
-      }
-      if (videoRef.current?.srcObject) {
-         (videoRef.current.srcObject as MediaStream).getTracks().forEach(t => t.stop());
-      }
+      stopActiveStream();
     };
-  }, [selectedCameraId]);
+  }, [selectedCameraId, stopActiveStream]);
 
   const toggleTorch = async () => {
     try {
-      if (!videoRef.current?.srcObject) return;
-      const stream = videoRef.current.srcObject as MediaStream;
-      const track = stream.getVideoTracks()[0];
+      if (!activeStreamRef.current) return;
+      const track = activeStreamRef.current.getVideoTracks()[0];
       if (!track) return;
       const nextTorch = !isTorchOn;
       await track.applyConstraints({
@@ -222,6 +273,7 @@ export const WebcamModal: React.FC<WebcamModalProps> = ({
   };
 
   const handleNativeCamera = async () => {
+    stopActiveStream();
     if (Capacitor.isNativePlatform()) {
       try {
         const photo = await Camera.getPhoto({
@@ -258,6 +310,7 @@ export const WebcamModal: React.FC<WebcamModalProps> = ({
     const file = e.target.files?.[0];
     if (file) {
       setIsLoading(true);
+      stopActiveStream();
       const processed = await smartCompress(file);
       onCapture(processed);
       setIsLoading(false);
@@ -281,9 +334,8 @@ export const WebcamModal: React.FC<WebcamModalProps> = ({
     setTimeout(() => setFocusAnimation(null), 1200);
 
     try {
-      if (videoRef.current.srcObject) {
-        const stream = videoRef.current.srcObject as MediaStream;
-        const track = stream.getVideoTracks()[0];
+      if (activeStreamRef.current) {
+        const track = activeStreamRef.current.getVideoTracks()[0];
         if (track && track.applyConstraints) {
           const caps = (track.getCapabilities ? track.getCapabilities() : {}) as any;
           if (caps.focusMode && (caps.focusMode.includes('continuous') || caps.focusMode.includes('single-shot'))) {
@@ -298,12 +350,11 @@ export const WebcamModal: React.FC<WebcamModalProps> = ({
     }
   };
 
-  // Capturar Foto
+  // Capturar Foto com parada imediata do stream da webcam
   const capturePhoto = useCallback(async () => {
     if (!videoRef.current) return;
     const video = videoRef.current;
     
-    // Certifica que o vídeo está pronto e com dimensões válidas
     if ((video.readyState < 2 || video.videoWidth === 0) && Capacitor.isNativePlatform()) {
       handleNativeCamera();
       return;
@@ -332,6 +383,9 @@ export const WebcamModal: React.FC<WebcamModalProps> = ({
     const mimeType = supportsWebp ? 'image/webp' : 'image/jpeg';
     const ext = supportsWebp ? '.webp' : '.jpg';
 
+    // Stop active camera stream IMMEDIATELY upon capturing frame so hardware device is released instantly
+    stopActiveStream();
+
     canvas.toBlob(async (blob) => {
       if (blob && blob.size > 0) {
         const file = new File(
@@ -343,9 +397,11 @@ export const WebcamModal: React.FC<WebcamModalProps> = ({
         console.log(`[LABPROX CAMERA] Foto capturada e otimizada: ${(processed.size / 1024).toFixed(1)}KB`);
         onCapture(processed);
         onClose();
+      } else {
+        onClose();
       }
     }, mimeType, 0.85);
-  }, [onCapture, onClose]);
+  }, [onCapture, onClose, stopActiveStream]);
 
   // Gravar Vídeo (Início/Parada)
   const stopRecording = useCallback(() => {
@@ -364,8 +420,8 @@ export const WebcamModal: React.FC<WebcamModalProps> = ({
   }, []);
 
   const startRecording = useCallback(() => {
-    if (!videoRef.current || !videoRef.current.srcObject) return;
-    const stream = videoRef.current.srcObject as MediaStream;
+    if (!activeStreamRef.current) return;
+    const stream = activeStreamRef.current;
 
     let mimeType = 'video/webm;codecs=vp9,opus';
     if (!MediaRecorder.isTypeSupported(mimeType)) {
@@ -388,11 +444,15 @@ export const WebcamModal: React.FC<WebcamModalProps> = ({
       mediaRecorder.onstop = async () => {
         const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
         const blob = new Blob(recordedChunksRef.current, { type: mimeType });
+        stopActiveStream();
+
         if (blob.size > 0) {
           const rawVideoFile = new File([blob], `video-caso-${Date.now()}.${ext}`, { type: mimeType });
           const processed = await smartCompress(rawVideoFile);
           console.log(`[LABPROX VIDEO] Vídeo gravado e processado: ${(processed.size / 1024 / 1024).toFixed(2)}MB`);
           onCapture(processed);
+          onClose();
+        } else {
           onClose();
         }
       };
@@ -416,7 +476,7 @@ export const WebcamModal: React.FC<WebcamModalProps> = ({
       console.error("Erro ao iniciar gravação de vídeo:", err);
       alert("Não foi possível iniciar a gravação de vídeo neste dispositivo.");
     }
-  }, [onCapture, onClose, stopRecording]);
+  }, [onCapture, onClose, stopRecording, stopActiveStream]);
 
   const cycleCamera = () => {
     if (cameras.length > 1 && selectedCameraId) {
@@ -450,7 +510,7 @@ export const WebcamModal: React.FC<WebcamModalProps> = ({
           {/* Close button */}
           <button 
             type="button"
-            onClick={onClose} 
+            onClick={handleSafeClose} 
             className="w-10 h-10 bg-black/40 hover:bg-black/80 text-white rounded-full flex items-center justify-center border border-white/15 backdrop-blur-md active:scale-95 transition-all shadow-lg cursor-pointer"
             title="Fechar Câmera"
           >
