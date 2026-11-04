@@ -10,7 +10,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { getContrastColor } from '../services/mockData';
 import { MultiSelect } from '../components/MultiSelect';
 import { usePageFilterCache, cachedNormalizeText } from '../utils/pageCache';
-import { matchesSearchQuery } from '../utils/stringUtils';
+import { matchesSearchQuery, calculateJobSearchScore } from '../utils/stringUtils';
 
 import { StoreTopMenu } from '../components/StoreTopMenu';
 
@@ -896,11 +896,28 @@ const handleUpdateStatus = async (jobId: string, status: JobStatus) => {
 
         return true;
       }).sort((a, b) => {
+        if (filterText.trim()) {
+          const scoreA = calculateJobSearchScore(filterText, a, searchTarget || 'ALL') ?? 999;
+          const scoreB = calculateJobSearchScore(filterText, b, searchTarget || 'ALL') ?? 999;
+          if (Math.abs(scoreA - scoreB) > 0.001) {
+            return scoreA - scoreB;
+          }
+          const osA = String(a.osNumber || '');
+          const osB = String(b.osNumber || '');
+          if (osA && osB && osA !== osB) {
+            const numA = parseInt(osA.replace(/\D/g, ''), 10);
+            const numB = parseInt(osB.replace(/\D/g, ''), 10);
+            if (!isNaN(numA) && !isNaN(numB) && numA !== numB) {
+              return numA - numB;
+            }
+            return osA.localeCompare(osB, 'pt-BR', { numeric: true });
+          }
+        }
         const timeA = parseSafeTimestamp(a.createdAt);
         const timeB = parseSafeTimestamp(b.createdAt);
         return timeB - timeA;
       });
-  }, [combinedJobs, isBudgetMode, isClient, currentUser?.id, currentUser?.manualDentistId, activeManualDentistId, filterText, statusFilter, selectedStatuses, startDate, endDate, selectedDentists, selectedSectors, selectedCollaborators, filterUrgency, filterAttention, filterOrigin]);
+  }, [combinedJobs, isBudgetMode, isClient, currentUser?.id, currentUser?.manualDentistId, activeManualDentistId, filterText, searchTarget, statusFilter, selectedStatuses, startDate, endDate, selectedDentists, selectedSectors, selectedCollaborators, filterUrgency, filterAttention, filterOrigin]);
 
   const handleFinalizeJob = async (job: Job) => {
       const dentist = allUsers.find(u => u.id === job.dentistId) || manualDentists.find(d => d.id === job.dentistId);

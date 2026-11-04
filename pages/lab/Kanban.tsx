@@ -26,7 +26,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { getJobNatureBadge } from '../JobsList';
-import { matchesSearchQuery } from '../../utils/stringUtils';
+import { matchesSearchQuery, calculateJobSearchScore } from '../../utils/stringUtils';
 
 export const Kanban = () => {
   const { t } = useTranslation();
@@ -112,6 +112,23 @@ export const Kanban = () => {
         job.id,
         itemNames
       );
+    }).sort((a, b) => {
+      const scoreA = calculateJobSearchScore(searchTerm, a) ?? 999;
+      const scoreB = calculateJobSearchScore(searchTerm, b) ?? 999;
+      if (Math.abs(scoreA - scoreB) > 0.001) {
+        return scoreA - scoreB;
+      }
+      const osA = String(a.osNumber || '');
+      const osB = String(b.osNumber || '');
+      if (osA && osB && osA !== osB) {
+        const numA = parseInt(osA.replace(/\D/g, ''), 10);
+        const numB = parseInt(osB.replace(/\D/g, ''), 10);
+        if (!isNaN(numA) && !isNaN(numB) && numA !== numB) {
+          return numA - numB;
+        }
+        return osA.localeCompare(osB, 'pt-BR', { numeric: true });
+      }
+      return 0;
     });
   }, [allActiveJobs, searchTerm]);
 

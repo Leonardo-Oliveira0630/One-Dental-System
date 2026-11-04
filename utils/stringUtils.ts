@@ -103,10 +103,10 @@ export function matchesSearchQuery(query: string, ...targetFields: (string | num
   // 1. Verificação direta de substring normalizada (rápido e exato)
   if (normTarget.includes(normQuery)) return true;
 
-  // 2. Verificação de números/documentos sem pontuação (ex: CPF, CRO, Telefone)
+  // 2. Verificação de números/documentos/caixas/OS sem pontuação e símbolos
   const cleanQueryAlphanum = removePunctuation(normQuery);
   const cleanTargetAlphanum = removePunctuation(rawTargetCombined);
-  if (cleanQueryAlphanum.length >= 3 && cleanTargetAlphanum.includes(cleanQueryAlphanum)) {
+  if (cleanQueryAlphanum.length >= 1 && cleanTargetAlphanum.includes(cleanQueryAlphanum)) {
     return true;
   }
 
@@ -121,13 +121,159 @@ export function matchesSearchQuery(query: string, ...targetFields: (string | num
 
     // Se o token alfanumérico existe no alvo alfanumérico
     const cleanQToken = removePunctuation(qToken);
-    if (cleanQToken.length >= 3 && cleanTargetAlphanum.includes(cleanQToken)) return true;
+    if (cleanQToken.length >= 1 && cleanTargetAlphanum.includes(cleanQToken)) return true;
 
     // Se é similar a alguma das palavras do alvo
     return targetWords.some(tWord => isSimilarWord(qToken, tWord));
   });
 
   return allTokensMatched;
+}
+
+export interface SearchableJob {
+  id?: string;
+  osNumber?: string | number | null;
+  boxNumber?: string | number | null;
+  patientName?: string | null;
+  dentistName?: string | null;
+  clinicName?: string | null;
+  createdAt?: any;
+  [key: string]: any;
+}
+
+/**
+ * Calcula a pontuação de relevância de um trabalho/OS para a busca digitada (menor pontuação = maior prioridade).
+ * Prioridade:
+ * 1. OS idêntico (ex: "0655" -> score 1)
+ * 2. OS com sufixos/subsequências (ex: "0655-1", "0655/A" -> score 2)
+ * 3. OS que começa com a busca (ex: "06551", "06559" -> score 10+)
+ * 4. Caixa idêntica (ex: "*565", "25L", "C-01" -> score 1-3)
+ * 5. OS que contém a busca (ex: "10655" -> score 50)
+ * 6. Nome de paciente, dentista, clínica (score 20-80)
+ */
+export function calculateJobSearchScore(
+  query: string,
+  job: SearchableJob,
+  searchTarget: 'ALL' | 'PATIENT' | 'OS' | 'BOX' = 'ALL'
+): number | null {
+  const normQuery = normalizeText(query);
+  if (!normQuery) return 0;
+
+  const cleanQuery = removePunctuation(normQuery);
+
+  const rawOs = job.osNumber !== undefined && job.osNumber !== null ? String(job.osNumber).trim() : '';
+  const normOs = normalizeText(rawOs);
+  const cleanOs = removePunctuation(rawOs);
+
+  const rawBox = job.boxNumber !== undefined && job.boxNumber !== null ? String(job.boxNumber).trim() : '';
+  const normBox = normalizeText(rawBox);
+  const cleanBox = removePunctuation(rawBox);
+
+  const rawPatient = job.patientName || '';
+  const normPatient = normalizeText(rawPatient);
+
+  const rawDentist = job.dentistName || '';
+  const normDentist = normalizeText(rawDentist);
+
+  const rawClinic = job.clinicName || '';
+  const normClinic = normalizeText(rawClinic);
+
+  const rawId = job.id || '';
+  const normId = normalizeText(rawId);
+
+  // 1. Verifica se o trabalho atende aos critérios de busca
+  let matches = false;
+  if (searchTarget === 'PATIENT') {
+    matches = matchesSearchQuery(query, job.patientName);
+  } else if (searchTarget === 'OS') {
+    matches = matchesSearchQuery(query, job.osNumber, job.id);
+  } else if (searchTarget === 'BOX') {
+    matches = matchesSearchQuery(query, job.boxNumber);
+  } else {
+    matches = matchesSearchQuery(
+      query,
+      job.patientName,
+      job.dentistName,
+      job.osNumber,
+      job.boxNumber,
+      job.clinicName,
+      job.id
+    );
+  }
+
+  if (!matches) return null;
+
+  let bestScore: number = 999;
+
+  // 2. Pontuação para Número de OS (Ex: busca 0655 -> 0655, 0655-1, 06551, 06559, 10655)
+  if (normOs || cleanOs) {
+    if (normOs === normQuery || (cleanQuery && cleanOs === cleanQuery) || rawOs === query) {
+      bestScore = Math.min(bestScore, 1);
+    } else if (
+      normOs.startsWith(normQuery + '-') ||
+      normOs.startsWith(normQuery + '/') ||
+      normOs.startsWith(normQuery + '.') ||
+      normOs.startsWith(normQuery + '_')
+    ) {
+      bestScore = Math.min(bestScore, 2);
+    } else if (normOs.startsWith(normQuery) || (cleanQuery && cleanOs.startsWith(cleanQuery))) {
+      const lenDiff = Math.abs((cleanOs || normOs).length - (cleanQuery || normQuery).length);
+      bestScore = Math.min(bestScore, 10 + Math.min(lenDiff * 0.5, 20));
+    } else if (normOs.includes(normQuery) || (cleanQuery && cleanQuery.length >= 2 && cleanOs.includes(cleanQuery))) {
+      bestScore = Math.min(bestScore, 50);
+    }
+  }
+
+  // 3. Pontuação para Número da Caixa (Ex: busca *565, 25L, C-01, #12)
+  if (normBox || cleanBox) {
+    if (
+      normBox === normQuery ||
+      (cleanQuery && cleanBox === cleanQuery) ||
+      rawBox === query ||
+      rawBox.toLowerCase() === query.toLowerCase()
+    ) {
+      bestScore = Math.min(bestScore, searchTarget === 'BOX' ? 1 : 3);
+    } else if (normBox.startsWith(normQuery) || (cleanQuery && cleanBox.startsWith(cleanQuery))) {
+      bestScore = Math.min(bestScore, 15);
+    } else if (normBox.includes(normQuery) || (cleanQuery && cleanBox.includes(cleanQuery))) {
+      bestScore = Math.min(bestScore, 60);
+    }
+  }
+
+  // 4. Pontuação para Nome do Paciente
+  if (normPatient) {
+    if (normPatient === normQuery) {
+      bestScore = Math.min(bestScore, searchTarget === 'PATIENT' ? 1 : 20);
+    } else if (normPatient.startsWith(normQuery)) {
+      bestScore = Math.min(bestScore, 30);
+    } else {
+      const patientWords = normPatient.split(/\s+/).filter(Boolean);
+      for (let i = 0; i < patientWords.length; i++) {
+        const w = patientWords[i];
+        if (w === normQuery) {
+          bestScore = Math.min(bestScore, i === 0 ? 35 : 45);
+        } else if (w.startsWith(normQuery)) {
+          bestScore = Math.min(bestScore, i === 0 ? 40 : 50);
+        }
+      }
+      if (bestScore === 999 && normPatient.includes(normQuery)) {
+        bestScore = Math.min(bestScore, 70);
+      }
+    }
+  }
+
+  // 5. Pontuação para Dentista, Clínica, ID
+  if (bestScore === 999) {
+    if (normDentist.includes(normQuery) || normClinic.includes(normQuery)) {
+      bestScore = 80;
+    } else if (normId.includes(normQuery)) {
+      bestScore = 90;
+    } else {
+      bestScore = 100;
+    }
+  }
+
+  return bestScore;
 }
 
 export interface SearchableClient {
