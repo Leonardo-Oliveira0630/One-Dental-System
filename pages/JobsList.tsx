@@ -561,6 +561,7 @@ export const JobsList = ({ isStoreContext, isBudgetMode }: { isStoreContext?: bo
 
   const defaultFilters = useMemo(() => ({
     filterText: '',
+    searchTarget: 'ALL' as 'ALL' | 'PATIENT' | 'OS' | 'BOX',
     showFilters: false,
     statusFilter: 'ALL',
     selectedStatuses: [] as string[],
@@ -587,6 +588,7 @@ export const JobsList = ({ isStoreContext, isBudgetMode }: { isStoreContext?: bo
 
   const {
     filterText,
+    searchTarget = 'ALL',
     showFilters,
     statusFilter,
     selectedStatuses,
@@ -602,6 +604,7 @@ export const JobsList = ({ isStoreContext, isBudgetMode }: { isStoreContext?: bo
   } = filters;
 
   const setFilterText = useCallback((val: string) => setFilter('filterText', val), [setFilter]);
+  const setSearchTarget = useCallback((val: 'ALL' | 'PATIENT' | 'OS' | 'BOX') => setFilter('searchTarget', val), [setFilter]);
   const setShowFilters = useCallback((val: boolean | ((prev: boolean) => boolean)) => setFilter('showFilters', val), [setFilter]);
   const setStatusFilter = useCallback((val: string) => setFilter('statusFilter', val), [setFilter]);
   const setSelectedStatuses = useCallback((val: string[]) => setFilter('selectedStatuses', val), [setFilter]);
@@ -817,17 +820,20 @@ const handleUpdateStatus = async (jobId: string, status: JobStatus) => {
         ) return false;
 
         if (filterText.trim()) {
-          const itemNames = (job.items || []).map((i: any) => i.name).join(' ');
-          const isMatch = matchesSearchQuery(
-            filterText,
-            job.patientName,
-            job.dentistName,
-            job.osNumber,
-            job.boxNumber,
-            job.clinicName,
-            itemNames,
-            job.notes
-          );
+          const targetMode = searchTarget || 'ALL';
+          let isMatch = false;
+
+          if (targetMode === 'PATIENT') {
+            isMatch = matchesSearchQuery(filterText, job.patientName);
+          } else if (targetMode === 'OS') {
+            isMatch = matchesSearchQuery(filterText, job.osNumber, job.id);
+          } else if (targetMode === 'BOX') {
+            isMatch = matchesSearchQuery(filterText, job.boxNumber);
+          } else {
+            // ALL: Paciente, Pedido (OS) ou Caixa (sem dentistas ou serviços)
+            isMatch = matchesSearchQuery(filterText, job.patientName, job.osNumber, job.boxNumber, job.id);
+          }
+
           if (!isMatch) return false;
         }
 
@@ -1258,33 +1264,59 @@ const handleUpdateStatus = async (jobId: string, status: JobStatus) => {
 
       <div className="bg-white dark:bg-[#131B2A] p-3 md:p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col gap-4">
         <div className="flex flex-col md:flex-row gap-3">
-            <div className="flex-1 relative">
-                <Search className="absolute left-3 top-3 text-slate-400 dark:text-slate-500" size={20} />
-                <input 
-                    type="text" 
-                    placeholder={t('orders.searchPlaceholder', 'Buscar OS, Caixa, Paciente, Dentista...')}
-                    value={filterText}
-                    onChange={(e) => setFilterText(e.target.value)}
-                    className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0B0F17] text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 outline-none text-sm placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                />
-                {filterText && (
-                    <button 
-                        onClick={() => setFilterText('')}
-                        className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
-                        title="Limpar texto da pesquisa"
-                    >
-                        <X size={16} />
-                    </button>
-                )}
+          <div className="flex-1 flex flex-col sm:flex-row gap-2">
+            {/* Dropdown de Modo de Pesquisa fora dos Filtros */}
+            <div className="w-full sm:w-48 shrink-0">
+              <select
+                value={searchTarget || 'ALL'}
+                onChange={(e) => setSearchTarget(e.target.value as any)}
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0B0F17] text-slate-800 dark:text-slate-100 font-extrabold text-xs outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer shadow-2xs h-[42px]"
+                title="Selecione o campo de busca"
+              >
+                <option value="ALL">🔍 Todos (Paciente, OS, Caixa)</option>
+                <option value="PATIENT">👤 Paciente</option>
+                <option value="OS">📋 Pedido / OS</option>
+                <option value="BOX">📦 Nº da Caixa</option>
+              </select>
             </div>
-            <button 
-                onClick={() => setShowFilters(!showFilters)}
-                className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border transition-all text-sm font-bold cursor-pointer ${
-                    showFilters ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white dark:bg-[#0B0F17] border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
-                }`}
-            >
-                <SlidersHorizontal size={18} /> {t('common.filters', 'Filtros')}
-            </button>
+
+            {/* Input de Pesquisa de Texto */}
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-3 text-slate-400 dark:text-slate-500" size={18} />
+              <input 
+                type="text" 
+                placeholder={
+                  searchTarget === 'PATIENT' ? 'Buscar nome do paciente...' :
+                  searchTarget === 'OS' ? 'Buscar número do Pedido / OS...' :
+                  searchTarget === 'BOX' ? 'Buscar número da Caixa...' :
+                  'Buscar por Paciente, OS ou Caixa...'
+                }
+                value={filterText}
+                onChange={(e) => setFilterText(e.target.value)}
+                className="w-full pl-9 pr-9 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0B0F17] text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 outline-none text-xs font-semibold placeholder:text-slate-400 dark:placeholder:text-slate-500 h-[42px]"
+              />
+              {filterText && (
+                <button 
+                  type="button"
+                  onClick={() => setFilterText('')}
+                  className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                  title="Limpar pesquisa"
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+          </div>
+
+          <button 
+            type="button"
+            onClick={() => setShowFilters(!showFilters)}
+            className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border transition-all text-xs font-bold cursor-pointer h-[42px] shrink-0 ${
+              showFilters ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white dark:bg-[#0B0F17] border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
+            }`}
+          >
+            <SlidersHorizontal size={16} /> {t('common.filters', 'Filtros')}
+          </button>
         </div>
 
         {hasActiveFilters && (
