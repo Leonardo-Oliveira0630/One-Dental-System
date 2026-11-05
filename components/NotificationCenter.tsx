@@ -67,10 +67,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
 
   if (!currentUser) return null;
 
-  const safeNotifications = notifications || [];
-  const safeUnreadCount = unreadNotificationCount || 0;
-
-  const filteredNotifications = safeNotifications.filter(notif => {
+  const filteredNotifications = notifications.filter(notif => {
     if (activeTab === 'ALL') return true;
     return notif.type === activeTab;
   });
@@ -291,7 +288,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
                   : 'text-slate-500 hover:text-slate-800'
               }`}
             >
-              Todas ({safeNotifications.length})
+              Todas ({notifications.length})
             </button>
             <button
               type="button"

@@ -43,17 +43,17 @@ export const Dashboard = () => {
 
   // KPIs memoizados para performance
   const { totalActive, completedToday, urgent, delayed, statusData } = React.useMemo(() => {
-    const active = (jobs || []).filter(j => j.status !== JobStatus.COMPLETED && j.status !== JobStatus.DELIVERED).length;
-    const completed = (jobs || []).filter(j => 
+    const active = jobs.filter(j => j.status !== JobStatus.COMPLETED && j.status !== JobStatus.DELIVERED).length;
+    const completed = jobs.filter(j => 
       j.status === JobStatus.COMPLETED && 
       j.history && 
       j.history.length > 0 && 
       new Date(j.history[j.history.length-1]?.timestamp).toDateString() === new Date().toDateString()
     ).length;
-    const isUrgent = (jobs || []).filter(j => j.urgency === UrgencyLevel.VIP || j.urgency === UrgencyLevel.HIGH).length;
-    const isDelayed = (jobs || []).filter(j => new Date(j.dueDate) < new Date() && j.status !== JobStatus.COMPLETED).length;
+    const isUrgent = jobs.filter(j => j.urgency === UrgencyLevel.VIP || j.urgency === UrgencyLevel.HIGH).length;
+    const isDelayed = jobs.filter(j => new Date(j.dueDate) < new Date() && j.status !== JobStatus.COMPLETED).length;
 
-    const waitingApprovalCount = (jobs || []).filter(j => {
+    const waitingApprovalCount = jobs.filter(j => {
       if (j.status !== JobStatus.WAITING_APPROVAL) return false;
       if (isClient) return true;
       if (j.isComboPurchase) return false;
@@ -67,11 +67,11 @@ export const Dashboard = () => {
     }).length;
 
     const sData = [
-      { name: t('orders.status.PENDING', 'Pendente'), value: (jobs || []).filter(j => j.status === JobStatus.PENDING).length },
-      { name: t('orders.status.SECTOR_TRANSITION', 'Transição'), value: (jobs || []).filter(j => j.status === JobStatus.SECTOR_TRANSITION).length },
-      { name: t('orders.status.IN_PROGRESS', 'Produção'), value: (jobs || []).filter(j => j.status === JobStatus.IN_PROGRESS).length },
+      { name: t('orders.status.PENDING', 'Pendente'), value: jobs.filter(j => j.status === JobStatus.PENDING).length },
+      { name: t('orders.status.SECTOR_TRANSITION', 'Transição'), value: jobs.filter(j => j.status === JobStatus.SECTOR_TRANSITION).length },
+      { name: t('orders.status.IN_PROGRESS', 'Produção'), value: jobs.filter(j => j.status === JobStatus.IN_PROGRESS).length },
       { name: t('orders.status.WAITING_APPROVAL', 'Aprovação'), value: waitingApprovalCount },
-      { name: t('orders.status.COMPLETED', 'Pronto'), value: (jobs || []).filter(j => j.status === JobStatus.COMPLETED).length },
+      { name: t('orders.status.COMPLETED', 'Pronto'), value: jobs.filter(j => j.status === JobStatus.COMPLETED).length },
     ];
 
     return { totalActive: active, completedToday: completed, urgent: isUrgent, delayed: isDelayed, statusData: sData, waitingApproval: waitingApprovalCount };

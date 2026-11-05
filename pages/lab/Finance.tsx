@@ -1269,7 +1269,7 @@ export const Finance = () => {
     const history = [
         ...clientJobs.map(j => ({
             id: j.id,
-            date: (j as any).completedAt || j.deliveredAt || j.createdAt,
+            date: j.createdAt,
             type: 'DEBIT' as const,
             description: `OS #${j.osNumber || j.id.substring(0,6)} - Paciente: ${j.patientName}`,
             amount: j.totalValue || 0,

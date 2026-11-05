@@ -926,18 +926,11 @@ const handleUpdateStatus = async (jobId: string, status: JobStatus) => {
           return;
       }
 
-      if (job.wasReopened || (job as any).firstCompletedAt) {
-          // If reopened, navigate to details page so user can confirm original or current completion date in modal
-          navigate(`/jobs/${job.id}`);
-          return;
-      }
 
       if (!window.confirm(t('orders.confirmFinalizeJob', { name: job.patientName, defaultValue: `Deseja finalizar o caso de ${job.patientName}?` }))) return;
-      const now = new Date();
       await updateJob(job.id, {
           status: JobStatus.COMPLETED,
-          completedAt: now,
-          firstCompletedAt: now,
+          completedAt: new Date(),
           history: [...(job.history || []).filter(Boolean), {
               id: `hist_fin_${Date.now()}`,
               timestamp: new Date(),
@@ -951,27 +944,8 @@ const handleUpdateStatus = async (jobId: string, status: JobStatus) => {
 
   const handleReopenJob = async (job: Job) => {
       if (!window.confirm(t('orders.confirmReopenJob', { name: job.patientName, defaultValue: `Deseja reabrir o caso de ${job.patientName}?` }))) return;
-
-      let origCompletedAt = (job as any).firstCompletedAt || (job as any).completedAt || (job as any).finalizedAt;
-      if (!origCompletedAt && job.history && job.history.length > 0) {
-        const finalHistory = [...job.history].reverse().find(h => {
-          if (!h) return false;
-          const act = (h.action || '').toLowerCase();
-          return act.includes('finaliz') || act.includes('conclu') || act.includes('conferido') || act.includes('entregue') || act.includes('completed') || act.includes('delivered');
-        });
-        if (finalHistory && finalHistory.timestamp) {
-          origCompletedAt = finalHistory.timestamp;
-        }
-      }
-      if (!origCompletedAt) {
-        origCompletedAt = new Date();
-      }
-
       await updateJob(job.id, {
           status: JobStatus.IN_PROGRESS,
-          wasReopened: true,
-          reopenedAt: new Date(),
-          firstCompletedAt: origCompletedAt,
           history: [...(job.history || []).filter(Boolean), {
               id: `hist_reopen_${Date.now()}`,
               timestamp: new Date(),
@@ -1307,26 +1281,48 @@ const handleUpdateStatus = async (jobId: string, status: JobStatus) => {
 
       <div className="bg-white dark:bg-[#131B2A] p-3 md:p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col gap-4">
         <div className="flex flex-col md:flex-row gap-3">
-          {/* Input de Pesquisa Unificada de Texto */}
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-3 text-slate-400 dark:text-slate-500" size={18} />
-            <input 
-              type="text" 
-              placeholder={t('orders.searchPlaceholder', 'Buscar por caixa, O.S., paciente ou cliente...')}
-              value={filterText}
-              onChange={(e) => setFilterText(e.target.value)}
-              className="w-full pl-9 pr-9 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0B0F17] text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 outline-none text-xs font-semibold placeholder:text-slate-400 dark:placeholder:text-slate-500 h-[42px]"
-            />
-            {filterText && (
-              <button 
-                type="button"
-                onClick={() => setFilterText('')}
-                className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
-                title={t('common.clearSearch', 'Limpar pesquisa')}
+          <div className="flex-1 flex flex-col sm:flex-row gap-2">
+            {/* Dropdown de Modo de Pesquisa fora dos Filtros */}
+            <div className="w-full sm:w-48 shrink-0">
+              <select
+                value={searchTarget || 'ALL'}
+                onChange={(e) => setSearchTarget(e.target.value as any)}
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0B0F17] text-slate-800 dark:text-slate-100 font-extrabold text-xs outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer shadow-2xs h-[42px]"
+                title="Selecione o campo de busca"
               >
-                <X size={16} />
-              </button>
-            )}
+                <option value="ALL">🔍 Todos (Paciente, OS, Caixa)</option>
+                <option value="PATIENT">👤 Paciente</option>
+                <option value="OS">📋 Pedido / OS</option>
+                <option value="BOX">📦 Nº da Caixa</option>
+              </select>
+            </div>
+
+            {/* Input de Pesquisa de Texto */}
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-3 text-slate-400 dark:text-slate-500" size={18} />
+              <input 
+                type="text" 
+                placeholder={
+                  searchTarget === 'PATIENT' ? 'Buscar nome do paciente...' :
+                  searchTarget === 'OS' ? 'Buscar número do Pedido / OS...' :
+                  searchTarget === 'BOX' ? 'Buscar número da Caixa...' :
+                  'Buscar por Paciente, OS ou Caixa...'
+                }
+                value={filterText}
+                onChange={(e) => setFilterText(e.target.value)}
+                className="w-full pl-9 pr-9 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0B0F17] text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 outline-none text-xs font-semibold placeholder:text-slate-400 dark:placeholder:text-slate-500 h-[42px]"
+              />
+              {filterText && (
+                <button 
+                  type="button"
+                  onClick={() => setFilterText('')}
+                  className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                  title="Limpar pesquisa"
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </div>
           </div>
 
           <button 

@@ -177,41 +177,7 @@ export const JobDetails = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const [showCompletionDateModal, setShowCompletionDateModal] = useState(false);
-  const [selectedCompletionOption, setSelectedCompletionOption] = useState<'FIRST' | 'CURRENT' | 'CUSTOM'>('FIRST');
-  const [customCompletionDateInput, setCustomCompletionDateInput] = useState('');
-
-  const getOriginalCompletionDate = (jobObj: any): Date => {
-    if (!jobObj) return new Date();
-    if (jobObj.firstCompletedAt) {
-      const parsed = parseDateSafely(jobObj.firstCompletedAt);
-      if (parsed) return parsed;
-    }
-    if (jobObj.originalCompletedAt) {
-      const parsed = parseDateSafely(jobObj.originalCompletedAt);
-      if (parsed) return parsed;
-    }
-    if (jobObj.completedAt) {
-      const parsed = parseDateSafely(jobObj.completedAt);
-      if (parsed) return parsed;
-    }
-    if (jobObj.finalizedAt) {
-      const parsed = parseDateSafely(jobObj.finalizedAt);
-      if (parsed) return parsed;
-    }
-    if (jobObj.history && Array.isArray(jobObj.history)) {
-      const finalHistory = [...jobObj.history].reverse().find((h: any) => {
-        if (!h) return false;
-        const act = (h.action || '').toLowerCase();
-        return act.includes('finaliz') || act.includes('conclu') || act.includes('conferido') || act.includes('entregue') || act.includes('completed') || act.includes('delivered');
-      });
-      if (finalHistory && finalHistory.timestamp) {
-        const parsed = parseDateSafely(finalHistory.timestamp);
-        if (parsed) return parsed;
-      }
-    }
-    return new Date();
-  };
+  const [activeTab, setActiveTab] = useState<'SUMMARY' | 'HISTORY' | 'CHAT' | 'PRODUCTION'>('SUMMARY');
   const [selectedAttachment, setSelectedAttachment] = useState<Attachment | null>(null);
   const [allAttachmentsForPreview, setAllAttachmentsForPreview] = useState<Attachment[]>([]);
   const [showAlertModal, setShowAlertModal] = useState(false);
@@ -1745,35 +1711,21 @@ export const JobDetails = () => {
   };
 
   const handleFinalizeJob = async () => {
-    if (!currentUser || isUpdatingStatus || !job) return;
+    if (!currentUser || isUpdatingStatus) return;
 
-    // Check: Is the dentist blocked?
+    // New check: Is the dentist blocked?
     const dentist = allUsers.find(u => u.id === job?.dentistId) || manualDentists.find(d => d.id === job?.dentistId);
     if (dentist?.isBlocked) {
         alert("Este cliente está BLOQUEADO por limite de fatura. Não é possível FINALIZAR este trabalho até que a pendência seja resolvida.");
         return;
     }
 
-    // Check if the job was reopened or has a firstCompletedAt record
-    if (job.wasReopened || job.firstCompletedAt) {
-      const origDate = getOriginalCompletionDate(job);
-      const yyyy = origDate.getFullYear();
-      const mm = String(origDate.getMonth() + 1).padStart(2, '0');
-      const dd = String(origDate.getDate()).padStart(2, '0');
-      setCustomCompletionDateInput(`${yyyy}-${mm}-${dd}`);
-      setSelectedCompletionOption('FIRST');
-      setShowCompletionDateModal(true);
-      return;
-    }
-
     if (!window.confirm("Finalizar este caso agora?")) return;
     setIsUpdatingStatus(true);
     try {
-        const now = new Date();
         await updateJob(job.id, {
             status: JobStatus.COMPLETED,
-            completedAt: now,
-            firstCompletedAt: now,
+            completedAt: new Date(),
             history: [...(job.history || []).filter(Boolean), {
                 id: `hist_fin_${Date.now()}`,
                 timestamp: new Date(),
@@ -1786,81 +1738,22 @@ export const JobDetails = () => {
     } finally { setIsUpdatingStatus(false); }
   };
 
-  const handleConfirmCompletionWithDate = async () => {
-    if (!job || !currentUser) return;
-    setIsUpdatingStatus(true);
-    try {
-        let finalDate: Date = new Date();
-        const origDate = getOriginalCompletionDate(job);
-
-        if (selectedCompletionOption === 'FIRST') {
-          finalDate = origDate;
-        } else if (selectedCompletionOption === 'CURRENT') {
-          finalDate = new Date();
-        } else if (selectedCompletionOption === 'CUSTOM') {
-          if (!customCompletionDateInput) {
-            alert("Por favor, informe uma data válida.");
-            setIsUpdatingStatus(false);
-            return;
-          }
-          const [y, m, d] = customCompletionDateInput.split('-').map(Number);
-          finalDate = new Date(y, m - 1, d, 12, 0, 0, 0);
-        }
-
-        const dateFormatted = finalDate.toLocaleDateString('pt-BR');
-        const timeFormatted = finalDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-
-        await updateJob(job.id, {
-            status: JobStatus.COMPLETED,
-            completedAt: finalDate,
-            firstCompletedAt: job.firstCompletedAt || origDate,
-            wasReopened: true,
-            lastRefinalizedAt: new Date(),
-            history: [...(job.history || []).filter(Boolean), {
-                id: `hist_fin_reopen_${Date.now()}`,
-                timestamp: new Date(),
-                action: `Trabalho Concluído Novamente (Data de Faturamento: ${dateFormatted} às ${timeFormatted})`,
-                userId: currentUser.id,
-                userName: currentUser.name,
-                sector: 'Expedição'
-            }]
-        });
-
-        setShowCompletionDateModal(false);
-        alert(`Caso finalizado com sucesso! A data de conclusão para faturamento foi gravada como ${dateFormatted}.`);
-    } catch (err: any) {
-        alert("Erro ao finalizar trabalho: " + (err?.message || "Erro de conexão"));
-    } finally {
-        setIsUpdatingStatus(false);
-    }
-  };
-
   const handleReopenJob = async () => {
-    if (!currentUser || isUpdatingStatus || !job) return;
+    if (!currentUser || isUpdatingStatus) return;
     if (!window.confirm("Deseja reabrir este caso?")) return;
     setIsUpdatingStatus(true);
     try {
-        const origDate = getOriginalCompletionDate(job);
-        const firstCompletedAtVal = job.firstCompletedAt ? job.firstCompletedAt : origDate;
-        const origDateFormatted = origDate.toLocaleDateString('pt-BR');
-
         await updateJob(job.id, {
             status: JobStatus.IN_PROGRESS,
-            wasReopened: true,
-            reopenedAt: new Date(),
-            firstCompletedAt: firstCompletedAtVal,
             history: [...(job.history || []).filter(Boolean), {
                 id: `hist_reopen_${Date.now()}`,
                 timestamp: new Date(),
-                action: `Trabalho REABERTO (1ª finalização registrada em ${origDateFormatted})`,
+                action: `Trabalho REABERTO`,
                 userId: currentUser.id,
                 userName: currentUser.name,
                 sector: currentUser.sector || 'Gestão'
             }]
         });
-        alert("Caso reaberto com sucesso! Quando este trabalho for finalizado novamente, o sistema solicitará a confirmação da data de faturamento.");
-    } catch (e: any) {
-        alert("Erro ao reabrir caso: " + (e?.message || 'Falha de conexão'));
     } finally { setIsUpdatingStatus(false); }
   };
 
@@ -1949,11 +1842,6 @@ export const JobDetails = () => {
     if (dentist?.isBlocked && (newStatus === JobStatus.COMPLETED || newStatus === JobStatus.DELIVERED)) {
         alert("Este cliente está BLOQUEADO por limite de fatura. Não é possível CONCLUIR ou ENTREGAR trabalhos até que a pendência seja resolvida.");
         return;
-    }
-
-    if (newStatus === JobStatus.COMPLETED) {
-      handleFinalizeJob();
-      return;
     }
 
     // If status is REJECTED or CANCELED, prompt for justification
@@ -5313,32 +5201,6 @@ export const JobDetails = () => {
          </div>
       </div>
 
-      {/* REOPENED JOB AUDIT BANNER */}
-      {job.wasReopened && (
-        <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-amber-900 dark:text-amber-200 shadow-sm animate-in fade-in duration-200">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-amber-100 dark:bg-amber-900/60 text-amber-600 dark:text-amber-300 flex items-center justify-center shrink-0">
-              <RotateCcw size={20} />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-black text-xs uppercase tracking-wider block text-amber-900 dark:text-amber-100">
-                  Caso Reaberto
-                </span>
-                <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase bg-amber-200/80 dark:bg-amber-800 text-amber-950 dark:text-amber-100">
-                  Faturamento Auditado
-                </span>
-              </div>
-              <p className="text-xs text-amber-800 dark:text-amber-300 font-medium mt-0.5">
-                {job.firstCompletedAt 
-                  ? `Primeira finalização registrada em: ${parseDateSafely(job.firstCompletedAt)?.toLocaleDateString('pt-BR') || 'N/A'}. Ao concluir o caso novamente, você poderá manter a data original para faturamento ou definir a data atual.`
-                  : 'Este caso foi reaberto. Ao finalizar novamente, a data de faturamento será solicitada para evitar distorções no fechamento mensal do dentista.'}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* ABAS COM OVERFLOW AUTO */}
       <div className="flex border-b border-slate-200 overflow-x-auto no-scrollbar shrink-0 sticky top-0 md:top-16 bg-slate-50 z-20 w-full">
          <button onClick={() => setActiveTab('SUMMARY')} className={`px-4 md:px-6 py-4 font-black text-[10px] md:text-xs uppercase tracking-widest flex items-center gap-2 transition-all whitespace-nowrap shrink-0 ${activeTab === 'SUMMARY' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}><FileText size={16} /> {t('jobDetails.basicData', 'Dados Básicos')}</button>
@@ -7704,146 +7566,6 @@ export const JobDetails = () => {
           </div>
         </div>
       )}
-
-       {showCompletionDateModal && job && (
-         <div className="fixed inset-0 z-[115] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
-           <div className="bg-white dark:bg-[#131B2A] rounded-[32px] p-5 sm:p-6 w-full max-w-lg shadow-2xl border border-slate-100 dark:border-slate-800 space-y-5 animate-in zoom-in duration-200">
-             <div className="flex items-start justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
-               <div className="flex items-center gap-3">
-                 <div className="w-10 h-10 rounded-2xl bg-amber-100 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-                   <RotateCcw size={20} />
-                 </div>
-                 <div>
-                   <h3 className="text-base font-black text-slate-900 dark:text-slate-100 leading-tight">
-                     Confirmar Data de Finalização
-                   </h3>
-                   <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                     Caso reaberto previamente. Escolha a data para o faturamento.
-                   </p>
-                 </div>
-               </div>
-               <button 
-                 type="button"
-                 onClick={() => setShowCompletionDateModal(false)}
-                 className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 cursor-pointer"
-               >
-                 <X size={20} />
-               </button>
-             </div>
-
-             <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 rounded-2xl text-xs text-amber-900 dark:text-amber-200 leading-relaxed font-medium">
-               Este trabalho foi reaberto após ter sido finalizado. Para evitar faturamentos incorretos no mês corrente, confirme qual data deve ser gravada como a data oficial de conclusão do serviço:
-             </div>
-
-             <div className="space-y-3">
-               {/* Opção 1: Primeira Finalização */}
-               <div 
-                 onClick={() => setSelectedCompletionOption('FIRST')}
-                 className={`flex items-start gap-3 p-3.5 rounded-2xl border-2 transition-all cursor-pointer ${
-                   selectedCompletionOption === 'FIRST'
-                     ? 'border-blue-600 bg-blue-50/50 dark:bg-blue-950/30 shadow-xs'
-                     : 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-[#0B0F17]'
-                 }`}
-               >
-                 <input 
-                   type="radio" 
-                   name="completionOpt" 
-                   checked={selectedCompletionOption === 'FIRST'} 
-                   onChange={() => setSelectedCompletionOption('FIRST')}
-                   className="mt-1 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                 />
-                 <div className="flex-1">
-                   <div className="flex items-center justify-between">
-                     <span className="font-bold text-xs text-slate-900 dark:text-slate-100">Data da 1ª Finalização (Recomendado)</span>
-                     <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300">Manter Fatura</span>
-                   </div>
-                   <p className="text-xs font-semibold text-blue-700 dark:text-blue-400 mt-1">
-                     📅 {getOriginalCompletionDate(job).toLocaleDateString('pt-BR')} às {getOriginalCompletionDate(job).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                   </p>
-                   <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                     Mantém a cobrança e as alterações no mês original de conclusão do caso.
-                   </p>
-                 </div>
-               </div>
-
-               {/* Opção 2: Data Atual */}
-               <div 
-                 onClick={() => setSelectedCompletionOption('CURRENT')}
-                 className={`flex items-start gap-3 p-3.5 rounded-2xl border-2 transition-all cursor-pointer ${
-                   selectedCompletionOption === 'CURRENT'
-                     ? 'border-blue-600 bg-blue-50/50 dark:bg-blue-950/30 shadow-xs'
-                     : 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-[#0B0F17]'
-                 }`}
-               >
-                 <input 
-                   type="radio" 
-                   name="completionOpt" 
-                   checked={selectedCompletionOption === 'CURRENT'} 
-                   onChange={() => setSelectedCompletionOption('CURRENT')}
-                   className="mt-1 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                 />
-                 <div className="flex-1">
-                   <span className="font-bold text-xs text-slate-900 dark:text-slate-100 block">Data Atual (Hoje)</span>
-                   <p className="text-xs font-semibold text-slate-700 dark:text-slate-300 mt-1">
-                     📅 {new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                   </p>
-                   <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                     Faturará este trabalho no mês atual em exercício.
-                   </p>
-                 </div>
-               </div>
-
-               {/* Opção 3: Data Personalizada */}
-               <div 
-                 onClick={() => setSelectedCompletionOption('CUSTOM')}
-                 className={`flex items-start gap-3 p-3.5 rounded-2xl border-2 transition-all cursor-pointer ${
-                   selectedCompletionOption === 'CUSTOM'
-                     ? 'border-blue-600 bg-blue-50/50 dark:bg-blue-950/30 shadow-xs'
-                     : 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-[#0B0F17]'
-                 }`}
-               >
-                 <input 
-                   type="radio" 
-                   name="completionOpt" 
-                   checked={selectedCompletionOption === 'CUSTOM'} 
-                   onChange={() => setSelectedCompletionOption('CUSTOM')}
-                   className="mt-1 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                 />
-                 <div className="flex-1 space-y-2">
-                   <span className="font-bold text-xs text-slate-900 dark:text-slate-100 block">Especificar Outra Data</span>
-                   {selectedCompletionOption === 'CUSTOM' && (
-                     <input 
-                       type="date"
-                       value={customCompletionDateInput}
-                       onChange={(e) => setCustomCompletionDateInput(e.target.value)}
-                       className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-[#0B0F17] text-xs font-bold text-slate-900 dark:text-slate-100"
-                     />
-                   )}
-                 </div>
-               </div>
-             </div>
-
-             <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-               <button
-                 type="button"
-                 onClick={() => setShowCompletionDateModal(false)}
-                 className="px-4 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-xl text-xs transition-colors cursor-pointer"
-               >
-                 Cancelar
-               </button>
-               <button
-                 type="button"
-                 onClick={handleConfirmCompletionWithDate}
-                 disabled={isUpdatingStatus}
-                 className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl text-xs shadow-sm transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
-               >
-                 {isUpdatingStatus ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
-                 <span>Confirmar Finalização</span>
-               </button>
-             </div>
-           </div>
-         </div>
-       )}
 
        {showReviewModal && job && (
          <LabServiceReviewModal 
