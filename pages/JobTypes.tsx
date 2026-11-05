@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import * as XLSX from 'xlsx';
 import { useApp } from '../context/AppContext';
@@ -12,6 +12,161 @@ type Tab = 'BASIC' | 'VARIATIONS' | 'STAGES';
 // Helper to generate Firestore-compatible IDs (alphanumeric)
 const generateFirestoreId = (prefix: string) => {
   return `${prefix}_${Math.random().toString(36).substr(2, 9)}`;
+};
+
+const CategoryCombobox = ({
+  value,
+  onChange,
+  existingCategories,
+  placeholder,
+  required = true
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  existingCategories: string[];
+  placeholder?: string;
+  required?: boolean;
+}) => {
+  const { t } = useTranslation();
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const filteredCategories = useMemo(() => {
+    if (!value.trim()) return existingCategories;
+    const term = value.toLowerCase().trim();
+    return existingCategories.filter(cat => cat.toLowerCase().includes(term));
+  }, [existingCategories, value]);
+
+  const exactMatchExists = useMemo(() => {
+    const term = value.toLowerCase().trim();
+    return existingCategories.some(cat => cat.toLowerCase().trim() === term);
+  }, [existingCategories, value]);
+
+  return (
+    <div className="relative w-full" ref={containerRef}>
+      <div className="relative flex items-center">
+        <Folder size={16} className="absolute left-3 text-slate-400 pointer-events-none" />
+        <input
+          type="text"
+          list="job-type-categories-list"
+          value={value}
+          onChange={e => {
+            onChange(e.target.value);
+            setIsOpen(true);
+          }}
+          onFocus={() => setIsOpen(true)}
+          required={required}
+          className="w-full pl-9 pr-10 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-medium text-slate-800 text-sm"
+          placeholder={placeholder || t('jobTypes.categoryPlaceholder', 'Ex: Prótese Fixa')}
+          autoComplete="off"
+        />
+        <datalist id="job-type-categories-list">
+          {existingCategories.map(cat => (
+            <option key={cat} value={cat} />
+          ))}
+        </datalist>
+        <button
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          className="absolute right-2 p-1.5 text-slate-400 hover:text-slate-600 rounded-md transition-colors"
+          tabIndex={-1}
+        >
+          <ChevronDown size={16} className={`transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+        </button>
+      </div>
+
+      {/* Floating Dropdown */}
+      {isOpen && (
+        <div className="absolute z-50 left-0 right-0 mt-1 max-h-56 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-xl py-1 text-sm space-y-0.5 animate-in fade-in slide-in-from-top-1 duration-150">
+          {filteredCategories.length > 0 ? (
+            <>
+              <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+                <span>Categorias Cadastradas</span>
+                <span className="text-[9px] text-slate-400 font-normal">({filteredCategories.length})</span>
+              </div>
+              {filteredCategories.map(cat => {
+                const isSelected = cat.toLowerCase().trim() === value.toLowerCase().trim();
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => {
+                      onChange(cat);
+                      setIsOpen(false);
+                    }}
+                    className={`w-full text-left px-3 py-2 flex items-center justify-between transition-colors ${
+                      isSelected
+                        ? 'bg-blue-50 font-bold text-blue-700'
+                        : 'text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <Tag size={13} className={isSelected ? 'text-blue-600' : 'text-slate-400'} />
+                      {cat}
+                    </span>
+                    {isSelected && <Check size={14} className="text-blue-600" />}
+                  </button>
+                );
+              })}
+            </>
+          ) : (
+            <div className="px-3 py-2 text-xs text-slate-500 italic">
+              Nenhuma categoria existente para "{value}".
+            </div>
+          )}
+
+          {value.trim() && !exactMatchExists && (
+            <div className="border-t border-slate-100 pt-1 mt-1">
+              <button
+                type="button"
+                onClick={() => setIsOpen(false)}
+                className="w-full text-left px-3 py-2 text-xs font-bold text-emerald-700 bg-emerald-50/70 hover:bg-emerald-100 flex items-center gap-2 transition-colors"
+              >
+                <Plus size={14} className="text-emerald-600" />
+                <span>Criar nova categoria: <strong>"{value.trim()}"</strong></span>
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Category Suggestion Chips */}
+      {existingCategories.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1.5 items-center">
+          <span className="text-[10px] font-bold uppercase text-slate-400 mr-0.5 flex items-center gap-1">
+            <Tag size={10} /> Sugestões:
+          </span>
+          {existingCategories.slice(0, 7).map(cat => {
+            const isSelected = cat.toLowerCase().trim() === value.toLowerCase().trim();
+            return (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => onChange(cat)}
+                className={`text-[11px] px-2 py-0.5 rounded-md font-semibold transition-all border ${
+                  isSelected
+                    ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-600 border-slate-200'
+                }`}
+              >
+                {cat}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 };
 
 export const JobTypes = () => {
@@ -165,6 +320,35 @@ export const JobTypes = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
+  
+  // Custom categories state stored in localStorage for persistence
+  const [customCategories, setCustomCategories] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('labprox_custom_job_categories');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+
+  const handleCreateNewCategory = (catName: string) => {
+    const trimmed = catName.trim();
+    if (!trimmed) return;
+    if (!customCategories.some(c => c.toLowerCase() === trimmed.toLowerCase())) {
+      const updated = [...customCategories, trimmed];
+      setCustomCategories(updated);
+      try {
+        localStorage.setItem('labprox_custom_job_categories', JSON.stringify(updated));
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    setSelectedCategory(trimmed);
+    setNewCategoryName('');
+    setIsCategoryModalOpen(false);
+  };
   const modalBackdropMouseDownRef = useRef(false);
 
   // Main Tabs State (Services vs Promotions)
@@ -522,8 +706,16 @@ export const JobTypes = () => {
     const list = jobTypes
       .filter(type => mainTab === 'PROMOTIONS' ? isPromo(type) : !isPromo(type))
       .map(t => t.category || 'Geral');
-    return Array.from(new Set(list)).filter(Boolean).sort();
-  }, [jobTypes, mainTab]);
+    const merged = Array.from(new Set([...list, ...customCategories])).filter(Boolean);
+    return merged.sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' }));
+  }, [jobTypes, mainTab, customCategories]);
+
+  const allExistingCategories = useMemo(() => {
+    const list = jobTypes.map(t => (t.category || '').trim()).filter(Boolean);
+    const defaultCategories = ['Geral', 'Prótese Fixa', 'Prótese Removível', 'Prótese Total', 'Ortodontia', 'Placas', 'Implante', 'Estética'];
+    const merged = Array.from(new Set([...defaultCategories, ...list, ...customCategories]));
+    return merged.sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' }));
+  }, [jobTypes, customCategories]);
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
       if (e.target.files && e.target.files[0]) {
@@ -795,7 +987,7 @@ export const JobTypes = () => {
             </div>
 
             {/* Category Filter */}
-            <div className="w-full sm:w-auto">
+            <div className="w-full sm:w-auto flex items-center gap-2">
               <select
                 value={selectedCategory}
                 onChange={e => setSelectedCategory(e.target.value)}
@@ -806,6 +998,16 @@ export const JobTypes = () => {
                   <option key={cat} value={cat}>{cat}</option>
                 ))}
               </select>
+
+              <button
+                type="button"
+                onClick={() => setIsCategoryModalOpen(true)}
+                className="px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer shadow-2xs"
+                title="Criar ou gerenciar categorias de serviço"
+              >
+                <Folder size={14} className="text-emerald-600" />
+                <span>+ Categoria</span>
+              </button>
             </div>
 
             <div className="text-xs font-semibold text-slate-400 whitespace-nowrap">
@@ -1224,7 +1426,7 @@ export const JobTypes = () => {
                                     </div>
                                     <div>
                                         <label className="block text-sm font-bold text-slate-700 mb-1">{t('jobTypes.category', 'Categoria')}</label>
-                                        <input value={category} onChange={e => setCategory(e.target.value)} required className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder={t('jobTypes.categoryPlaceholder', 'Ex: Prótese Fixa')}/>
+                                        <CategoryCombobox value={category} onChange={setCategory} existingCategories={allExistingCategories} placeholder={t('jobTypes.categoryPlaceholder', 'Ex: Prótese Fixa')} required />
                                     </div>
                                     {mainTab === 'PROMOTIONS' && (
                                         <>
@@ -1961,6 +2163,84 @@ export const JobTypes = () => {
                   </div>
               </div>
           </div>
+      )}
+
+      {/* Category Creation / Management Modal */}
+      {isCategoryModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+                  <Folder size={20} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Categorias de Serviço</h3>
+                  <p className="text-xs text-slate-500">Crie e gerencie as categorias do catálogo</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCategoryModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Create Input */}
+            <form onSubmit={(e) => { e.preventDefault(); handleCreateNewCategory(newCategoryName); }} className="space-y-3">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block">
+                Nome da Nova Categoria
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  placeholder="Ex: Monolíticos, Metalocerâmica, Implante..."
+                  className="flex-1 px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                  autoFocus
+                />
+                <button
+                  type="submit"
+                  disabled={!newCategoryName.trim()}
+                  className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl transition-all cursor-pointer shadow-sm flex items-center gap-1 shrink-0"
+                >
+                  <Plus size={16} />
+                  <span>Criar</span>
+                </button>
+              </div>
+            </form>
+
+            {/* List of Existing & Custom Categories */}
+            <div className="space-y-2 pt-2 border-t border-slate-100">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                Categorias Cadastradas ({allExistingCategories.length})
+              </span>
+              <div className="max-h-48 overflow-y-auto divide-y divide-slate-100 rounded-xl border border-slate-100 bg-slate-50/50 p-2">
+                {allExistingCategories.map(cat => (
+                  <div key={cat} className="py-1.5 px-2 flex items-center justify-between hover:bg-white rounded-lg transition-colors">
+                    <span className="text-xs font-semibold text-slate-800 flex items-center gap-1.5">
+                      <Tag size={12} className="text-emerald-600" />
+                      {cat}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedCategory(cat);
+                        setIsCategoryModalOpen(false);
+                      }}
+                      className="text-[10px] font-bold text-blue-600 hover:text-blue-800 bg-blue-50 px-2 py-0.5 rounded cursor-pointer"
+                    >
+                      Filtrar
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Import Preview Modal */}

@@ -6,7 +6,7 @@ import {
   DollarSign, TrendingUp, ChevronDown, ChevronUp, ChevronRight, FileSpreadsheet, 
   ArrowUpDown, Wallet, UserCheck, Stethoscope, CheckCircle2, Clock, AlertCircle,
   BarChart3, Sparkles, Lock, ArrowLeft, User as UserIcon, Layers, History, ShieldAlert,
-  Receipt
+  Receipt, Folder
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
@@ -34,6 +34,23 @@ export interface ClientSummaryStat {
     canceled: number;
   };
 }
+
+
+export const translatePaymentMethod = (method: string) => {
+  switch (method) {
+    case 'PIX': return 'PIX';
+    case 'CASH': return 'Dinheiro';
+    case 'CHEQUE':
+    case 'CHECK': return 'Cheque';
+    case 'CREDIT_CARD': return 'Cartão de Crédito';
+    case 'DEBIT_CARD': return 'Cartão de Débito';
+    case 'BANK_TRANSFER': return 'Transf. Bancária';
+    case 'BOLETO': return 'Boleto';
+    case 'DISCOUNT': return 'Desconto/Cortesia';
+    case 'CLIENT_CREDIT': return 'Saldo Crédito';
+    default: return method || 'Outro';
+  }
+};
 
 export default function Reports() {
   const { t } = useTranslation();
@@ -101,7 +118,7 @@ export default function Reports() {
   // Available report types for navigation based on view permissions
   const availableReportTabs = useMemo(() => {
     const tabs: {
-      type: 'CLIENT_SUMMARY' | 'PRODUCTION' | 'DETAILED_ORDERS' | 'SERVICE_TYPES' | 'DEBTORS_CREDITORS';
+      type: 'CLIENT_SUMMARY' | 'PRODUCTION' | 'DETAILED_ORDERS' | 'SERVICE_TYPES' | 'DEBTORS_CREDITORS' | 'RECEIPTS';
       label: string;
       icon: any;
       activeColor: string;
@@ -116,6 +133,14 @@ export default function Reports() {
         icon: Users,
         activeColor: 'bg-white text-teal-700 shadow-sm border border-slate-200/60',
         textColor: 'text-teal-600',
+        canExport: canExportClientSummary
+      });
+      tabs.push({
+        type: 'RECEIPTS',
+        label: t('reports.receiptsReport', 'Recebimentos'),
+        icon: Wallet,
+        activeColor: 'bg-white text-emerald-700 shadow-sm border border-slate-200/60',
+        textColor: 'text-emerald-600',
         canExport: canExportClientSummary
       });
       tabs.push({
@@ -203,7 +228,9 @@ export default function Reports() {
   const [statusFilter, setStatusFilter] = useState('');
   const [urgencyFilter, setUrgencyFilter] = useState('');
   const [groupBy, setGroupBy] = useState<'DATE' | 'JOB_TYPE' | 'LIST' | 'COLLABORATOR'>('DATE');
-  const [reportType, setReportType] = useState<'CLIENT_SUMMARY' | 'PRODUCTION' | 'DETAILED_ORDERS' | 'SERVICE_TYPES' | 'DEBTORS_CREDITORS'>('CLIENT_SUMMARY');
+  const [reportType, setReportType] = useState<'CLIENT_SUMMARY' | 'PRODUCTION' | 'DETAILED_ORDERS' | 'SERVICE_TYPES' | 'DEBTORS_CREDITORS' | 'RECEIPTS' | null>(null);
+  const [selectedServiceCategory, setSelectedServiceCategory] = useState<string>('');
+  const [receiptsSubView, setReceiptsSubView] = useState<'CLIENTS' | 'TRANSACTIONS'>('CLIENTS');
 
   // Handle outside clicks to close dropdowns
   useEffect(() => {
@@ -350,6 +377,8 @@ export default function Reports() {
       case 'PRODUCTION': return canExportProduction;
       case 'DETAILED_ORDERS': return canExportDetailedOrders;
       case 'SERVICE_TYPES': return canExportServiceTypes;
+      case 'DEBTORS_CREDITORS': return canExportClientSummary;
+      case 'RECEIPTS': return canExportClientSummary;
       default: return false;
     }
   }, [reportType, canExportClientSummary, canExportProduction, canExportDetailedOrders, canExportServiceTypes]);
@@ -368,6 +397,25 @@ export default function Reports() {
   const [clientSearch, setClientSearch] = useState('');
   const [clientSortBy, setClientSortBy] = useState<'BILLING_DESC' | 'BILLING_ASC' | 'JOBS_DESC' | 'NAME_ASC' | 'TICKET_DESC'>('BILLING_DESC');
   const [expandedClientId, setExpandedClientId] = useState<string | null>(null);
+
+  // Consolidated list of all service categories
+  const allCategoriesList = useMemo(() => {
+    const cats = jobTypes.map(jt => (jt.category || 'Geral').trim()).filter(Boolean);
+    let custom: string[] = [];
+    try {
+      const saved = localStorage.getItem('labprox_custom_job_categories');
+      if (saved) custom = JSON.parse(saved);
+    } catch (err) {}
+    const merged = Array.from(new Set(['Geral', 'Prótese Fixa', 'Prótese Removível', 'Prótese Total', 'Ortodontia', 'Placas', 'Implante', 'Estética', ...cats, ...custom]));
+    return merged.sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' }));
+  }, [jobTypes]);
+
+  // Job types filtered by selected category
+  const availableJobTypesForFilter = useMemo(() => {
+    if (!selectedServiceCategory) return jobTypes;
+    const catTerm = selectedServiceCategory.toLowerCase().trim();
+    return jobTypes.filter(jt => (jt.category || 'Geral').toLowerCase().trim() === catTerm);
+  }, [jobTypes, selectedServiceCategory]);
 
   const selectedJobType = useMemo(() => {
     return jobTypes.find(jt => jt.id === jobTypeId);
@@ -401,6 +449,46 @@ export default function Reports() {
       setEndDate('');
     }
   };
+
+  // Helper to isolate items that match current service filters (Job Type, Variation, Service Category)
+  const getMatchingJobItems = useMemo(() => {
+    return (job: Job) => {
+      let items = job.items || [];
+
+      // Filter by Service Category if set
+      if (selectedServiceCategory) {
+        const catTerm = selectedServiceCategory.toLowerCase().trim();
+        const matchingTypeIds = new Set(
+          jobTypes
+            .filter(jt => (jt.category || 'Geral').toLowerCase().trim() === catTerm)
+            .map(jt => jt.id)
+        );
+
+        items = items.filter(item => {
+          if (item.jobTypeId && matchingTypeIds.has(item.jobTypeId)) return true;
+          const jt = jobTypes.find(t => t.id === item.jobTypeId || t.name === item.name);
+          return jt && (jt.category || 'Geral').toLowerCase().trim() === catTerm;
+        });
+      }
+
+      // Filter by Job Type if set
+      if (jobTypeId) {
+        items = items.filter(item => {
+          const isMatchingType = item.jobTypeId === jobTypeId || item.name === selectedJobType?.name;
+          if (!isMatchingType) return false;
+          for (const [groupId, optionId] of Object.entries(variationFilters)) {
+            if (optionId) {
+              const hasOpt = item.selectedVariationIds?.includes(optionId);
+              if (!hasOpt) return false;
+            }
+          }
+          return true;
+        });
+      }
+
+      return items;
+    };
+  }, [jobTypes, selectedServiceCategory, jobTypeId, selectedJobType, variationFilters]);
 
   // Filter jobs
   const filteredJobs = useMemo(() => {
@@ -461,6 +549,7 @@ export default function Reports() {
       if (statusFilter) {
         if (statusFilter === 'PENDING' && job.status !== 'PENDING') return false;
         if (statusFilter === 'IN_PROGRESS' && job.status !== 'IN_PROGRESS' && job.status !== 'SECTOR_TRANSITION') return false;
+        if (statusFilter === 'COMPLETED' && job.status !== 'COMPLETED' && job.status !== 'DELIVERED') return false;
         if (statusFilter === 'DELAYED') {
           if (job.status === 'COMPLETED' || job.status === 'DELIVERED' || job.status === 'CANCELED') return false;
           const today = new Date();
@@ -475,6 +564,24 @@ export default function Reports() {
       if (urgencyFilter) {
         if (urgencyFilter === 'URGENT' && job.urgency !== 'HIGH' && job.urgency !== 'VIP') return false;
         if (urgencyFilter === 'NORMAL' && job.urgency !== 'NORMAL' && job.urgency !== 'LOW') return false;
+      }
+
+      // Service Category filter
+      if (selectedServiceCategory) {
+        const catTerm = selectedServiceCategory.toLowerCase().trim();
+        const matchingTypeIds = new Set(
+          jobTypes
+            .filter(jt => (jt.category || 'Geral').toLowerCase().trim() === catTerm)
+            .map(jt => jt.id)
+        );
+
+        const hasMatchingCategory = job.items?.some(item => {
+          if (item.jobTypeId && matchingTypeIds.has(item.jobTypeId)) return true;
+          const jt = jobTypes.find(t => t.id === item.jobTypeId || t.name === item.name);
+          return jt && (jt.category || 'Geral').toLowerCase().trim() === catTerm;
+        });
+
+        if (!hasMatchingCategory) return false;
       }
 
       return true;
@@ -539,9 +646,12 @@ export default function Reports() {
 
       const client = clientsMap[clientId];
       client.totalJobs += 1;
-      const itemsCount = (job.items || []).reduce((sum, it) => sum + (it.quantity || 1), 0);
+      const matchingItems = getMatchingJobItems(job);
+      const itemsCount = matchingItems.reduce((sum, it) => sum + (it.quantity || 1), 0);
+      const effectiveJobValue = matchingItems.reduce((sum, it) => sum + ((it.price * (it.quantity || 1)) - (it.appliedDiscount || 0)), 0);
+
       client.totalItems += itemsCount;
-      client.totalBilling += (job.totalValue || 0);
+      client.totalBilling += effectiveJobValue;
       client.jobs.push(job);
 
       if (job.status === 'PENDING') client.statusBreakdown.pending++;
@@ -550,7 +660,7 @@ export default function Reports() {
       else if (job.status === 'DELIVERED') client.statusBreakdown.delivered++;
       else if (job.status === 'CANCELED' || job.status === 'REJECTED') client.statusBreakdown.canceled++;
 
-      grandTotalBilling += (job.totalValue || 0);
+      grandTotalBilling += effectiveJobValue;
       grandTotalJobs += 1;
       grandTotalItems += itemsCount;
     });
@@ -569,7 +679,7 @@ export default function Reports() {
       grandTotalClients: clientList.length,
       averageTicketGlobal: grandTotalJobs > 0 ? grandTotalBilling / grandTotalJobs : 0
     };
-  }, [filteredJobs, manualDentists, allUsers]);
+  }, [filteredJobs, manualDentists, allUsers, getMatchingJobItems]);
 
   // Sorted and filtered clients for table
   const sortedClients = useMemo(() => {
@@ -805,6 +915,117 @@ export default function Reports() {
     };
   }, [jobs, manualDentists, allUsers, dentistPayments, billingBatches, startDate, endDate, dateType, clientSearch, dentistId, selectedDentist]);
 
+  // Recebimentos (Receipts) Data
+  const receiptsData = useMemo(() => {
+    const rawPayments = (dentistPayments || []).filter(p => p.type !== 'MANUAL_DEBIT');
+
+    const filtered = rawPayments.filter(p => {
+      // Date filter based on paymentDate
+      const payDateStr = p.paymentDate || (p as any).createdAt || (p as any).date;
+      const payDate = new Date(payDateStr);
+      payDate.setHours(0, 0, 0, 0);
+
+      if (startDate) {
+        const start = new Date(startDate);
+        start.setMinutes(start.getMinutes() + start.getTimezoneOffset());
+        start.setHours(0, 0, 0, 0);
+        if (payDate < start) return false;
+      }
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setMinutes(end.getMinutes() + end.getTimezoneOffset());
+        end.setHours(23, 59, 59, 999);
+        if (payDate > end) return false;
+      }
+
+      // Dentist filter
+      if (dentistId && p.dentistId !== dentistId && p.dentistName !== dentistId && (!selectedDentist || p.dentistName !== selectedDentist.name)) {
+        return false;
+      }
+
+      // Client search text filter
+      if (clientSearch.trim()) {
+        const term = clientSearch.toLowerCase().trim();
+        const matchName = (p.dentistName || '').toLowerCase().includes(term);
+        const matchNotes = (p.notes || '').toLowerCase().includes(term);
+        const matchMethod = translatePaymentMethod(p.paymentMethod).toLowerCase().includes(term);
+        if (!matchName && !matchNotes && !matchMethod) return false;
+      }
+
+      return true;
+    });
+
+    filtered.sort((a, b) => {
+      const dateA = new Date(a.paymentDate || (a as any).createdAt).getTime();
+      const dateB = new Date(b.paymentDate || (b as any).createdAt).getTime();
+      return dateB - dateA;
+    });
+
+    let totalAmountReceived = 0;
+    let totalDiscountGiven = 0;
+    const uniqueClientsSet = new Set<string>();
+    const methodBreakdown: Record<string, { count: number; amount: number; discount: number }> = {};
+    const clientGroupsMap = new Map<string, {
+      clientId: string;
+      clientName: string;
+      totalAmount: number;
+      totalDiscount: number;
+      count: number;
+      payments: typeof filtered;
+    }>();
+
+    filtered.forEach(p => {
+      const amount = Number(p.amount || 0);
+      const discount = Number(p.discount || 0);
+      totalAmountReceived += amount;
+      totalDiscountGiven += discount;
+
+      const cName = p.dentistName || 'Cliente';
+      const cId = p.dentistId || cName;
+      uniqueClientsSet.add(cId);
+
+      const methodKey = p.paymentMethod || 'OTHER';
+      if (!methodBreakdown[methodKey]) {
+        methodBreakdown[methodKey] = { count: 0, amount: 0, discount: 0 };
+      }
+      methodBreakdown[methodKey].count += 1;
+      methodBreakdown[methodKey].amount += amount;
+      methodBreakdown[methodKey].discount += discount;
+
+      if (!clientGroupsMap.has(cId)) {
+        clientGroupsMap.set(cId, {
+          clientId: cId,
+          clientName: cName,
+          totalAmount: 0,
+          totalDiscount: 0,
+          count: 0,
+          payments: []
+        });
+      }
+      const grp = clientGroupsMap.get(cId)!;
+      grp.totalAmount += amount;
+      grp.totalDiscount += discount;
+      grp.count += 1;
+      grp.payments.push(p);
+    });
+
+    const clientGroups = Array.from(clientGroupsMap.values()).sort((a, b) => b.totalAmount - a.totalAmount);
+    const uniqueClientsCount = uniqueClientsSet.size;
+    const transactionCount = filtered.length;
+    const averagePerClient = uniqueClientsCount > 0 ? totalAmountReceived / uniqueClientsCount : 0;
+
+    return {
+      filteredPayments: filtered,
+      totalAmountReceived,
+      totalDiscountGiven,
+      transactionCount,
+      uniqueClientsCount,
+      averagePerClient,
+      methodBreakdown,
+      clientGroups
+    };
+  }, [dentistPayments, startDate, endDate, dentistId, selectedDentist, clientSearch]);
+
   // Group jobs for production/detailed report
   const groupedJobs = useMemo(() => {
     const groups: Record<string, typeof jobs> = {};
@@ -886,7 +1107,14 @@ export default function Reports() {
     filteredJobs.forEach(job => {
       job.items.forEach((item: any) => {
         const typeId = item.jobTypeId || item.name;
-        const typeName = jobTypes.find(tj => tj.id === typeId)?.name || item.name;
+        const matchingJt = jobTypes.find(tj => tj.id === typeId || tj.name === item.name);
+        const typeName = matchingJt?.name || item.name;
+        const typeCat = matchingJt?.category || 'Geral';
+
+        if (selectedServiceCategory && typeCat.toLowerCase().trim() !== selectedServiceCategory.toLowerCase().trim()) {
+          return;
+        }
+
         if (!stats[typeName]) {
           stats[typeName] = { quantity: 0, totalValue: 0 };
         }
@@ -895,7 +1123,7 @@ export default function Reports() {
       });
     });
     return stats;
-  }, [filteredJobs, reportType, jobTypes]);
+  }, [filteredJobs, reportType, jobTypes, selectedServiceCategory]);
 
   // Export to PDF
   const generatePDF = () => {
@@ -911,6 +1139,7 @@ export default function Reports() {
     let title = t('reports.pdfReportTitleProduction', 'Relatório de Produção - {{org}}', { org: orgName });
     if (reportType === 'CLIENT_SUMMARY') title = t('reports.pdfReportTitleClientSummary', 'Relatório de Faturamento e Casos por Cliente - {{org}}', { org: orgName });
     if (reportType === 'DEBTORS_CREDITORS') title = `Relatório de Devedores / Credores - ${orgName}`;
+    if (reportType === 'RECEIPTS') title = `Relatório de Recebimentos - ${orgName}`;
     if (reportType === 'DETAILED_ORDERS') title = t('reports.pdfReportTitleDetailedOrders', 'Relatório Detalhado de Pedidos - {{org}}', { org: orgName });
     if (reportType === 'SERVICE_TYPES') title = t('reports.pdfReportTitleServiceTypes', 'Relatório de Tipos de Serviço - {{org}}', { org: orgName });
     doc.text(title, 14, 20);
@@ -1002,6 +1231,66 @@ export default function Reports() {
       });
       
       doc.save(`relatorio-devedores-credores-${new Date().getTime()}.pdf`);
+      return;
+    }
+
+    // --- PDF: RECEIPTS ---
+    if (reportType === 'RECEIPTS') {
+      doc.setFontSize(11);
+      doc.setTextColor(30, 41, 59);
+      doc.text(
+        `Total Recebido: R$ ${receiptsData.totalAmountReceived.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}  |  Descontos: R$ ${receiptsData.totalDiscountGiven.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}  |  Qtd Pagamentos: ${receiptsData.transactionCount}  |  Clientes: ${receiptsData.uniqueClientsCount}`, 
+        14, 34
+      );
+
+      const tableData = receiptsData.filteredPayments.map(p => [
+        new Date(p.paymentDate || (p as any).createdAt).toLocaleDateString('pt-BR'),
+        p.dentistName || 'Cliente',
+        translatePaymentMethod(p.paymentMethod),
+        `R$ ${Number(p.discount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        `R$ ${Number(p.amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        p.notes || '-'
+      ]);
+
+      tableData.push([
+        'TOTAL GERAL',
+        `${receiptsData.uniqueClientsCount} clientes`,
+        `${receiptsData.transactionCount} recebimentos`,
+        `R$ ${receiptsData.totalDiscountGiven.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        `R$ ${receiptsData.totalAmountReceived.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        '-'
+      ]);
+
+      autoTable(doc, {
+        startY: 40,
+        head: [[
+          'Data',
+          'Cliente / Dentista',
+          'Forma de Pagamento',
+          'Desconto (R$)',
+          'Valor Recebido (R$)',
+          'Observações'
+        ]],
+        body: tableData,
+        theme: 'grid',
+        headStyles: { fillColor: [5, 150, 105] }, // Emerald 600
+        styles: { fontSize: 8, cellPadding: 3 },
+        columnStyles: {
+          0: { fontStyle: 'bold', halign: 'center' },
+          1: { fontStyle: 'bold' },
+          3: { halign: 'right' },
+          4: { fontStyle: 'bold', halign: 'right' }
+        },
+        didParseCell: (data) => {
+          if (data.row.index === tableData.length - 1) {
+            data.cell.styles.fontStyle = 'bold';
+            data.cell.styles.fillColor = [236, 253, 245];
+            data.cell.styles.textColor = [4, 120, 87];
+          }
+        }
+      });
+      
+      doc.save(`relatorio-recebimentos-${new Date().getTime()}.pdf`);
       return;
     }
 
@@ -1121,13 +1410,16 @@ export default function Reports() {
           let entryDate = new Date(job.createdAt).toLocaleDateString();
           let finishDate = job.status === JobStatus.COMPLETED && job.history ? new Date(job.history.slice().reverse().find((h: any) => h.action === 'COMPLETED' || h.statusTo === JobStatus.COMPLETED)?.timestamp || new Date()).toLocaleDateString() : '-';
           
-          let itemsText = (job.items || []).map(item => {
+          const matchingItems = getMatchingJobItems(job);
+          const effectiveJobValue = matchingItems.reduce((sum, item) => sum + ((item.price * (item.quantity || 1)) - (item.appliedDiscount || 0)), 0);
+
+          let itemsText = matchingItems.map(item => {
             const jt = jobTypes.find(t => t.id === item.jobTypeId);
-            return `${item.quantity}x ${jt ? jt.name : item.name}`;
+            return `${item.quantity || 1}x ${jt ? jt.name : item.name}`;
           }).join('\n');
           
-          let pricesText = (job.items || []).map(item => {
-            return `R$ ${((item.price * item.quantity) - (item.appliedDiscount || 0)).toFixed(2)}`;
+          let pricesText = matchingItems.map(item => {
+            return `R$ ${(((item.price * (item.quantity || 1))) - (item.appliedDiscount || 0)).toFixed(2)}`;
           }).join('\n');
 
           tableData.push([
@@ -1137,7 +1429,7 @@ export default function Reports() {
             job.patientName,
             itemsText,
             pricesText,
-            `R$ ${job.totalValue.toFixed(2)}`,
+            `R$ ${effectiveJobValue.toFixed(2)}`,
             entryDate,
             finishDate
           ]);
@@ -1246,6 +1538,31 @@ export default function Reports() {
       XLSX.writeFile(wb, `devedores_credores_${currentOrg?.name || 'labprox'}_${new Date().toISOString().split('T')[0]}.xlsx`);
       return;
     }
+    if (reportType === 'RECEIPTS') {
+      const rows = receiptsData.filteredPayments.map((p) => ({
+        'Data Recebimento': new Date(p.paymentDate || (p as any).createdAt).toLocaleDateString('pt-BR'),
+        'Cliente / Dentista': p.dentistName || 'Cliente',
+        'Forma de Pagamento': translatePaymentMethod(p.paymentMethod),
+        'Valor Recebido (R$)': Number(Number(p.amount || 0).toFixed(2)),
+        'Desconto Concedido (R$)': Number(Number(p.discount || 0).toFixed(2)),
+        'Observações / Notas': p.notes || '-'
+      }));
+
+      rows.push({
+        'Data Recebimento': 'TOTAL GERAL',
+        'Cliente / Dentista': `${receiptsData.uniqueClientsCount} clientes com pagamentos`,
+        'Forma de Pagamento': `${receiptsData.transactionCount} transações`,
+        'Valor Recebido (R$)': Number(receiptsData.totalAmountReceived.toFixed(2)),
+        'Desconto Concedido (R$)': Number(receiptsData.totalDiscountGiven.toFixed(2)),
+        'Observações / Notas': '-'
+      });
+
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Recebimentos');
+      XLSX.writeFile(wb, `relatorio_recebimentos_${currentOrg?.name || 'labprox'}_${new Date().toISOString().split('T')[0]}.xlsx`);
+      return;
+    }
     if (reportType === 'CLIENT_SUMMARY') {
       const rows = sortedClients.map((c, index) => ({
         '#': index + 1,
@@ -1277,34 +1594,44 @@ export default function Reports() {
       XLSX.utils.book_append_sheet(wb, ws, t('reports.excelClientBillingSheet', 'Faturamento por Cliente'));
 
       // Also add detailed orders sheet
-      const detailedRows = filteredJobs.map(job => ({
-        [t('reports.osNumber', 'OS')]: job.osNumber || '-',
-        [t('reports.box', 'Caixa')]: job.boxNumber || '-',
-        [t('reports.clientDentist', 'Dentista')]: job.dentistName,
-        [t('reports.clinicHeader', 'Clínica')]: job.clinicName || '-',
-        [t('reports.patient', 'Paciente')]: job.patientName,
-        [`${t('reports.total', 'Valor Total')} (R$)`]: Number((job.totalValue || 0).toFixed(2)),
-        [t('reports.entryDate', 'Data Entrada')]: new Date(job.createdAt).toLocaleDateString(),
-        [t('reports.deliveryDate', 'Data Entrega')]: new Date(job.dueDate).toLocaleDateString(),
-        [t('reports.status', 'Status')]: getStatusLabel(job.status),
-        [t('reports.sector', 'Setor')]: job.currentSector || 'Recepção'
-      }));
+      const detailedRows = filteredJobs.map(job => {
+        const matchingItems = getMatchingJobItems(job);
+        const effectiveJobValue = matchingItems.reduce((sum, item) => sum + ((item.price * (item.quantity || 1)) - (item.appliedDiscount || 0)), 0);
+        return {
+          [t('reports.osNumber', 'OS')]: job.osNumber || '-',
+          [t('reports.box', 'Caixa')]: job.boxNumber || '-',
+          [t('reports.clientDentist', 'Dentista')]: job.dentistName,
+          [t('reports.clinicHeader', 'Clínica')]: job.clinicName || '-',
+          [t('reports.patient', 'Paciente')]: job.patientName,
+          [t('reports.services', 'Serviços')]: matchingItems.map(it => `${it.quantity || 1}x ${it.name}`).join('; '),
+          [`${t('reports.total', 'Valor Total')} (R$)`]: Number(effectiveJobValue.toFixed(2)),
+          [t('reports.entryDate', 'Data Entrada')]: new Date(job.createdAt).toLocaleDateString(),
+          [t('reports.deliveryDate', 'Data Entrega')]: new Date(job.dueDate).toLocaleDateString(),
+          [t('reports.status', 'Status')]: getStatusLabel(job.status),
+          [t('reports.sector', 'Setor')]: job.currentSector || 'Recepção'
+        };
+      });
       const wsDetail = XLSX.utils.json_to_sheet(detailedRows);
       XLSX.utils.book_append_sheet(wb, wsDetail, t('reports.excelPeriodCasesSheet', 'Casos do Período'));
 
       XLSX.writeFile(wb, `faturamento_clientes_${currentOrg?.name || 'labprox'}_${new Date().toISOString().split('T')[0]}.xlsx`);
     } else {
-      const rows = filteredJobs.map(job => ({
-        [t('reports.osNumber', 'OS')]: job.osNumber || '-',
-        [t('reports.box', 'Caixa')]: job.boxNumber || '-',
-        [t('reports.clientDentist', 'Dentista')]: job.dentistName,
-        [t('reports.patient', 'Paciente')]: job.patientName,
-        [`${t('reports.total', 'Valor Total')} (R$)`]: Number((job.totalValue || 0).toFixed(2)),
-        [t('reports.entryDate', 'Data Entrada')]: new Date(job.createdAt).toLocaleDateString(),
-        [t('reports.deliveryDate', 'Data Entrega')]: new Date(job.dueDate).toLocaleDateString(),
-        [t('reports.status', 'Status')]: getStatusLabel(job.status),
-        [t('reports.sector', 'Setor')]: job.currentSector || 'Recepção'
-      }));
+      const rows = filteredJobs.map(job => {
+        const matchingItems = getMatchingJobItems(job);
+        const effectiveJobValue = matchingItems.reduce((sum, item) => sum + ((item.price * (item.quantity || 1)) - (item.appliedDiscount || 0)), 0);
+        return {
+          [t('reports.osNumber', 'OS')]: job.osNumber || '-',
+          [t('reports.box', 'Caixa')]: job.boxNumber || '-',
+          [t('reports.clientDentist', 'Dentista')]: job.dentistName,
+          [t('reports.patient', 'Paciente')]: job.patientName,
+          [t('reports.services', 'Serviços')]: matchingItems.map(it => `${it.quantity || 1}x ${it.name}`).join('; '),
+          [`${t('reports.total', 'Valor Total')} (R$)`]: Number(effectiveJobValue.toFixed(2)),
+          [t('reports.entryDate', 'Data Entrada')]: new Date(job.createdAt).toLocaleDateString(),
+          [t('reports.deliveryDate', 'Data Entrega')]: new Date(job.dueDate).toLocaleDateString(),
+          [t('reports.status', 'Status')]: getStatusLabel(job.status),
+          [t('reports.sector', 'Setor')]: job.currentSector || 'Recepção'
+        };
+      });
 
       const ws = XLSX.utils.json_to_sheet(rows);
       const wb = XLSX.utils.book_new();
@@ -1328,6 +1655,7 @@ export default function Reports() {
     setVariationFilters({});
     setStatusFilter('');
     setUrgencyFilter('');
+    setSelectedServiceCategory('');
     setClientSearch('');
   };
 
@@ -1457,37 +1785,256 @@ export default function Reports() {
         </div>
       </div>
 
-      {/* Segmented Navigation of Permitted Report Types */}
-      <div className={`flex overflow-x-auto no-scrollbar sm:grid gap-2 bg-slate-100 dark:bg-slate-850 p-1.5 rounded-2xl border border-slate-200/60 dark:border-slate-800 ${
-        availableReportTabs.length === 1 ? 'sm:grid-cols-1 max-w-xs' :
-        availableReportTabs.length === 2 ? 'sm:grid-cols-2 max-w-xl' :
-        availableReportTabs.length === 3 ? 'sm:grid-cols-3' :
-        'sm:grid-cols-2 md:grid-cols-4'
-      }`}>
-        {availableReportTabs.map(tab => {
-          const Icon = tab.icon;
-          const isActive = reportType === tab.type;
-          return (
-            <button
-              key={tab.type}
-              onClick={() => setReportType(tab.type)}
-              className={`px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-xl font-black text-[11px] sm:text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer shrink-0 whitespace-nowrap ${
-                isActive
-                  ? tab.activeColor
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
-              }`}
-            >
-              <Icon size={16} className={isActive ? tab.textColor : 'text-slate-400'} />
-              <span className="truncate">{tab.label}</span>
-              {!tab.canExport && (
-                <span title={t('reports.viewOnlyShort', 'Visualização apenas')} className="inline-flex items-center">
-                  <Lock size={12} className="text-slate-400 shrink-0" />
-                </span>
-              )}
-            </button>
-          );
-        })}
+      {/* 3-Column Report Categories Layout (Clientes, Produção, Financeiro) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        {/* Category Card 1: Clientes */}
+        <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs flex flex-col space-y-4">
+          <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
+            <div className="w-10 h-10 rounded-2xl bg-teal-50 text-teal-700 font-bold flex items-center justify-center shrink-0 border border-teal-100/80">
+              <Users size={20} />
+            </div>
+            <div>
+              <h3 className="font-black text-slate-900 text-base">Clientes</h3>
+              <p className="text-[11px] text-slate-400 font-medium">Relatórios de faturamento e movimentação</p>
+            </div>
+          </div>
+
+          <div className="space-y-2 flex-1">
+            {canViewClientSummary && (
+              <button
+                type="button"
+                onClick={() => setReportType('CLIENT_SUMMARY')}
+                className={`w-full text-left p-3.5 rounded-2xl transition-all border cursor-pointer ${
+                  reportType === 'CLIENT_SUMMARY'
+                    ? 'bg-teal-50/90 border-teal-300 ring-2 ring-teal-500/20 text-teal-950 shadow-sm'
+                    : 'bg-slate-50/60 hover:bg-slate-100/80 border-slate-200/70 text-slate-800'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-xs uppercase tracking-wide">Resumo por Cliente</span>
+                  {reportType === 'CLIENT_SUMMARY' && <span className="text-[10px] font-black uppercase text-teal-700 bg-teal-100 px-2 py-0.5 rounded-md">Ativo</span>}
+                </div>
+                <p className="text-[11px] text-slate-500 font-medium mt-1 leading-snug">
+                  Listagem de todos os clientes com faturamento, quantidade de casos e ticket médio.
+                </p>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Category Card 2: Produção */}
+        <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs flex flex-col space-y-4">
+          <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
+            <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-700 font-bold flex items-center justify-center shrink-0 border border-indigo-100/80">
+              <BarChart3 size={20} />
+            </div>
+            <div>
+              <h3 className="font-black text-slate-900 text-base">Produção</h3>
+              <p className="text-[11px] text-slate-400 font-medium">Acompanhamento de pedidos e serviços</p>
+            </div>
+          </div>
+
+          <div className="space-y-2 flex-1">
+            {canViewProduction && (
+              <button
+                type="button"
+                onClick={() => setReportType('PRODUCTION')}
+                className={`w-full text-left p-3.5 rounded-2xl transition-all border cursor-pointer ${
+                  reportType === 'PRODUCTION'
+                    ? 'bg-indigo-50/90 border-indigo-300 ring-2 ring-indigo-500/20 text-indigo-950 shadow-sm'
+                    : 'bg-slate-50/60 hover:bg-slate-100/80 border-slate-200/70 text-slate-800'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-xs uppercase tracking-wide">Produção Básica</span>
+                  {reportType === 'PRODUCTION' && <span className="text-[10px] font-black uppercase text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded-md">Ativo</span>}
+                </div>
+                <p className="text-[11px] text-slate-500 font-medium mt-1 leading-snug">
+                  Acompanhamento geral dos trabalhos por data de entrada, entrega, setor ou colaborador.
+                </p>
+              </button>
+            )}
+
+            {canViewDetailedOrders && (
+              <button
+                type="button"
+                onClick={() => setReportType('DETAILED_ORDERS')}
+                className={`w-full text-left p-3.5 rounded-2xl transition-all border cursor-pointer ${
+                  reportType === 'DETAILED_ORDERS'
+                    ? 'bg-amber-50/90 border-amber-300 ring-2 ring-amber-500/20 text-amber-950 shadow-sm'
+                    : 'bg-slate-50/60 hover:bg-slate-100/80 border-slate-200/70 text-slate-800'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-xs uppercase tracking-wide">Pedidos Detalhados</span>
+                  {reportType === 'DETAILED_ORDERS' && <span className="text-[10px] font-black uppercase text-amber-700 bg-amber-100 px-2 py-0.5 rounded-md">Ativo</span>}
+                </div>
+                <p className="text-[11px] text-slate-500 font-medium mt-1 leading-snug">
+                  Listagem detalhada de ordens com serviços inclusos, caixas, paciente e valores.
+                </p>
+              </button>
+            )}
+
+            {canViewServiceTypes && (
+              <button
+                type="button"
+                onClick={() => setReportType('SERVICE_TYPES')}
+                className={`w-full text-left p-3.5 rounded-2xl transition-all border cursor-pointer ${
+                  reportType === 'SERVICE_TYPES'
+                    ? 'bg-purple-50/90 border-purple-300 ring-2 ring-purple-500/20 text-purple-950 shadow-sm'
+                    : 'bg-slate-50/60 hover:bg-slate-100/80 border-slate-200/70 text-slate-800'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-xs uppercase tracking-wide">Tipos de Serviço</span>
+                  {reportType === 'SERVICE_TYPES' && <span className="text-[10px] font-black uppercase text-purple-700 bg-purple-100 px-2 py-0.5 rounded-md">Ativo</span>}
+                </div>
+                <p className="text-[11px] text-slate-500 font-medium mt-1 leading-snug">
+                  Quantidade produzida e faturamento gerado por cada tipo de serviço ou categoria.
+                </p>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Category Card 3: Financeiro */}
+        <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs flex flex-col space-y-4">
+          <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
+            <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-700 font-bold flex items-center justify-center shrink-0 border border-emerald-100/80">
+              <Wallet size={20} />
+            </div>
+            <div>
+              <h3 className="font-black text-slate-900 text-base">Financeiro</h3>
+              <p className="text-[11px] text-slate-400 font-medium">Fluxo de caixa e contas a receber</p>
+            </div>
+          </div>
+
+          <div className="space-y-2 flex-1">
+            {canViewClientSummary && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setReportType('DEBTORS_CREDITORS')}
+                  className={`w-full text-left p-3.5 rounded-2xl transition-all border cursor-pointer ${
+                    reportType === 'DEBTORS_CREDITORS'
+                      ? 'bg-rose-50/90 border-rose-300 ring-2 ring-rose-500/20 text-rose-950 shadow-sm'
+                      : 'bg-slate-50/60 hover:bg-slate-100/80 border-slate-200/70 text-slate-800'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-xs uppercase tracking-wide">Devedores e Credores</span>
+                    {reportType === 'DEBTORS_CREDITORS' && <span className="text-[10px] font-black uppercase text-rose-700 bg-rose-100 px-2 py-0.5 rounded-md">Ativo</span>}
+                  </div>
+                  <p className="text-[11px] text-slate-500 font-medium mt-1 leading-snug">
+                    Listagem de clientes com saldos devedores em aberto, faturas e créditos.
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setReportType('RECEIPTS')}
+                  className={`w-full text-left p-3.5 rounded-2xl transition-all border cursor-pointer ${
+                    reportType === 'RECEIPTS'
+                      ? 'bg-emerald-50/90 border-emerald-300 ring-2 ring-emerald-500/20 text-emerald-950 shadow-sm'
+                      : 'bg-slate-50/60 hover:bg-slate-100/80 border-slate-200/70 text-slate-800'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-xs uppercase tracking-wide">Recebimentos</span>
+                    {reportType === 'RECEIPTS' && <span className="text-[10px] font-black uppercase text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md">Ativo</span>}
+                  </div>
+                  <p className="text-[11px] text-slate-500 font-medium mt-1 leading-snug">
+                    Extrato detalhado de todos os recebimentos e pagamentos efetuados por período.
+                  </p>
+                </button>
+              </>
+            )}
+          </div>
+        </div>
       </div>
+
+      {/* Empty Selection Notice */}
+      {!reportType ? (
+        <div className="bg-slate-50/80 border-2 border-dashed border-slate-200/80 rounded-3xl p-10 text-center space-y-3 animate-in fade-in duration-300">
+          <div className="w-14 h-14 bg-white rounded-2xl border border-slate-200 flex items-center justify-center mx-auto text-slate-400 shadow-2xs">
+            <FileText size={28} />
+          </div>
+          <h3 className="font-black text-slate-800 text-lg">Selecione um Relatório Acima</h3>
+          <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+            Escolha uma das opções nos grupos de <strong>Clientes</strong>, <strong>Produção</strong> ou <strong>Financeiro</strong> para carregar os filtros e os dados do relatório.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-300">
+          {/* KPI Cards when in RECEIPTS mode */}
+      {reportType === 'RECEIPTS' && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="bg-white p-5 rounded-2xl border border-emerald-100 shadow-sm flex items-center gap-4">
+            <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center shrink-0">
+              <DollarSign size={24} />
+            </div>
+            <div className="min-w-0">
+              <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700">Total Recebido</span>
+              <p className="text-xl font-black text-emerald-700 truncate">
+                R$ {receiptsData.totalAmountReceived.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+              <span className="text-xs text-slate-400 font-medium">Entradas no período</span>
+            </div>
+          </div>
+
+          <div className="bg-white p-5 rounded-2xl border border-amber-100 shadow-sm flex items-center gap-4">
+            <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center shrink-0">
+              <Wallet size={24} />
+            </div>
+            <div className="min-w-0">
+              <span className="text-[10px] font-black uppercase tracking-widest text-amber-700">Total Descontos</span>
+              <p className="text-xl font-black text-amber-700 truncate">
+                R$ {receiptsData.totalDiscountGiven.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+              <span className="text-xs text-slate-400 font-medium">Descontos concedidos</span>
+            </div>
+          </div>
+
+          <div className="bg-white p-5 rounded-2xl border border-blue-100 shadow-sm flex items-center gap-4">
+            <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shrink-0">
+              <CheckCircle2 size={24} />
+            </div>
+            <div className="min-w-0">
+              <span className="text-[10px] font-black uppercase tracking-widest text-blue-700">Qtd Recebimentos</span>
+              <p className="text-xl font-black text-slate-900 truncate">
+                {receiptsData.transactionCount} <span className="text-sm font-bold text-slate-400">pagamentos</span>
+              </p>
+              <span className="text-xs text-slate-400 font-medium">Transações efetuadas</span>
+            </div>
+          </div>
+
+          <div className="bg-white p-5 rounded-2xl border border-purple-100 shadow-sm flex items-center gap-4">
+            <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center shrink-0">
+              <Users size={24} />
+            </div>
+            <div className="min-w-0">
+              <span className="text-[10px] font-black uppercase tracking-widest text-purple-700">Clientes Atendidos</span>
+              <p className="text-xl font-black text-slate-900 truncate">
+                {receiptsData.uniqueClientsCount} <span className="text-sm font-bold text-slate-400">clientes</span>
+              </p>
+              <span className="text-xs text-slate-400 font-medium">Com recebimento no período</span>
+            </div>
+          </div>
+
+          <div className="bg-white p-5 rounded-2xl border border-teal-100 shadow-sm flex items-center gap-4">
+            <div className="w-12 h-12 bg-teal-50 text-teal-600 rounded-2xl flex items-center justify-center shrink-0">
+              <TrendingUp size={24} />
+            </div>
+            <div className="min-w-0">
+              <span className="text-[10px] font-black uppercase tracking-widest text-teal-700">Média por Cliente</span>
+              <p className="text-xl font-black text-slate-900 truncate">
+                R$ {receiptsData.averagePerClient.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+              <span className="text-xs text-slate-400 font-medium">Valor médio pago</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* KPI Cards when in DEBTORS_CREDITORS mode */}
       {reportType === 'DEBTORS_CREDITORS' && (
@@ -1927,6 +2474,74 @@ export default function Reports() {
             </div>
           )}
 
+          {/* ALWAYS VISIBLE: SERVICE CATEGORY FILTER */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1.5">
+                <Folder size={13} className="text-teal-600" /> Categoria de Serviço
+              </label>
+              {selectedServiceCategory && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedServiceCategory('');
+                    setJobTypeId('');
+                  }}
+                  className="text-[10px] font-bold text-slate-400 hover:text-rose-500 cursor-pointer"
+                >
+                  {t('common.clear', 'Limpar')}
+                </button>
+              )}
+            </div>
+            <select 
+              value={selectedServiceCategory} 
+              onChange={(e) => {
+                setSelectedServiceCategory(e.target.value);
+                setJobTypeId('');
+              }} 
+              className={`w-full p-3 border rounded-xl font-bold text-slate-700 focus:ring-2 outline-none text-sm transition-all shadow-sm ${
+                selectedServiceCategory ? 'bg-teal-50/40 border-teal-300 ring-1 ring-teal-200' : 'bg-slate-50 border-slate-200 focus:ring-teal-500'
+              }`}
+            >
+              <option value="">Todas as Categorias</option>
+              {allCategoriesList.map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* ALWAYS VISIBLE: SERVICE TYPE FILTER */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1.5">
+                <Package size={13} className="text-teal-600" /> Tipo de Serviço
+              </label>
+              {jobTypeId && (
+                <button
+                  type="button"
+                  onClick={() => setJobTypeId('')}
+                  className="text-[10px] font-bold text-slate-400 hover:text-rose-500 cursor-pointer"
+                >
+                  {t('common.clear', 'Limpar')}
+                </button>
+              )}
+            </div>
+            <select 
+              value={jobTypeId} 
+              onChange={(e) => { setJobTypeId(e.target.value); setVariationFilters({}); }} 
+              className={`w-full p-3 border rounded-xl font-bold text-slate-700 focus:ring-2 outline-none text-sm transition-all shadow-sm ${
+                jobTypeId ? 'bg-teal-50/40 border-teal-300 ring-1 ring-teal-200' : 'bg-slate-50 border-slate-200 focus:ring-teal-500'
+              }`}
+            >
+              <option value="">{t('reports.allTypes', 'Todos os Tipos de Serviço')}</option>
+              {availableJobTypesForFilter.map(jt => (
+                <option key={jt.id} value={jt.id}>
+                  {jt.name} {!selectedServiceCategory && jt.category ? `(${jt.category})` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {reportType !== 'CLIENT_SUMMARY' && (
             <>
               <div className="space-y-1.5">
@@ -1951,6 +2566,7 @@ export default function Reports() {
                   <option value="">{t('reports.allStatuses', 'Todos os Status')}</option>
                   <option value="PENDING">{t('reports.pending', 'Pendente')}</option>
                   <option value="IN_PROGRESS">{t('reports.inProgress', 'Em Produção')}</option>
+                  <option value="COMPLETED">Concluído / Faturado</option>
                   <option value="DELAYED">{t('reports.delayed', 'Atrasado')}</option>
                 </select>
               </div>
@@ -1961,14 +2577,6 @@ export default function Reports() {
                   <option value="">{t('reports.allPriorities', 'Todas as Prioridades')}</option>
                   <option value="NORMAL">{t('reports.normalLow', 'Normal / Baixa')}</option>
                   <option value="URGENT">{t('reports.urgentVip', 'Urgente / VIP')}</option>
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-500 uppercase">{t('reports.jobType', 'Tipo de Trabalho')}</label>
-                <select value={jobTypeId} onChange={(e) => { setJobTypeId(e.target.value); setVariationFilters({}); }} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 focus:ring-2 focus:ring-teal-500 outline-none text-sm">
-                  <option value="">{t('reports.allTypes', 'Todos os Tipos')}</option>
-                  {jobTypes.map(jt => <option key={jt.id} value={jt.id}>{jt.name}</option>)}
                 </select>
               </div>
 
@@ -2004,8 +2612,255 @@ export default function Reports() {
 
       {/* Main Results Container */}
       <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
-        {/* --- VIEW: DEBTORS_CREDITORS (Devedores / Credores) --- */}
-        {reportType === 'DEBTORS_CREDITORS' ? (
+        {/* --- VIEW: RECEIPTS (Recebimentos) --- */}
+        {reportType === 'RECEIPTS' ? (
+          <div>
+            {/* Header & Sub-view Switcher */}
+            <div className="p-5 sm:p-6 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-50/50">
+              <div>
+                <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
+                  <Wallet className="text-emerald-600" size={20} />
+                  Relatório de Recebimentos
+                </h3>
+                <p className="text-slate-500 text-xs font-medium mt-0.5">
+                  Extrato detalhado de todos os valores recebidos no período filtrado
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+                <div className="flex bg-slate-200/70 p-1 rounded-xl">
+                  <button
+                    onClick={() => setReceiptsSubView('CLIENTS')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      receiptsSubView === 'CLIENTS' ? 'bg-white text-emerald-800 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Por Cliente
+                  </button>
+                  <button
+                    onClick={() => setReceiptsSubView('TRANSACTIONS')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      receiptsSubView === 'TRANSACTIONS' ? 'bg-white text-emerald-800 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Lista de Recebimentos
+                  </button>
+                </div>
+
+                <div className="relative flex-1 sm:w-64">
+                  <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    value={clientSearch}
+                    onChange={(e) => setClientSearch(e.target.value)}
+                    placeholder="Buscar cliente, método ou nota..."
+                    className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none shadow-sm"
+                  />
+                  {clientSearch && (
+                    <button onClick={() => setClientSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer">
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Payment Method Summary Chips */}
+            {Object.keys(receiptsData.methodBreakdown).length > 0 && (
+              <div className="p-4 sm:p-5 bg-emerald-50/30 border-b border-emerald-100/50 flex flex-wrap gap-2.5 items-center">
+                <span className="text-[10px] font-black uppercase tracking-wider text-emerald-800 mr-1 flex items-center gap-1">
+                  <BarChart3 size={13} /> Por Forma de Pagamento:
+                </span>
+                {Object.entries(receiptsData.methodBreakdown).map(([method, stats]) => (
+                  <div key={method} className="bg-white border border-emerald-200/80 px-3 py-1.5 rounded-xl shadow-xs flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-800">{translatePaymentMethod(method)}:</span>
+                    <span className="text-xs font-black text-emerald-700">R$ {stats.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-md">({stats.count})</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {receiptsData.filteredPayments.length === 0 ? (
+              <div className="text-center py-16 text-slate-400">
+                <Search size={48} className="mx-auto mb-4 opacity-20" />
+                <p className="font-bold text-base text-slate-600">Nenhum recebimento encontrado no período selecionado.</p>
+                <p className="text-xs text-slate-400 mt-1">Ajuste os filtros de data ou selecione outro cliente.</p>
+              </div>
+            ) : receiptsSubView === 'CLIENTS' ? (
+              /* Grouped by Client View */
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-slate-50 text-slate-500 text-[10px] uppercase tracking-widest font-black border-b border-slate-100">
+                      <th className="p-4 pl-6">Cliente / Dentista</th>
+                      <th className="p-4 text-center">Qtd Recebimentos</th>
+                      <th className="p-4 text-right">Desconto Total (R$)</th>
+                      <th className="p-4 text-right">Total Recebido (R$)</th>
+                      <th className="p-4 pr-6 text-center">Detalhes</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {receiptsData.clientGroups.map((grp) => {
+                      const isExpanded = expandedClientId === grp.clientId;
+                      return (
+                        <React.Fragment key={grp.clientId}>
+                          <tr className={`hover:bg-emerald-50/20 transition-colors ${isExpanded ? 'bg-emerald-50/30' : ''}`}>
+                            <td className="p-4 pl-6 font-bold text-slate-900">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 font-black flex items-center justify-center text-xs shrink-0">
+                                  {grp.clientName.charAt(0).toUpperCase()}
+                                </div>
+                                <span>{grp.clientName}</span>
+                              </div>
+                            </td>
+                            <td className="p-4 text-center font-bold text-slate-600">
+                              <span className="px-2.5 py-1 bg-slate-100 text-slate-700 rounded-lg text-xs font-bold">
+                                {grp.count} {grp.count === 1 ? 'pagamento' : 'pagamentos'}
+                              </span>
+                            </td>
+                            <td className="p-4 text-right font-bold text-amber-600">
+                              R$ {grp.totalDiscount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
+                            <td className="p-4 text-right font-black text-sm text-emerald-700">
+                              R$ {grp.totalAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
+                            <td className="p-4 pr-6 text-center">
+                              <button
+                                onClick={() => setExpandedClientId(isExpanded ? null : grp.clientId)}
+                                className="p-1.5 rounded-lg text-xs font-bold transition-all inline-flex items-center gap-1 cursor-pointer bg-slate-100 hover:bg-emerald-100 text-slate-700 hover:text-emerald-800"
+                              >
+                                {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                <span>{isExpanded ? 'Ocultar' : 'Ver Extrato'}</span>
+                              </button>
+                            </td>
+                          </tr>
+
+                          {/* Expanded payments for this client */}
+                          {isExpanded && (
+                            <tr className="bg-slate-50/80">
+                              <td colSpan={5} className="p-4 sm:p-6 border-y border-emerald-100">
+                                <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-3">
+                                  <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                                    <Wallet size={15} className="text-emerald-600" />
+                                    Histórico de Recebimentos de {grp.clientName}
+                                  </h4>
+                                  <div className="overflow-x-auto">
+                                    <table className="w-full text-left text-xs">
+                                      <thead>
+                                        <tr className="text-[10px] uppercase font-black text-slate-400 border-b border-slate-100">
+                                          <th className="py-2 px-3">Data</th>
+                                          <th className="py-2 px-3">Forma de Pagamento</th>
+                                          <th className="py-2 px-3 text-right">Desconto (R$)</th>
+                                          <th className="py-2 px-3 text-right">Valor Recebido (R$)</th>
+                                          <th className="py-2 px-3">Observações</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="divide-y divide-slate-100">
+                                        {grp.payments.map((p, pIdx) => (
+                                          <tr key={p.id || pIdx} className="hover:bg-slate-50">
+                                            <td className="py-2.5 px-3 font-mono font-bold text-slate-700">
+                                              {new Date(p.paymentDate || (p as any).createdAt).toLocaleDateString('pt-BR')}
+                                            </td>
+                                            <td className="py-2.5 px-3 font-bold text-slate-800">
+                                              {translatePaymentMethod(p.paymentMethod)}
+                                            </td>
+                                            <td className="py-2.5 px-3 text-right font-bold text-amber-600">
+                                              R$ {Number(p.discount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            </td>
+                                            <td className="py-2.5 px-3 text-right font-black text-emerald-700">
+                                              R$ {Number(p.amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            </td>
+                                            <td className="py-2.5 px-3 text-slate-500 text-xs italic">
+                                              {p.notes || '-'}
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr className="bg-emerald-50/70 border-t-2 border-emerald-200 font-black text-xs text-slate-900">
+                      <td className="p-4 pl-6 font-bold text-emerald-900">TOTAL GERAL</td>
+                      <td className="p-4 text-center text-emerald-900">{receiptsData.transactionCount} recebimentos</td>
+                      <td className="p-4 text-right text-emerald-900">
+                        R$ {receiptsData.totalDiscountGiven.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </td>
+                      <td className="p-4 text-right text-sm text-emerald-900 font-black">
+                        R$ {receiptsData.totalAmountReceived.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </td>
+                      <td className="p-4 pr-6"></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            ) : (
+              /* Flat Transactions List View */
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-slate-50 text-slate-500 text-[10px] uppercase tracking-widest font-black border-b border-slate-100">
+                      <th className="p-4 pl-6 text-center">Data</th>
+                      <th className="p-4">Cliente / Dentista</th>
+                      <th className="p-4">Forma de Pagamento</th>
+                      <th className="p-4 text-right">Desconto (R$)</th>
+                      <th className="p-4 text-right">Valor Recebido (R$)</th>
+                      <th className="p-4 pr-6">Observações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {receiptsData.filteredPayments.map((p, idx) => (
+                      <tr key={p.id || idx} className="hover:bg-emerald-50/20 transition-colors">
+                        <td className="p-4 pl-6 text-center font-mono font-bold text-slate-600">
+                          {new Date(p.paymentDate || (p as any).createdAt).toLocaleDateString('pt-BR')}
+                        </td>
+                        <td className="p-4 font-bold text-slate-900">
+                          {p.dentistName || 'Cliente'}
+                        </td>
+                        <td className="p-4">
+                          <span className="px-2.5 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200/60 rounded-lg text-xs font-bold">
+                            {translatePaymentMethod(p.paymentMethod)}
+                          </span>
+                        </td>
+                        <td className="p-4 text-right font-bold text-amber-600">
+                          R$ {Number(p.discount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                        <td className="p-4 text-right font-black text-sm text-emerald-700">
+                          R$ {Number(p.amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                        <td className="p-4 pr-6 text-slate-500 text-xs italic">
+                          {p.notes || '-'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="bg-emerald-50/70 border-t-2 border-emerald-200 font-black text-xs text-slate-900">
+                      <td className="p-4 pl-6 text-center font-bold text-emerald-900">TOTAL</td>
+                      <td className="p-4 font-bold text-emerald-900">{receiptsData.uniqueClientsCount} clientes</td>
+                      <td className="p-4 font-bold text-emerald-900">{receiptsData.transactionCount} recebimentos</td>
+                      <td className="p-4 text-right text-emerald-900">
+                        R$ {receiptsData.totalDiscountGiven.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </td>
+                      <td className="p-4 text-right text-sm text-emerald-900 font-black">
+                        R$ {receiptsData.totalAmountReceived.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </td>
+                      <td className="p-4 pr-6"></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            )}
+          </div>
+        ) : reportType === 'DEBTORS_CREDITORS' ? (
           <div>
             <div className="p-5 sm:p-6 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-50/50">
               <div>
@@ -2300,27 +3155,31 @@ export default function Reports() {
                                         </tr>
                                       </thead>
                                       <tbody className="divide-y divide-slate-100">
-                                        {client.jobs.map(job => (
-                                          <tr key={job.id} className="hover:bg-slate-50">
-                                            <td className="py-2.5 px-3 font-mono font-bold text-slate-800">{job.osNumber || '-'}</td>
-                                            <td className="py-2.5 px-3 font-bold text-slate-900">{job.patientName}</td>
-                                            <td className="py-2.5 px-3 text-slate-600">
-                                              {(job.items || []).map((it, idx) => (
-                                                <div key={idx} className="truncate max-w-xs">{it.quantity}x {it.name}</div>
-                                              ))}
-                                            </td>
-                                            <td className="py-2.5 px-3 text-slate-500">{new Date(job.createdAt).toLocaleDateString()}</td>
-                                            <td className="py-2.5 px-3 text-slate-500">{new Date(job.dueDate).toLocaleDateString()}</td>
-                                            <td className="py-2.5 px-3">
-                                              <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-slate-100 text-slate-700">
-                                                {getStatusLabel(job.status)}
-                                              </span>
-                                            </td>
-                                            <td className="py-2.5 px-3 text-right font-black text-teal-700">
-                                              R$ {(job.totalValue || 0).toFixed(2)}
-                                            </td>
-                                          </tr>
-                                        ))}
+                                        {client.jobs.map(job => {
+                                          const matchingItems = getMatchingJobItems(job);
+                                          const effectiveJobValue = matchingItems.reduce((sum, it) => sum + ((it.price * (it.quantity || 1)) - (it.appliedDiscount || 0)), 0);
+                                          return (
+                                            <tr key={job.id} className="hover:bg-slate-50">
+                                              <td className="py-2.5 px-3 font-mono font-bold text-slate-800">{job.osNumber || '-'}</td>
+                                              <td className="py-2.5 px-3 font-bold text-slate-900">{job.patientName}</td>
+                                              <td className="py-2.5 px-3 text-slate-600">
+                                                {matchingItems.map((it, idx) => (
+                                                  <div key={idx} className="truncate max-w-xs">{it.quantity || 1}x {it.name}</div>
+                                                ))}
+                                              </td>
+                                              <td className="py-2.5 px-3 text-slate-500">{new Date(job.createdAt).toLocaleDateString()}</td>
+                                              <td className="py-2.5 px-3 text-slate-500">{new Date(job.dueDate).toLocaleDateString()}</td>
+                                              <td className="py-2.5 px-3">
+                                                <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-slate-100 text-slate-700">
+                                                  {getStatusLabel(job.status)}
+                                                </span>
+                                              </td>
+                                              <td className="py-2.5 px-3 text-right font-black text-teal-700">
+                                                R$ {effectiveJobValue.toFixed(2)}
+                                              </td>
+                                            </tr>
+                                          );
+                                        })}
                                       </tbody>
                                     </table>
                                   </div>
@@ -2550,6 +3409,8 @@ export default function Reports() {
                         {groupJobs.map(job => {
                           if (reportType === 'DETAILED_ORDERS') {
                             const finishDate = job.status === JobStatus.COMPLETED && job.history ? new Date(job.history.slice().reverse().find((h: any) => h.action === 'COMPLETED' || h.statusTo === JobStatus.COMPLETED)?.timestamp || new Date()).toLocaleDateString() : '-';
+                            const matchingItems = getMatchingJobItems(job);
+                            const effectiveJobValue = matchingItems.reduce((sum, item) => sum + ((item.price * (item.quantity || 1)) - (item.appliedDiscount || 0)), 0);
                             return (
                               <tr key={job.id} className="hover:bg-slate-50">
                                 <td className="p-3 font-mono font-bold text-slate-700 text-xs">{job.osNumber || '-'}</td>
@@ -2557,19 +3418,19 @@ export default function Reports() {
                                 <td className="p-3 text-sm text-slate-600">{job.dentistName}</td>
                                 <td className="p-3 font-bold text-slate-900 text-sm">{job.patientName}</td>
                                 <td className="p-3 text-xs text-slate-600">
-                                  {(job.items || []).map((item: any, i: number) => {
+                                  {matchingItems.map((item: any, i: number) => {
                                     const jt = jobTypes.find(tj => tj.id === item.jobTypeId);
                                     return (
-                                      <div key={i}>{item.quantity}x {jt ? jt.name : item.name}</div>
+                                      <div key={i}>{item.quantity || 1}x {jt ? jt.name : item.name}</div>
                                     );
                                   })}
                                 </td>
                                 <td className="p-3 text-xs text-slate-600">
-                                  {(job.items || []).map((item: any, i: number) => (
-                                    <div key={i}>R$ {((item.price * item.quantity) - (item.appliedDiscount || 0)).toFixed(2)}</div>
+                                  {matchingItems.map((item: any, i: number) => (
+                                    <div key={i}>R$ {(((item.price * (item.quantity || 1))) - (item.appliedDiscount || 0)).toFixed(2)}</div>
                                   ))}
                                 </td>
-                                <td className="p-3 font-black text-teal-700 text-sm">R$ {job.totalValue.toFixed(2)}</td>
+                                <td className="p-3 font-black text-teal-700 text-sm">R$ {effectiveJobValue.toFixed(2)}</td>
                                 <td className="p-3 text-sm text-slate-600">{new Date(job.createdAt).toLocaleDateString()}</td>
                                 <td className="p-3 text-sm text-slate-600">{finishDate}</td>
                               </tr>
@@ -2595,7 +3456,9 @@ export default function Reports() {
             )}
           </div>
         )}
+        </div>
       </div>
-    </div>
-  );
+    )}
+  </div>
+);
 }
