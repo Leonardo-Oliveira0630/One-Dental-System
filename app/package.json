@@ -1,0 +1,11 @@
+{
+  "name": "app-root",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "cd applet && npm run dev",
+    "build": "cd applet && npm run build",
+    "preview": "cd applet && npm run preview",
+    "lint": "cd applet && npm run lint"
+  }
+}

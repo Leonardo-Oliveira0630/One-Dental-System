@@ -130,7 +130,7 @@ export const ClinicFinance = () => {
             id: job.id,
             description: `Lab: ${job.items.map(i => i.name).join(', ')}`,
             amount: job.totalValue,
-            date: job.createdAt,
+            date: (job as any).completedAt || job.deliveredAt || job.createdAt,
             type: 'EXPENSE',
             category: 'OTHER' as TransactionCategory,
             status: (job.paymentStatus === 'PAID' || job.paymentStatus === 'VOUCHER') ? 'PAID' : 'PENDING'

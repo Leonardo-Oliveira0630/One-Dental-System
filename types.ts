@@ -1,226 +1,246 @@
-
-export type TransactionType = 'INCOME' | 'EXPENSE';
-export type TransactionCategory = 
-  | 'PRODUCTION' 
-  | 'STORE' 
-  | 'SUPPLIES' 
-  | 'RENT' 
-  | 'SALARY' 
-  | 'MARKETING' 
-  | 'TAX'
-  | 'OFFICE'   
-  | 'OTHER';
-
-export interface MarketplaceBannerConfig {
-  id: string;
-  imageUrl: string;
-  text?: string;
-  button?: {
-    show: boolean;
-    text: string;
-    link: string;
-    color: string;
-    size: 'sm' | 'md' | 'lg';
-  };
+export enum UserRole {
+  SUPER_ADMIN = 'SUPER_ADMIN',
+  ADMIN = 'ADMIN',
+  MANAGER = 'MANAGER',
+  TECHNICIAN = 'TECHNICIAN',
+  RECEPTIONIST = 'RECEPTIONIST',
+  DENTIST = 'DENTIST',
+  CLIENT = 'CLIENT',
+  SUPPLIER = 'SUPPLIER'
 }
 
-export interface MarketplaceCategory {
-  id: string;
-  name: string;
-  subcategories?: MarketplaceCategory[];
+export enum JobStatus {
+  PENDING = 'PENDING',
+  IN_PROGRESS = 'IN_PROGRESS',
+  WAITING_APPROVAL = 'WAITING_APPROVAL',
+  SECTOR_TRANSITION = 'SECTOR_TRANSITION',
+  COMPLETED = 'COMPLETED',
+  DELIVERED = 'DELIVERED',
+  REJECTED = 'REJECTED',
+  CANCELED = 'CANCELED',
+  RETURNED = 'RETURNED',
+  PENDING_REQUISITION = 'PENDING_REQUISITION',
+  REJECTED_REQUISITION = 'REJECTED_REQUISITION'
 }
 
-export interface GlobalWhatsAppTemplate {
-  id: string;
-  action: string;
-  name: string;
-  body: string;
-  active: boolean;
-  metaTemplateName?: string;
-  language?: string;
+export enum UrgencyLevel {
+  NORMAL = 'NORMAL',
+  LOW = 'LOW',
+  HIGH = 'HIGH',
+  VIP = 'VIP'
 }
 
-export interface GlobalSettings {
-  platformCommission: number;
-  whatsappModulePrice?: number;
-  marketplaceBanners?: MarketplaceBannerConfig[];
-  officialStoresIds?: string[];
-  marketplaceCategories?: MarketplaceCategory[];
-  geminiApiKey?: string;
-  ycloudApiKey?: string;
-  ycloudPhoneNumber?: string;
-  globalWhatsappTemplates?: GlobalWhatsAppTemplate[];
-  updatedAt: Date;
-  updatedBy: string;
+export enum CommissionStatus {
+  PENDING = 'PENDING',
+  PAID = 'PAID',
+  CANCELED = 'CANCELED'
 }
 
-export interface StoreLayoutBlock {
-  id: string;
-  type: 'BANNER' | 'CAROUSEL' | 'GRID' | 'RELATED' | 'LIST';
-  title: string;
-  productIds?: string[];
-  categoryId?: string;
+export type JobNature = 'NORMAL' | 'REPETITION' | 'ADJUSTMENT';
+
+export enum AppointmentStatus {
+  SCHEDULED = 'SCHEDULED',
+  CONFIRMED = 'CONFIRMED',
+  IN_PROGRESS = 'IN_PROGRESS',
+  COMPLETED = 'COMPLETED',
+  CANCELED = 'CANCELED',
+  ABSENT = 'ABSENT'
 }
 
-export interface BannerConfig {
-  imageUrl: string;
-  title?: string;
-  subtitle?: string;
-  buttonText?: string;
-  buttonLink?: string;
-  buttonColor?: string;
-  buttonSize?: 'small' | 'medium' | 'large';
-  buttonBorderRadius?: string;
+export enum InventoryItemType {
+  MATERIAL = 'MATERIAL',
+  CONSUMABLE = 'CONSUMABLE',
+  EQUIPMENT = 'EQUIPMENT',
+  TOOL = 'TOOL'
 }
 
-export interface SupplierDeliveryPolicy {
-  defaultDispatchDays: number; // Ex: 1 to 5 business days
-  shippingModes: ('FRENET' | 'CORREIOS' | 'CARRIER' | 'PICKUP' | 'LOCAL_EXPRESS')[];
-  freeShippingEnabled?: boolean;
-  freeShippingThreshold?: number;
-  deliveryNotes?: string;
+export enum InventoryMovementType {
+  ENTRY = 'ENTRY',
+  EXIT = 'EXIT',
+  ADJUSTMENT = 'ADJUSTMENT'
 }
 
-export interface SupplierReturnPolicy {
-  legalReturnPeriodDays: number; // Minimum 7 days as per Brazilian Consumer Law (CDC)
-  returnConditions: string;
-  reverseLogisticsCoverage: 'SELLER_PAYS_DEFECT_AND_REPENTANCE' | 'SELLER_PAYS_ALL';
-  exchangeProcessingDays: number;
-  returnNotes?: string;
+export enum ReturnRequestType {
+  RETURN = 'RETURN',
+  EXCHANGE = 'EXCHANGE',
+  DEFECT = 'DEFECT'
 }
 
-export interface SupplierWarrantyPolicy {
-  legalWarrantyDays: number; // 90 days minimum for durable goods (CDC)
-  manufacturerWarrantyMonths?: number;
-  technicalAssistanceInfo?: string;
-  warrantyCoverageDetails: string;
+export enum ReturnRequestReason {
+  DEFECT = 'DEFECT',
+  WRONG_ITEM = 'WRONG_ITEM',
+  REGRET = 'REGRET',
+  DAMAGE = 'DAMAGE',
+  OTHER = 'OTHER'
 }
 
-export interface SupplierRegulatedProductsPolicy {
-  anvisaComplianceConfirmed: boolean;
-  technicalResponsibleName?: string;
-  technicalResponsibleDocType?: 'CRF' | 'CRO' | 'CREA' | 'CRQ' | 'OTHER';
-  technicalResponsibleDocNumber?: string;
-  afeOrAnvisaAuthorizationNumber?: string;
-  requiresBatchAndExpiryTracking: boolean;
-  prohibitsUnauthorizedReprocessing: boolean;
+export enum NotificationType {
+  ORDER = 'ORDER',
+  REQUISITION = 'REQUISITION',
+  FINANCIAL = 'FINANCIAL',
+  SYSTEM = 'SYSTEM',
+  ALERT = 'ALERT'
 }
 
-export interface SupplierCustomerServicePolicy {
-  maxResponseTimeHours: number; // SLA (e.g. 24h)
-  supportChannels: ('PLATFORM_CHAT' | 'WHATSAPP' | 'EMAIL' | 'PHONE')[];
-  supportEmail?: string;
-  supportPhone?: string;
-  businessHours?: string;
-}
+export type PermissionKey = string;
 
-export interface SupplierTermsAcceptance {
-  accepted: boolean;
-  version: string;
-  acceptedAt: string; // ISO date string
-  acceptedByUserId: string;
-  acceptedByUserName: string;
-  acceptedByUserEmail: string;
-  acceptedOrgId: string;
-  acceptedOrgName?: string;
-  ipAddress?: string;
-  userAgent?: string;
-  legalRepresentativeName?: string;
-  legalRepresentativeCpf?: string;
-}
+export const ALL_SYSTEM_PERMISSIONS: PermissionKey[] = [
+  'dashboard:view',
+  'jobs:view',
+  'jobs:create',
+  'jobs:edit',
+  'jobs:delete',
+  'jobs:finish',
+  'jobs:reopen',
+  'jobs:return',
+  'jobs:alert',
+  'jobs:print',
+  'jobs:chat_toggle',
+  'jobs:approval',
+  'jobs:change_status',
+  'jobs:production_view',
+  'jobs:production_edit',
+  'jobs:service_details_view',
+  'jobs:service_details_edit',
+  'jobs:prices_view',
+  'budgets:view',
+  'budgets:create',
+  'budgets:edit',
+  'budgets:delete',
+  'vip:view',
+  'calendar:view',
+  'clients:view',
+  'finance:view',
+  'receipts:view',
+  'commissions:view',
+  'commissions:edit',
+  'prices:view',
+  'inventory:view',
+  'catalog:view',
+  'catalog:prices_view',
+  'logistics:view',
+  'reports:view',
+  'monitoring:view',
+  'tutorials:view',
+  'helpdesk:view',
+  'users:view',
+  'sectors:view',
+  'boxes:view'
+];
 
-export interface SupplierStorePolicies {
-  deliveryPolicy?: SupplierDeliveryPolicy;
-  returnPolicy?: SupplierReturnPolicy;
-  warrantyPolicy?: SupplierWarrantyPolicy;
-  regulatedProductsPolicy?: SupplierRegulatedProductsPolicy;
-  customerServicePolicy?: SupplierCustomerServicePolicy;
-  termsAcceptance?: SupplierTermsAcceptance;
-  lastUpdated?: string;
-}
-
-export interface StoreSettings {
-  banners?: BannerConfig[];
-  profilePhotoUrl?: string;
-  layoutType?: 'CARDS' | 'LIST';
-  portfolio?: {
-    id: string;
-    title: string;
-    imageUrl: string;
-    description?: string;
-  }[];
-  menuOptions?: string[];
-  catchphrase?: string;
-  theme?: 'shopee' | 'light' | 'dark' | 'amber' | 'indigo' | 'emerald' | 'orange';
-  layoutBlocks?: StoreLayoutBlock[];
-  policies?: SupplierStorePolicies;
-}
-
-export interface LogisticsConfig {
-  provider: 'frenet' | string;
-  enabled: boolean;
-  status: 'pending' | 'active' | 'error' | 'unconfigured';
-  frenetCustomerToken?: string;
-  frenetCustomerId?: string;
-  frenetUser?: string;
-  originCep?: string;
-  isPartnerManaged?: boolean;
-  registeredAt?: any;
-  createdAt?: any;
-  updatedAt?: any;
-  errorMessage?: string;
-}
-
-export interface Organization {
-  whatsapp?: string;
+export interface VariationOption {
   id: string;
   name: string;
-  logoUrl?: string; 
-  planId: string;
-  billingCycle?: 'MONTHLY' | 'ANNUAL';
-  subscriptionStatus?: 'TRIAL' | 'ACTIVE' | 'OVERDUE' | 'CANCELLED' | 'PENDING' | 'FREE' | 'TEST';
-  trialEndsAt?: Date;
-  createdAt: Date;
-  orgType?: 'LAB' | 'CLINIC' | 'LAB_OUTSOURCED' | 'SUPPLIER';
-  cpfCnpj?: string;
-  asaasApiKey?: string;
-  logistics?: LogisticsConfig;
-  frenetToken?: string;
-  frenetKey?: string;
-  frenetPassword?: string;
-  frenetOriginCep?: string;
-  frenetHandlingDays?: number;
-  frenetExtraPercentage?: number;
-  frenetExtraFixed?: number;
-  frenetEnabled?: boolean;
-  frenetFreeShippingEnabled?: boolean;
-  frenetFreeShippingThreshold?: number;
-  frenetDefaultPackage?: {
-    weightKg: number;
-    heightCm: number;
-    widthCm: number;
-    lengthCm: number;
-  };
-  ratingAverage?: number;
-  ratingCount?: number;
-  storeSettings?: StoreSettings;
-  storeSlug?: string;
-  storeVisibility?: 'PUBLIC' | 'PRIVATE';
-  financialSettings?: {
-    pixKey?: string;
-    bankInfo?: string;
-    instructions?: string;
-    paymentLink?: string;
-    asaasWalletId?: string;
-    asaasWalletStatus?: string;
-    asaasAccountNumber?: string;
-    customSplitPercent?: number;
-    businessData?: any;
-    balance?: number;
-    pendingBalance?: number;
-    techResponsibleName?: string;
-    techResponsibleCpf?: string;
-  };
+  priceModifier?: number;
+  isDiscountExempt?: boolean;
+}
+
+export interface VariationGroup {
+  id: string;
+  name: string;
+  options: VariationOption[];
+  selectionType?: string;
+}
+
+export interface JobItem {
+  id: string;
+  jobTypeId?: string;
+  name: string;
+  quantity: number;
+  price: number;
+  appliedDiscount?: number;
+  selectedVariationIds?: string[];
+  selectedTeeth?: string[];
+  nature?: JobNature | string;
+  basePriceBeforeDiscount?: number;
+  commissionDisabled?: boolean;
+  sectorQuantities?: Record<string, number>;
+  stageQuantities?: Record<string, Record<string, number>>;
+  sectorStages?: Record<string, string[]>;
+  variationValues?: Record<string, string>;
+  sectorCommissionDisabled?: Record<string, boolean>;
+  color?: string;
+  [key: string]: any;
+}
+
+export interface JobHistoryItem {
+  id?: string;
+  action?: string;
+  statusFrom?: string;
+  statusTo?: string;
+  userId?: string;
+  userName?: string;
+  timestamp: any;
+  notes?: string;
+  sector?: string;
+  observations?: string;
+}
+
+export interface Job {
+  id: string;
+  osNumber: string;
+  boxNumber?: string;
+  boxColor?: { hex: string; name?: string };
+  dentistId?: string;
+  dentistName: string;
+  dentistOrgId?: string;
+  subDentistName?: string;
+  clinicName?: string;
+  patientName: string;
+  status: JobStatus | string;
+  urgency?: UrgencyLevel | string;
+  currentSector?: string;
+  totalValue: number;
+  createdAt: any;
+  dueDate: any;
+  dueTime?: string;
+  completedAt?: any;
+  firstCompletedAt?: any;
+  wasReopened?: boolean;
+  reopenedAt?: any;
+  lastRefinalizedAt?: any;
+  origin?: string;
+  paymentStatus?: string;
+  items: JobItem[];
+  history?: JobHistoryItem[];
+  routeId?: string;
+  rejectionReason?: string;
+  isBudget?: boolean;
+  isComboPurchase?: boolean;
+  isPseudo?: boolean;
+  notes?: string;
+  caseNotes?: string;
+  trackingCode?: string;
+  shippingCarrier?: string;
+  shippingMethod?: string;
+  sectorEntryTime?: any;
+  sectorMovements?: any[];
+  itemExecutions?: any[];
+  products?: any[];
+  attachments?: any[];
+  [key: string]: any;
+}
+
+export interface JobType {
+  id: string;
+  name: string;
+  category?: string;
+  price: number;
+  basePrice?: number;
+  variationGroups?: VariationGroup[];
+  variations?: any[];
+  allowedSectors?: string[];
+  sectorStages?: Record<string, string[]>;
+  stageQuantities?: Record<string, Record<string, number>>;
+  isVisibleInternally?: boolean;
+  isVisibleInternallyLabs?: boolean;
+  [key: string]: any;
+}
+
+export interface ManualDentist {
+  id: string;
+  name: string;
+  clinicName?: string;
   address?: string;
   number?: string;
   complement?: string;
@@ -228,574 +248,32 @@ export interface Organization {
   city?: string;
   state?: string;
   cep?: string;
-  country?: string;
   phone?: string;
   email?: string;
-  croUf?: string;
-  croNumero?: string;
-  croCategoria?: string;
-  croValid?: boolean;
-  isApproved?: boolean;
-  revealJobStatusToDentist?: boolean;
-  targetAudience?: 'CLINIC' | 'LAB' | 'SUPPLIER';
-  hasWhatsappModule?: boolean;
-  receivedMaterialOptions?: string[];
-  ycloudPhoneNumber?: string;
-  ycloudApiKey?: string;
-  brevoApiKey?: string;
-  brevoSenderEmail?: string;
-  brevoSenderName?: string;
-  whatsappTemplates?: {
-    id: string;
-    name: string;
-    body: string;
-    type: 'CLINIC_APPOINTMENT' | 'CLINIC_APPOINTMENT_CONFIRMED' | 'CLINIC_APPOINTMENT_CANCELED' | 'LAB_DISPATCH' | 'LAB_DELIVERED' | 'SUPPLIER_UPDATE' | 'CUSTOM';
-    active: boolean;
-  }[];
-  receiptSettings?: {
-    referentePresets?: string[];
-    mensagemPresets?: string[];
-  };
+  whatsapp?: string;
+  isBlocked?: boolean;
+  priceTableId?: string;
+  isCustomPricing?: boolean;
+  customPrices?: any[];
+  globalDiscountPercent?: number;
+  [key: string]: any;
 }
 
-export interface ClinicRoom {
+export interface User {
   id: string;
   name: string;
-  description?: string;
-  active: boolean;
-}
-
-export interface ClinicDentist {
-  id: string;
-  name: string;
-  cro: string;
-  specialty: string;
-  color: string; 
-  active: boolean;
-}
-
-export interface DeliveryRoute {
-  id: string;
-  organizationId: string;
-  date: Date;
-  shift: 'MORNING' | 'AFTERNOON';
-  driverName: string;
-  status: 'OPEN' | 'IN_TRANSIT' | 'COMPLETED';
-  createdAt: Date;
-}
-
-export interface RouteItem {
-  id: string;
-  routeId: string;
-  jobId?: string;
-  dentistId: string;
-  dentistName: string;
+  email?: string;
+  role: UserRole | string;
   clinicName?: string;
-  patientName?: string;
-  address: string;
-  type: 'DELIVERY' | 'PICKUP';
-  order: number;
-  observations?: string;
-  addedByUserId?: string;
-  addedByUserName?: string;
-  addedAt?: Date | string;
-}
-
-export interface Courier {
-  id: string;
-  organizationId: string;
-  name: string;
   phone?: string;
-  vehicle?: string;
-  active: boolean;
-  createdAt: Date;
-}
-
-export interface Expense {
-  id: string;
-  organizationId: string;
-  description: string;
-  amount: number;
-  category: TransactionCategory;
-  date: Date;
-  status: 'PENDING' | 'PAID';
-  attachmentUrl?: string;
-  createdAt: Date;
-}
-
-export interface BillingBatch {
-  id: string;
-  organizationId: string;
-  dentistId: string;
-  dentistName: string;
-  jobIds: string[];
-  totalAmount: number;
-  status: 'PENDING' | 'PAID' | 'OVERDUE' | 'CANCELLED';
-  dueDate: Date;
-  invoiceUrl?: string; 
-  boletoUrl?: string;
-  nfeUrl?: string;     
-  nfeNumber?: string;
-  createdAt: Date;
-}
-
-export enum UserRole {
-  ADMIN = 'ADMIN',
-  COMPONENTS = 'COMPONENTS',
-  PRODUCTION_COORDINATOR = 'PRODUCTION_COORDINATOR',
-  FINANCIAL = 'FINANCIAL',
-  MANAGER = 'MANAGER',
-  OPERATIONAL = 'OPERATIONAL',
-  SECRETARY = 'SECRETARY',
-  SECRETARY_2 = 'SECRETARY_2',
-  COLLABORATOR = 'COLLABORATOR',
-  CLIENT = 'CLIENT',
-  DENTIST = 'DENTIST',
-  SUPPLIER = 'SUPPLIER',
-  SUPER_ADMIN = 'SUPER_ADMIN',
-  HELPDESK = 'HELPDESK',
-  REVIEWER = 'REVIEWER'
-}
-
-export type PermissionKey = 
-  | 'dashboard:view'
-  | 'jobs:view' | 'jobs:create' | 'jobs:edit' | 'jobs:delete' | 'jobs:return' | 'jobs:finish' | 'jobs:alert' | 'jobs:print' | 'jobs:chat_toggle' | 'jobs:approval' | 'jobs:change_status' | 'jobs:production_view' | 'jobs:production_edit' | 'jobs:service_details_view' | 'jobs:service_details_edit' | 'jobs:prices_view' | 'jobs:reopen'
-  | 'budgets:view' | 'budgets:create' | 'budgets:edit' | 'budgets:delete'
-  | 'reports:view'
-  | 'reports:export'
-  | 'reports:client_summary:view' | 'reports:client_summary:export'
-  | 'reports:production:view' | 'reports:production:export'
-  | 'reports:detailed_orders:view' | 'reports:detailed_orders:export'
-  | 'reports:service_types:view' | 'reports:service_types:export'
-  | 'tutorials:view'
-  | 'helpdesk:view'
-  | 'finance:view' | 'finance:create' | 'finance:edit' | 'finance:delete'
-  | 'catalog:view' | 'catalog:create' | 'catalog:edit' | 'catalog:delete' | 'catalog:prices_view'
-  | 'prices:view' | 'prices:create' | 'prices:edit' | 'prices:delete'
-  | 'clients:view' | 'clients:create' | 'clients:edit' | 'clients:delete' | 'clients:block_manage' | 'clients:statement_view' | 'clients:prices_view' | 'clients:prices_edit'
-  | 'sectors:view' | 'sectors:create' | 'sectors:edit' | 'sectors:delete'
-  | 'users:view' | 'users:create' | 'users:edit' | 'users:delete'
-  | 'commissions:view' | 'commissions:create' | 'commissions:edit' | 'commissions:delete'
-  | 'receipts:view' | 'receipts:create' | 'receipts:edit' | 'receipts:delete'
-  | 'logistics:view' | 'logistics:create' | 'logistics:edit' | 'logistics:delete'
-  | 'boxes:view' | 'boxes:create' | 'boxes:edit' | 'boxes:delete'
-  | 'inventory:view' | 'inventory:create' | 'inventory:edit' | 'inventory:delete'
-  | 'vip:view'
-  | 'calendar:view'
-  | 'monitoring:view'
-  | 'store_suppliers:view'
-  // CLINIC & DENTIST PERMISSIONS
-  | 'patients:view' | 'patients:create' | 'patients:edit' | 'patients:delete' | 'patients:history_edit'
-  | 'schedule:view' | 'schedule:create' | 'schedule:edit' | 'schedule:delete'
-  | 'clinic_finance:view' | 'clinic_finance:create' | 'clinic_finance:edit' | 'clinic_finance:delete'
-  | 'clinic_rooms:view' | 'clinic_rooms:create' | 'clinic_rooms:edit' | 'clinic_rooms:delete'
-  | 'clinic_dentists:view' | 'clinic_dentists:create' | 'clinic_dentists:edit' | 'clinic_dentists:delete'
-  | 'clinic_services:view' | 'clinic_services:create' | 'clinic_services:edit' | 'clinic_services:delete'
-  | 'clinic_inventory:view' | 'clinic_inventory:create' | 'clinic_inventory:edit' | 'clinic_inventory:delete'
-  | 'dentist_cases:view' | 'dentist_cases:create' | 'dentist_cases:edit' | 'dentist_cases:delete'
-  | 'requisitions:view' | 'requisitions:create' | 'requisitions:edit' | 'requisitions:delete'
-  | 'partnerships:view' | 'partnerships:manage'
-  | 'clinic_users:view' | 'clinic_users:create' | 'clinic_users:edit' | 'clinic_users:delete'
-  | 'clinic_settings:view' | 'clinic_settings:edit'
-  | 'store:view' | 'store:buy';
-
-export const ALL_SYSTEM_PERMISSIONS: PermissionKey[] = [
-  'dashboard:view',
-  'jobs:view', 'jobs:create', 'jobs:edit', 'jobs:delete', 'jobs:return', 'jobs:finish', 'jobs:alert', 'jobs:print', 'jobs:chat_toggle', 'jobs:approval', 'jobs:change_status', 'jobs:production_view', 'jobs:production_edit', 'jobs:service_details_view', 'jobs:service_details_edit', 'jobs:prices_view', 'jobs:reopen',
-  'budgets:view', 'budgets:create', 'budgets:edit', 'budgets:delete',
-  'reports:view',
-  'reports:export',
-  'reports:client_summary:view', 'reports:client_summary:export',
-  'reports:production:view', 'reports:production:export',
-  'reports:detailed_orders:view', 'reports:detailed_orders:export',
-  'reports:service_types:view', 'reports:service_types:export',
-  'tutorials:view',
-  'helpdesk:view',
-  'finance:view', 'finance:create', 'finance:edit', 'finance:delete',
-  'catalog:view', 'catalog:create', 'catalog:edit', 'catalog:delete', 'catalog:prices_view',
-  'prices:view', 'prices:create', 'prices:edit', 'prices:delete',
-  'clients:view', 'clients:create', 'clients:edit', 'clients:delete', 'clients:block_manage', 'clients:statement_view', 'clients:prices_view', 'clients:prices_edit',
-  'sectors:view', 'sectors:create', 'sectors:edit', 'sectors:delete',
-  'users:view', 'users:create', 'users:edit', 'users:delete',
-  'commissions:view', 'commissions:create', 'commissions:edit', 'commissions:delete',
-  'receipts:view', 'receipts:create', 'receipts:edit', 'receipts:delete',
-  'logistics:view', 'logistics:create', 'logistics:edit', 'logistics:delete',
-  'boxes:view', 'boxes:create', 'boxes:edit', 'boxes:delete',
-  'inventory:view', 'inventory:create', 'inventory:edit', 'inventory:delete',
-  'vip:view',
-  'calendar:view',
-  'monitoring:view',
-  'store_suppliers:view',
-  'patients:view', 'patients:create', 'patients:edit', 'patients:delete', 'patients:history_edit',
-  'schedule:view', 'schedule:create', 'schedule:edit', 'schedule:delete',
-  'clinic_finance:view', 'clinic_finance:create', 'clinic_finance:edit', 'clinic_finance:delete',
-  'clinic_rooms:view', 'clinic_rooms:create', 'clinic_rooms:edit', 'clinic_rooms:delete',
-  'clinic_dentists:view', 'clinic_dentists:create', 'clinic_dentists:edit', 'clinic_dentists:delete',
-  'clinic_services:view', 'clinic_services:create', 'clinic_services:edit', 'clinic_services:delete',
-  'clinic_inventory:view', 'clinic_inventory:create', 'clinic_inventory:edit', 'clinic_inventory:delete',
-  'dentist_cases:view', 'dentist_cases:create', 'dentist_cases:edit', 'dentist_cases:delete',
-  'requisitions:view', 'requisitions:create', 'requisitions:edit', 'requisitions:delete',
-  'partnerships:view', 'partnerships:manage',
-  'clinic_users:view', 'clinic_users:create', 'clinic_users:edit', 'clinic_users:delete',
-  'clinic_settings:view', 'clinic_settings:edit',
-  'store:view', 'store:buy'
-];
-
-export type InventoryItemType = 'MATERIAL' | 'MACHINERY' | 'SUPPLY' | 'IMPLANT' | 'OTHER';
-
-export interface InventoryCategory {
-  id: string;
-  name: string;
-  type: InventoryItemType;
-  organizationId: string;
-  imageUrl?: string;
-}
-
-export interface ProductCatalogItem {
-  id: string;
-  name: string;
-  code?: string;
-  description?: string;
-  type: InventoryItemType;
-  categoryId?: string;
-  costPrice: number;
-  sellPrice: number;
-  profitMarginPercent?: number;
-  isPromotion?: boolean;
-  promotionalPrice?: number;
-  organizationId: string;
-}
-
-export interface InventoryItem {
-  id: string;
-  categoryId?: string;
-  marketplaceCategoryIds?: string[]; // Path of category ids from root to leaf
-  name: string;
-  code?: string;
-  description?: string;
-  type: InventoryItemType;
-  currentStock: number;
-  minStock: number;
-  costPrice: number;
-  sellPrice: number;
-  profitMarginPercent?: number;
-  isPromotion?: boolean;
-  promotionalPrice?: number;
-  dentistOwnerId?: string | null;
-  organizationId: string;
-  isVisibleInStore?: boolean;
-  imageUrl?: string;
-  imageUrls?: string[];
-  variations?: Array<{ id: string; name: string; priceModifier: number; imageUrl?: string; currentStock?: number }>;
-  variationGroups?: VariationGroup[];
-  isCombo?: boolean;
-  comboItems?: Array<{ productId: string; name: string; quantity: number }>;
-  targetAudience?: 'DENTIST' | 'LAB' | 'BOTH';
-}
-
-export type InventoryMovementType = 'ENTRY' | 'EXIT';
-
-export interface InventoryMovement {
-  id: string;
-  itemId: string;
-  itemName: string;
-  itemCode?: string;
-  stockOwnerId?: string | null;
-  stockOwnerName: string;
-  type: InventoryMovementType;
-  quantity: number;
-  totalStockAfter?: number;
-  date: string;
-  unitCostOrPrice?: number;
-  totalValue?: number;
-  jobId?: string;
-  jobOsNumber?: string;
-  jobPatientName?: string;
-  jobDentistName?: string;
-  reason?: string;
-  createdAt?: string;
-}
-
-export interface JobProduct {
-  id: string;
-  inventoryItemId: string;
-  name: string;
-  quantity: number;
-  unitPrice: number;
-  basePriceBeforeDiscount?: number;
-  appliedDiscount?: number;
-  dentistOwnerId?: string | null;
-  addedAt?: string | Date;
-}
-
-export enum JobStatus {
-  PENDING = 'PENDING',
-  IN_PROGRESS = 'IN_PROGRESS',
-  WAITING_APPROVAL = 'WAITING_APPROVAL',
-  COMPLETED = 'COMPLETED',
-  DELIVERED = 'DELIVERED',
-  REJECTED = 'REJECTED',
-  CANCELED = 'CANCELED',
-  RETURNED = 'RETURNED',
-  SECTOR_TRANSITION = 'SECTOR_TRANSITION'
-}
-
-export enum UrgencyLevel {
-  LOW = 'LOW',
-  NORMAL = 'NORMAL',
-  HIGH = 'HIGH',
-  VIP = 'VIP'
-}
-
-export type JobNature = 'NORMAL' | 'REPETITION' | 'ADJUSTMENT';
-
-export interface Attachment {
-  id: string;
-  name: string;
-  url: string;
-  uploadedAt: Date | string;
-  size?: number;
-  type?: string;
-  comment?: string;
-  uploadedBy?: string;
-  uploadedByName?: string;
-}
-
-export interface BoxColor {
-  id: string;
-  name: string;
-  hex: string;
-}
-
-export interface JobItem {
-  id: string;
-  jobTypeId: string;
-  name: string;
-  quantity: number;
-  price: number;
-  basePriceBeforeDiscount?: number;
-  appliedDiscount?: number;
-  appliedDiscountFixed?: number;
-  priceAdjustmentType?: 'DISCOUNT' | 'SURCHARGE';
-  appliedSurcharge?: number;
-  appliedSurchargeFixed?: number;
-  appliedPriceTable?: string;
-  nature: JobNature;
-  selectedVariationIds: string[];
-  variationValues?: Record<string, string>;
-  commissionDisabled?: boolean;
-  sectorQuantities?: Record<string, number>;
-  sectorCommissionDisabled?: Record<string, boolean>;
-  sectorStages?: Record<string, string[]>;
-  stageQuantities?: Record<string, Record<string, number>>;
-  selectedTeeth?: string[];
-  color?: string;
-  isInternalStep?: boolean;
-}
-
-export interface JobHistory {
-  id: string;
-  timestamp: Date;
-  action: string;
-  userId: string;
-  userName: string;
+  whatsapp?: string;
+  permissions?: PermissionKey[];
+  organizationId?: string;
   sector?: string;
-}
-
-export interface LabRating {
-  id: string;
-  labId: string;
-  dentistId: string;
-  dentistName: string;
-  jobId: string;
-  serviceId?: string;
-  serviceName?: string;
-  score: number; 
-  comment?: string;
-  imageUrls?: string[];
-  videoUrls?: string[];
-  tags?: string[];
-  verifiedPurchase?: boolean;
-  isAnonymous?: boolean;
-  patientName?: string;
-  createdAt: Date;
-}
-
-export interface ChatMessage {
-  id: string;
-  senderId: string;
-  senderName: string;
-  senderRole: UserRole;
-  text?: string;
-  attachments?: Attachment[];
-  createdAt: Date;
-  updatedAt?: Date;
-  deleted?: boolean;
-}
-
-export interface CaseApprovalReply {
-  id: string;
-  senderId: string;
-  senderName: string;
-  senderRole: UserRole;
-  text: string;
-  createdAt: Date;
-}
-
-export interface CaseApprovalFile {
-  name: string;
-  url: string;
-  type: string; // 'photo' | 'video' | 'html' | 'stl' | 'other'
-}
-
-export interface CaseApprovalItem {
-  id: string;
-  senderId: string;
-  senderName: string;
-  senderRole: UserRole;
-  message: string;
-  files: CaseApprovalFile[];
-  createdAt: Date;
-  replies?: CaseApprovalReply[];
-  status?: 'PENDING' | 'APPROVED' | 'REJECTED';
-  statusFeedback?: string;
-  resolvedAt?: Date;
-}
-
-export interface JobItemExecution {
-  itemId: string;
-  jobTypeId: string;
-  jobTypeName: string;
-  sector: string;
-  userId: string;
-  userName: string;
-  timestamp: Date;
-  executedStages?: string[];
-  isBaseChecked?: boolean;
-  entryTime?: Date;
-  stageTimes?: Record<string, { entryTime?: Date, exitTime?: Date, entryUserId?: string, exitUserId?: string }>;
-}
-
-export interface SectorMovement {
-  id: string;
-  sector: string;
-  entryTime: Date;
-  entryUserId: string;
-  entryUserName: string;
-  exitTime?: Date;
-  exitUserId?: string;
-  exitUserName?: string;
-  plannedItems?: string[];
-  plannedStages?: Record<string, string[]>;
-}
-
-export interface Budget {
-  id: string;
-  organizationId: string;
-  osNumber?: string;
-  patientName: string;
-  dentistId: string;
-  dentistName: string;
-  items: JobItem[];
-  products?: JobProduct[];
-  totalValue: number;
-  notes?: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CONVERTED';
-  createdAt: Date;
-}
-
-export interface Job {
-  subDentistName?: string;
-  id: string;
-  organizationId: string;
-  osNumber?: string;
-  patientName: string;
-  dentistId: string;
-  dentistName: string;
-  clinicName?: string;
-  clientOrigin?: 'DENTIST' | 'LABORATORY';
-  status: JobStatus;
-  urgency: UrgencyLevel;
-  items: JobItem[];
-  products?: JobProduct[];
-  history: JobHistory[];
-  sectorMovements?: SectorMovement[];
-  itemExecutions?: JobItemExecution[];
-  createdAt: Date;
-  dueDate: Date;
-  dueTime?: string;
-  completedAt?: Date;
-  finalizedAt?: Date;
-  boxNumber?: string;
-  boxColor?: BoxColor;
-  receivedMaterials?: string[];
-  receivedMaterialQuantities?: Record<string, number>;
-  currentSector?: string;
-  sectorEntryTime?: Date;
-  totalValue: number;
-  notes?: string;
-  caseNotes?: string;
-  isComboPurchase?: boolean;
-  vouchersUsed?: string[];
-  managerNotes?: string;
-  attachments?: Attachment[];
-  rejectionReason?: string;
-  paymentStatus?: 'PENDING' | 'AUTHORIZED' | 'PAID' | 'REFUNDED' | 'VOUCHER';
-  paymentMethod?: 'PIX' | 'CREDIT_CARD' | 'BOLETO' | 'CASH' | 'TRANSFER';
-  pixQrCode?: string;
-  pixCopyPaste?: string;
-  asaasPaymentId?: string;
-  batchId?: string;
-  ratingId?: string; 
-  routeId?: string;
-  lastDeliveryAttempt?: {
-    driverName: string;
-    date: string;
-    shift: 'MORNING' | 'AFTERNOON';
-    status: 'CANCELLED' | 'DELIVERED' | string;
-    reason?: string;
-    timestamp: Date | string;
-  };
-  chatEnabled?: boolean;
-  approvalEnabled?: boolean;
-  approvalStatus?: 'PENDING' | 'APPROVED' | 'REJECTED';
-  origin?: 'MANUAL' | 'ONLINE_ORDER' | 'ONLINE_REQUISITION' | 'OUTSOURCING';
-  dentistUserId?: string;
-  shippingMethod?: 'COMBINE' | 'PAC' | 'SEDEX' | 'FRENET' | 'PICKUP' | 'MOTOBOY' | 'CARRIER' | string;
-  shippingCost?: number;
-  shippingServiceCode?: string;
-  shippingServiceName?: string;
-  shippingCarrierName?: string;
-  shippingCarrier?: string;
-  shippingDeliveryDays?: number;
-  trackingCode?: string;
-  trackingEvents?: {
-    date: string | Date;
-    description: string;
-    location?: string;
-    status?: string;
-  }[];
-  lastTrackingSync?: Date | string;
-  shippingAddress?: {
-    street?: string;
-    number?: string;
-    complement?: string;
-    neighborhood?: string;
-    city?: string;
-    state?: string;
-    zipCode?: string;
-    recipientName?: string;
-    phone?: string;
-  };
-  sentAt?: Date;
-  acceptedAt?: Date;
-  rejectedAt?: Date;
-  deliveryConfirmed?: boolean;
-  isDelivered?: boolean;
-  deliveredAt?: Date;
-  labId?: string;
-  dentistOrgId?: string;
-  targetOrganizationName?: string;
+  sectors?: string[];
+  isBlocked?: boolean;
+  manualDentistId?: string;
+  [key: string]: any;
 }
 
 export interface Sector {
@@ -804,407 +282,278 @@ export interface Sector {
   stages?: string[];
 }
 
-export interface VariationOption {
+export interface DentistPayment {
   id: string;
-  name: string;
-  priceModifier: number;
-  disablesOptions?: string[];
-  isDiscountExempt?: boolean; 
-  imageUrl?: string;
-  autoQuantity?: number;
+  dentistId?: string;
+  dentistName?: string;
+  amount: number;
+  discount?: number;
+  paymentMethod: string;
+  paymentDate: any;
+  type?: string;
+  notes?: string;
 }
 
-export interface VariationGroup {
+export interface BillingBatch {
   id: string;
-  name: string;
-  selectionType: 'SINGLE' | 'MULTIPLE' | 'TEXT';
-  options: VariationOption[];
+  dentistId?: string;
+  dentistName?: string;
+  totalAmount: number;
+  status: 'PENDING' | 'PAID' | 'CANCELED';
+  createdAt: any;
 }
 
-export interface JobType {
+export interface Organization {
   id: string;
   name: string;
-  category: string;
-  description?: string;
-  basePrice: number;
-  baseCommission?: number;
-  productionTimeDays?: number;
-  variationGroups: VariationGroup[];
-  variations?: any[]; // Legacy variations
-  isVisibleInStore?: boolean;
-  isVisibleInOutsourcing?: boolean;
-  isVisibleInternally?: boolean;
-  isVisibleInternallyLabs?: boolean;
-  imageUrl?: string;
-  allowedSectors?: string[];
-  sectorStages?: Record<string, string[]>;
-  stageQuantities?: Record<string, Record<string, number>>;
-  isPromotion?: boolean;
-  promotionQuantity?: number;
-  promotionCallText?: string;
-  originalJobTypeId?: string;
-  isVoucherCombo?: boolean;
-  applyToAllVariations?: boolean;
-  promoVariationOptionId?: string;
-  promoVariationOptionIds?: string[];
-  promoVariationOptionName?: string;
-  promoVariationGroupName?: string;
-  ratingAverage?: number;
-  ratingCount?: number;
-}
-
-export interface ClinicService {
-  id: string;
-  name: string;
-  category: string;
-  description?: string;
-  price: number;
-  durationMinutes: number;
-  active: boolean;
-}
-
-export interface UserCommissionSetting {
-  jobTypeId: string;
-  value?: number;
-  type: 'FIXED' | 'PERCENTAGE';
-  variationSettings?: Record<string, { value: number; type: 'FIXED' | 'PERCENTAGE' }>;
-  stageSettings?: Record<string, { value: number; type: 'FIXED' | 'PERCENTAGE' }>;
-}
-
-export interface CommissionGroup {
-  id: string;
-  organizationId?: string;
-  name: string;
-  description?: string;
-  color?: string;
-  settings: UserCommissionSetting[];
-  createdAt?: any;
-  updatedAt?: any;
-}
-
-export interface PriceTable {
-  id: string;
-  organizationId: string;
-  name: string;
-  isDefault?: boolean;
-  prices: {
-    [jobTypeId: string]: {
-      basePrice: number;
-      variations: {
-        [optionId: string]: number;
-      };
-    };
-  };
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface User {
-  whatsapp?: string;
-  id: string;
-  name: string;
-  email: string;
-  role: UserRole;
-  isReviewer?: boolean;
-  is_reviewer?: boolean;
-  avatarUrl?: string;
-  photoUrl?: string;
-  phone?: string;
-  cro?: string;
-  specialty?: string;
-  cpfCnpj?: string;
-  organizationId?: string;
-  sector?: string;
-  sectors?: string[];
-  permissions?: PermissionKey[]; 
-  createdAt?: any;
-  termsAcceptedAt?: Date | string;
-  clinicName?: string;
-  clientType?: 'PESSOA_FISICA' | 'CLINICA' | 'LABORATORIO';
-  technicalManagerName?: string;
-  technicalManagerEmail?: string;
-  technicalManagerCpf?: string;
-  technicalManagerCro?: string;
-  commissionGroupId?: string | null;
-  commissionSettings?: UserCommissionSetting[];
-  globalDiscountPercent?: number; 
-  priceTableId?: string;
-  isCustomPricing?: boolean;
-  customPrices?: { 
-    jobTypeId: string; 
-    price?: number; 
-    discountPercent?: number;
-    fixedPrice?: number;
-    variations?: { [optionId: string]: number };
-  }[];
-  address?: string;
-  number?: string;
-  complement?: string;
-  neighborhood?: string;
-  city?: string;
-  state?: string;
-  cep?: string;
-  country?: string;
-  fcmTokens?: string[];
-  deliveryViaPost?: boolean;
-  billingLimit?: number;
-  isBlocked?: boolean;
-  blockReason?: 'DEBT' | 'FINANCIAL_APPROVAL';
-  temporaryUnblockUntil?: Date;
-  subDentists?: any[];
-  internalNotes?: string;
-  externalNotes?: string;
-  croUf?: string;
-  croNumero?: string;
-  croCategoria?: string;
-  croValid?: boolean;
+  orgType?: 'LAB' | 'CLINIC' | 'SUPPLIER' | 'LAB_OUTSOURCED' | string;
+  logoUrl?: string;
+  slug?: string;
+  subscriptionStatus?: string;
+  trialEndsAt?: any;
+  planId?: string;
   isApproved?: boolean;
-  manualDentistId?: string;
-  themePreference?: 'light' | 'dark';
-  language?: 'pt-BR' | 'en' | 'es';
+  frenetToken?: string;
+  revealJobStatusToDentist?: boolean;
+  [key: string]: any;
+}
+
+export interface JobProduct {
+  id: string;
+  name: string;
+  quantity: number;
+  price: number;
+  productId?: string;
+}
+
+export interface Attachment {
+  id: string;
+  name: string;
+  url: string;
+  fileType: string;
+  size?: number;
+  uploadedAt?: any;
+  uploadedBy?: string;
+  comment?: string;
+}
+
+export interface DeliveryRoute {
+  id: string;
+  driverName: string;
+  date: any;
+  shift: 'MORNING' | 'AFTERNOON';
+  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+  items?: any[];
+}
+
+export interface RouteItem {
+  id: string;
+  jobId: string;
+  osNumber: string;
+  patientName: string;
+  dentistName: string;
+  status: string;
+}
+
+export interface Courier {
+  id: string;
+  name: string;
+  phone?: string;
+}
+
+export interface LabRating {
+  id: string;
+  jobId?: string;
+  dentistId?: string;
+  labId?: string;
+  patientName?: string;
+  rating: number;
+  comment?: string;
+  createdAt: any;
+}
+
+export interface ProductReview {
+  id: string;
+  productId: string;
+  userId: string;
+  userName: string;
+  rating: number;
+  comment: string;
+  createdAt: any;
+}
+
+export interface InventoryItem {
+  id: string;
+  name: string;
+  code?: string;
+  sku?: string;
+  category?: string;
+  categoryId?: string;
+  type?: InventoryItemType | string;
+  currentStock: number;
+  minStock?: number;
+  unit?: string;
+  costPrice?: number;
+  sellPrice?: number;
+  description?: string;
+  [key: string]: any;
+}
+
+export interface InventoryCategory {
+  id: string;
+  name: string;
+}
+
+export interface InventoryMovement {
+  id: string;
+  itemId: string;
+  type: InventoryMovementType | string;
+  quantity: number;
+  date: any;
+  reason?: string;
+}
+
+export interface SupplierOrder {
+  id: string;
+  supplierId: string;
+  buyerName: string;
+  items: any[];
+  totalValue: number;
+  status: string;
+  createdAt: any;
+}
+
+export interface OrderReturnRequest {
+  id: string;
+  orderId: string;
+  type: ReturnRequestType | string;
+  reason: ReturnRequestReason | string;
+  status: string;
+  createdAt: any;
 }
 
 export interface CartItem {
-  cartItemId: string;
-  jobType: JobType;
-  quantity: number;
-  unitPrice: number;
-  finalPrice: number;
-  selectedVariationIds: string[];
-  variationValues?: Record<string, string>;
-  selectedTeeth?: string[];
-}
-
-export interface JobAlert {
   id: string;
-  organizationId: string;
-  jobId: string;
-  osNumber: string;
-  message: string;
-  targetSector?: string;
-  targetUserId?: string;
-  scheduledFor: Date;
-  createdBy: string;
-  createdAt: Date;
-  readBy: string[];
-  repeatInterval?: number;
-  repeatCount?: number;
-  repeatedCount?: number;
-}
-
-export interface ClinicPatient {
-  id: string;
-  organizationId: string;
-  dentistId: string;
+  productId: string;
   name: string;
-  phone: string;
-  email?: string;
-  cpf?: string;
-  birthDate?: string;
-  planName?: string;
-  clinicalAlerts?: string[];
-  createdAt: Date;
-}
-
-export interface OnlineRequisitionItem {
-  id: string;
-  serviceId: string;
-  serviceName: string;
-  selectedVariationIds?: string[];
-  quantity?: number;
-  selectedTeeth?: string[];
-}
-
-export interface OnlineRequisition {
-  id: string;
-  dentistId: string;
-  dentistName: string;
-  dentistClinicName?: string;
-  dentistManualId?: string;
-  labId: string;
-  labName?: string;
-  patientName: string;
-  serviceId: string; // Keep for backward compatibility
-  serviceName: string; // Keep for backward compatibility
-  notes?: string;
-  attachments?: Attachment[];
-  status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
-  createdAt: Date;
-  acceptedAsJobId?: string;
-  rejectionReason?: string;
-  selectedVariationIds?: string[]; // Keep for backward compatibility
-  quantity?: number; // Keep for backward compatibility
-  selectedTeeth?: string[]; // Keep for backward compatibility
-  items?: OnlineRequisitionItem[]; // Support for multiple items
-  shippingMethod?: 'COMBINE' | 'PAC' | 'SEDEX' | 'FRENET' | 'PICKUP' | 'MOTOBOY' | 'CARRIER' | string;
-  shippingCost?: number;
-  shippingServiceCode?: string;
-  shippingServiceName?: string;
-  shippingCarrierName?: string;
-  shippingDeliveryDays?: number;
-  shippingAddress?: {
-    street?: string;
-    number?: string;
-    complement?: string;
-    neighborhood?: string;
-    city?: string;
-    state?: string;
-    zipCode?: string;
-    recipientName?: string;
-    phone?: string;
-  };
-  sentAt?: Date;
-  acceptedAt?: Date;
-  rejectedAt?: Date;
-}
-
-export interface FrenetShippingItem {
-  id?: string;
-  sku?: string;
-  description?: string;
-  quantity: number;
   price: number;
-  weight: number; // in kg (e.g. 0.5)
-  height: number; // in cm
-  width: number;  // in cm
-  length: number; // in cm
+  quantity: number;
+  sku?: string;
+  [key: string]: any;
 }
 
-export interface FrenetShippingService {
-  Carrier: string;
-  CarrierCode?: string;
-  ServiceCode: string;
-  ServiceDescription: string;
-  ShippingPrice: string | number;
-  DeliveryTime: string | number;
-  OriginalShippingPrice?: string | number;
-  OriginalDeliveryTime?: string | number;
-  Error?: boolean;
-  MsgErro?: string;
-  EstimatedDeliveryDate?: string;
-  isFreeShipping?: boolean;
-}
-
-export interface FrenetTrackingEvent {
-  EventDateTime: string;
-  EventDescription: string;
-  EventLocation?: string;
-  EventStatus?: 'POSTED' | 'IN_TRANSIT' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'EXCEPTION' | string;
-}
-
-export interface FrenetQuoteResponse {
-  services: FrenetShippingService[];
-  error?: string;
-  originCep: string;
-  destinationCep: string;
-  totalWeightKg?: number;
-}
-
-// NOVO: Prontuário do Paciente
-export interface PatientHistoryRecord {
+export interface BannerConfig {
   id: string;
-  patientId: string;
-  type: 'PROCEDURE' | 'SCAN' | 'XRAY' | 'EVOLUTION' | 'NOTE' | 'PROSTHESIS';
-  description: string;
-  date: Date;
-  attachments?: Attachment[];
-  professionalId?: string;
-  professionalName?: string;
-  createdAt: Date;
-  labName?: string;
-  labId?: string;
-  specs?: string;
+  imageUrl: string;
+  linkUrl?: string;
+  title?: string;
 }
 
-export enum AppointmentStatus {
-  SCHEDULED = 'SCHEDULED',
-  CONFIRMED = 'CONFIRMED',
-  COMPLETED = 'COMPLETED',
-  CANCELED = 'CANCELED'
-}
-
-export interface Appointment {
+export interface MarketplaceBannerConfig {
   id: string;
-  organizationId: string;
-  dentistId: string; 
-  patientId: string;
-  patientName: string;
-  date: Date;
-  durationMinutes: number;
-  procedure: string;
-  selectedTeeth?: string[];
-  status: AppointmentStatus;
-  notes?: string;
-  roomId?: string; 
-  clinicDentistId?: string; 
+  imageUrl: string;
+  linkUrl?: string;
+  title?: string;
+}
+
+export interface MarketplaceCategory {
+  id: string;
+  name: string;
+  icon?: string;
+}
+
+export interface Coupon {
+  id: string;
+  code: string;
+  discountPercent: number;
+  active: boolean;
+}
+
+export interface LabCoupon {
+  id: string;
+  code: string;
+  discountPercent: number;
+  active: boolean;
 }
 
 export interface SubscriptionPlan {
   id: string;
   name: string;
   price: number;
-  annualDiscountPercent?: number;
-  whatsappModulePrice?: number;
-  isPublic: boolean;
-  active: boolean;
-  targetAudience?: 'LAB' | 'CLINIC' | 'LAB_OUTSOURCED' | 'SUPPLIER';
-  trialDays?: number;
-  isPrivate?: boolean;
-  allowedEmails?: string[];
-  features: {
-    maxUsers: number;
-    maxStorageGB: number;
-    maxDentists: number;
-    maxJobsPerMonth: number;
-    hasStoreModule: boolean;
-    hasClinicModule: boolean;
-    splitPercent?: number;
-    isLabFreeStoreOnly?: boolean;
-  };
+  features?: any;
 }
 
-export interface OrganizationConnection {
+export interface GlobalWhatsAppTemplate {
   id: string;
-  organizationId: string;
-  organizationName: string;
-  status: 'ACTIVE' | 'PENDING';
-  createdAt: Date;
+  name: string;
+  content: string;
 }
 
-export interface Coupon {
+export interface Tutorial {
   id: string;
-  code: string;
-  discountType: 'PERCENTAGE' | 'FIXED' | 'TRIAL_EXT' | 'FREE_FOREVER';
-  discountValue: number;
-  validUntil?: Date;
-  maxUses?: number;
-  usedCount: number;
-  active: boolean;
-  applicablePlans?: string[];
+  title: string;
+  description: string;
+  steps?: TutorialStep[];
 }
 
-export interface LabCoupon {
+export interface TutorialStep {
   id: string;
-  organizationId: string;
-  code: string;
-  discountType: 'PERCENTAGE' | 'FIXED';
-  discountValue: number;
-  validUntil?: string;
-  maxUses?: number;
-  usedCount: number;
-  active: boolean;
+  title: string;
+  content: string;
 }
 
-export enum CommissionStatus {
-  PENDING = 'PENDING',
-  PAID = 'PAID'
+export interface BioSettings {
+  id: string;
+  title: string;
+  bio: string;
+  avatarUrl: string;
+  links?: BioLink[];
+}
+
+export interface BioLink {
+  id: string;
+  title: string;
+  url: string;
+}
+
+export interface SupportTicket {
+  id: string;
+  title: string;
+  status: string;
+  messages?: SupportMessage[];
+}
+
+export interface SupportMessage {
+  id: string;
+  text: string;
+  senderId: string;
+  createdAt: any;
+}
+
+export interface NfcKit {
+  id: string;
+  kitNumber: string;
+  boxes?: NfcBox[];
+}
+
+export interface NfcBox {
+  id: string;
+  boxNumber: string;
+  nfcTagId: string;
+}
+
+export interface UserCommissionSetting {
+  userId: string;
+  percentage: number;
+}
+
+export interface CommissionGroup {
+  id: string;
+  name: string;
+  percentage: number;
 }
 
 export interface CommissionRecord {
-  itemId?: string;
-  itemName?: string;
-  stageName?: string;
-  quantity?: number;
   id: string;
   userId: string;
   userName: string;
@@ -1212,818 +561,200 @@ export interface CommissionRecord {
   osNumber: string;
   patientName: string;
   amount: number;
-  status: CommissionStatus;
-  createdAt: Date;
-  sector: string;
-  paidAt?: Date;
+  status: CommissionStatus | string;
+  createdAt: any;
+  sector?: string;
 }
 
-export interface PaymentRecord {
+export interface ClinicService {
   id: string;
-  organizationId: string;
-  organizationName: string;
-  planId: string;
-  planName: string;
-  amount: number;
-  status: 'PAID' | 'PENDING' | 'OVERDUE' | 'CANCELLED';
-  paymentDate?: Date;
-  dueDate: Date;
-  paymentMethod?: string;
-  createdAt: Date;
-}
-
-export interface DentistPayment {
-  id: string;
-  organizationId: string;
-  dentistId: string;
-  dentistName: string;
-  amount: number;
-  interest?: number; // Juros
-  fees?: number;     // Taxas
-  discount?: number; // Desconto no ato do pagamento
-  paymentMethod: 'PIX' | 'BOLETO' | 'CARD' | 'CASH' | 'CHEQUE' | 'CHECK' | 'TRANSFER' | 'DISCOUNT' | 'CREDIT_CARD' | 'DEBIT_CARD' | 'BANK_TRANSFER' | 'CLIENT_CREDIT';
-  paymentDate: Date;
-  cardMachineId?: string;
-  bankAccountId?: string;
-  type: 'PAYMENT' | 'DISCOUNT' | 'MANUAL_DEBIT' | 'MANUAL_CREDIT';
-  notes?: string;
-  batchId?: string;
-  createdAt: Date;
-  attachmentUrl?: string;
-  attachmentName?: string;
-  // Complementary Check fields
-  checkBank?: string;
-  checkAgency?: string;
-  checkAccount?: string;
-  checkName?: string;
-  checkGoodForDate?: string;
-  checkNumber?: string;
-  // Complementary Credit Card fields
-  cardInstallments?: number;
-  cardAuthorizationCode?: string;
-  // Installment group details
-  installmentGroup?: string;
-  installmentNumber?: number;
-  totalInstallments?: number;
-}
-
-export interface CardMachine {
-  id: string;
-  organizationId: string;
   name: string;
-  active: boolean;
-  createdAt: Date;
+  price: number;
 }
 
-export interface BankAccount {
+export interface ClinicRoom {
   id: string;
-  organizationId: string;
   name: string;
-  active: boolean;
-  createdAt: Date;
 }
 
-export interface ManualDentist {
+export interface ClinicPatient {
   id: string;
-  organizationId: string;
   name: string;
-  userId?: string;
-  clinicName?: string;
-  clientType?: 'PESSOA_FISICA' | 'CLINICA' | 'LABORATORIO';
-  technicalManagerName?: string;
-  technicalManagerEmail?: string;
-  technicalManagerCpf?: string;
-  technicalManagerCro?: string;
-  email?: string;
   phone?: string;
-  whatsapp?: string;
-  cpfCnpj?: string;
-  cro?: string;
-  birthDate?: string;
-  approvalDate?: string;
-  cep?: string;
-  address?: string;
-  number?: string;
-  complement?: string;
-  neighborhood?: string;
-  city?: string;
-  state?: string;
-  country?: string;
-  createdAt: Date;
-  globalDiscountPercent?: number; 
-  priceTableId?: string;
-  isCustomPricing?: boolean;
-  customPrices?: { 
-    jobTypeId: string; 
-    price?: number; 
-    discountPercent?: number;
-    fixedPrice?: number;
-    variations?: { [optionId: string]: number };
-  }[];
-  deliveryViaPost?: boolean;
-  billingLimit?: number;
-  isBlocked?: boolean;
-  blockReason?: 'DEBT' | 'FINANCIAL_APPROVAL';
-  temporaryUnblockUntil?: Date;
-  subDentists?: any[];
-  internalNotes?: string;
-  externalNotes?: string;
+  email?: string;
+  history?: PatientHistoryRecord[];
 }
 
-export interface Receipt {
+export interface PatientHistoryRecord {
   id: string;
-  organizationId: string;
-  dtEmissao: Date;
-  numero: string;
-  clienteId: string;
-  clienteName: string;
-  cpfCnpj: string;
-  emitidoComo: 'PF' | 'PJ';
-  titularRecibo: string;
-  empresaId?: string;
-  nomeTitular: string;
-  cpfCnpjTitular: string;
-  referente: string;
-  descricaoServico: string;
-  mensagem: string;
-  cheque: string;
-  banco: string;
-  impostos: string;
-  valorBruto: number;
-  valorDesconto: number;
-  valorBrutoComDesconto: number;
-  valorLiquido: number;
-  createdAt: Date;
-  createdBy: string;
-}
-
-export interface TutorialStep {
-  title: string;
+  date: any;
   description: string;
-  imageUrl?: string;
 }
 
-export interface Tutorial {
+export interface Appointment {
   id: string;
-  title: string;
-  description: string;
-  category: string;
-  targetAudience: 'LAB' | 'CLINIC';
-  writtenContent: string;
-  steps: TutorialStep[];
-  videoUrl?: string;
-  videoSubtitle?: string;
-  orderIndex: number;
-  createdAt?: any;
-}
-
-export interface ClinicBudget {
-  id: string;
-  patientId: string;
-  title: string;
-  amount: number;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
-  date: Date;
-  notes?: string;
-  items?: { description: string; qty: number; value: number }[];
-  createdAt: Date;
-}
-
-export interface ClinicPrescription {
-  id: string;
-  patientId: string;
-  dentistName: string;
-  date: Date;
-  items: { medication: string; instructions: string }[];
-  notes?: string;
-  createdAt: Date;
-}
-
-export interface ClinicClinicalCard {
-  id: string;
-  patientId: string;
-  title: string;
-  date: Date;
-  notes: string;
-  toothNumber?: string;
-  dentistName: string;
-  createdAt: Date;
-}
-
-export type TreatmentPlanStatus = 
-  | 'RASCUNHO' 
-  | 'EM_AVALIACAO' 
-  | 'AGUARDANDO_ACEITE' 
-  | 'ACEITO' 
-  | 'EM_ANDAMENTO' 
-  | 'CONCLUIDO' 
-  | 'CANCELADO';
-
-export type TreatmentProcedureStatus = 
-  | 'PLANEJADO' 
-  | 'AGUARDANDO' 
-  | 'AGENDADO' 
-  | 'EM_ANDAMENTO' 
-  | 'CONCLUIDO' 
-  | 'CANCELADO';
-
-export type TreatmentPriority = 'BAIXA' | 'NORMAL' | 'ALTA' | 'URGENTE';
-
-export interface TreatmentProcedure {
-  id: string;
-  serviceId?: string;
-  name: string;
-  category?: string;
-  teeth: string[];
-  quantity: number;
-  dentistId?: string;
-  dentistName?: string;
-  unitPrice: number;
-  discountType?: 'VALUE' | 'PERCENT';
-  discountValue?: number;
-  finalPrice: number;
-  priority: TreatmentPriority;
-  notes?: string;
-  status: TreatmentProcedureStatus;
-  
-  // Agendamento integration
-  appointmentId?: string;
-  appointmentDate?: Date;
-  appointmentTime?: string;
-  roomId?: string;
-  
-  // Conclusão
-  completedAt?: Date;
-  completedByDentistName?: string;
-  completionNotes?: string;
-  
-  // Future lab integration hook
-  jobId?: string;
-  labRequired?: boolean;
-}
-
-export interface TreatmentBudget {
-  validityDays?: number;
-  validUntil?: Date;
-  paymentMethod?: 'DINHEIRO' | 'PIX' | 'CARTAO_CREDITO' | 'CARTAO_DEBITO' | 'BOLETO' | 'TRANSFERENCIA' | 'OUTRO';
-  installmentsCount?: number;
-  downPayment?: number;
-  installmentValue?: number;
-  notes?: string;
-  generatedAt?: Date;
-  generatedBy?: string;
-  financialEntriesCreated?: boolean;
-}
-
-export interface TreatmentAcceptance {
-  acceptedAt?: Date;
-  acceptedBy?: string;
-  registeredByDentistName?: string;
-  registeredByUserId?: string;
-  notes?: string;
-  signatureUrl?: string;
-  status: 'AGUARDANDO_ACEITE' | 'ACEITO' | 'RECUSADO';
-}
-
-export interface ClinicTreatmentPlan {
-  id: string;
-  organizationId: string;
-  patientId: string;
   patientName: string;
-  name: string;
-  dentistId: string;
   dentistName: string;
-  status: TreatmentPlanStatus;
-  
-  // Dates
-  createdAt: Date;
-  updatedAt: Date;
-  startDate?: Date;
-  expectedEndDate?: Date;
-  completedAt?: Date;
-  
-  // Clinical Diagnosis
-  diagnosis?: string;
-  clinicalNotes?: string;
-  recommendations?: string;
-  priority: TreatmentPriority;
-  diagnosedTeeth?: string[];
-  
-  // Procedures
-  procedures: TreatmentProcedure[];
-  
-  // Financials
-  subtotal: number;
-  discountType: 'VALUE' | 'PERCENT';
-  discountValue: number;
-  additionValue: number;
-  finalAmount: number;
-  
-  // Budget Details
-  budget?: TreatmentBudget;
-  
-  // Acceptance
-  acceptance?: TreatmentAcceptance;
-  
-  // General Notes
-  notes?: string;
+  date: any;
+  time: string;
+  status: AppointmentStatus | string;
 }
 
-export interface ClinicAnamnesis {
+export interface ClinicDentist {
   id: string;
-  patientId: string;
-  updatedAt: Date;
-  responses: { [key: string]: boolean | string };
+  name: string;
+  specialty?: string;
 }
 
-export interface ClinicPatientFinance {
+export interface TransactionCategory {
   id: string;
-  patientId: string;
+  name: string;
+  type: 'INCOME' | 'EXPENSE';
+}
+
+export interface Expense {
+  id: string;
   description: string;
   amount: number;
-  type: 'INCOME' | 'EXPENSE';
-  status: 'PAID' | 'PENDING' | 'OVERDUE';
-  date: Date;
-  createdAt: Date;
+  date: any;
+  category?: string;
 }
 
 export interface PatientPayment {
   id: string;
-  organizationId: string;
   patientId: string;
   amount: number;
-  interest?: number;
-  fees?: number;
-  discount?: number;
-  paymentMethod: 'PIX' | 'BOLETO' | 'CREDIT_CARD' | 'CASH' | 'OTHER';
-  paymentDate: Date;
-  createdAt: Date;
-  type: 'PAYMENT' | 'DISCOUNT' | 'REFUND';
-  notes?: string;
-  attachmentUrl?: string;
-  attachmentName?: string;
-  bankAccountId?: string;
-  cardMachineId?: string;
+  date: any;
 }
 
 export interface PatientBillingBatch {
   id: string;
-  organizationId: string;
   patientId: string;
-  appointmentIds: string[];
   totalAmount: number;
-  billingDate: Date;
-  dueDate: Date;
-  status: 'PENDING' | 'CONFIRMED' | 'OVERDUE' | 'RECEIVED' | 'CANCELLED';
-  createdAt: Date;
-  paymentLink?: string;
-  asaasInvoiceId?: string;
-  bankSlipUrl?: string;
-  pixCopyPaste?: string;
-  pixQrCode?: string;
+  date: any;
 }
 
-export interface SupplierOrder {
+export interface OnlineRequisition {
   id: string;
-  supplierId: string;
-  supplierName: string;
-  buyerOrgId: string;
-  buyerOrgName: string;
-  buyerUserId?: string;
-  buyerName: string;
-  buyerEmail: string;
-  buyerPhone?: string;
-  items: {
-    productId: string;
-    name: string;
-    quantity: number;
-    price: number;
-    variationId?: string;
-    variationName?: string;
-    selectedOptions?: {
-      groupId: string;
-      groupName: string;
-      optionId: string;
-      optionName: string;
-    }[];
-    selectedTeeth?: string[];
-  }[];
-  totalValue: number;
-  discountValue?: number;
-  couponCode?: string;
-  status?: 'PENDING' | 'PAID' | 'CONFIRMED' | 'SEPARATION' | 'READY_TO_SHIP' | 'SHIPPED' | 'DELIVERED' | 'RETURNED' | 'CANCELLED';
-  deliveryStatus?: 'PENDING' | 'SEPARATION' | 'READY_TO_SHIP' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'RETURNED';
-  paymentStatus?: 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED';
-  createdAt: Date;
-  separatedAt?: Date;
-  separatedBy?: string;
-  packedAt?: Date;
-  shippedAt?: Date;
-  deliveredAt?: Date;
-  returnedAt?: Date;
-  internalNotes?: string;
-  invoiceNumber?: string;
-  invoiceUrl?: string;
-  subtotalProducts?: number;
-  pickingChecklist?: Record<string, boolean>;
-  buyerCpfCnpj?: string;
+  patientName: string;
+  dentistId?: string;
+  dentistManualId?: string;
+  dentistName: string;
+  serviceId: string;
+  serviceName: string;
+  quantity?: number;
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | string;
+  createdAt: any;
   notes?: string;
-  paymentMethod: 'CREDIT_CARD' | 'PIX' | 'BOLETO';
-  asaasPaymentId?: string;
-  asaasPixQrCode?: string;
-  asaasPixCopyPaste?: string;
-  asaasInvoiceUrl?: string;
-  buyerAddress?: {
-    street?: string;
-    number?: string;
-    complement?: string;
-    neighborhood?: string;
-    city?: string;
-    state?: string;
-    zipCode?: string;
-  };
-  shippingMethod?: 'COMBINE' | 'PAC' | 'SEDEX' | 'FRENET' | 'PICKUP' | 'MOTOBOY';
-  shippingCost?: number;
-  carrierName?: string;
-  shippingService?: string;
-  trackingCode?: string;
-  trackingUrl?: string;
-  trackingInfo?: string;
-  trackingEvents?: {
-    date: string | Date;
-    description: string;
-    location?: string;
-    status?: string;
-  }[];
-  lastTrackingSync?: Date;
-  estimatedDeliveryDate?: string | Date;
-  chat?: {
-    senderId: string;
-    senderName: string;
-    text: string;
-    timestamp: Date;
-  }[];
-  returnRequest?: OrderReturnRequest;
-  cancellationReason?: string;
-  cancelledAt?: Date;
-  cancelledBy?: 'BUYER' | 'SUPPLIER' | 'SYSTEM';
-}
-
-export type ReturnRequestType = 'CANCEL' | 'RETURN' | 'EXCHANGE';
-export type ReturnRequestReason = 
-  | 'CDC_7_DAYS' // Arrependimento de Compra (Art. 49 CDC)
-  | 'DEFECT_WARRANTY' // Defeito de Fabricação / Garantia Legal (90 dias)
-  | 'SHIPPING_DAMAGE' // Avaria durante o Transporte
-  | 'DIVERGENT_PRODUCT' // Produto diferente do anunciado ou especificação incorreta
-  | 'DISPATCH_DELAY' // Atraso excessivo no envio
-  | 'BUYER_REMORSE_PRE_DISPATCH' // Cancelamento antes do despacho
-  | 'OTHER';
-
-export type ReturnRequestStatus = 
-  | 'PENDING' // Aguardando análise do fornecedor
-  | 'APPROVED' // Aprovado pelo fornecedor (aguardando envio ou estorno direto)
-  | 'REJECTED' // Recusado pelo fornecedor com justificativa
-  | 'POSTED_BY_BUYER' // Cliente postou a devolução
-  | 'RECEIVED_BY_SUPPLIER' // Fornecedor recebeu o produto na fábrica/distribuidora
-  | 'REFUNDED' // Estorno/Reembolso concluído
-  | 'EXCHANGED' // Novo produto enviado em troca
-  | 'CANCELLED'; // Cancelado pelo comprador
-
-export interface OrderReturnRequest {
-  id: string;
-  orderId: string;
-  type: ReturnRequestType;
-  reason: ReturnRequestReason;
-  reasonLabel: string;
-  details: string;
-  requestedResolution: 'REFUND' | 'EXCHANGE' | 'STORE_CREDIT';
-  status: ReturnRequestStatus;
-  requestedAt: Date;
-  updatedAt?: Date;
-  resolvedAt?: Date;
-  photos?: string[];
-  
-  // Reverse logistics & Supplier resolution
-  reversePostageCode?: string; // Código de Autorização de Postagem Reversa dos Correios / Transportadora
-  reversePostageDeadline?: string;
-  reverseInstructions?: string;
-  supplierNotes?: string;
   rejectionReason?: string;
-  refundTransactionId?: string;
-  exchangeTrackingCode?: string;
-  
-  // Requester metadata
-  requestedByUserId: string;
-  requestedByUserName: string;
-  requestedByUserEmail: string;
-  requestedByOrgId: string;
-  requestedByOrgName: string;
+  attachments?: any[];
+  labName?: string;
+  [key: string]: any;
 }
 
-export interface SupplierChatMessage {
+export interface JobAlert {
   id: string;
-  conversationId: string;
-  senderId: string;
-  senderName: string;
-  senderRole: 'BUYER' | 'SUPPLIER' | 'SYSTEM';
-  senderOrgId: string;
-  senderOrgName: string;
-  text: string;
-  imageUrl?: string;
-  createdAt: Date;
-  read?: boolean;
-}
-
-export interface SupplierConversation {
-  id: string; // `${buyerOrgId}_${supplierOrgId}` or `${buyerOrgId}_${supplierOrgId}_${orderId}`
-  buyerOrgId: string;
-  buyerOrgName: string;
-  buyerUserId: string;
-  buyerUserName: string;
-  buyerUserEmail?: string;
-  buyerRole?: string; // LAB, CLINIC, DENTIST
-  
-  supplierOrgId: string;
-  supplierOrgName: string;
-  
-  orderId?: string;
-  productId?: string;
-  productName?: string;
-  productImageUrl?: string;
-  
-  lastMessageText?: string;
-  lastMessageTimestamp?: Date;
-  lastMessageSenderId?: string;
-  unreadCountBuyer?: number;
-  unreadCountSupplier?: number;
-  
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-
-
-
-export interface ProductReview {
-  id: string;
-  productId: string;
-  orderId: string;
-  supplierId: string;
-  buyerOrgId: string;
-  buyerName: string;
-  rating: number; // 1 to 5
-  feedbackText: string;
-  imageUrls?: string[];
-  createdAt: Date;
-}
-
-export interface SupplierCoupon {
-  id: string;
-  organizationId: string;
-  code: string;
-  discountType: 'PERCENTAGE' | 'FIXED';
-  discountValue: number;
-  validUntil?: Date;
-  maxUses?: number;
-  usedCount: number;
-  active: boolean;
-  applicableProductIds?: string[];
-}
-export interface Voucher {
-  id: string;
-  code: string;
-  organizationId: string; // The lab that sold it
-  clientId: string; // The dentist/clinic user ID or org ID
-  clientName: string;
-  jobTypeId: string; // The original service ID
-  jobTypeName: string; // The original service name
-  promotionName: string; // The combo name
-  initialQuantity: number;
-  remainingQuantity: number;
-  status: 'PENDING_PAYMENT' | 'ACTIVE' | 'EXHAUSTED';
-  orderId: string; // The job ID that created this
-  createdAt: Date;
-  updatedAt?: Date;
-}
-
-export interface SupportTicket {
-  id: string;
-  userId: string;
-  userName: string;
-  userEmail: string;
-  userPhone?: string;
-  userRole: string;
-  organizationId?: string;
-  organizationName?: string;
-  category: string;
-  description: string;
-  status: 'PENDING' | 'ACTIVE' | 'RESOLVED';
-  assignedAgentId?: string | null;
-  assignedAgentName?: string | null;
-  createdAt: any;
-  updatedAt: any;
-  closedAt?: any;
-  resolutionNote?: string;
-  rating?: number;
-  ratingComment?: string;
-}
-
-export interface SupportMessage {
-  id: string;
-  senderId: string;
-  senderName: string;
-  senderRole: 'BOT' | 'CLIENT' | 'AGENT';
-  text: string;
-  createdAt: any;
-  attachmentUrl?: string;
-  attachmentType?: 'image' | 'audio';
-}
-
-export interface ICommunicationProvider {
-  name: string;
-  connect(credentials: any): Promise<any>;
-  disconnect(channelId: string): Promise<any>;
-  sendMessage(channelId: string, to: string, message: string): Promise<any>;
-  sendTemplate(channelId: string, to: string, template: any, variables: any): Promise<any>;
-  receiveWebhook(payload: any): Promise<any>;
-}
-
-export type CommunicationStatus = 'PENDING' | 'PROCESSING' | 'SENT' | 'DELIVERED' | 'READ' | 'FAILED' | 'RETRYING';
-
-export interface CommunicationChannel {
-  id?: string;
-  tenantId: string;
-  companyId: string;
-  provider: string;
-  channelId: string;
-  phoneNumber: string;
-  businessName: string;
-  apiKey?: string;
-  accessToken?: string;
-  status: 'ACTIVE' | 'INACTIVE' | 'ERROR';
-  createdAt?: Date;
-  updatedAt?: Date;
-}
-
-export interface MessageTemplate {
-  id?: string;
-  tenantId: string;
-  module: 'LAB' | 'CLINIC' | 'SUPPLIER' | 'GLOBAL';
-  name: string;
-  type: string;
-  language: string;
-  variables: string[];
-  templateProviderId?: string;
-  provider: string;
-  status: 'APPROVED' | 'PENDING' | 'REJECTED';
-  body: string;
-}
-
-export interface MessageLog {
-  id?: string;
-  tenantId: string;
-  companyId: string;
-  channelId: string;
-  provider: string;
-  direction: 'INBOUND' | 'OUTBOUND';
-  templateId?: string;
-  recipient: string;
+  jobId: string;
   message: string;
-  status: CommunicationStatus;
-  providerMessageId?: string;
-  sentAt?: Date;
-  deliveredAt?: Date;
-  readAt?: Date;
-  failedReason?: string;
-  createdAt?: Date;
-}
-
-export interface NfcKit {
-  id: string;
-  codigoKit: string;
-  nome: string;
-  descricao?: string;
-  quantidadeCaixas: number;
-  caixaInicial: number | string;
-  caixaFinal: number | string;
-  status: 'Disponível' | 'Vendido' | 'Ativado';
-  empresaDestino?: string | null;
   createdAt: any;
-  updatedAt: any;
-  activatedAt?: any;
-  activatedBy?: string;
-  activatedByOrgId?: string;
+  severity?: 'LOW' | 'MEDIUM' | 'HIGH';
 }
 
-export interface NfcBox {
+export interface ChatMessage {
   id: string;
-  numeroCaixa: string;
-  uid: string;
-  uidHex?: string;
-  uidDecimal?: string;
-  uid4ByteHex?: string;
-  textoGravado?: string;
-  status: 'Disponível' | 'Associada' | 'Pendente';
-  updatedAt?: any;
-  kitCodigo?: string;
-  kitId?: string;
+  text: string;
+  senderId: string;
+  timestamp: any;
 }
 
-export interface BioLink {
+export interface CaseApprovalItem {
   id: string;
-  label: string;
+  title: string;
+  status: string;
+  replies?: CaseApprovalReply[];
+  files?: CaseApprovalFile[];
+}
+
+export interface CaseApprovalReply {
+  id: string;
+  text: string;
+  senderName: string;
+  timestamp: any;
+}
+
+export interface CaseApprovalFile {
+  id: string;
   url: string;
-  type: 'web' | 'playstore' | 'appstore' | 'youtube' | 'whatsapp' | 'instagram' | 'custom';
-  isActive: boolean;
-  order: number;
+  name: string;
 }
-
-export interface BioSettings {
-  links: BioLink[];
-  updatedAt?: any;
-}
-
-export type NotificationType = 
-  | 'DENTIST_MESSAGE'
-  | 'MANAGER_ALERT'
-  | 'WEB_ORDER'
-  | 'ONLINE_REQUISITION'
-  | 'APPROVAL_REQUEST'
-  | 'APPROVAL_RESOLVED'
-  | 'JOB_STATUS_CHANGE'
-  | 'SYSTEM';
 
 export interface AppNotification {
   id: string;
-  organizationId: string;
-  userId?: string | null; // specific recipient, or null for broadcast
-  targetSector?: string | null;
-  targetRole?: UserRole[] | null;
-  requiredPermission?: PermissionKey | null;
-  type: NotificationType;
   title: string;
-  body: string;
-  data?: {
-    jobId?: string;
-    osNumber?: string;
-    requisitionId?: string;
-    orderId?: string;
-    alertId?: string;
-    patientName?: string;
-    dentistName?: string;
-    senderName?: string;
-    url?: string;
-    action?: string;
-    [key: string]: any;
-  };
+  message: string;
+  type: NotificationType | string;
   read: boolean;
-  readBy?: string[];
-  createdAt: Date;
-  senderName?: string;
-  senderId?: string;
-  urgency?: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
+  createdAt: any;
 }
 
-export interface NotificationPreferences {
-  enabled: boolean;
-  sound: boolean;
-  pushEnabled: boolean;
-  dentistMessages: boolean;
-  managerAlerts: boolean;
-  webOrders: boolean;
-  onlineRequisitions: boolean;
-  jobStatusChanges: boolean;
+export interface StoreSettings {
+  id: string;
+  storeName: string;
+  primaryColor?: string;
 }
 
-export const isReviewerUser = (user: User | null | undefined): boolean => {
+export interface Receipt {
+  id: string;
+  number: string;
+  clientName: string;
+  amount: number;
+  date: any;
+}
+
+export interface PriceTable {
+  id: string;
+  name: string;
+  prices?: Record<string, any>;
+}
+
+export interface JobItemExecution {
+  itemId: string;
+  jobTypeId?: string;
+  jobTypeName?: string;
+  sector: string;
+  userId: string;
+  userName: string;
+  entryTime?: any;
+  timestamp?: any;
+  stageTimes?: Record<string, any>;
+  isBaseChecked?: boolean;
+}
+
+export interface SectorMovement {
+  id: string;
+  sector: string;
+  entryTime: any;
+  exitTime?: any;
+  entryUserId?: string;
+  entryUserName?: string;
+  exitUserId?: string;
+  exitUserName?: string;
+}
+
+export const isReviewerUser = (user: any): boolean => {
   if (!user) return false;
-  if (user.isReviewer === true || user.is_reviewer === true) return true;
-  if (user.role === UserRole.REVIEWER) return true;
-  const email = (user.email || '').toLowerCase().trim();
-  if (
-    email.includes('review') || 
-    email.includes('avaliador') || 
-    email.includes('apple.review') || 
-    email.includes('google.test') ||
-    email === 'clinica.review@labprox.com' ||
-    email === 'fornecedor.review@labprox.com'
-  ) {
-    return true;
-  }
-  return false;
+  const email = String(user.email || '').toLowerCase();
+  return email.includes('reviewer') || email.includes('teste') || user.isReviewer === true;
 };
 
-export const isClinicReviewer = (userOrEmail: User | string | null | undefined): boolean => {
-  if (!userOrEmail) return false;
-  const email = (typeof userOrEmail === 'string' ? userOrEmail : userOrEmail.email || '').toLowerCase().trim();
-  return email === 'clinica.review@labprox.com' || email.includes('clinica.review');
+export const isClinicReviewer = (user: any): boolean => {
+  if (!user) return false;
+  const email = String(user.email || '').toLowerCase();
+  return email.includes('clinic') || email.includes('clinica');
 };
 
-export const isSupplierReviewer = (userOrEmail: User | string | null | undefined): boolean => {
-  if (!userOrEmail) return false;
-  const email = (typeof userOrEmail === 'string' ? userOrEmail : userOrEmail.email || '').toLowerCase().trim();
-  return email === 'fornecedor.review@labprox.com' || email.includes('fornecedor.review');
+export const isSupplierReviewer = (user: any): boolean => {
+  if (!user) return false;
+  const email = String(user.email || '').toLowerCase();
+  return email.includes('supplier') || email.includes('fornecedor');
 };
-
-
-

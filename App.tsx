@@ -1,307 +1,190 @@
-
 import React from 'react';
-import { HashRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { NFCReader } from "./pages/NFCReader";
-import { AppProvider, useApp } from './context/AppContext';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AppProvider } from './context/AppContext';
 import { Layout } from './components/Layout';
-import { Login } from './pages/Login';
-import { LandingPage } from './pages/LandingPage';
+
+// Pages
 import { Dashboard } from './pages/Dashboard';
 import { JobsList } from './pages/JobsList';
-import { Catalog } from './pages/store/Catalog';
-import { UnifiedStore } from './pages/store/UnifiedStore';
-import { Cart } from './pages/store/Cart';
-import { IncomingOrders } from './pages/IncomingOrders';
-import { NewJob } from './pages/NewJob';
-import { JobTypes } from './pages/JobTypes';
 import { JobDetails } from './pages/JobDetails';
-import { Commissions } from './pages/Commissions';
-import { Profile } from './pages/Profile';
-import { ProductionCalendar } from './pages/ProductionCalendar';
+import { NewJob } from './pages/NewJob';
 import { PromisedJobs } from './pages/PromisedJobs';
-import { Subscribe } from './pages/Subscribe';
-import { RegisterOrganization } from './pages/RegisterOrganization';
-import { Patients } from './pages/clinic/Patients';
-import { Schedule } from './pages/clinic/Schedule';
-import { ClinicServices } from './pages/clinic/ClinicServices';
-import { RoomsManagement } from './pages/clinic/RoomsManagement';
-import { DentistsManagement } from './pages/clinic/DentistsManagement';
-import { ClinicFinance } from './pages/clinic/ClinicFinance';
-import { ClinicSettings } from './pages/clinic/ClinicSettings';
-import { ClinicInventory } from './pages/clinic/ClinicInventory';
-import { ClinicTeam } from './pages/clinic/ClinicTeam';
-import { Partnerships } from './pages/dentist/Partnerships';
+import { Kanban } from './pages/lab/Kanban';
+import { ProductionCalendar } from './pages/ProductionCalendar';
+import { JobTypes } from './pages/JobTypes';
+import { IncomingOrders } from './pages/IncomingOrders';
+import { IncomingRequisitions } from './pages/lab/IncomingRequisitions';
 import { Dentists } from './pages/lab/Dentists';
+import { PriceTables } from './pages/lab/PriceTables';
+import { Inventory } from './pages/lab/Inventory';
 import { Finance } from './pages/lab/Finance';
 import { Receipts } from './pages/lab/Receipts';
+import { Commissions } from './pages/Commissions';
 import { RoutePlanner } from './pages/lab/RoutePlanner';
-import { Inventory } from './pages/lab/Inventory';
-import { Kanban } from './pages/lab/Kanban';
-import { PriceTables } from './pages/lab/PriceTables';
-import { IncomingRequisitions } from './pages/lab/IncomingRequisitions';
-import { DentistRequisitions } from './pages/dentist/DentistRequisitions';
-import { DentistCases } from './pages/dentist/DentistCases';
-import { SuperAdminDashboard } from './pages/superadmin/Dashboard';
-import { Plans } from './pages/superadmin/Plans';
-import { Coupons } from './pages/superadmin/Coupons';
-import { NfcKitsAdmin } from './pages/superadmin/NfcKitsAdmin';
-import Subscriptions from './pages/superadmin/Subscriptions';
-import SuperAdminFinance from './pages/superadmin/Finance';
-import { Tutorials } from './pages/superadmin/Tutorials';
-import { HelpdeskAgentsAdmin } from './pages/superadmin/HelpdeskAgentsAdmin';
-import { MarketplaceCategoriesAdmin } from './pages/superadmin/MarketplaceCategoriesAdmin';
-import { WhatsAppTemplates } from './pages/superadmin/WhatsAppTemplates';
-import { LabResets } from './pages/superadmin/LabResets';
-import { BioLinksAdmin } from './pages/superadmin/BioLinksAdmin';
-import { BioPage } from './pages/BioPage';
-import { TutorialsView } from './pages/TutorialsView';
-import { HelpdeskWorkspace } from './pages/HelpdeskWorkspace';
-import { TermsOfUse } from './pages/TermsOfUse';
-import { PrivacyPolicy } from './pages/PrivacyPolicy';
-import { Support } from './pages/Support';
+import Reports from './pages/Reports';
 import { MonitoringPage } from './pages/MonitoringPage';
+import { TutorialsView } from './pages/TutorialsView';
+import { Profile } from './pages/Profile';
+import { Login } from './pages/Login';
+import { Subscribe } from './pages/Subscribe';
+import { PrivacyPolicy } from './pages/PrivacyPolicy';
+import { TermsOfUse } from './pages/TermsOfUse';
 import { SupplierTermsAndGuidelines } from './pages/SupplierTermsAndGuidelines';
+import { HelpdeskWorkspace } from './pages/HelpdeskWorkspace';
 import { RequisitionInvite } from './pages/RequisitionInvite';
+import { RegisterOrganization } from './pages/RegisterOrganization';
+import { NFCReader } from './pages/NFCReader';
+import { BioPage } from './pages/BioPage';
+import { Admin } from './pages/Admin';
+
+// Store
+import { UnifiedStore } from './pages/store/UnifiedStore';
+import { Cart } from './pages/store/Cart';
+
+// Dentist / Client
+import { DentistCases } from './pages/dentist/DentistCases';
+import { Partnerships } from './pages/dentist/Partnerships';
+import { DentistRequisitions } from './pages/dentist/DentistRequisitions';
+
+// Clinic
+import { Schedule } from './pages/clinic/Schedule';
+import { ClinicFinance } from './pages/clinic/ClinicFinance';
+import { RoomsManagement } from './pages/clinic/RoomsManagement';
+import { DentistsManagement } from './pages/clinic/DentistsManagement';
+import { Patients } from './pages/clinic/Patients';
+import { ClinicServices } from './pages/clinic/ClinicServices';
+import { ClinicInventory } from './pages/clinic/ClinicInventory';
+import { ClinicTeam } from './pages/clinic/ClinicTeam';
+import { ClinicSettings } from './pages/clinic/ClinicSettings';
+
+// Supplier
 import { SupplierDashboard } from './pages/supplier/Dashboard';
-import { SupplierChat } from './pages/supplier/Chat';
 import { SupplierProducts } from './pages/supplier/Products';
 import { SupplierCoupons } from './pages/supplier/Coupons';
+import { SupplierChat } from './pages/supplier/Chat';
 import { SupplierSettings } from './pages/supplier/Settings';
-import { SupplierStore } from './pages/store/SupplierStore';
-import { Loader2 } from 'lucide-react';
 
-import { AdminLayout } from './pages/admin/AdminLayout';
-import { SectorsTab } from './pages/admin/SectorsTab';
-import { UsersTab } from './pages/admin/UsersTab';
-import { DentistsTab } from './pages/admin/DentistsTab';
-import { CommissionsTab } from './pages/admin/CommissionsTab';
-import { FinancialTab } from './pages/admin/FinancialTab';
-import { SubscriptionTab } from './pages/admin/SubscriptionTab';
-import { OrganizationTab } from './pages/admin/OrganizationTab';
-import { BoxColorsTab } from './pages/admin/BoxColorsTab';
-import { CouponsTab } from './pages/admin/CouponsTab';
-import { TermsPopup } from './components/TermsPopup';
-import { PermissionKey, UserRole } from './types';
+// SuperAdmin
+import { SuperAdminDashboard } from './pages/superadmin/Dashboard';
+import { NfcKitsAdmin } from './pages/superadmin/NfcKitsAdmin';
+import { Plans } from './pages/superadmin/Plans';
+import { Coupons as SuperAdminCoupons } from './pages/superadmin/Coupons';
+import Subscriptions from './pages/superadmin/Subscriptions';
+import { MarketplaceCategoriesAdmin } from './pages/superadmin/MarketplaceCategoriesAdmin';
+import SuperAdminFinance from './pages/superadmin/Finance';
+import { WhatsAppTemplates } from './pages/superadmin/WhatsAppTemplates';
+import { Tutorials as SuperAdminTutorials } from './pages/superadmin/Tutorials';
+import { HelpdeskAgentsAdmin } from './pages/superadmin/HelpdeskAgentsAdmin';
+import { LabResets } from './pages/superadmin/LabResets';
+import { BioLinksAdmin } from './pages/superadmin/BioLinksAdmin';
 
-const ProtectedRoute = ({ children, requiredPermission }: { children?: React.ReactNode; requiredPermission?: PermissionKey }) => {
-  const { currentUser, isLoadingAuth, currentOrg, currentPlan } = useApp();
-  const location = useLocation();
-  if (isLoadingAuth) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="h-12 w-12 text-blue-600 animate-spin" /></div>;
-  if (!currentUser) return <Navigate to={`/login?redirect=${encodeURIComponent(location.pathname + location.search)}`} replace />;
-
-  const isFreeLab = currentOrg?.orgType === 'LAB' && (currentOrg?.planId === 'free_lab' || currentPlan?.id === 'free_lab' || currentPlan?.features?.isLabFreeStoreOnly === true);
-  if (isFreeLab) {
-    const forbiddenPaths = [
-      '/dashboard',
-      '/lab/receipts',
-      '/commissions',
-      '/incoming-requisitions',
-      '/lab/dentists',
-      '/lab/inventory',
-      '/new-job',
-      '/promised',
-      '/reports',
-      '/admin/comissoes',
-      '/admin/clientes',
-      '/calendar',
-      '/lab/price-tables',
-      '/new-budget',
-      '/budgets'
-    ];
-    if (forbiddenPaths.includes(location.pathname)) {
-      return <Navigate to="/lab/finance" replace />;
-    }
-  }
-
-  const isAdmin = currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.SUPER_ADMIN;
-  const isManager = currentUser.role === UserRole.MANAGER;
-  const isClient = currentUser.role === UserRole.CLIENT || currentUser.role === UserRole.DENTIST || (currentUser as any)?.role === 'DENTIST';
-
-  if (requiredPermission && !isAdmin && !isManager) {
-    const isClientAllowed = isClient && (requiredPermission === 'jobs:view' || requiredPermission === 'budgets:view' || requiredPermission === 'tutorials:view');
-    let hasPermission = currentUser.permissions?.includes(requiredPermission);
-    
-    // For reports:view, allow if user has reports:view OR any specific report view permission
-    if (requiredPermission === 'reports:view') {
-      hasPermission = Boolean(
-        hasPermission || 
-        (currentUser.permissions || []).some(p => 
-          ['reports:client_summary:view', 'reports:production:view', 'reports:detailed_orders:view', 'reports:service_types:view'].includes(p as any)
-        )
-      );
-    }
-    
-    // For tutorials:view, allow if user has tutorials:view OR helpdesk:view
-    if (requiredPermission === 'tutorials:view') {
-      hasPermission = Boolean(
-        hasPermission || 
-        (currentUser.permissions || []).includes('helpdesk:view') ||
-        isClient
-      );
-    }
-
-    if (!isClientAllowed && !hasPermission) {
-      if (isClient) return <Navigate to="/jobs" replace />;
-      if (requiredPermission === 'dashboard:view') {
-        const canJobs = currentUser.permissions?.includes('jobs:view');
-        return <Navigate to={canJobs ? "/jobs" : "/profile"} replace />;
-      }
-      const canDashboard = isAdmin || isManager || currentUser.permissions?.includes('dashboard:view');
-      return <Navigate to={canDashboard ? "/dashboard" : (currentUser.permissions?.includes('jobs:view') ? "/jobs" : "/profile")} replace />;
-    }
-  }
-
-  return (
-    <>
-      <TermsPopup />
-      <Layout>{children}</Layout>
-    </>
-  );
-};
-
-const StoreCatalogRoute = () => {
-  const { currentUser, isLoadingAuth } = useApp();
-
-  if (isLoadingAuth) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <Loader2 className="h-12 w-12 text-blue-600 animate-spin" />
-      </div>
-    );
-  }
-
-  if (currentUser) {
-    return (
-      <ProtectedRoute>
-        <UnifiedStore />
-      </ProtectedRoute>
-    );
-  }
-
-  return (
-    <Layout>
-      <Catalog />
-    </Layout>
-  );
-};
-
-import { Capacitor } from '@capacitor/core';
-import Reports from './pages/Reports';
-import { useAnalytics } from './hooks/useAnalytics';
-
-const AppContent = () => {
-  useAnalytics();
-  
-  return (
-    <Routes>
-      <Route path="/" element={Capacitor.isNativePlatform() ? <Navigate to="/login" /> : <LandingPage />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/register-lab" element={<RegisterOrganization />} />
-      <Route path="/terms" element={<TermsOfUse />} />
-      <Route path="/supplier-terms" element={<SupplierTermsAndGuidelines />} />
-      <Route path="/termos-fornecedores" element={<SupplierTermsAndGuidelines />} />
-      <Route path="/bio" element={<BioPage />} />
-      <Route path="/privacy" element={<PrivacyPolicy />} />
-      <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-      <Route path="/support" element={<Support />} />
-      <Route path="/suporte" element={<Support />} />
-      <Route path="/help" element={<Support />} />
-      <Route path="/requisition-invite" element={<RequisitionInvite />} />
-      
-      <Route path="/dashboard" element={<ProtectedRoute requiredPermission="dashboard:view"><Dashboard /></ProtectedRoute>} />
-      <Route path="/new-job" element={<ProtectedRoute requiredPermission="jobs:create"><NewJob /></ProtectedRoute>} />
-      <Route path="/budgets" element={<ProtectedRoute requiredPermission="budgets:view"><JobsList key="budgets" isBudgetMode={true} /></ProtectedRoute>} />
-      <Route path="/new-budget" element={<ProtectedRoute requiredPermission="budgets:create"><NewJob isBudget={true} /></ProtectedRoute>} />
-      <Route path="/jobs" element={<ProtectedRoute requiredPermission="jobs:view"><JobsList key="jobs" /></ProtectedRoute>} />
-      <Route path="/jobs/:id" element={<ProtectedRoute><JobDetails /></ProtectedRoute>} />
-      <Route path="/nfc" element={<ProtectedRoute><NFCReader /></ProtectedRoute>} />
-      <Route path="/commissions" element={<ProtectedRoute><Commissions /></ProtectedRoute>} />
-       <Route path="/incoming-orders" element={<ProtectedRoute><IncomingOrders /></ProtectedRoute>} />
-      <Route path="/incoming-requisitions" element={<ProtectedRoute><IncomingRequisitions /></ProtectedRoute>} />
-      <Route path="/job-types" element={<ProtectedRoute><JobTypes /></ProtectedRoute>} />
-      <Route path="/reports" element={<ProtectedRoute requiredPermission="reports:view"><Reports /></ProtectedRoute>} />
-      
-      <Route path="/admin" element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>
-        <Route index element={<Navigate to="organizacao" replace />} />
-        <Route path="organizacao" element={<OrganizationTab />} />
-        <Route path="setores" element={<SectorsTab />} />
-        <Route path="caixas" element={<BoxColorsTab />} />
-        <Route path="equipe" element={<UsersTab />} />
-        <Route path="clientes" element={<DentistsTab />} />
-        <Route path="comissoes" element={<CommissionsTab />} />
-        <Route path="pagamentos" element={<FinancialTab />} />
-        <Route path="assinatura" element={<SubscriptionTab />} />
-        <Route path="cupons" element={<CouponsTab />} />
-      </Route>
-
-      <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-      
-      <Route path="/lab/dentists" element={<ProtectedRoute><Dentists /></ProtectedRoute>} />
-      <Route path="/lab/finance" element={<ProtectedRoute><Finance /></ProtectedRoute>} />
-      <Route path="/lab/kanban" element={<ProtectedRoute><Kanban /></ProtectedRoute>} />
-      <Route path="/lab/receipts" element={<ProtectedRoute><Receipts /></ProtectedRoute>} />
-      <Route path="/lab/logistics" element={<ProtectedRoute><RoutePlanner /></ProtectedRoute>} />
-      <Route path="/lab/inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
-      <Route path="/lab/price-tables" element={<ProtectedRoute><PriceTables /></ProtectedRoute>} />
-
-      <Route path="/store" element={<ProtectedRoute><UnifiedStore /></ProtectedRoute>} />
-      <Route path="/store/:slug" element={<StoreCatalogRoute />} />
-      <Route path="/cart" element={<ProtectedRoute><Cart /></ProtectedRoute>} />
-      <Route path="/patients" element={<ProtectedRoute><Patients /></ProtectedRoute>} />
-      <Route path="/schedule" element={<ProtectedRoute><Schedule /></ProtectedRoute>} />
-      <Route path="/clinic/services" element={<ProtectedRoute><ClinicServices /></ProtectedRoute>} />
-      <Route path="/clinic/rooms" element={<ProtectedRoute><RoomsManagement /></ProtectedRoute>} />
-      <Route path="/clinic/dentists" element={<ProtectedRoute><DentistsManagement /></ProtectedRoute>} />
-      <Route path="/clinic/finance" element={<ProtectedRoute><ClinicFinance /></ProtectedRoute>} />
-      <Route path="/clinic/inventory" element={<ProtectedRoute><ClinicInventory /></ProtectedRoute>} />
-      <Route path="/clinic/team" element={<ProtectedRoute><ClinicTeam /></ProtectedRoute>} />
-      <Route path="/clinic/users" element={<ProtectedRoute><ClinicTeam /></ProtectedRoute>} />
-      <Route path="/clinic-settings" element={<ProtectedRoute><ClinicSettings /></ProtectedRoute>} />
-      <Route path="/dentist/partnerships" element={<ProtectedRoute><Partnerships /></ProtectedRoute>} />
-      <Route path="/requisitions" element={<ProtectedRoute><DentistRequisitions /></ProtectedRoute>} />
-      <Route path="/dentist/cases" element={<ProtectedRoute><DentistCases /></ProtectedRoute>} />
-      <Route path="/my-cases" element={<ProtectedRoute><DentistCases /></ProtectedRoute>} />
-
-      <Route path="/supplier/dashboard" element={<ProtectedRoute><SupplierDashboard /></ProtectedRoute>} />
-      <Route path="/supplier/chat" element={<ProtectedRoute><SupplierChat /></ProtectedRoute>} />
-      <Route path="/supplier/products" element={<ProtectedRoute><SupplierProducts /></ProtectedRoute>} />
-      <Route path="/supplier/coupons" element={<ProtectedRoute><SupplierCoupons /></ProtectedRoute>} />
-      <Route path="/supplier/settings" element={<ProtectedRoute><SupplierSettings /></ProtectedRoute>} />
-
-      <Route path="/calendar" element={<ProtectedRoute><ProductionCalendar /></ProtectedRoute>} />
-      <Route path="/monitoring" element={<ProtectedRoute requiredPermission="monitoring:view"><MonitoringPage /></ProtectedRoute>} />
-      <Route path="/lab/monitoring" element={<ProtectedRoute requiredPermission="monitoring:view"><MonitoringPage /></ProtectedRoute>} />
-      <Route path="/promised" element={<ProtectedRoute><PromisedJobs /></ProtectedRoute>} />
-      <Route path="/subscribe" element={<ProtectedRoute><Subscribe /></ProtectedRoute>} />
-      <Route path="/tutorials" element={<ProtectedRoute requiredPermission="tutorials:view"><TutorialsView /></ProtectedRoute>} />
-
-      <Route path="/superadmin" element={<ProtectedRoute><SuperAdminDashboard /></ProtectedRoute>} />
-      <Route path="/superadmin/plans" element={<ProtectedRoute><Plans /></ProtectedRoute>} />
-      <Route path="/superadmin/coupons" element={<ProtectedRoute><Coupons /></ProtectedRoute>} />
-      <Route path="/superadmin/nfc" element={<ProtectedRoute><NfcKitsAdmin /></ProtectedRoute>} />
-      <Route path="/superadmin/subscriptions" element={<ProtectedRoute><Subscriptions /></ProtectedRoute>} />
-      <Route path="/superadmin/categories" element={<ProtectedRoute><MarketplaceCategoriesAdmin /></ProtectedRoute>} />
-      <Route path="/superadmin/finance" element={<ProtectedRoute><SuperAdminFinance /></ProtectedRoute>} />
-      <Route path="/superadmin/tutorials" element={<ProtectedRoute><Tutorials /></ProtectedRoute>} />
-      <Route path="/superadmin/helpdesk" element={<ProtectedRoute><HelpdeskAgentsAdmin /></ProtectedRoute>} />
-      <Route path="/superadmin/whatsapp" element={<ProtectedRoute><WhatsAppTemplates /></ProtectedRoute>} />
-      <Route path="/superadmin/resets" element={<ProtectedRoute><LabResets /></ProtectedRoute>} />
-      <Route path="/superadmin/bio" element={<ProtectedRoute><BioLinksAdmin /></ProtectedRoute>} />
-      <Route path="/helpdesk" element={<ProtectedRoute><HelpdeskWorkspace /></ProtectedRoute>} />
-      
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
-  );
-};
-
-function App() {
+export default function App() {
   return (
     <AppProvider>
-      <HashRouter>
-        <AppContent />
-      </HashRouter>
+      <BrowserRouter>
+        <Routes>
+          {/* Public / Standalone routes outside main sidebar layout */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/register-lab" element={<RegisterOrganization />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/terms" element={<TermsOfUse />} />
+          <Route path="/supplier-terms" element={<SupplierTermsAndGuidelines />} />
+          <Route path="/bio/:slug" element={<BioPage />} />
+          <Route path="/requisition-invite" element={<RequisitionInvite />} />
+
+          {/* Main App Routes wrapped in Layout */}
+          <Route
+            path="/*"
+            element={
+              <Layout>
+                <Routes>
+                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/dashboard" element={<Dashboard />} />
+
+                  {/* Jobs & Production */}
+                  <Route path="/jobs" element={<JobsList />} />
+                  <Route path="/jobs/:id" element={<JobDetails />} />
+                  <Route path="/new-job" element={<NewJob />} />
+                  <Route path="/budgets" element={<JobsList isBudgetMode={true} />} />
+                  <Route path="/new-budget" element={<NewJob isBudget={true} />} />
+                  <Route path="/promised" element={<PromisedJobs />} />
+                  <Route path="/lab/kanban" element={<Kanban />} />
+                  <Route path="/calendar" element={<ProductionCalendar />} />
+                  <Route path="/job-types" element={<JobTypes />} />
+                  <Route path="/incoming-orders" element={<IncomingOrders />} />
+                  <Route path="/incoming-requisitions" element={<IncomingRequisitions />} />
+
+                  {/* Lab Management */}
+                  <Route path="/lab/dentists" element={<Dentists />} />
+                  <Route path="/lab/price-tables" element={<PriceTables />} />
+                  <Route path="/lab/inventory" element={<Inventory />} />
+                  <Route path="/lab/finance" element={<Finance />} />
+                  <Route path="/lab/receipts" element={<Receipts />} />
+                  <Route path="/commissions" element={<Commissions />} />
+                  <Route path="/lab/logistics" element={<RoutePlanner />} />
+                  <Route path="/reports" element={<Reports />} />
+                  <Route path="/monitoring" element={<MonitoringPage />} />
+                  <Route path="/tutorials" element={<TutorialsView />} />
+                  <Route path="/profile" element={<Profile />} />
+                  <Route path="/subscribe" element={<Subscribe />} />
+                  <Route path="/nfc" element={<NFCReader />} />
+                  <Route path="/helpdesk" element={<HelpdeskWorkspace />} />
+
+                  {/* Admin & Lab Settings */}
+                  <Route path="/admin/*" element={<Admin />} />
+
+                  {/* Store */}
+                  <Route path="/store" element={<UnifiedStore />} />
+                  <Route path="/store/:slug" element={<UnifiedStore />} />
+                  <Route path="/cart" element={<Cart />} />
+
+                  {/* Dentist / Client */}
+                  <Route path="/dentist/cases" element={<DentistCases />} />
+                  <Route path="/my-cases" element={<DentistCases />} />
+                  <Route path="/dentist/partnerships" element={<Partnerships />} />
+                  <Route path="/requisitions" element={<DentistRequisitions />} />
+                  <Route path="/patients" element={<Patients />} />
+
+                  {/* Clinic */}
+                  <Route path="/schedule" element={<Schedule />} />
+                  <Route path="/clinic/finance" element={<ClinicFinance />} />
+                  <Route path="/clinic/rooms" element={<RoomsManagement />} />
+                  <Route path="/clinic/dentists" element={<DentistsManagement />} />
+                  <Route path="/clinic/services" element={<ClinicServices />} />
+                  <Route path="/clinic/inventory" element={<ClinicInventory />} />
+                  <Route path="/clinic/team" element={<ClinicTeam />} />
+                  <Route path="/clinic/users" element={<ClinicTeam />} />
+                  <Route path="/clinic-settings" element={<ClinicSettings />} />
+
+                  {/* Supplier */}
+                  <Route path="/supplier/dashboard" element={<SupplierDashboard />} />
+                  <Route path="/supplier/products" element={<SupplierProducts />} />
+                  <Route path="/supplier/coupons" element={<SupplierCoupons />} />
+                  <Route path="/supplier/chat" element={<SupplierChat />} />
+                  <Route path="/supplier/settings" element={<SupplierSettings />} />
+
+                  {/* SuperAdmin */}
+                  <Route path="/superadmin" element={<SuperAdminDashboard />} />
+                  <Route path="/superadmin/nfc" element={<NfcKitsAdmin />} />
+                  <Route path="/superadmin/plans" element={<Plans />} />
+                  <Route path="/superadmin/coupons" element={<SuperAdminCoupons />} />
+                  <Route path="/superadmin/subscriptions" element={<Subscriptions />} />
+                  <Route path="/superadmin/categories" element={<MarketplaceCategoriesAdmin />} />
+                  <Route path="/superadmin/finance" element={<SuperAdminFinance />} />
+                  <Route path="/superadmin/whatsapp" element={<WhatsAppTemplates />} />
+                  <Route path="/superadmin/tutorials" element={<SuperAdminTutorials />} />
+                  <Route path="/superadmin/helpdesk" element={<HelpdeskAgentsAdmin />} />
+                  <Route path="/superadmin/resets" element={<LabResets />} />
+                  <Route path="/superadmin/bio" element={<BioLinksAdmin />} />
+
+                  {/* Fallback redirect */}
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+              </Layout>
+            }
+          />
+        </Routes>
+      </BrowserRouter>
     </AppProvider>
   );
 }
-
-export default App;

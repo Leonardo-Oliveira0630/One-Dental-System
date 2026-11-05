@@ -262,11 +262,32 @@ export function calculateJobSearchScore(
     }
   }
 
-  // 5. Pontuação para Dentista, Clínica, ID
+  // 5. Pontuação para Dentista / Cliente / Clínica
+  if (normDentist || normClinic) {
+    const targetName = normDentist || normClinic;
+    if (targetName === normQuery) {
+      bestScore = Math.min(bestScore, 25);
+    } else if (targetName.startsWith(normQuery)) {
+      bestScore = Math.min(bestScore, 35);
+    } else {
+      const words = targetName.split(/\s+/).filter(Boolean);
+      for (let i = 0; i < words.length; i++) {
+        const w = words[i];
+        if (w === normQuery) {
+          bestScore = Math.min(bestScore, i === 0 ? 38 : 48);
+        } else if (w.startsWith(normQuery)) {
+          bestScore = Math.min(bestScore, i === 0 ? 42 : 52);
+        }
+      }
+      if (bestScore === 999 && targetName.includes(normQuery)) {
+        bestScore = Math.min(bestScore, 80);
+      }
+    }
+  }
+
+  // 6. ID do trabalho
   if (bestScore === 999) {
-    if (normDentist.includes(normQuery) || normClinic.includes(normQuery)) {
-      bestScore = 80;
-    } else if (normId.includes(normQuery)) {
+    if (normId.includes(normQuery)) {
       bestScore = 90;
     } else {
       bestScore = 100;
