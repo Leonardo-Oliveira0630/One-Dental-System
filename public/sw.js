@@ -1,12 +1,10 @@
 // Labprox PWA Service Worker
-const CACHE_NAME = 'labprox-v4';
+const CACHE_NAME = 'labprox-v5';
 const ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/logo labprox.svg',
-  'https://cdn.tailwindcss.com',
-  'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap'
+  '/logo labprox.svg'
 ];
 
 self.addEventListener('install', (event) => {
@@ -30,15 +28,18 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
+  if (event.request.method !== 'GET' || url.protocol.startsWith('chrome-extension')) {
+    return;
+  }
+
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request).catch(() => caches.match('/index.html') || fetch(event.request))
+      fetch(event.request).catch(() => caches.match('/index.html').then(res => res || fetch(event.request)))
     );
     return;
   }
 
   if (
-    url.hostname === 'cdn.tailwindcss.com' ||
     url.hostname.includes('fonts.googleapis.com') ||
     url.hostname.includes('fonts.gstatic.com') ||
     event.request.destination === 'style' ||
@@ -47,15 +48,14 @@ self.addEventListener('fetch', (event) => {
   ) {
     event.respondWith(
       caches.match(event.request).then((cachedResponse) => {
-        const fetchPromise = fetch(event.request).then((networkResponse) => {
+        if (cachedResponse) return cachedResponse;
+        return fetch(event.request).then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200) {
             const responseToCache = networkResponse.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));
           }
           return networkResponse;
-        }).catch(() => {});
-
-        return cachedResponse || fetchPromise;
+        }).catch(() => new Response('', { status: 408, statusText: 'Network Timeout' }));
       })
     );
     return;
@@ -63,7 +63,7 @@ self.addEventListener('fetch', (event) => {
 
   event.respondWith(
     caches.match(event.request).then((response) => {
-      return response || fetch(event.request).catch(() => {});
+      return response || fetch(event.request).catch(() => new Response('', { status: 408, statusText: 'Offline' }));
     })
   );
 });
