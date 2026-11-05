@@ -3,16 +3,111 @@ import { Job, User, ManualDentist, Sector, JobType, Organization, DentistPayment
 
 interface AppContextType {
   jobs: Job[];
+  budgets: Job[];
   allUsers: User[];
   manualDentists: ManualDentist[];
   sectors: Sector[];
   jobTypes: JobType[];
   currentOrg: Organization | null;
+  activeOrganization: Organization | null;
   currentUser: User | null;
   dentistPayments: DentistPayment[];
   billingBatches: BillingBatch[];
+  commissions: any[];
+  commissionGroups: any[];
+  nfcBoxes: any[];
+  onlineRequisitions: any[];
+  couriers: any[];
+  routes: any[];
+  alerts: any[];
+  inventoryItems: any[];
+  boxColors: any[];
+  priceTables: any[];
+  userConnections: any[];
+  allLaboratories: any[];
+  allSuppliers: any[];
+  supplierOrders: any[];
+  productCatalogItems: any[];
+  cart: any[];
+  storeCart: any[];
+  patients: any[];
+  allPlans: any[];
+  currentPlan: any;
+  language: string;
+  theme: string;
+  activeAlert: any;
+  printData: any;
+  globalSettings: any;
+  labCoupons: any[];
+  activeManualDentistId: string | null;
+
   setJobs: React.Dispatch<React.SetStateAction<Job[]>>;
   setJobTypes: React.Dispatch<React.SetStateAction<JobType[]>>;
+  updateJob: (id: string, data: Partial<Job>) => Promise<void>;
+  addJob: (data: any) => Promise<any>;
+  updateBudget: (id: string, data: any) => Promise<void>;
+  addBudget: (data: any) => Promise<any>;
+  addCommissionRecord: (data: any) => Promise<void>;
+  updateCommissionRecord: (id: string, data: any) => Promise<void>;
+  deleteCommissionRecord: (id: string) => Promise<void>;
+  uploadFile: (file: File) => Promise<string>;
+  addJobToRoute: (jobId: string, routeId: string) => Promise<void>;
+  updateOnlineRequisition: (id: string, data: any) => Promise<void>;
+  triggerPrint: (data: any) => void;
+  clearPrint: () => void;
+  addAlert: (data: any) => Promise<void>;
+  dismissAlert: (id: string) => Promise<void>;
+  login: (email: string, pass: string) => Promise<void>;
+  logout: () => void;
+  setTheme: (theme: string) => void;
+  setLanguage: (lang: string) => void;
+  updateUser: (id: string, data: any) => Promise<void>;
+  deleteUser: (id: string) => Promise<void>;
+  registerOrganization: (data: any) => Promise<any>;
+  registerOutsourcedLab: (data: any) => Promise<any>;
+  registerDentist: (data: any) => Promise<any>;
+  registerSupplier: (data: any) => Promise<any>;
+  validateCro: (cro: string, state: string) => Promise<boolean>;
+  validateCoupon: (code: string) => Promise<any>;
+  createSubscription: (data: any) => Promise<any>;
+  checkSubscriptionStatus: () => Promise<any>;
+  addManualDentist: (data: any) => Promise<any>;
+  updateManualDentist: (id: string, data: any) => Promise<void>;
+  deleteManualDentist: (id: string) => Promise<void>;
+  addDentistPayment: (data: any) => Promise<any>;
+  updateDentistPayment: (id: string, data: any) => Promise<void>;
+  deleteDentistPayment: (id: string) => Promise<void>;
+  updateBillingBatchStatus: (id: string, status: string) => Promise<void>;
+  generateBatchBoleto: (dentistId: string, jobIds: string[], dueDate: Date, totalAmount: number) => Promise<any>;
+  cardMachines: any[];
+  bankAccounts: any[];
+  addCardMachine: (data: any) => Promise<any>;
+  updateCardMachine: (id: string, data: any) => Promise<void>;
+  deleteCardMachine: (id: string) => Promise<void>;
+  addBankAccount: (data: any) => Promise<any>;
+  updateBankAccount: (id: string, data: any) => Promise<void>;
+  deleteBankAccount: (id: string) => Promise<void>;
+  addBoxColor: (data: any) => Promise<any>;
+  deleteBoxColor: (id: string) => Promise<void>;
+  updateOrganization: (data: any) => Promise<void>;
+  checkSlugAvailability: (slug: string) => Promise<boolean>;
+  createLabWallet: () => Promise<any>;
+  getSaaSInvoices: () => Promise<any[]>;
+  updateSupplierOrder: (id: string, data: any) => Promise<void>;
+  addToCart: (item: any) => void;
+  removeFromCart: (itemId: string) => void;
+  updateCartItemQty: (itemId: string, qty: number) => void;
+  clearCart: () => void;
+  validateLabCoupon: (code: string) => Promise<any>;
+  updateLabCoupon: (id: string, data: any) => Promise<void>;
+  addLabCoupon: (data: any) => Promise<any>;
+  deleteLabCoupon: (id: string) => Promise<void>;
+  addConnectionByCode: (code: string) => Promise<any>;
+  switchActiveOrganization: (org: any) => void;
+  addJobType: (data: any) => Promise<any>;
+  updateJobType: (id: string, data: any) => Promise<void>;
+  deleteJobType: (id: string) => Promise<void>;
+  updateInventoryItem: (id: string, data: any) => Promise<void>;
 }
 
 const initialJobTypes: JobType[] = [
@@ -117,6 +212,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [jobs, setJobs] = useState<Job[]>(initialJobs);
+  const [budgets] = useState<Job[]>([]);
   const [jobTypes, setJobTypes] = useState<JobType[]>(initialJobTypes);
 
   const [allUsers] = useState<User[]>([
@@ -162,20 +258,144 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   ];
 
   const billingBatches: BillingBatch[] = [];
+  const [commissions] = useState<any[]>([]);
+  const [commissionGroups] = useState<any[]>([]);
+  const [nfcBoxes] = useState<any[]>([]);
+  const [onlineRequisitions] = useState<any[]>([]);
+  const [couriers] = useState<any[]>([]);
+  const [routes] = useState<any[]>([]);
+  const [alerts] = useState<any[]>([]);
+  const [inventoryItems] = useState<any[]>([]);
+  const [boxColors] = useState<any[]>([]);
+  const [priceTables] = useState<any[]>([]);
+  const [userConnections] = useState<any[]>([]);
+  const [allLaboratories] = useState<any[]>([]);
+  const [allSuppliers] = useState<any[]>([]);
+  const [supplierOrders] = useState<any[]>([]);
+  const [productCatalogItems] = useState<any[]>([]);
+  const [cart] = useState<any[]>([]);
+  const [storeCart] = useState<any[]>([]);
+  const [patients] = useState<any[]>([]);
+  const [allPlans] = useState<any[]>([]);
+  const [labCoupons] = useState<any[]>([]);
+  const [cardMachines] = useState<any[]>([]);
+  const [bankAccounts] = useState<any[]>([]);
+
+  const [language, setLanguageState] = useState<string>('pt-BR');
+  const [theme, setThemeState] = useState<string>('light');
+  const [printData, setPrintData] = useState<any>(null);
+
+  const asyncNoop = async () => {};
+  const asyncResultNoop = async (data?: any) => data || {};
 
   return (
     <AppContext.Provider value={{
       jobs,
+      budgets,
       allUsers,
       manualDentists,
       sectors,
       jobTypes,
       currentOrg,
+      activeOrganization: currentOrg,
       currentUser,
       dentistPayments,
       billingBatches,
+      commissions,
+      commissionGroups,
+      nfcBoxes,
+      onlineRequisitions,
+      couriers,
+      routes,
+      alerts,
+      inventoryItems,
+      boxColors,
+      priceTables,
+      userConnections,
+      allLaboratories,
+      allSuppliers,
+      supplierOrders,
+      productCatalogItems,
+      cart,
+      storeCart,
+      patients,
+      allPlans,
+      currentPlan: { id: 'pro', name: 'Plano Pro' },
+      language,
+      theme,
+      activeAlert: null,
+      printData,
+      globalSettings: {},
+      labCoupons,
+      activeManualDentistId: null,
+
       setJobs,
-      setJobTypes
+      setJobTypes,
+      updateJob: asyncNoop,
+      addJob: asyncResultNoop,
+      updateBudget: asyncNoop,
+      addBudget: asyncResultNoop,
+      addCommissionRecord: asyncNoop,
+      updateCommissionRecord: asyncNoop,
+      deleteCommissionRecord: asyncNoop,
+      uploadFile: async () => '',
+      addJobToRoute: asyncNoop,
+      updateOnlineRequisition: asyncNoop,
+      triggerPrint: (data) => setPrintData(data),
+      clearPrint: () => setPrintData(null),
+      addAlert: asyncNoop,
+      dismissAlert: asyncNoop,
+      login: asyncNoop,
+      logout: () => {},
+      setTheme: (t) => setThemeState(t),
+      setLanguage: (l) => setLanguageState(l),
+      updateUser: asyncNoop,
+      deleteUser: asyncNoop,
+      registerOrganization: asyncResultNoop,
+      registerOutsourcedLab: asyncResultNoop,
+      registerDentist: asyncResultNoop,
+      registerSupplier: asyncResultNoop,
+      validateCro: async () => true,
+      validateCoupon: asyncResultNoop,
+      createSubscription: asyncResultNoop,
+      checkSubscriptionStatus: asyncResultNoop,
+      addManualDentist: asyncResultNoop,
+      updateManualDentist: asyncNoop,
+      deleteManualDentist: asyncNoop,
+      addDentistPayment: asyncResultNoop,
+      updateDentistPayment: asyncNoop,
+      deleteDentistPayment: asyncNoop,
+      updateBillingBatchStatus: asyncNoop,
+      generateBatchBoleto: asyncResultNoop,
+      cardMachines,
+      bankAccounts,
+      addCardMachine: asyncResultNoop,
+      updateCardMachine: asyncNoop,
+      deleteCardMachine: asyncNoop,
+      addBankAccount: asyncResultNoop,
+      updateBankAccount: asyncNoop,
+      deleteBankAccount: asyncNoop,
+      addBoxColor: asyncResultNoop,
+      deleteBoxColor: asyncNoop,
+      updateOrganization: asyncNoop,
+      checkSlugAvailability: async () => true,
+      createLabWallet: asyncResultNoop,
+      getSaaSInvoices: async () => [],
+      updateSupplierOrder: asyncNoop,
+      addToCart: () => {},
+      removeFromCart: () => {},
+      updateCartItemQty: () => {},
+      clearCart: () => {},
+      validateLabCoupon: asyncResultNoop,
+      updateLabCoupon: asyncNoop,
+      addLabCoupon: asyncResultNoop,
+      deleteLabCoupon: asyncNoop,
+      addConnectionByCode: asyncResultNoop,
+      switchActiveOrganization: () => {},
+      addJobType: asyncResultNoop,
+      updateJobType: asyncNoop,
+      deleteJobType: asyncNoop,
+      updateInventoryItem: asyncNoop
     }}>
       {children}
     </AppContext.Provider>
