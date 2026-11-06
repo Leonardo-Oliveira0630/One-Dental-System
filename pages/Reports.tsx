@@ -181,6 +181,14 @@ export default function Reports() {
         textColor: 'text-purple-600',
         canExport: canExportServiceTypes
       });
+      tabs.push({
+        type: 'CATEGORY_SUMMARY',
+        label: t('reports.categorySummary', 'Por Categoria'),
+        icon: BarChart3,
+        activeColor: 'bg-white text-blue-700 shadow-sm border border-slate-200/60',
+        textColor: 'text-blue-600',
+        canExport: canExportServiceTypes
+      });
     }
 
     return tabs;
@@ -228,7 +236,7 @@ export default function Reports() {
   const [statusFilter, setStatusFilter] = useState('');
   const [urgencyFilter, setUrgencyFilter] = useState('');
   const [groupBy, setGroupBy] = useState<'DATE' | 'JOB_TYPE' | 'LIST' | 'COLLABORATOR'>('DATE');
-  const [reportType, setReportType] = useState<'CLIENT_SUMMARY' | 'PRODUCTION' | 'DETAILED_ORDERS' | 'SERVICE_TYPES' | 'DEBTORS_CREDITORS' | 'RECEIPTS' | null>(null);
+  const [reportType, setReportType] = useState<'CLIENT_SUMMARY' | 'PRODUCTION' | 'DETAILED_ORDERS' | 'SERVICE_TYPES' | 'DEBTORS_CREDITORS' | 'RECEIPTS' | 'CATEGORY_SUMMARY' | null>(null);
   const [selectedServiceCategory, setSelectedServiceCategory] = useState<string>('');
   const [receiptsSubView, setReceiptsSubView] = useState<'CLIENTS' | 'TRANSACTIONS'>('CLIENTS');
 
@@ -377,6 +385,7 @@ export default function Reports() {
       case 'PRODUCTION': return canExportProduction;
       case 'DETAILED_ORDERS': return canExportDetailedOrders;
       case 'SERVICE_TYPES': return canExportServiceTypes;
+      case 'CATEGORY_SUMMARY': return canExportServiceTypes;
       case 'DEBTORS_CREDITORS': return canExportClientSummary;
       case 'RECEIPTS': return canExportClientSummary;
       default: return false;
@@ -450,6 +459,26 @@ export default function Reports() {
     }
   };
 
+  const getMatchingItems = (job: Job) => {
+    if (!jobTypeId) return job.items || [];
+    return (job.items || []).filter(item => {
+      if (item.jobTypeId !== jobTypeId) return false;
+      for (const [groupId, optionId] of Object.entries(variationFilters)) {
+        if (optionId) {
+          const hasOpt = item.selectedVariationIds?.includes(optionId);
+          if (!hasOpt) return false;
+        }
+      }
+      return true;
+    });
+  };
+
+  const getJobDisplayValue = (job: Job) => {
+    const matching = getMatchingItems(job);
+    if (!jobTypeId) return job.totalValue || 0;
+    return matching.reduce((sum, it) => sum + ((it.price * (it.quantity || 1)) - (it.appliedDiscount || 0)), 0);
+  };
+
   // Filter jobs
   const filteredJobs = useMemo(() => {
     return jobs.filter(job => {
@@ -509,6 +538,7 @@ export default function Reports() {
       if (statusFilter) {
         if (statusFilter === 'PENDING' && job.status !== 'PENDING') return false;
         if (statusFilter === 'IN_PROGRESS' && job.status !== 'IN_PROGRESS' && job.status !== 'SECTOR_TRANSITION') return false;
+        if (statusFilter === 'COMPLETED' && job.status !== 'COMPLETED' && job.status !== 'DELIVERED') return false;
         if (statusFilter === 'DELAYED') {
           if (job.status === 'COMPLETED' || job.status === 'DELIVERED' || job.status === 'CANCELED') return false;
           const today = new Date();
@@ -573,6 +603,9 @@ export default function Reports() {
     let grandTotalItems = 0;
 
     filteredJobs.forEach(job => {
+      const matchingItems = getMatchingItems(job);
+      if (jobTypeId && matchingItems.length === 0) return;
+
       const clientId = job.dentistId || job.dentistName || 'unknown';
       const dentistInfo = manualDentists.find(d => d.id === job.dentistId || d.name === job.dentistName) || 
                           allUsers.find(u => u.id === job.dentistId || u.name === job.dentistName);
@@ -605,9 +638,10 @@ export default function Reports() {
 
       const client = clientsMap[clientId];
       client.totalJobs += 1;
-      const itemsCount = (job.items || []).reduce((sum, it) => sum + (it.quantity || 1), 0);
+      const itemsCount = matchingItems.reduce((sum, it) => sum + (it.quantity || 1), 0);
       client.totalItems += itemsCount;
-      client.totalBilling += (job.totalValue || 0);
+      const jobVal = getJobDisplayValue(job);
+      client.totalBilling += jobVal;
       client.jobs.push(job);
 
       if (job.status === 'PENDING') client.statusBreakdown.pending++;
@@ -616,7 +650,7 @@ export default function Reports() {
       else if (job.status === 'DELIVERED') client.statusBreakdown.delivered++;
       else if (job.status === 'CANCELED' || job.status === 'REJECTED') client.statusBreakdown.canceled++;
 
-      grandTotalBilling += (job.totalValue || 0);
+      grandTotalBilling += jobVal;
       grandTotalJobs += 1;
       grandTotalItems += itemsCount;
     });
@@ -1081,6 +1115,53 @@ export default function Reports() {
     return stats;
   }, [filteredJobs, reportType, jobTypes, selectedServiceCategory]);
 
+  const categoryStats = useMemo(() => {
+    if (reportType !== 'CATEGORY_SUMMARY') return null;
+    const stats: Record<string, { categoryName: string; quantity: number; totalValue: number; serviceTypesMap: Record<string, { name: string; quantity: number; totalValue: number }> }> = {};
+    
+    allCategoriesList.forEach(cat => {
+      stats[cat] = {
+        categoryName: cat,
+        quantity: 0,
+        totalValue: 0,
+        serviceTypesMap: {}
+      };
+    });
+
+    filteredJobs.forEach(job => {
+      (job.items || []).forEach((item: any) => {
+        const typeId = item.jobTypeId || item.name;
+        const matchingJt = jobTypes.find(tj => tj.id === typeId || tj.name === item.name);
+        const typeName = matchingJt?.name || item.name || 'Serviço';
+        const typeCat = (matchingJt?.category || 'Geral').trim();
+
+        if (!stats[typeCat]) {
+          stats[typeCat] = {
+            categoryName: typeCat,
+            quantity: 0,
+            totalValue: 0,
+            serviceTypesMap: {}
+          };
+        }
+
+        const catEntry = stats[typeCat];
+        const qty = item.quantity || 1;
+        const val = (item.price * qty) - (item.appliedDiscount || 0);
+
+        catEntry.quantity += qty;
+        catEntry.totalValue += val;
+
+        if (!catEntry.serviceTypesMap[typeName]) {
+          catEntry.serviceTypesMap[typeName] = { name: typeName, quantity: 0, totalValue: 0 };
+        }
+        catEntry.serviceTypesMap[typeName].quantity += qty;
+        catEntry.serviceTypesMap[typeName].totalValue += val;
+      });
+    });
+
+    return Object.values(stats).filter(s => s.quantity > 0 || allCategoriesList.includes(s.categoryName)).sort((a, b) => b.quantity - a.quantity);
+  }, [filteredJobs, reportType, jobTypes, allCategoriesList]);
+
   // Export to PDF
   const generatePDF = () => {
     if (!canExportCurrentReport) {
@@ -1339,7 +1420,40 @@ export default function Reports() {
         styles: { fontSize: 10, cellPadding: 4 },
       });
       
-      doc.save(`relatorio-tipos-servico-${new Date().getTime()}.pdf`);
+      // --- PDF: CATEGORY_SUMMARY ---
+    if (reportType === 'CATEGORY_SUMMARY' && categoryStats) {
+      doc.text(`Total de trabalhos: ${filteredJobs.length}`, 14, 36);
+      
+      const tableData: any[] = [];
+      categoryStats.forEach(cat => {
+        tableData.push([
+          `[CATEGORIA] ${cat.categoryName}`,
+          cat.quantity.toString(),
+          `R$ ${cat.totalValue.toFixed(2)}`
+        ]);
+        Object.values(cat.serviceTypesMap).forEach(st => {
+          tableData.push([
+            `   └─ ${st.name}`,
+            st.quantity.toString(),
+            `R$ ${st.totalValue.toFixed(2)}`
+          ]);
+        });
+      });
+
+      autoTable(doc, {
+        startY: 45,
+        head: [[
+          'Categoria / Tipo de Serviço',
+          'Quantidade Produzida',
+          'Valor Total Produzido'
+        ]],
+        body: tableData,
+        theme: 'grid',
+        headStyles: { fillColor: [37, 99, 235] },
+        styles: { fontSize: 9, cellPadding: 3 },
+      });
+      
+      doc.save(`relatorio-por-categoria-${new Date().getTime()}.pdf`);
       return;
     }
 
@@ -1454,6 +1568,29 @@ export default function Reports() {
   const exportToExcel = () => {
     if (!canExportCurrentReport) {
       alert(t('reports.noExportPermission', 'Você não tem permissão para exportar este relatório. Solicite autorização ao administrador.'));
+      return;
+    }
+    if (reportType === 'CATEGORY_SUMMARY' && categoryStats) {
+      const rows: any[] = [];
+      categoryStats.forEach(cat => {
+        rows.push({
+          'Categoria / Tipo de Serviço': `[CATEGORIA] ${cat.categoryName}`,
+          'Quantidade Produzida': cat.quantity,
+          'Valor Total Produzido (R$)': Number(cat.totalValue.toFixed(2))
+        });
+        Object.values(cat.serviceTypesMap).forEach(st => {
+          rows.push({
+            'Categoria / Tipo de Serviço': `   └─ ${st.name}`,
+            'Quantidade Produzida': st.quantity,
+            'Valor Total Produzido (R$)': Number(st.totalValue.toFixed(2))
+          });
+        });
+      });
+
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Por_Categoria');
+      XLSX.writeFile(wb, `relatorio_por_categoria_${currentOrg?.name || 'labprox'}_${new Date().toISOString().split('T')[0]}.xlsx`);
       return;
     }
     if (reportType === 'DEBTORS_CREDITORS') {
@@ -1837,6 +1974,26 @@ export default function Reports() {
                 </p>
               </button>
             )}
+
+            {canViewServiceTypes && (
+              <button
+                type="button"
+                onClick={() => setReportType('CATEGORY_SUMMARY')}
+                className={`w-full text-left p-3.5 rounded-2xl transition-all border cursor-pointer ${
+                  reportType === 'CATEGORY_SUMMARY'
+                    ? 'bg-blue-50/90 border-blue-300 ring-2 ring-blue-500/20 text-blue-950 shadow-sm'
+                    : 'bg-slate-50/60 hover:bg-slate-100/80 border-slate-200/70 text-slate-800'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-xs uppercase tracking-wide">Por Categoria</span>
+                  {reportType === 'CATEGORY_SUMMARY' && <span className="text-[10px] font-black uppercase text-blue-700 bg-blue-100 px-2 py-0.5 rounded-md">Ativo</span>}
+                </div>
+                <p className="text-[11px] text-slate-500 font-medium mt-1 leading-snug">
+                  Somatória de quantidade de elementos e valor total por categoria de serviço.
+                </p>
+              </button>
+            )}
           </div>
         </div>
 
@@ -1897,7 +2054,7 @@ export default function Reports() {
       </div>
 
       {/* Empty Selection Notice */}
-      {!reportType ? (
+      { !reportType ? (
         <div className="bg-slate-50/80 border-2 border-dashed border-slate-200/80 rounded-3xl p-10 text-center space-y-3 animate-in fade-in duration-300">
           <div className="w-14 h-14 bg-white rounded-2xl border border-slate-200 flex items-center justify-center mx-auto text-slate-400 shadow-2xs">
             <FileText size={28} />
@@ -2509,6 +2666,7 @@ export default function Reports() {
                   <option value="">{t('reports.allStatuses', 'Todos os Status')}</option>
                   <option value="PENDING">{t('reports.pending', 'Pendente')}</option>
                   <option value="IN_PROGRESS">{t('reports.inProgress', 'Em Produção')}</option>
+                  <option value="COMPLETED">Concluído (Faturado)</option>
                   <option value="DELAYED">{t('reports.delayed', 'Atrasado')}</option>
                 </select>
               </div>
@@ -3183,6 +3341,73 @@ export default function Reports() {
               </table>
             </div>
           </div>
+        ) : reportType === 'CATEGORY_SUMMARY' && categoryStats ? (
+          /* --- VIEW: CATEGORY_SUMMARY --- */
+          <div className="p-5 sm:p-6 space-y-6">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-4">
+              <div>
+                <h3 className="font-black text-slate-900 text-lg flex items-center gap-2">
+                  <BarChart3 className="text-blue-600" size={20} />
+                  Relatório de Produção por Categoria
+                </h3>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                  Somatória de quantidade de elementos e valor total por categoria de serviço e seus tipos de serviço.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {categoryStats.map((cat) => (
+                <div key={cat.categoryName} className="bg-slate-50/70 border border-slate-200/80 rounded-2xl p-5 space-y-3 shadow-xs">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-200/60 pb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-800 font-black flex items-center justify-center text-sm shadow-xs">
+                        {cat.categoryName.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <h4 className="font-black text-slate-900 text-base">{cat.categoryName}</h4>
+                        <span className="text-[11px] text-slate-500 font-medium">
+                          {Object.keys(cat.serviceTypesMap).length} {Object.keys(cat.serviceTypesMap).length === 1 ? 'tipo de serviço' : 'tipos de serviço'} produzidos
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-4 bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-xs">
+                      <div>
+                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">Qtd Total</span>
+                        <span className="text-sm font-black text-slate-900">{cat.quantity} elementos</span>
+                      </div>
+                      <div className="h-6 w-px bg-slate-200" />
+                      <div>
+                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">Valor Total</span>
+                        <span className="text-sm font-black text-blue-700">R$ {cat.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Sublist of service types inside category */}
+                  {Object.keys(cat.serviceTypesMap).length > 0 && (
+                    <div className="pl-4 sm:pl-12 space-y-2 pt-1">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-2">
+                        Detalhamento por Tipo de Serviço:
+                      </span>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                        {Object.values(cat.serviceTypesMap).map((st) => (
+                          <div key={st.name} className="bg-white p-3 rounded-xl border border-slate-200/70 shadow-xs flex items-center justify-between gap-3">
+                            <span className="text-xs font-bold text-slate-800 truncate" title={st.name}>{st.name}</span>
+                            <div className="text-right shrink-0">
+                              <span className="text-xs font-black text-slate-900 block">{st.quantity} un.</span>
+                              <span className="text-[11px] font-bold text-teal-700">R$ {st.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
         ) : (
           /* --- VIEW 3: PRODUCTION / DETAILED_ORDERS --- */
           <div className="p-5 sm:p-6 space-y-8">
@@ -3391,7 +3616,6 @@ export default function Reports() {
               ))
             )}
           </div>
-        )}
         </div>
       </div>
     )}
