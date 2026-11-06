@@ -944,8 +944,25 @@ const handleUpdateStatus = async (jobId: string, status: JobStatus) => {
 
   const handleReopenJob = async (job: Job) => {
       if (!window.confirm(t('orders.confirmReopenJob', { name: job.patientName, defaultValue: `Deseja reabrir o caso de ${job.patientName}?` }))) return;
+      
+      let firstCompDate = job.firstCompletedAt;
+      if (!firstCompDate) {
+        if (job.completedAt) {
+          firstCompDate = job.completedAt instanceof Date ? job.completedAt : new Date((job.completedAt as any)?.seconds ? (job.completedAt as any).seconds * 1000 : job.completedAt);
+        } else if (job.finalizedAt) {
+          firstCompDate = job.finalizedAt instanceof Date ? job.finalizedAt : new Date((job.finalizedAt as any)?.seconds ? (job.finalizedAt as any).seconds * 1000 : job.finalizedAt);
+        } else {
+          firstCompDate = new Date();
+        }
+      }
+
       await updateJob(job.id, {
           status: JobStatus.IN_PROGRESS,
+          isReopened: true,
+          firstCompletedAt: firstCompDate,
+          reopenedAt: new Date(),
+          reopenedBy: currentUser?.name || 'Sistema',
+          reopenCount: (job.reopenCount || 0) + 1,
           history: [...(job.history || []).filter(Boolean), {
               id: `hist_reopen_${Date.now()}`,
               timestamp: new Date(),

@@ -329,7 +329,7 @@
     "filterActive": "Ativos",
     "filterDelivered": "Entregues",
     "filterRejected": "Recusados",
-    "searchPlaceholder": "Buscar OS, Caixa, Paciente, Dentista...",
+    "searchPlaceholder": "Buscar por paciente, cliente, nº da OS ou caixa...",
     "filterStatusPlaceholder": "Filtrar Status",
     "allPriorities": "Todas Prioridades",
     "filterDentistsPlaceholder": "Filtrar Dentistas",

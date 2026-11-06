@@ -1,2293 +1,491 @@
-import logger, { getCircularReplacer } from "../utils/logger";
-
-import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
-import { 
-  User, Job, JobType, CartItem, UserRole, Sector, JobAlert, Attachment,
-  ClinicPatient, Appointment, Organization, SubscriptionPlan, OrganizationConnection, Coupon, LabCoupon, CommissionRecord, CommissionStatus, ManualDentist, GlobalSettings, DeliveryRoute, RouteItem, BoxColor, ClinicService, ClinicRoom, ClinicDentist, PermissionKey, ALL_SYSTEM_PERMISSIONS, PaymentRecord, PriceTable, BillingBatch, DentistPayment, Courier,
-  CardMachine, BankAccount,
-  JobStatus, UrgencyLevel, OnlineRequisition, Budget,
-  AppNotification, NotificationPreferences, CommissionGroup, isReviewerUser,
-  isClinicReviewer, isSupplierReviewer
-} from '../types';
-import { 
-  getReviewerSeedJobs, getReviewerSeedRoutes, getReviewerSeedInventory, getReviewerSeedPatients,
-  getReviewerClinicPatients, getReviewerClinicAppointments, getReviewerClinicServices,
-  getReviewerClinicRooms, getReviewerClinicDentists, getReviewerClinicPatientPayments,
-  getReviewerSupplierProducts, getReviewerSupplierOrders, getReviewerSupplierCoupons,
-  getReviewerLabDentists, getReviewerLabJobTypes, getReviewerLabBoxColors,
-  getReviewerLabSectors, getReviewerLabCollaborators, getReviewerLabCommissions,
-  getReviewerLabDentistPayments, ensureReviewerDatabaseSeeded
-} from '../services/reviewerSeedService';
-import { db, auth } from '../services/firebaseConfig';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { Job, User, ManualDentist, Sector, JobType, Organization, DentistPayment, BillingBatch, UserRole, JobStatus } from '../types';
+import { auth, db } from '../services/firebaseConfig';
+import { onAuthStateChanged } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
 import * as api from '../services/firebaseService';
-import { notifyAppointmentCreated, notifyJobLogistics, notifySupplierOrder } from '../services/ycloudService';
-import { SupportedLanguage, setAppLanguage, getInitialLanguage } from '../src/i18n';
-import { 
-  DEFAULT_NOTIFICATION_PREFERENCES, 
-  canUserReceiveNotification, 
-  playNotificationChime, 
-  checkPushSupport, 
-  requestPushNotificationPermission, 
-  showSystemNotification,
-  subscribeUserNotifications,
-  subscribeDirectUserNotifications,
-  apiCreateNotification,
-  apiMarkNotificationAsRead,
-  apiMarkAllNotificationsAsRead,
-  apiDeleteNotification
-} from '../services/notificationService';
-
-import * as authPkg from 'firebase/auth';
-import * as firestorePkg from 'firebase/firestore';
-
-
-const { onAuthStateChanged } = authPkg as any;
-const { doc, getDoc, onSnapshot, getDocFromServer, collection, getDocs } = firestorePkg as any;
-import { getTodayDateStr, normalizeRouteDate, createMiddayDate } from '../utils/dateHelpers';
-
-enum OperationType {
-  CREATE = 'create',
-  UPDATE = 'update',
-  DELETE = 'delete',
-  LIST = 'list',
-  GET = 'get',
-  WRITE = 'write',
-}
-
-interface FirestoreErrorInfo {
-  error: string;
-  operationType: OperationType;
-  path: string | null;
-  authInfo: {
-    userId: string | undefined;
-    email: string | null | undefined;
-    emailVerified: boolean | undefined;
-    isAnonymous: boolean | undefined;
-    tenantId: string | null | undefined;
-    providerInfo: {
-      providerId: string;
-      displayName: string | null;
-      email: string | null;
-      photoUrl: string | null;
-    }[];
-  }
-}
-
-function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
-  const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
-    authInfo: {
-      userId: auth.currentUser?.uid,
-      email: auth.currentUser?.email,
-      emailVerified: auth.currentUser?.emailVerified,
-      isAnonymous: auth.currentUser?.isAnonymous,
-      tenantId: auth.currentUser?.tenantId,
-      providerInfo: auth.currentUser?.providerData.map((provider: any) => ({
-        providerId: provider.providerId,
-        displayName: provider.displayName,
-        email: provider.email,
-        photoUrl: provider.photoURL
-      })) || []
-    },
-    operationType,
-    path
-  };
-  logger.error({ context: errInfo }, 'Firestore Error');
-  throw new Error(JSON.stringify(errInfo, getCircularReplacer()));
-}
-
-const ALL_PERMISSIONS: PermissionKey[] = ALL_SYSTEM_PERMISSIONS;
 
 interface AppContextType {
-  currentUser: User | null;
-  currentOrg: Organization | null;
-  currentPlan: SubscriptionPlan | null;
-  isLoadingAuth: boolean;
-  globalSettings: GlobalSettings | null;
-  
-  allUsers: User[]; 
   jobs: Job[];
-  budgets: Budget[];
-  jobTypes: JobType[];
-  clinicServices: ClinicService[];
-  clinicRooms: ClinicRoom[];
-  clinicDentists: ClinicDentist[];
-  sectors: Sector[];
-  boxColors: BoxColor[];
-  alerts: JobAlert[];
-  commissions: CommissionRecord[];
-  allOrganizations: Organization[];
-  allLaboratories: Organization[]; 
-  allPlans: SubscriptionPlan[];
-  coupons: Coupon[];
-  allPayments: PaymentRecord[];
-  patients: ClinicPatient[];
-  appointments: Appointment[];
+  budgets: Job[];
+  allUsers: User[];
   manualDentists: ManualDentist[];
-  priceTables: PriceTable[];
-  commissionGroups: CommissionGroup[];
-  billingBatches: BillingBatch[];
-  dentistPayments: DentistPayment[];
-  cardMachines: CardMachine[];
-  bankAccounts: BankAccount[];
-  inventoryCategories: import('../types').InventoryCategory[];
-  inventoryItems: import('../types').InventoryItem[];
-  productCatalogItems: import('../types').ProductCatalogItem[];
-  activeAlert: JobAlert | null;
-  onlineRequisitions: OnlineRequisition[];
-  activeManualDentistId: string | null;
-  nfcBoxes: any[];
-
-  addOnlineRequisition: (labId: string, req: Omit<OnlineRequisition, 'id' | 'createdAt' | 'status'>) => Promise<void>;
-  updateOnlineRequisition: (labId: string, id: string, updates: Partial<OnlineRequisition>) => Promise<void>;
-
-  addInventoryCategory: (category: any) => Promise<string>;
-  updateInventoryCategory: (id: string, updates: Partial<import('../types').InventoryCategory>) => Promise<void>;
-  deleteInventoryCategory: (id: string) => Promise<void>;
-
-  addProductCatalogItem: (item: Omit<import('../types').ProductCatalogItem, 'id' | 'organizationId'>) => Promise<void>;
-  updateProductCatalogItem: (id: string, updates: Partial<import('../types').ProductCatalogItem>) => Promise<void>;
-  deleteProductCatalogItem: (id: string) => Promise<void>;
-
-  addInventoryItem: (item: Omit<import('../types').InventoryItem, 'id' | 'organizationId'>) => Promise<void>;
-  updateInventoryItem: (id: string, updates: Partial<import('../types').InventoryItem>) => Promise<void>;
-  deleteInventoryItem: (id: string) => Promise<void>;
-
-  login: (email: string, pass: string) => Promise<void>;
-  logout: () => void;
-  updateUser: (id: string, updates: Partial<User>) => Promise<void>;
-  addUser: (user: User) => Promise<void>;
-  deleteUser: (id: string) => Promise<void>;
-  
-  addJob: (job: Omit<Job, 'id' | 'organizationId'>) => Promise<string>;
-  updateJob: (id: string, updates: Partial<Job>) => Promise<void>;
-  addBudget: (budget: Omit<Budget, 'id' | 'organizationId'>) => Promise<string>;
-  updateBudget: (id: string, updates: Partial<Budget>) => Promise<void>;
-  deleteBudget: (id: string) => Promise<void>;
-  
-  addCommissionRecord: (rec: Omit<CommissionRecord, 'id' | 'organizationId'>) => Promise<void>;
-  updateCommissionStatus: (id: string, status: CommissionStatus) => Promise<void>;
-  updateCommissionRecord: (id: string, updates: Partial<CommissionRecord>) => Promise<void>;
-  deleteCommissionRecord: (id: string) => Promise<void>;
-
-  addJobType: (type: Omit<JobType, 'id'>) => Promise<void>;
-  updateJobType: (id: string, updates: Partial<JobType>) => Promise<void>;
-  deleteJobType: (id: string) => Promise<void>;
-
-  addClinicService: (service: Omit<ClinicService, 'id'>) => Promise<void>;
-  updateClinicService: (id: string, updates: Partial<ClinicService>) => Promise<void>;
-  deleteClinicService: (id: string) => Promise<void>;
-
-  addClinicRoom: (room: Omit<ClinicRoom, 'id'>) => Promise<void>;
-  updateClinicRoom: (id: string, updates: Partial<ClinicRoom>) => Promise<void>;
-  deleteClinicRoom: (id: string) => Promise<void>;
-
-  addClinicDentist: (dentist: Omit<ClinicDentist, 'id'>) => Promise<void>;
-  updateClinicDentist: (id: string, updates: Partial<ClinicDentist>) => Promise<void>;
-  deleteClinicDentist: (id: string) => Promise<void>;
-
-  addSector: (name: string) => Promise<void>;
-  updateSector: (id: string, updates: Partial<Sector>) => Promise<void>;
-  deleteSector: (id: string) => Promise<void>;
-  
-  addBoxColor: (color: Omit<BoxColor, 'id'>) => Promise<void>;
-  deleteBoxColor: (id: string) => Promise<void>;
-
-  cart: CartItem[];
-  addToCart: (item: CartItem) => void;
-  removeFromCart: (cartItemId: string) => void;
-  updateCartItemQty: (cartItemId: string, qty: number) => void;
-  clearCart: () => void;
-  uploadFile: (file: File) => Promise<string>;
-  getOriginalUrl: (url: string) => Promise<string>;
-
-  printData: { job?: Job, mode: 'SHEET' | 'LABEL' | 'ROUTE' | 'ADDRESS_LABEL' | 'INVOICE_SHEET' | 'BUDGET_SHEET', routeItems?: RouteItem[], driver?: string, shift?: string, date?: string } | null;
-  triggerPrint: (job: Job, mode: 'SHEET' | 'LABEL' | 'ADDRESS_LABEL' | 'INVOICE_SHEET' | 'BUDGET_SHEET') => void;
-  triggerRoutePrint: (items: RouteItem[], driver: string, shift: string, date: string) => void;
-  clearPrint: () => void;
-  
+  sectors: Sector[];
+  jobTypes: JobType[];
+  currentOrg: Organization | null;
   activeOrganization: Organization | null;
-  switchActiveOrganization: (id: string | null) => void;
-  userConnections: OrganizationConnection[];
+  currentUser: User | null;
+  isLoadingAuth: boolean;
+  dentistPayments: DentistPayment[];
+  billingBatches: BillingBatch[];
+  commissions: any[];
+  commissionGroups: any[];
+  nfcBoxes: any[];
+  onlineRequisitions: any[];
+  couriers: any[];
+  routes: any[];
+  alerts: any[];
+  inventoryItems: any[];
+  boxColors: any[];
+  priceTables: any[];
+  userConnections: any[];
+  allLaboratories: any[];
+  allSuppliers: any[];
+  supplierOrders: any[];
+  productCatalogItems: any[];
+  cart: any[];
+  storeCart: any[];
+  patients: any[];
+  allPlans: any[];
+  currentPlan: any;
+  language: string;
+  theme: string;
+  activeAlert: any;
+  printData: any;
+  globalSettings: any;
+  labCoupons: any[];
+  activeManualDentistId: string | null;
 
-  updateOrganization: (id: string, updates: Partial<Organization>) => Promise<void>;
-  checkSlugAvailability: (slug: string, currentOrgId: string) => Promise<boolean>;
-  updateGlobalSettings: (updates: Partial<GlobalSettings>) => Promise<void>;
-  validateCoupon: (code: string, planId: string) => Promise<Coupon | null>;
-  createSubscription: (orgId: string, planId: string, email: string, name: string, cpfCnpj: string, couponCode?: string, billingCycle?: string) => Promise<any>;
-  createLabWallet: (payload: any) => Promise<any>;
-  getSaaSInvoices: (orgId: string) => Promise<any>;
-  checkSubscriptionStatus: (orgId: string) => Promise<any>;
-  setSubscriptionStatus: (orgId: string, status: string) => Promise<any>;
-  addAlert: (alert: JobAlert) => Promise<void>;
+  setJobs: React.Dispatch<React.SetStateAction<Job[]>>;
+  setJobTypes: React.Dispatch<React.SetStateAction<JobType[]>>;
+  updateJob: (id: string, data: Partial<Job>) => Promise<void>;
+  addJob: (data: any) => Promise<any>;
+  updateBudget: (id: string, data: any) => Promise<void>;
+  addBudget: (data: any) => Promise<any>;
+  addCommissionRecord: (data: any) => Promise<void>;
+  updateCommissionRecord: (id: string, data: any) => Promise<void>;
+  deleteCommissionRecord: (id: string) => Promise<void>;
+  uploadFile: (file: File) => Promise<string>;
+  addJobToRoute: (jobId: string, routeId: string) => Promise<void>;
+  updateOnlineRequisition: (id: string, data: any) => Promise<void>;
+  triggerPrint: (data: any) => void;
+  clearPrint: () => void;
+  addAlert: (data: any) => Promise<void>;
   dismissAlert: (id: string) => Promise<void>;
-  addPatient: (p: Omit<ClinicPatient, 'id' | 'organizationId'>) => Promise<void>;
-  updatePatient: (id: string, updates: Partial<ClinicPatient>) => Promise<void>;
-  deletePatient: (id: string) => Promise<void>;
-  addAppointment: (a: Omit<Appointment, 'id' | 'organizationId'>) => Promise<void>;
-  updateAppointment: (id: string, updates: Partial<Appointment>) => Promise<void>;
-  deleteAppointment: (id: string) => Promise<void>;
-  registerOrganization: (email: string, pass: string, ownerName: string, orgName: string, planId: string, trialEndsAt?: Date, couponCode?: string, address?: Partial<User>) => Promise<User>;
-  registerOutsourcedLab: (email: string, pass: string, ownerName: string, orgName: string, planId: string, trialEndsAt?: Date, couponCode?: string, address?: Partial<User>) => Promise<User>;
-  registerDentist: (email: string, pass: string, name: string, clinicName: string, planId: string, trialEndsAt?: Date, couponCode?: string, address?: Partial<User>) => Promise<User>;
-  registerSupplier: (email: string, pass: string, ownerName: string, orgName: string, planId: string, trialEndsAt?: Date, couponCode?: string, address?: Partial<User>) => Promise<User>;
-  allSuppliers: Organization[];
-  allSupplierProducts: import('../types').InventoryItem[];
-  supplierOrders: import('../types').SupplierOrder[];
-  addSupplierOrder: (order: import('../types').SupplierOrder) => Promise<void>;
-  updateSupplierOrder: (id: string, updates: Partial<import('../types').SupplierOrder>) => Promise<void>;
-  validateCro: (uf: string, numero: string, categoria: string) => Promise<any>;
-  addSubscriptionPlan: (plan: SubscriptionPlan) => Promise<void>;
-  updateSubscriptionPlan: (id: string, updates: Partial<SubscriptionPlan>) => Promise<void>;
-  deleteSubscriptionPlan: (id: string) => Promise<void>;
-  addConnectionByCode: (code: string) => Promise<void>;
-  addCoupon: (c: Coupon) => Promise<void>;
-  updateCoupon: (code: string, updates: Partial<Coupon>) => Promise<void>;
-  deleteCoupon: (id: string) => Promise<void>;
-  addPayment: (p: PaymentRecord) => Promise<void>;
-  addManualDentist: (d: Omit<ManualDentist, 'id' | 'organizationId'>) => Promise<void>;
-  updateManualDentist: (id: string, updates: Partial<ManualDentist>) => Promise<void>;
+  login: (email: string, pass: string) => Promise<void>;
+  logout: () => Promise<void>;
+  setTheme: (theme: string) => void;
+  setLanguage: (lang: string) => void;
+  updateUser: (id: string, data: any) => Promise<void>;
+  deleteUser: (id: string) => Promise<void>;
+  registerOrganization: (data: any) => Promise<any>;
+  registerOutsourcedLab: (data: any) => Promise<any>;
+  registerDentist: (data: any) => Promise<any>;
+  registerSupplier: (data: any) => Promise<any>;
+  validateCro: (cro: string, state: string) => Promise<boolean>;
+  validateCoupon: (code: string) => Promise<any>;
+  createSubscription: (data: any) => Promise<any>;
+  checkSubscriptionStatus: () => Promise<any>;
+  addManualDentist: (data: any) => Promise<any>;
+  updateManualDentist: (id: string, data: any) => Promise<void>;
   deleteManualDentist: (id: string) => Promise<void>;
-  
-  addCardMachine: (machine: Omit<CardMachine, 'id' | 'organizationId' | 'createdAt'>) => Promise<void>;
-  updateCardMachine: (id: string, updates: Partial<CardMachine>) => Promise<void>;
-  deleteCardMachine: (id: string) => Promise<void>;
-
-  addBankAccount: (account: Omit<BankAccount, 'id' | 'organizationId' | 'createdAt'>) => Promise<void>;
-  updateBankAccount: (id: string, updates: Partial<BankAccount>) => Promise<void>;
-  deleteBankAccount: (id: string) => Promise<void>;
-
-  addPriceTable: (table: Omit<PriceTable, 'id' | 'organizationId' | 'createdAt' | 'updatedAt'>) => Promise<void>;
-  updatePriceTable: (id: string, updates: Partial<PriceTable>) => Promise<void>;
-  deletePriceTable: (id: string) => Promise<void>;
-
-  addCommissionGroup: (group: Omit<CommissionGroup, 'id' | 'createdAt' | 'updatedAt'>) => Promise<string | undefined>;
-  updateCommissionGroup: (id: string, updates: Partial<CommissionGroup>) => Promise<void>;
-  deleteCommissionGroup: (id: string) => Promise<void>;
-
-  addJobToRoute: (job: Job, driver: string, shift: 'MORNING' | 'AFTERNOON', date: Date, observations?: string, targetRouteId?: string) => Promise<void>;
-  generateBatchBoleto: (dentistId: string, jobIds: string[], dueDate: Date, customAmount?: number) => Promise<any>;
-  addDentistPayment: (p: Omit<DentistPayment, 'id' | 'organizationId' | 'createdAt'>) => Promise<void>;
-  updateDentistPayment: (id: string, updates: Partial<DentistPayment>) => Promise<void>;
+  addDentistPayment: (data: any) => Promise<any>;
+  updateDentistPayment: (id: string, data: any) => Promise<void>;
   deleteDentistPayment: (id: string) => Promise<void>;
-  updateBillingBatchStatus: (id: string, status: BillingBatch['status']) => Promise<void>;
-
-  labCoupons: LabCoupon[];
-  addLabCoupon: (coupon: Omit<LabCoupon, 'id' | 'organizationId' | 'usedCount'>) => Promise<void>;
-  updateLabCoupon: (id: string, updates: Partial<LabCoupon>) => Promise<void>;
+  updateBillingBatchStatus: (id: string, status: string) => Promise<void>;
+  generateBatchBoleto: (dentistId: string, jobIds: string[], dueDate: Date, totalAmount: number) => Promise<any>;
+  cardMachines: any[];
+  bankAccounts: any[];
+  addCardMachine: (data: any) => Promise<any>;
+  updateCardMachine: (id: string, data: any) => Promise<void>;
+  deleteCardMachine: (id: string) => Promise<void>;
+  addBankAccount: (data: any) => Promise<any>;
+  updateBankAccount: (id: string, data: any) => Promise<void>;
+  deleteBankAccount: (id: string) => Promise<void>;
+  addBoxColor: (data: any) => Promise<any>;
+  deleteBoxColor: (id: string) => Promise<void>;
+  updateOrganization: (data: any) => Promise<void>;
+  checkSlugAvailability: (slug: string) => Promise<boolean>;
+  createLabWallet: () => Promise<any>;
+  getSaaSInvoices: () => Promise<any[]>;
+  updateSupplierOrder: (id: string, data: any) => Promise<void>;
+  addToCart: (item: any) => void;
+  removeFromCart: (itemId: string) => void;
+  updateCartItemQty: (itemId: string, qty: number) => void;
+  clearCart: () => void;
+  validateLabCoupon: (code: string) => Promise<any>;
+  updateLabCoupon: (id: string, data: any) => Promise<void>;
+  addLabCoupon: (data: any) => Promise<any>;
   deleteLabCoupon: (id: string) => Promise<void>;
-  validateLabCoupon: (orgId: string, code: string) => Promise<LabCoupon | null>;
-
-  routes: DeliveryRoute[];
-  couriers: Courier[];
-  addCourier: (c: Omit<Courier, 'id' | 'organizationId' | 'createdAt'>) => Promise<void>;
-  updateCourier: (id: string, updates: Partial<Courier>) => Promise<void>;
-  deleteCourier: (id: string) => Promise<void>;
-
-  patientPayments: import('../types').PatientPayment[];
-  patientBillingBatches: import('../types').PatientBillingBatch[];
-  addPatientPayment: (p: Omit<import('../types').PatientPayment, 'id' | 'organizationId' | 'createdAt'>) => Promise<void>;
-  updatePatientPayment: (id: string, updates: Partial<import('../types').PatientPayment>) => Promise<void>;
-  deletePatientPayment: (id: string) => Promise<void>;
-  addPatientBillingBatch: (b: Omit<import('../types').PatientBillingBatch, 'id' | 'organizationId' | 'createdAt'>) => Promise<void>;
-  updatePatientBillingBatchStatus: (id: string, status: import('../types').PatientBillingBatch['status']) => Promise<void>;
-  deletePatientBillingBatch: (id: string) => Promise<void>;
-
-  theme: 'light' | 'dark';
-  setTheme: (theme: 'light' | 'dark') => Promise<void>;
-  toggleTheme: () => void;
-  language: SupportedLanguage;
-  setLanguage: (lang: SupportedLanguage) => Promise<void>;
-
-  notifications: AppNotification[];
-  unreadNotificationCount: number;
-  notificationPreferences: NotificationPreferences;
-  updateNotificationPreferences: (prefs: NotificationPreferences) => Promise<void>;
-  markNotificationAsRead: (id: string) => Promise<void>;
-  markAllNotificationsAsRead: () => Promise<void>;
-  deleteNotification: (id: string) => Promise<void>;
-  sendNotification: (notif: Omit<AppNotification, 'id' | 'createdAt' | 'read'>) => Promise<void>;
-  requestPushPermission: () => Promise<'granted' | 'denied' | 'default'>;
-  pushStatus: any;
+  addConnectionByCode: (code: string) => Promise<any>;
+  switchActiveOrganization: (org: any) => void;
+  addJobType: (data: any) => Promise<any>;
+  updateJobType: (id: string, data: any) => Promise<void>;
+  deleteJobType: (id: string) => Promise<void>;
+  updateInventoryItem: (id: string, data: any) => Promise<void>;
 }
+
+const defaultLabUser: User = {
+  id: 'u-lab-default',
+  name: 'Laboratório Labprox',
+  role: UserRole.ADMIN,
+  email: 'laboratorio@labprox.app',
+  organizationId: 'org-1'
+};
+
+const defaultLabOrg: Organization = {
+  id: 'org-1',
+  name: 'Labprox - Laboratório Modelo',
+  orgType: 'LAB'
+};
+
+const initialJobTypes: JobType[] = [
+  {
+    id: 'jt-1',
+    name: 'Coroa de Zircônia',
+    category: 'Monolítico',
+    price: 100
+  },
+  {
+    id: 'jt-2',
+    name: 'Faceta Emax',
+    category: 'Monolítico',
+    price: 100
+  },
+  {
+    id: 'jt-3',
+    name: 'Prótese Total Superior',
+    category: 'Prótese Total',
+    price: 350
+  },
+  {
+    id: 'jt-4',
+    name: 'Placa Miorelaxante',
+    category: 'Placas',
+    price: 150
+  }
+];
+
+const initialJobs: Job[] = [
+  {
+    id: 'job-1',
+    osNumber: '0655',
+    boxNumber: '565',
+    dentistId: 'd-1',
+    dentistName: 'Dr. Carlos Silva',
+    clinicName: 'Odonto Silva',
+    patientName: 'João Santos',
+    status: JobStatus.COMPLETED,
+    totalValue: 2000,
+    createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
+    items: [
+      {
+        id: 'item-1',
+        jobTypeId: 'jt-1',
+        name: 'Coroa de Zircônia',
+        quantity: 10,
+        price: 100
+      },
+      {
+        id: 'item-2',
+        jobTypeId: 'jt-2',
+        name: 'Faceta Emax',
+        quantity: 10,
+        price: 100
+      }
+    ]
+  },
+  {
+    id: 'job-2',
+    osNumber: '0656',
+    boxNumber: '25L',
+    dentistId: 'd-2',
+    dentistName: 'Dra. Maria Fernandes',
+    clinicName: 'Sorriso Total',
+    patientName: 'Ana Oliveira',
+    status: JobStatus.DELIVERED,
+    totalValue: 350,
+    createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+    dueDate: new Date().toISOString(),
+    items: [
+      {
+        id: 'item-3',
+        jobTypeId: 'jt-3',
+        name: 'Prótese Total Superior',
+        quantity: 1,
+        price: 350
+      }
+    ]
+  }
+];
+
+const initialDentists: ManualDentist[] = [
+  {
+    id: 'd-1',
+    name: 'Dr. Carlos Silva',
+    clinicName: 'Odonto Silva',
+    phone: '(11) 98765-4321',
+    email: 'carlos@odontosilva.com'
+  },
+  {
+    id: 'd-2',
+    name: 'Dra. Maria Fernandes',
+    clinicName: 'Sorriso Total',
+    phone: '(11) 91234-5678',
+    email: 'maria@sorrisototal.com'
+  }
+];
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-export const useApp = () => {
-  const context = useContext(AppContext);
-  if (context === undefined) throw new Error('useApp must be used within an AppProvider');
-  return context;
-};
+export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [jobs, setJobs] = useState<Job[]>(initialJobs);
+  const [budgets] = useState<Job[]>([]);
+  const [jobTypes, setJobTypes] = useState<JobType[]>(initialJobTypes);
 
-export const AppProvider = ({ children }: { children?: ReactNode }) => {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [currentOrg, setCurrentOrg] = useState<Organization | null>(null);
-  const [currentPlan, setCurrentPlan] = useState<SubscriptionPlan | null>(null);
-  const [isLoadingAuth, setIsLoadingAuth] = useState(true);
-  const [globalSettings, setGlobalSettings] = useState<GlobalSettings | null>(null);
-  
-  const [allUsers, setAllUsers] = useState<User[]>([]);
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [budgets, setBudgets] = useState<Budget[]>([]);
-  const [jobTypes, setJobTypes] = useState<JobType[]>([]);
-  const [clinicServices, setClinicServices] = useState<ClinicService[]>([]);
-  const [clinicRooms, setClinicRooms] = useState<ClinicRoom[]>([]);
-  const [clinicDentists, setClinicDentists] = useState<ClinicDentist[]>([]);
-  const [sectors, setSectors] = useState<Sector[]>([]);
-  const [boxColors, setBoxColors] = useState<BoxColor[]>([]);
-  const [alerts, setAlerts] = useState<JobAlert[]>([]);
-  const [commissions, setCommissions] = useState<CommissionRecord[]>([]);
-  
-  const [allOrganizations, setAllOrganizations] = useState<Organization[]>([]);
-  const [allLaboratories, setAllLaboratories] = useState<Organization[]>([]);
-  const [allPlans, setAllPlans] = useState<SubscriptionPlan[]>([]);
-  const [coupons, setCoupons] = useState<Coupon[]>([]);
-  const [labCoupons, setLabCoupons] = useState<LabCoupon[]>([]);
-  const [allPayments, setAllPayments] = useState<PaymentRecord[]>([]);
-  const [patients, setPatients] = useState<ClinicPatient[]>([]);
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [manualDentists, setManualDentists] = useState<ManualDentist[]>([]);
-  const [priceTables, setPriceTables] = useState<PriceTable[]>([]);
-  const [commissionGroups, setCommissionGroups] = useState<CommissionGroup[]>([]);
-  const [cardMachines, setCardMachines] = useState<CardMachine[]>([]);
-  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
-  const [inventoryCategories, setInventoryCategories] = useState<import('../types').InventoryCategory[]>([]);
-  const [inventoryItems, setInventoryItems] = useState<import('../types').InventoryItem[]>([]);
-  const [productCatalogItems, setProductCatalogItems] = useState<import('../types').ProductCatalogItem[]>([]);
-  const [allSuppliers, setAllSuppliers] = useState<Organization[]>([]);
-  const [allSupplierProducts, setAllSupplierProducts] = useState<import('../types').InventoryItem[]>([]);
-  const [supplierOrders, setSupplierOrders] = useState<import('../types').SupplierOrder[]>([]);
-  const [billingBatches, setBillingBatches] = useState<BillingBatch[]>([]);
-  const [dentistPayments, setDentistPayments] = useState<DentistPayment[]>([]);
-  const [patientPayments, setPatientPayments] = useState<import('../types').PatientPayment[]>([]);
-  const [patientBillingBatches, setPatientBillingBatches] = useState<import('../types').PatientBillingBatch[]>([]);
-  const [activeAlert, setActiveAlert] = useState<JobAlert | null>(null);
-  const [couriers, setCouriers] = useState<Courier[]>([]);
-  const [routes, setRoutes] = useState<DeliveryRoute[]>([]);
-  const [onlineRequisitions, setOnlineRequisitions] = useState<OnlineRequisition[]>([]);
-  const [activeManualDentistId, setActiveManualDentistId] = useState<string | null>(null);
-
-  // Notification States & Preferences
-  const [notifications, setNotifications] = useState<AppNotification[]>([]);
-  const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreferences>(() => {
-    try {
-      const saved = localStorage.getItem('labprox_notif_prefs');
-      return saved ? { ...DEFAULT_NOTIFICATION_PREFERENCES, ...JSON.parse(saved) } : DEFAULT_NOTIFICATION_PREFERENCES;
-    } catch {
-      return DEFAULT_NOTIFICATION_PREFERENCES;
-    }
-  });
-  const [pushStatus, setPushStatus] = useState<any>(() => checkPushSupport());
-
-  const [nfcBoxes, setNfcBoxes] = useState<any[]>([]);
-
-  const [activeOrganization, setActiveOrganization] = useState<Organization | null>(null);
-  const [userConnections, setUserConnections] = useState<OrganizationConnection[]>([]);
-  const [cart, setCart] = useState<CartItem[]>([]);
-  const [printData, setPrintData] = useState<AppContextType['printData']>(null);
-
-  // Theme Management (Light / Dark)
-  const [theme, setThemeState] = useState<'light' | 'dark'>(() => {
-    try {
-      const saved = localStorage.getItem('labprox-theme');
-      if (saved === 'dark' || saved === 'light') return saved;
-      if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        return 'dark';
-      }
-    } catch (_) {}
-    return 'light';
-  });
+  const [currentUser, setCurrentUser] = useState<User | null>(defaultLabUser);
+  const [currentOrg, setCurrentOrg] = useState<Organization | null>(defaultLabOrg);
+  const [isLoadingAuth, setIsLoadingAuth] = useState<boolean>(false);
 
   useEffect(() => {
-    try {
-      if (theme === 'dark') {
-        document.documentElement.classList.add('dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-      }
-      localStorage.setItem('labprox-theme', theme);
-    } catch (_) {}
-  }, [theme]);
-
-  useEffect(() => {
-    if (currentUser?.themePreference && currentUser.themePreference !== theme) {
-      setThemeState(currentUser.themePreference);
-    }
-  }, [currentUser?.themePreference]);
-
-  const setTheme = useCallback(async (newTheme: 'light' | 'dark') => {
-    setThemeState(newTheme);
-    try {
-      localStorage.setItem('labprox-theme', newTheme);
-      if (newTheme === 'dark') {
-        document.documentElement.classList.add('dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-      }
-      if (currentUser?.id) {
-        await api.apiUpdateUser(currentUser.id, { themePreference: newTheme });
-        setCurrentUser(prev => prev ? { ...prev, themePreference: newTheme } : null);
-      }
-    } catch (e) {
-      console.error('Error updating theme:', e);
-    }
-  }, [currentUser?.id]);
-
-  const toggleTheme = useCallback(() => {
-    const next = theme === 'dark' ? 'light' : 'dark';
-    setTheme(next);
-  }, [theme, setTheme]);
-
-  // Language Management (pt-BR / en / es)
-  const [language, setLanguageState] = useState<SupportedLanguage>(getInitialLanguage);
-
-  useEffect(() => {
-    if (currentUser?.language && currentUser.language !== language) {
-      setLanguageState(currentUser.language);
-      setAppLanguage(currentUser.language);
-    }
-  }, [currentUser?.language]);
-
-  const setLanguage = useCallback(async (newLang: SupportedLanguage) => {
-    setLanguageState(newLang);
-    try {
-      await setAppLanguage(newLang);
-      if (currentUser?.id) {
-        await api.apiUpdateUser(currentUser.id, { language: newLang });
-        setCurrentUser(prev => prev ? { ...prev, language: newLang } : null);
-      }
-    } catch (e) {
-      console.error('Error updating language:', e);
-    }
-  }, [currentUser?.id]);
-
-  // Subscrições Públicas: Planos, Laboratórios e Fornecedores são públicos
-  useEffect(() => {
-    if (!db) return;
-    const unsubPlans = api.subscribeSubscriptionPlans(setAllPlans);
-    const unsubLabs = api.subscribeAllLaboratories(setAllLaboratories);
-    const unsubSuppliers = api.subscribeAllSuppliers(setAllSuppliers);
-    return () => { 
-      unsubPlans(); 
-      unsubLabs(); 
-      unsubSuppliers(); 
-    };
-  }, []);
-
-  // Subscrição de Produtos de Fornecedores (depende dos fornecedores carregados e do usuário estar autenticado)
-  useEffect(() => {
-    if (!db || allSuppliers.length === 0 || !currentUser) {
-      setAllSupplierProducts([]);
-      return;
-    }
-    const supplierIds = allSuppliers.map(s => s.id);
-    const unsubSupplierProducts = api.subscribeAllSupplierProducts(supplierIds, setAllSupplierProducts);
-    return () => {
-      unsubSupplierProducts();
-    };
-  }, [allSuppliers, currentUser]);
-
-  // Monitoramento de Auth e Perfil
-  useEffect(() => {
-    if (!auth) { setIsLoadingAuth(false); return; }
-    const unsub = onAuthStateChanged(auth, async (user: any) => {
-      if (user) {
-        const profile = await api.getUserProfile(user.uid);
-        if (profile) {
-            // For any user who has no permissions set yet (legacy user), or is admin/super_admin, grant all permissions
-            if (profile.role === UserRole.ADMIN || profile.role === UserRole.SUPER_ADMIN) {
-                profile.permissions = ALL_SYSTEM_PERMISSIONS;
-            } else if (!profile.permissions || profile.permissions.length === 0) {
-                if (profile.role !== UserRole.CLIENT && profile.role !== UserRole.DENTIST && (profile.role as any) !== 'DENTIST' && profile.role !== UserRole.SUPPLIER) {
-                    profile.permissions = [
-                        'dashboard:view',
-                        'jobs:view', 'jobs:create', 'jobs:edit', 'jobs:return', 'jobs:finish', 'jobs:alert', 'jobs:print', 'jobs:production_view', 'jobs:service_details_view',
-                        'catalog:view', 'clients:view', 'boxes:view'
-                    ];
-                    api.apiUpdateUser(profile.id, { permissions: profile.permissions }).catch(() => {});
-                }
-            }
-            
-            if (profile.createdAt) {
-                profile.createdAt = profile.createdAt?.toDate ? profile.createdAt.toDate() : new Date(profile.createdAt);
-            } else if (user.metadata?.creationTime) {
-                profile.createdAt = new Date(user.metadata.creationTime);
-                api.apiUpdateUser(profile.id, { createdAt: profile.createdAt }).catch(() => {});
-            } else {
-                profile.createdAt = new Date();
-                api.apiUpdateUser(profile.id, { createdAt: profile.createdAt }).catch(() => {});
-            }
-
-            setCurrentUser(profile);
-            const profileOrgId = profile.organizationId;
-            if (profileOrgId) {
-                const orgRef = doc(db, 'organizations', profileOrgId);
-                onSnapshot(orgRef, (snap: any) => {
-                    if (snap.exists()) {
-                        const oData = { id: snap.id, ...snap.data() as any } as Organization;
-                        setCurrentOrg(oData);
-
-                        // If org is a CLINIC and user had legacy CLIENT/undefined role, upgrade to ADMIN with all permissions
-                        if (oData.orgType === 'CLINIC' && (profile.role === UserRole.CLIENT || !profile.role)) {
-                            profile.role = UserRole.ADMIN;
-                            profile.permissions = ALL_SYSTEM_PERMISSIONS;
-                            setCurrentUser(prev => prev ? ({ ...prev, role: UserRole.ADMIN, permissions: ALL_SYSTEM_PERMISSIONS }) : null);
-                            api.apiUpdateUser(profile.id, { role: UserRole.ADMIN, permissions: ALL_SYSTEM_PERMISSIONS }).catch(() => {});
-                        }
-                        if (api.isLabOrganization(oData)) {
-                            setActiveOrganization(prev => prev || oData);
-                            setAllLaboratories(prev => {
-                                if (prev.some(l => l.id === oData.id)) {
-                                    return prev.map(l => l.id === oData.id ? oData : l);
-                                }
-                                return [oData, ...prev];
-                            });
-                        }
-                        
-                        if (oData.planId) {
-                            const planRef = doc(db, 'subscriptionPlans', oData.planId);
-                            getDoc(planRef).then((pSnap: any) => {
-                                if (pSnap.exists()) {
-                                    setCurrentPlan({ id: pSnap.id, ...pSnap.data() as any } as SubscriptionPlan);
-                                } else if (oData.planId === 'free_lab') {
-                                    setCurrentPlan({
-                                        id: 'free_lab',
-                                        name: 'Plano Grátis - Loja Online',
-                                        price: 0,
-                                        active: true,
-                                        isPublic: true,
-                                        features: {
-                                            maxUsers: 1,
-                                            maxStorageGB: 5,
-                                            maxDentists: -1,
-                                            maxJobsPerMonth: -1,
-                                            hasStoreModule: true,
-                                            hasClinicModule: false,
-                                            isLabFreeStoreOnly: true
-                                        }
-                                    });
-                                } else if (oData.planId === 'basic') {
-                                    setCurrentPlan({
-                                        id: 'basic',
-                                        name: 'Plano Básico Conectado',
-                                        price: 0,
-                                        active: true,
-                                        isPublic: false,
-                                        features: {
-                                            maxUsers: 1,
-                                            maxStorageGB: 1,
-                                            maxDentists: 1,
-                                            maxJobsPerMonth: -1,
-                                            hasStoreModule: true,
-                                            hasClinicModule: false
-                                        }
-                                    });
-                                } else if (profile.role === UserRole.SUPER_ADMIN) {
-                                    setCurrentPlan({
-                                        id: 'super_plan', name: 'Plano Administrativo', price: 0, active: true, isPublic: false,
-                                        features: { maxUsers: -1, maxStorageGB: 100, maxDentists: -1, maxJobsPerMonth: -1, hasStoreModule: true, hasClinicModule: true }
-                                    });
-                                }
-                            });
-                        }
-                    }
-                });
-
-                if (profile.role === UserRole.CLIENT || profileOrgId) {
-                    api.subscribeUserConnections(profileOrgId, (conns) => {
-                        setUserConnections(conns);
-                        
-                        // Ensure all connected laboratories are loaded and synced with activeOrganization / allLaboratories
-                        if (conns.length > 0) {
-                            if (!activeOrganization) {
-                                const firstOrgId = conns[0].organizationId;
-                                getDoc(doc(db, 'organizations', firstOrgId)).then((snap: any) => {
-                                    if (snap.exists()) {
-                                        const data = snap.data();
-                                        const createdAtVal = data.createdAt;
-                                        const createdAtDate = createdAtVal?.toDate ? createdAtVal.toDate() : (createdAtVal ? new Date(createdAtVal) : new Date());
-                                        const labObj = { id: snap.id, ...data, createdAt: createdAtDate } as Organization;
-                                        if (api.isLabOrganization(labObj)) {
-                                            setActiveOrganization(labObj);
-                                        }
-                                    }
-                                });
-                            }
-
-                            // Fetch and insert/update details for each connection in the allLaboratories list (only if it is a real lab)
-                            conns.forEach(conn => {
-                                getDoc(doc(db, 'organizations', conn.organizationId)).then((snap: any) => {
-                                    if (snap.exists()) {
-                                        const data = snap.data();
-                                        const createdAtVal = data.createdAt;
-                                        const createdAtDate = createdAtVal?.toDate ? createdAtVal.toDate() : (createdAtVal ? new Date(createdAtVal) : new Date());
-                                        const labObj = { id: snap.id, ...data, createdAt: createdAtDate } as Organization;
-                                        
-                                        if (api.isLabOrganization(labObj)) {
-                                            setAllLaboratories(prev => {
-                                                if (prev.some(l => l.id === labObj.id)) {
-                                                    return prev.map(l => l.id === labObj.id ? labObj : l);
-                                                }
-                                                return [...prev, labObj];
-                                            });
-                                        }
-                                    }
-                                });
-                            });
-                        }
-                    });
-                }
-            }
-        }
-      } else {
-        setCurrentUser(null); setCurrentOrg(null); setCurrentPlan(null); setActiveOrganization(null);
-        setUserConnections([]); setClinicServices([]); setClinicRooms([]); setClinicDentists([]);
-        setAllUsers([]); setJobs([]); setJobTypes([]); setCoupons([]); setLabCoupons([]); setGlobalSettings(null);
-      }
-      setIsLoadingAuth(false);
-    });
-    return unsub;
-  }, []);
-
-  const activeDataId = useMemo(() => {
-      if (currentUser?.role === UserRole.CLIENT || currentUser?.role === UserRole.SUPER_ADMIN) {
-          return activeOrganization?.id || currentUser?.organizationId || null;
-      }
-      return currentUser?.organizationId || null;
-  }, [currentUser, activeOrganization]);
-
-  // Sincroniza o manualDentistId do dentista dinamicamente com base no laboratório selecionado
-  useEffect(() => {
-    setActiveManualDentistId(null);
-    if (!currentUser || !activeDataId || currentUser.role !== UserRole.CLIENT) return;
-
-    // Busca um dentista manual no lab ativo que tenha o mesmo e-mail do dentista logado
-    const unsub = api.subscribeManualDentists(activeDataId, (manuals) => {
-      const match = manuals.find(m => m.email?.toLowerCase() === currentUser.email?.toLowerCase());
-      if (match) {
-        setActiveManualDentistId(match.id);
-        if (!match.userId || match.userId !== currentUser.id) {
-          api.apiUpdateManualDentist(activeDataId, match.id, { userId: currentUser.id }).catch((err: any) => {
-            logger.error({ err: err }, "Erro ao atualizar userId do dentista manual:");
-          });
-        }
-      }
-    });
-    return () => unsub();
-  }, [currentUser, activeDataId]);
-
-  // Subscrições de Dados Protegidos (Só rodam se houver usuário e permissão)
-  useEffect(() => {
-    if (!db || !currentUser) return;
-
-    const unsubs: (() => void)[] = [];
-    const isSuper = currentUser.role === UserRole.SUPER_ADMIN;
-
-    // Apenas Super Admin ouve cupons e outras coisas
-    if (isSuper) {
-        unsubs.push(api.subscribeCoupons(setCoupons));
-        unsubs.push(api.subscribeAllOrganizations(setAllOrganizations));
-        unsubs.push(api.subscribeAllUsers(setAllUsers));
-        unsubs.push(api.subscribeAllPayments(setAllPayments));
-    }
-    
-    // Todos os usuários ouvem as configurações globais (banners, etc)
-    unsubs.push(api.subscribeGlobalSettings(setGlobalSettings));
-
-    if (activeDataId) {
-        const isClient = currentUser.role === UserRole.CLIENT || activeDataId !== currentUser.organizationId;
-        unsubs.push(api.subscribeJobs(activeDataId, currentUser.id, isClient, setJobs, activeManualDentistId || (currentUser as any).manualDentistId));
-        unsubs.push(api.subscribeBudgets(activeDataId, setBudgets));
-        unsubs.push(api.subscribeJobTypes(activeDataId, setJobTypes));
-        
-        // Colaboradores: Super Admin ou qualquer membro da própria organização
-        const canSeeUsers = isSuper || currentUser.organizationId === activeDataId;
-        
-        if (canSeeUsers) {
-            unsubs.push(api.subscribeOrgUsers(activeDataId, setAllUsers));
-        }
-    }
-
-    const myOrgId = currentUser.organizationId;
-    if (myOrgId) {
-        unsubs.push(api.subscribePatients(myOrgId, setPatients));
-        unsubs.push(api.subscribeAppointments(myOrgId, setAppointments));
-        unsubs.push(api.subscribeCouriers(myOrgId, setCouriers));
-        unsubs.push(api.subscribeRoutes(myOrgId, setRoutes));
-        
-        if (currentUser.role !== UserRole.CLIENT || currentOrg?.orgType === 'CLINIC') {
-            unsubs.push(api.subscribeSectors(myOrgId, setSectors));
-            unsubs.push(api.subscribeBoxColors(myOrgId, setBoxColors));
-            unsubs.push(api.subscribeCommissions(myOrgId, setCommissions));
-            unsubs.push(api.subscribeAlerts(myOrgId, setAlerts));
-            unsubs.push(api.subscribeBillingBatches(myOrgId, setBillingBatches));
-            unsubs.push(api.subscribeDentistPayments(myOrgId, setDentistPayments));
-            unsubs.push(api.subscribeManualDentists(myOrgId, setManualDentists));
-            unsubs.push(api.subscribeLabCoupons(myOrgId, setLabCoupons));
-            unsubs.push(api.subscribePriceTables(myOrgId, setPriceTables));
-            unsubs.push(api.subscribeCommissionGroups(myOrgId, setCommissionGroups));
-            unsubs.push(api.subscribeCardMachines(myOrgId, setCardMachines));
-            unsubs.push(api.subscribeBankAccounts(myOrgId, setBankAccounts));
-            unsubs.push(api.subscribeInventoryCategories(myOrgId, setInventoryCategories));
-            unsubs.push(api.subscribeInventoryItems(myOrgId, setInventoryItems));
-            unsubs.push(api.subscribeProductCatalogItems(myOrgId, setProductCatalogItems));
-            unsubs.push(api.subscribeNfcBoxes(myOrgId, setNfcBoxes));
-            if (currentOrg?.orgType !== 'CLINIC') {
-                unsubs.push(api.subscribeLabOnlineRequisitions(myOrgId, setOnlineRequisitions));
-            } else {
-                unsubs.push(api.subscribeClinicServices(myOrgId, setClinicServices));
-                unsubs.push(api.subscribeClinicRooms(myOrgId, setClinicRooms));
-                unsubs.push(api.subscribeClinicDentists(myOrgId, setClinicDentists));
-            }
-        } else if (activeDataId) {
-            unsubs.push(api.subscribeDentistOnlineRequisitions([activeDataId], currentUser.id, setOnlineRequisitions));
-        }
-
-        if (currentOrg?.orgType === 'SUPPLIER') {
-            unsubs.push(api.subscribeSupplierOrders(myOrgId, setSupplierOrders));
-        } else {
-            unsubs.push(api.subscribeBuyerSupplierOrders(myOrgId, setSupplierOrders));
-        }
-
-        unsubs.push(api.subscribePatientPayments(myOrgId, setPatientPayments));
-        unsubs.push(api.subscribePatientBillingBatches(myOrgId, setPatientBillingBatches));
-
-        // Subscrição em Tempo Real das Notificações do Laboratório / Organização
-        unsubs.push(subscribeUserNotifications(myOrgId, currentUser.id, (notifs) => {
-            const permitted = notifs.filter(n => canUserReceiveNotification(currentUser, n));
-            setNotifications(prev => {
-                const prevMap = new Map(prev.map(p => [p.id, p]));
-                const newlyArrived = permitted.filter(n => !n.read && !prevMap.has(n.id));
-
-                if (newlyArrived.length > 0 && prev.length > 0) {
-                    const highestUrgency = newlyArrived.some(n => n.urgency === 'URGENT' || n.urgency === 'HIGH') ? 'URGENT' : 'NORMAL';
-                    if (notificationPreferences.sound) {
-                        playNotificationChime(highestUrgency);
-                    }
-                    newlyArrived.forEach(n => {
-                        showSystemNotification(n.title, {
-                            body: n.body,
-                            data: n.data
-                        });
-                    });
-                }
-                return permitted;
-            });
-        }));
-    }
-
-    if (currentUser?.id) {
-        unsubs.push(subscribeDirectUserNotifications(currentUser.id, (directNotifs) => {
-            setNotifications(prev => {
-                const merged = [...prev];
-                directNotifs.forEach(dn => {
-                    const idx = merged.findIndex(c => c.id === dn.id);
-                    if (idx >= 0) merged[idx] = dn;
-                    else merged.unshift(dn);
-                });
-                return merged.sort((a, b) => (b.createdAt?.getTime?.() || 0) - (a.createdAt?.getTime?.() || 0));
-            });
-        }));
-    }
-    
-    return () => unsubs.forEach(u => u());
-  }, [currentUser, currentOrg, activeDataId, activeManualDentistId]);
-
-  // Special subscriptions for Dentists (CLINIC users) to track jobs and requisitions from all their connected labs
-  useEffect(() => {
-    if (!currentUser || currentUser.role !== 'CLIENT') return;
-    if (currentOrg?.orgType !== 'CLINIC') return;
-
-    const unsubs: any[] = [];
-    
-    // Extract lab IDs from userConnections
-    const connectedLabIds = userConnections
-        .filter(c => c.status === 'ACTIVE')
-        .map(c => c.organizationId);
-
-    // Also include connectedLabId if present directly on user
-    if ((currentUser as any).connectedLabId && !connectedLabIds.includes((currentUser as any).connectedLabId)) {
-        connectedLabIds.push((currentUser as any).connectedLabId);
-    }
-
-    if (connectedLabIds.length === 0) {
-        setJobs([]);
-        setOnlineRequisitions([]);
-        return;
-    }
-    
-    const manualDentistId = activeManualDentistId || (currentUser as any).manualDentistId;
-
-    unsubs.push(api.subscribeDentistConnectedJobs(
-        connectedLabIds, 
-        currentUser.id, 
-        manualDentistId, 
-        (labJobs) => {
-            setJobs(prev => {
-                const myOrgId = currentUser.organizationId;
-                const localJobs = prev.filter(j => j.organizationId === myOrgId);
-                const merged = [...localJobs, ...labJobs];
-                return Array.from(new Map(merged.map(j => [j.id, j])).values());
-            });
-        }
-    ));
-
-    unsubs.push(api.subscribeDentistOnlineRequisitions(
-        connectedLabIds,
-        currentUser.id,
-        (reqs) => {
-            setOnlineRequisitions(reqs);
-        }
-    ));
-
-    return () => unsubs.forEach(u => u());
-  }, [currentUser, currentOrg, userConnections, activeManualDentistId]);
-
-  // Reviewer Seed Data Hydration (Rule 3: Ensure App Store & Google Play reviewers never see blank screens)
-  useEffect(() => {
-    if (!currentUser || !isReviewerUser(currentUser)) return;
-    const orgId = currentUser.organizationId || 'org-reviewer-test';
-    const email = (currentUser.email || '').toLowerCase().trim();
-
-    // Silently auto-seed cloud Firestore in background so documents exist permanently
-    ensureReviewerDatabaseSeeded(orgId, email).catch(() => {});
-
-    // 1. Reviewer de Clínica (clinica.review@labprox.com)
-    if (isClinicReviewer(email)) {
-      setPatients(prev => prev.length === 0 ? getReviewerClinicPatients(orgId) : prev);
-      setAppointments(prev => prev.length === 0 ? getReviewerClinicAppointments(orgId) : prev);
-      setClinicServices(prev => prev.length === 0 ? getReviewerClinicServices(orgId) : prev);
-      setClinicRooms(prev => prev.length === 0 ? getReviewerClinicRooms(orgId) : prev);
-      setClinicDentists(prev => prev.length === 0 ? getReviewerClinicDentists(orgId) : prev);
-      setPatientPayments(prev => prev.length === 0 ? getReviewerClinicPatientPayments(orgId) : prev);
-      return;
-    }
-
-    // 2. Reviewer de Fornecedor (fornecedor.review@labprox.com)
-    if (isSupplierReviewer(email)) {
-      setSupplierOrders(prev => prev.length === 0 ? getReviewerSupplierOrders(orgId) : prev);
-      setInventoryItems(prev => prev.length === 0 ? getReviewerSupplierProducts(orgId) : prev);
-      setLabCoupons(prev => prev.length === 0 ? getReviewerSupplierCoupons(orgId) : prev);
-      return;
-    }
-
-    // 3. Reviewer de Laboratório (avaliador@labprox.com.br, etc.)
-    setJobs(prev => prev.length === 0 ? getReviewerSeedJobs(orgId) : prev);
-    setRoutes(prev => prev.length === 0 ? [getReviewerSeedRoutes(orgId).route] : prev);
-    setInventoryItems(prev => prev.length === 0 ? getReviewerSeedInventory(orgId) : prev);
-    setPatients(prev => prev.length === 0 ? getReviewerSeedPatients(orgId) : prev);
-    setManualDentists(prev => prev.length === 0 ? getReviewerLabDentists(orgId) : prev);
-    setJobTypes(prev => prev.length === 0 ? getReviewerLabJobTypes(orgId) : prev);
-    setBoxColors(prev => prev.length === 0 ? getReviewerLabBoxColors(orgId) : prev);
-    setSectors(prev => prev.length === 0 ? getReviewerLabSectors(orgId) : prev);
-    setCommissions(prev => prev.length === 0 ? getReviewerLabCommissions(orgId) : prev);
-    setDentistPayments(prev => prev.length === 0 ? getReviewerLabDentistPayments(orgId) : prev);
-    setAllUsers(prev => {
-      if (prev.length <= 1) {
-        const mockColabs = getReviewerLabCollaborators(orgId);
-        return [currentUser, ...mockColabs];
-      }
-      return prev;
-    });
-  }, [currentUser]);
-
-
-
-  
-  // Monitoramento de Alertas Agendados
-  useEffect(() => {
-    if (!currentUser || alerts.length === 0) return;
-    
-    // Obter data/timestamp de cadastro do colaborador atual de forma segura e robusta
-    const getUserCreatedAtTime = (): number => {
-      if (currentUser.createdAt) {
-        if (currentUser.createdAt instanceof Date) return currentUser.createdAt.getTime();
-        if (currentUser.createdAt?.toDate && typeof currentUser.createdAt.toDate === 'function') {
-          return currentUser.createdAt.toDate().getTime();
-        }
-        if (currentUser.createdAt?.seconds) {
-          return currentUser.createdAt.seconds * 1000;
-        }
-        const parsed = new Date(currentUser.createdAt).getTime();
-        if (!isNaN(parsed) && parsed > 0) return parsed;
-      }
-      if (auth?.currentUser?.metadata?.creationTime) {
-        const authTime = new Date(auth.currentUser.metadata.creationTime).getTime();
-        if (!isNaN(authTime) && authTime > 0) return authTime;
-      }
-      return 0;
-    };
-
-    const userCreatedTime = getUserCreatedAtTime();
-
-    const interval = setInterval(() => {
-      const now = new Date();
-      
-      const alert = alerts.find(a => {
-        // 1. Ignorar se já foi lido/dispensado por este usuário
-        if (a.readBy && a.readBy.includes(currentUser.id)) return false;
-        
-        // 2. Validação da data agendada
-        if (!a.scheduledFor) return false;
-        const scheduledDate = a.scheduledFor instanceof Date ? a.scheduledFor : new Date(a.scheduledFor);
-        const scheduledTime = scheduledDate.getTime();
-        if (isNaN(scheduledTime)) return false;
-
-        // 3. Ignorar se o horário agendado ainda está no futuro
-        if (scheduledTime > now.getTime()) return false;
-
-        // 4. REGRA: Os alertas só devem ser emitidos no dia em que foi designado, NÃO sendo propagados retroativamente!
-        // Se a data agendada não pertence ao mesmo dia civil de hoje, não emitir retroativamente.
-        const isSameCalendarDay = (d1: Date, d2: Date) => (
-          d1.getFullYear() === d2.getFullYear() &&
-          d1.getMonth() === d2.getMonth() &&
-          d1.getDate() === d2.getDate()
-        );
-
-        if (!isSameCalendarDay(now, scheduledDate)) {
-          return false; // Alerta expirou para o dia designado
-        }
-
-        // 5. REGRA PARA NOVOS COLABORADORES:
-        // Quando um colaborador for cadastrado, ele só deve receber alertas criados POSTERIORMENTE ao seu cadastro!
-        if (userCreatedTime > 0) {
-          const alertCreatedDate = a.createdAt instanceof Date 
-            ? a.createdAt 
-            : ((a.createdAt as any)?.toDate ? (a.createdAt as any).toDate() : new Date(a.createdAt || 0));
-          const alertCreatedTime = alertCreatedDate.getTime();
-
-          // Se o alerta foi criado antes da data de cadastro do colaborador, desconsiderar
-          if (!isNaN(alertCreatedTime) && alertCreatedTime > 0 && alertCreatedTime < userCreatedTime) {
-            return false;
-          }
-
-          // Se o alerta foi agendado para data/hora anterior ao cadastro do colaborador, desconsiderar
-          if (scheduledTime < userCreatedTime) {
-            return false;
-          }
-        }
-        
-        // 6. Regras de direcionamento (target)
-        // 6.1 Se tem targetUserId, só exibe se o targetUserId == currentUser.id
-        if (a.targetUserId && a.targetUserId !== currentUser.id) return false;
-        
-        // 6.2 Se tem targetSector, só exibe se o colaborador atua naquele setor
-        if (a.targetSector) {
-          const userSectors = [currentUser.sector, ...(currentUser.sectors || [])].filter(Boolean);
-          if (!userSectors.includes(a.targetSector)) return false;
-        }
-        
-        return true;
-      });
-
-      if (alert && (!activeAlert || activeAlert.id !== alert.id)) {
-        setActiveAlert(alert);
-      }
-    }, 5000); // Verifica a cada 5 segundos
-    
-    return () => clearInterval(interval);
-  }, [alerts, currentUser, activeAlert]);
-
-  // Optimized Automatic Blocking Logic
-
-  useEffect(() => {
-    if (!activeDataId || jobs.length === 0 || (currentUser?.role === UserRole.CLIENT)) return;
-
-    const checkBlocking = async () => {
-      const now = new Date();
-      const dentists = [...allUsers.filter(u => u.role === UserRole.CLIENT), ...manualDentists];
-      
-      // Build alias map to unify online users and manual dentists matching email or CPF/CNPJ
-      const aliasMap = new Map<string, string>();
-      const emailToId = new Map<string, string>();
-      const docToId = new Map<string, string>();
-
-      manualDentists.forEach(m => {
-          aliasMap.set(m.id, m.id);
-          const email = m.email ? m.email.toLowerCase().trim() : '';
-          if (email) emailToId.set(email, m.id);
-          const doc = (m.cpfCnpj || '').replace(/\D/g, '');
-          if (doc) docToId.set(doc, m.id);
-      });
-
-      allUsers.filter(u => u.role === UserRole.CLIENT).forEach(u => {
-          const email = u.email ? u.email.toLowerCase().trim() : '';
-          const doc = (u.cpfCnpj || '').replace(/\D/g, '');
-          let targetId = u.id;
-          if (email && emailToId.has(email)) {
-              targetId = emailToId.get(email)!;
-          } else if (doc && docToId.has(doc)) {
-              targetId = docToId.get(doc)!;
-          }
-          aliasMap.set(u.id, targetId);
-      });
-
-      const getPrimaryId = (id: string) => aliasMap.get(id) || id;
-
-      // Performance: Pre-calculate all balances in a single pass
-      const balanceMap = new Map<string, number>();
-      jobs.forEach(j => {
-        if (j.dentistId && (j.paymentStatus === 'PENDING' || !j.paymentStatus) && 
-            (j.status === JobStatus.COMPLETED || j.status === JobStatus.DELIVERED) &&
-            !j.batchId && !j.asaasPaymentId) {
-          const pid = getPrimaryId(j.dentistId);
-          balanceMap.set(pid, (balanceMap.get(pid) || 0) + (j.totalValue || 0));
-        }
-      });
-
-      // Deduct manual/received payments from the balance map and add manual debits
-      dentistPayments.forEach(p => {
-        if (p.dentistId) {
-          const pid = getPrimaryId(p.dentistId);
-          if (p.type === 'MANUAL_DEBIT') {
-            balanceMap.set(pid, (balanceMap.get(pid) || 0) + Number(p.amount || 0));
-          } else {
-            const payAmount = p.type === 'DISCOUNT' ? Number(p.amount || 0) : (Number(p.amount || 0) + Number(p.discount || 0));
-            balanceMap.set(pid, (balanceMap.get(pid) || 0) - payAmount);
-          }
-        }
-      });
-      
-      for (const d of dentists) {
-        // Se estiver temporariamente desbloqueado e o prazo não expirou, pula
-        let unblockDate = null;
-        if (d.temporaryUnblockUntil) {
-          unblockDate = typeof (d.temporaryUnblockUntil as any).toDate === 'function' 
-            ? (d.temporaryUnblockUntil as any).toDate() 
-            : new Date(d.temporaryUnblockUntil);
-        }
-        if (unblockDate && unblockDate > now) {
-          continue;
-        }
-
-        // Bloqueio por Aprovação Financeira
-        if (d.blockReason === 'FINANCIAL_APPROVAL' && !d.isBlocked) {
-           const updates = { isBlocked: true, blockReason: 'FINANCIAL_APPROVAL' } as any;
-           if (allUsers.find(u => u.id === d.id)) await api.apiUpdateUser(d.id, updates);
-           else await api.apiUpdateManualDentist(activeDataId, d.id, updates);
-           continue;
-        }
-
-        // Bloqueio por Inadimplência
-        if (d.billingLimit && d.billingLimit > 0) {
-          const pendingBalance = balanceMap.get(d.id) || 0;
-          const shouldBeBlocked = pendingBalance >= d.billingLimit;
-
-          if (shouldBeBlocked && !d.isBlocked) {
-             const updates = { isBlocked: true, blockReason: 'DEBT' } as any;
-             if (allUsers.find(u => u.id === d.id)) await api.apiUpdateUser(d.id, updates);
-             else await api.apiUpdateManualDentist(activeDataId, d.id, updates);
-          } 
-          else if (!shouldBeBlocked && d.isBlocked && d.blockReason === 'DEBT') {
-             const updates = { isBlocked: false, blockReason: null } as any;
-             if (allUsers.find(u => u.id === d.id)) await api.apiUpdateUser(d.id, updates);
-             else await api.apiUpdateManualDentist(activeDataId, d.id, updates);
-          }
-        }
-      }
-    };
-
-    // Debounce a execução para evitar chamadas excessivas durante updates em massa
-    const timer = setTimeout(checkBlocking, 1000);
-    return () => clearTimeout(timer);
-  }, [jobs, allUsers, manualDentists, dentistPayments, activeDataId, currentUser]);
-
-  const login = async (email: string, pass: string) => { await api.apiLogin(email, pass); };
-  const logout = async () => await api.apiLogout();
-
-  const updateUser = async (id: string, u: Partial<User>) => {
-    if (!currentUser) return;
-    
-    const targetUser = allUsers.find(user => user.id === id);
-    const isSameOrg = targetUser && targetUser.organizationId === currentUser.organizationId;
-    const canManageUsers = currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.MANAGER || currentUser.role === UserRole.SUPER_ADMIN;
-
-    setAllUsers(prev => prev.map(usr => usr.id === id ? { ...usr, ...u } : usr));
-    if (currentUser.id === id) {
-      setCurrentUser(prev => prev ? { ...prev, ...u } : null);
-    }
-
-    if (id === currentUser.id || (canManageUsers && isSameOrg)) {
-        await api.apiUpdateUser(id, u);
-    } else {
-        await api.apiUpdateUserAdmin(id, u);
-    }
-  };
-
-  const addUser = async (u: User) => await api.apiAddUser(u);
-  const deleteUser = async (id: string) => {
-      try {
-          await api.apiDeleteUserAdmin(id);
-      } catch (err) {
-          // Se falhar o admin (ex: não é super admin ou admin), tenta o delete direto (se as regras permitirem)
-          await api.apiDeleteUser(id);
-      }
-  };
-
-  const addJob = async (j: Omit<Job, 'id'|'organizationId'>) => {
-      const orgId = activeDataId;
-      if (!orgId) throw new Error("Nenhum laboratório ativo.");
-      const now = new Date();
-      const jobId = `job_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-      
-      // Strict Context-Level and Database-Level OS Uniqueness Verification
-      let finalOs = String(j.osNumber || '').trim();
-
-      const calculateMaxNumericOs = () => {
-          let max = 0;
-          [...jobs, ...(budgets || []).map(b => ({ osNumber: b.osNumber }))].forEach(item => {
-              const osStr = String(item.osNumber || '').trim();
-              const basePart = osStr.split('-')[0].replace(/\D/g, '');
-              const num = parseInt(basePart, 10);
-              if (!isNaN(num) && num > max) max = num;
-          });
-          return max;
-      };
-
-      if (!finalOs) {
-          finalOs = (calculateMaxNumericOs() + 1).toString().padStart(4, '0');
-      } else {
-          // Check if finalOs already exists in local jobs or budgets state
-          const isDuplicateLocal = jobs.some(existing => String(existing.osNumber || '').trim().toLowerCase() === finalOs.toLowerCase());
-          if (isDuplicateLocal) {
-              if ((j as any).entryType === 'CONTINUATION' || finalOs.includes('-')) {
-                  const baseOs = finalOs.split('-')[0];
-                  const matching = jobs.filter(existing => String(existing.osNumber || '').trim().toLowerCase().startsWith(baseOs.toLowerCase()));
-                  let maxSeq = 1;
-                  matching.forEach(m => {
-                      const mOs = String(m.osNumber || '').trim();
-                      if (mOs.includes('-')) {
-                          const seq = parseInt(mOs.split('-')[1], 10);
-                          if (!isNaN(seq) && seq >= maxSeq) maxSeq = seq + 1;
-                      } else {
-                          if (maxSeq === 1) maxSeq = 2;
-                      }
-                  });
-                  finalOs = `${baseOs}-${maxSeq}`;
-              } else {
-                  // Standalone new OS duplicate: automatically assign next available numeric OS
-                  finalOs = (calculateMaxNumericOs() + 1).toString().padStart(4, '0');
-              }
-          }
-      }
-
-      // Safety Verification: Direct Firestore Query to prevent duplicate OS if concurrent entry occurs
-      try {
-          const existsInFirestore = await api.apiCheckOsExists(orgId, finalOs);
-          if (existsInFirestore) {
-              logger.warn(`[addJob] Concorrência detectada para OS #${finalOs}. Atribuindo número superior para evitar duplicidade.`);
-              const highestLocal = calculateMaxNumericOs();
-              finalOs = (highestLocal + 1).toString().padStart(4, '0');
-          }
-      } catch (checkErr) {
-          logger.warn({ err: checkErr }, "[addJob] Falha na checagem em tempo real de OS no Firestore");
-      }
-
-      // Auto-include client's fixed external notes if defined and not already included
-      let finalJobNotes = j.notes || '';
-      const matchedClient = manualDentists.find(d => d.id === j.dentistId || (d as any).userId === j.dentistId) ||
-                            allUsers.find(u => u.id === j.dentistId);
-      if (matchedClient?.externalNotes?.trim()) {
-          const clientFixedNotes = matchedClient.externalNotes.trim();
-          if (!finalJobNotes.includes(clientFixedNotes)) {
-              finalJobNotes = finalJobNotes.trim() ? `${clientFixedNotes}\n\n${finalJobNotes.trim()}` : clientFixedNotes;
-          }
-      }
-
-      await api.apiAddJob(orgId, { 
-          ...j, 
-          osNumber: finalOs,
-          notes: finalJobNotes,
-          id: jobId, 
-          organizationId: orgId,
-          sectorEntryTime: now
-      } as Job);
-
-      // Notificação inteligente para Pedidos Web / Loja Online
-      if (j.origin === 'ONLINE_ORDER' || currentUser?.role === UserRole.CLIENT) {
-          apiCreateNotification({
-              organizationId: orgId,
-              requiredPermission: 'catalog:view',
-              type: 'WEB_ORDER',
-              title: '🛒 Novo Pedido Web Recebido',
-              body: `Novo pedido no valor de R$ ${(j.totalValue || 0).toFixed(2)} para o paciente ${j.patientName || 'N/I'}.`,
-              urgency: 'HIGH',
-              senderName: j.dentistName || currentUser?.name || 'Dentista',
-              senderId: currentUser?.id,
-              data: {
-                  jobId: jobId,
-                  osNumber: finalOs,
-                  patientName: j.patientName,
-                  url: '/incoming-orders'
-              }
-          }).catch((err) => logger.warn({ err }, "Erro ao criar notificação de pedido web"));
-      }
-
-      return jobId;
-  };
-
-  const addBudget = async (b: Omit<Budget, 'id'|'organizationId'>) => {
-      const orgId = activeDataId;
-      if (!orgId) throw new Error("Nenhum laboratório ativo.");
-      const budgetId = `bud_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-      await api.apiAddBudget(orgId, { 
-          ...b, 
-          id: budgetId, 
-          organizationId: orgId
-      } as Budget);
-      return budgetId;
-  };
-
-  const updateBudget = async (id: string, updates: Partial<Budget>) => {
-      const orgId = activeDataId;
-      if (!orgId) return;
-      await api.apiUpdateBudget(orgId, id, updates);
-  };
-
-  const deleteBudget = async (id: string) => {
-      const orgId = activeDataId;
-      if (!orgId) return;
-      await api.apiDeleteBudget(orgId, id);
-  };
-  const updateJob = async (id: string, u: Partial<Job>) => {
-      const orgId = activeDataId;
-      if (!orgId) return;
-      
-      const updates = { ...u };
-      if (u.currentSector) {
-          updates.sectorEntryTime = new Date();
-      }
-      
-      try {
-          await api.apiUpdateJob(orgId, id, updates);
-
-          // Disparar notificação de WhatsApp caso o status seja atualizado para ENTREGUE (DELIVERED)
-          if (u.status === 'DELIVERED') {
-              const job = jobs.find(j => j.id === id);
-              const mergedJob = job ? { ...job, ...updates } : (updates as Job);
-              if (mergedJob) {
-                  const dId = mergedJob.dentistId;
-                  const dentist = manualDentists.find(d => d.id === dId || (mergedJob.dentistName && d.name === mergedJob.dentistName)) || 
-                                  allUsers.find(u => u.id === dId || (mergedJob.dentistName && u.name === mergedJob.dentistName));
-                  const rawPhone = dentist?.whatsapp || dentist?.phone || (mergedJob as any)?.dentistPhone || (mergedJob as any)?.dentistWhatsapp || (mergedJob as any)?.phone || '';
-                  const cleanPhone = rawPhone.replace(/\D/g, '');
-                  if (cleanPhone.length >= 8) {
-                      try {
-                          console.log(`[AppContext] Disparando WhatsApp de entrega para Dr(a). ${dentist?.name || mergedJob.dentistName} (${cleanPhone})...`);
-                          await notifyJobLogistics(mergedJob, 'DELIVERED', cleanPhone, dentist?.name || mergedJob.dentistName || 'Dentista');
-                      } catch (notifyErr: any) {
-                          console.error("[AppContext] Erro ao disparar WhatsApp de entrega via Ycloud:", notifyErr?.message || notifyErr);
-                      }
-                  } else {
-                      console.warn(`[AppContext] WhatsApp de entrega não disparado: Telefone não encontrado ou inválido para o trabalho #${mergedJob.osNumber || id} (dentistId: ${dId}, dentistName: ${mergedJob.dentistName})`);
-                  }
-              }
-          }
-      } catch (err: any) {
-          handleFirestoreError(err, OperationType.UPDATE, `organizations/${orgId}/jobs/${id}`);
-      }
-  };
-
-  const addInventoryCategory = async (category: any) => {
-    const orgId = activeDataId;
-    if(!orgId) return '';
-    const id = category.id || `inv_cat_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
-    await api.apiAddInventoryCategory(orgId, { ...category, id, organizationId: orgId });
-    return id;
-  };
-  const updateInventoryCategory = async (id: string, updates: Partial<import('../types').InventoryCategory>) => {
-    const orgId = activeDataId;
-    if(!orgId) return;
-    await api.apiUpdateInventoryCategory(orgId, id, updates);
-  };
-  const deleteInventoryCategory = async (id: string) => {
-    const orgId = activeDataId;
-    if(!orgId) return;
-    await api.apiDeleteInventoryCategory(orgId, id);
-  };
-
-  const addProductCatalogItem = async (item: Omit<import('../types').ProductCatalogItem, 'id' | 'organizationId'>) => {
-    const orgId = activeDataId;
-    if(!orgId) return;
-    await api.apiAddProductCatalogItem(orgId, { ...item, id: `cat_item_${Date.now()}`, organizationId: orgId });
-  };
-  const updateProductCatalogItem = async (id: string, updates: Partial<import('../types').ProductCatalogItem>) => {
-    const orgId = activeDataId;
-    if(!orgId) return;
-    await api.apiUpdateProductCatalogItem(orgId, id, updates);
-  };
-  const deleteProductCatalogItem = async (id: string) => {
-    const orgId = activeDataId;
-    if(!orgId) return;
-    await api.apiDeleteProductCatalogItem(orgId, id);
-  };
-
-  const addInventoryItem = async (item: Omit<import('../types').InventoryItem, 'id' | 'organizationId'>) => {
-    const orgId = activeDataId;
-    if(!orgId) return;
-    await api.apiAddInventoryItem(orgId, { ...item, id: `inv_item_${Date.now()}`, organizationId: orgId });
-  };
-  const updateInventoryItem = async (id: string, updates: Partial<import('../types').InventoryItem>) => {
-    const orgId = activeDataId;
-    if(!orgId) return;
-    await api.apiUpdateInventoryItem(orgId, id, updates);
-  };
-  const deleteInventoryItem = async (id: string) => {
-    const orgId = activeDataId;
-    if(!orgId) return;
-    await api.apiDeleteInventoryItem(orgId, id);
-  };
-
-  const addCommissionRecord = async (rec: Omit<CommissionRecord, 'id' | 'organizationId'>) => {
-      const orgId = activeDataId;
-      if(!orgId) return;
-      try {
-          const newRec: CommissionRecord = { ...rec, id: `comm_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`, organizationId: orgId } as CommissionRecord;
-          setCommissions(prev => [newRec, ...prev]);
-          await api.apiAddCommission(orgId, newRec);
-      } catch (err: any) {
-          handleFirestoreError(err, OperationType.CREATE, `organizations/${orgId}/commissions`);
-      }
-  };
-  const updateCommissionStatus = async (id: string, status: CommissionStatus) => {
-      const orgId = activeDataId;
-      if(!orgId) return;
-      const updates = { status, paidAt: status === CommissionStatus.PAID ? new Date() : undefined };
-      setCommissions(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
-      await api.apiUpdateCommission(orgId, id, updates);
-  };
-
-  const updateCommissionRecord = async (id: string, updates: Partial<CommissionRecord>) => {
-      const orgId = activeDataId;
-      if(!orgId) return;
-      try {
-          setCommissions(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
-          await api.apiUpdateCommission(orgId, id, updates);
-      } catch (err: any) {
-          handleFirestoreError(err, OperationType.UPDATE, `organizations/${orgId}/commissions/${id}`);
-      }
-  };
-
-  const deleteCommissionRecord = async (id: string) => {
-      const orgId = activeDataId;
-      if(!orgId) return;
-      try {
-          setCommissions(prev => prev.filter(c => c.id !== id));
-          await api.apiDeleteCommission(orgId, id);
-      } catch (err: any) {
-          handleFirestoreError(err, OperationType.DELETE, `organizations/${orgId}/commissions/${id}`);
-      }
-  };
-
-  const addJobType = async (jt: Omit<JobType, 'id'>) => {
-      const orgId = activeDataId;
-      if(!orgId) return;
-      await api.apiAddJobType(orgId, { ...jt, id: `jtype_${Date.now()}` } as JobType);
-  }
-  const updateJobType = async (id: string, u: Partial<JobType>) => {
-      const orgId = activeDataId;
-      if(!orgId) return;
-      setJobTypes(prev => prev.map(j => j.id === id ? { ...j, ...u } : j));
-      await api.apiUpdateJobType(orgId, id, u);
-  }
-  const deleteJobType = async (id: string) => {
-      const orgId = activeDataId;
-      if(!orgId) return;
-      setJobTypes(prev => prev.filter(j => j.id !== id));
-      await api.apiDeleteJobType(orgId, id);
-  }
-
-  const addClinicService = async (service: Omit<ClinicService, 'id'>) => {
-      const orgId = currentUser?.organizationId;
-      if(!orgId) return;
-      await api.apiAddClinicService(orgId, { ...service, id: `cservice_${Date.now()}` } as ClinicService);
-  };
-  const updateClinicService = async (id: string, updates: Partial<ClinicService>) => {
-      const orgId = currentUser?.organizationId;
-      if(!orgId) return;
-      await api.apiUpdateClinicService(orgId, id, updates);
-  };
-  const deleteClinicService = async (id: string) => {
-      const orgId = currentUser?.organizationId;
-      if(!orgId) return;
-      await api.apiDeleteClinicService(orgId, id);
-  };
-
-  const addClinicRoom = async (room: Omit<ClinicRoom, 'id'>) => {
-      const orgId = currentUser?.organizationId;
-      if(!orgId) return;
-      await api.apiAddClinicRoom(orgId, { ...room, id: `room_${Date.now()}` } as ClinicRoom);
-  };
-  const updateClinicRoom = async (id: string, updates: Partial<ClinicRoom>) => {
-      const orgId = currentUser?.organizationId;
-      if(!orgId) return;
-      await api.apiUpdateClinicRoom(orgId, id, updates);
-  };
-  const deleteClinicRoom = async (id: string) => {
-      const orgId = currentUser?.organizationId;
-      if(!orgId) return;
-      await api.apiDeleteClinicRoom(orgId, id);
-  };
-
-  const addClinicDentist = async (dentist: Omit<ClinicDentist, 'id'>) => {
-      const orgId = currentUser?.organizationId;
-      if(!orgId) return;
-      await api.apiAddClinicDentist(orgId, { ...dentist, id: `cdentist_${Date.now()}` } as ClinicDentist);
-  };
-  const updateClinicDentist = async (id: string, updates: Partial<ClinicDentist>) => {
-      const orgId = currentUser?.organizationId;
-      if(!orgId) return;
-      await api.apiUpdateClinicDentist(orgId, id, updates);
-  };
-  const deleteClinicDentist = async (id: string) => {
-      const orgId = currentUser?.organizationId;
-      if(!orgId) return;
-      await api.apiDeleteClinicDentist(orgId, id);
-  };
-
-  const addSector = async (name: string) => {
-      const orgId = activeDataId;
-      if(!orgId) return;
-      await api.apiAddSector(orgId, { id: `sector_${Date.now()}`, name });
-  }
-  const updateSector = async (id: string, updates: Partial<Sector>) => {
-      const orgId = activeDataId;
-      if (!orgId) return;
-      setSectors(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
-      await api.apiUpdateSector(orgId, id, updates);
-  }
-  const deleteSector = async (id: string) => {
-      const orgId = activeDataId;
-      if(!orgId) return;
-      setSectors(prev => prev.filter(s => s.id !== id));
-      await api.apiDeleteSector(orgId, id);
-  }
-
-  const addBoxColor = async (color: Omit<BoxColor, 'id'>) => {
-      const orgId = activeDataId;
-      if (!orgId) return;
-      await api.apiAddBoxColor(orgId, { ...color, id: `color_${Date.now()}` } as BoxColor);
-  };
-  const deleteBoxColor = async (id: string) => {
-      const orgId = activeDataId;
-      if (!orgId) return;
-      await api.apiDeleteBoxColor(orgId, id);
-  };
-
-  const updateOrganization = async (id: string, u: Partial<Organization>) => await api.apiUpdateOrganization(id, u);
-  const checkSlugAvailability = async (slug: string, currentOrgId: string) => await api.checkSlugAvailability(slug, currentOrgId);
-  const updateGlobalSettings = async (u: Partial<GlobalSettings>) => await api.apiUpdateGlobalSettings({ ...u, updatedAt: new Date(), updatedBy: currentUser?.name || 'unknown' });
-  const validateCoupon = async (code: string, planId: string) => await api.apiValidateCoupon(code, planId);
-  const createSubscription = async (orgId: string, planId: string, email: string, name: string, cpfCnpj: string, couponCode?: string, billingCycle?: string) => await api.apiCreateSaaSSubscription(orgId, planId, email, name, cpfCnpj, couponCode, billingCycle);
-  const createLabWallet = async (p: any) => await api.apiCreateLabSubAccount(p);
-  const getSaaSInvoices = async (orgId: string) => await api.apiGetSaaSInvoices(orgId);
-  const checkSubscriptionStatus = async (orgId: string) => await api.apiCheckSubscriptionStatus(orgId);
-  const setSubscriptionStatus = async (orgId: string, status: string) => await api.apiSetSubscriptionStatus(orgId, status);
-  
-  const addAlert = async (a: JobAlert) => {
-      const orgId = activeDataId;
-      if(!orgId) return;
-      await api.apiAddAlert(orgId, a);
-
-      const aAny = a as any;
-      // Disparar Notificação do Gestor (com respeito estrito a Setor / Destinatário / Permissão)
-      apiCreateNotification({
-          organizationId: orgId,
-          userId: a.targetUserId || null,
-          targetSector: a.targetSector || null,
-          targetRole: aAny.targetRole ? [aAny.targetRole] : null,
-          type: 'MANAGER_ALERT',
-          title: aAny.title || `🚨 Alerta: O.S. #${a.osNumber || 'Trabalho'}`,
-          body: a.message,
-          urgency: aAny.urgency === 'HIGH' || aAny.urgency === 'URGENT' ? 'URGENT' : 'HIGH',
-          senderName: aAny.createdByName || currentUser?.name || 'Gestor',
-          senderId: currentUser?.id,
-          data: {
-              alertId: a.id,
-              jobId: a.jobId,
-              osNumber: a.osNumber,
-              patientName: aAny.patientName,
-              targetSector: a.targetSector,
-              targetUserId: a.targetUserId,
-              scheduledFor: a.scheduledFor
-          }
-      }).catch((err) => console.warn("Erro ao criar notificação de alerta do gestor:", err));
-  }
-  const dismissAlert = async (id: string) => {
-      const orgId = activeDataId;
-      if(!orgId || !currentUser) return;
-      
-      const alertToDismiss = alerts.find(a => a.id === id);
-      
-      if (alertToDismiss && alertToDismiss.repeatInterval && (alertToDismiss.repeatCount || 0) > (alertToDismiss.repeatedCount || 0)) {
-          // Re-schedule
-          const nextRepeatedCount = (alertToDismiss.repeatedCount || 0) + 1;
-          const nextScheduledFor = new Date();
-          nextScheduledFor.setMinutes(nextScheduledFor.getMinutes() + alertToDismiss.repeatInterval);
-          
-          await api.apiUpdateAlert(orgId, id, {
-              readBy: [],
-              repeatedCount: nextRepeatedCount,
-              scheduledFor: nextScheduledFor
-          });
-      } else {
-          await api.apiMarkAlertAsRead(orgId, id, currentUser.id);
-      }
-      
-      setActiveAlert(null); 
-  }
-  const addPatient = async (p: Omit<ClinicPatient, 'id' | 'organizationId'>) => {
-      const orgId = currentUser?.organizationId;
-      if(!orgId) return;
-      await api.apiAddPatient(orgId, { ...p, id: `pat_${Date.now()}`, organizationId: orgId } as ClinicPatient);
-  }
-  const updatePatient = async (id: string, u: Partial<ClinicPatient>) => {
-      const orgId = currentUser?.organizationId;
-      if(!orgId) return;
-      await api.apiUpdatePatient(orgId, id, u);
-  }
-  const deletePatient = async (id: string) => {
-      const orgId = currentUser?.organizationId;
-      if(!orgId) return;
-      await api.apiDeletePatient(orgId, id);
-  }
-  const addAppointment = async (a: Omit<Appointment, 'id' | 'organizationId'>) => {
-      const orgId = currentUser?.organizationId;
-      if(!orgId) return;
-      const newAppointment = { ...a, id: `app_${Date.now()}`, organizationId: orgId } as Appointment;
-      await api.apiAddAppointment(orgId, newAppointment);
-
-      // Notificação de Confirmação de Consulta
-      const patient = patients.find(p => p.id === a.patientId);
-      const dentist = clinicDentists.find(d => d.id === a.dentistId);
-      if (patient && patient.phone && dentist) {
-          await notifyAppointmentCreated(newAppointment, patient, dentist.name);
-      }
-  }
-  const updateAppointment = async (id: string, u: Partial<Appointment>) => {
-      const orgId = currentUser?.organizationId;
-      if(!orgId) return;
-      await api.apiUpdateAppointment(orgId, id, u);
-  }
-  const deleteAppointment = async (id: string) => {
-      const orgId = currentUser?.organizationId;
-      if(!orgId) return;
-      await api.apiDeleteAppointment(orgId, id);
-  }
-  
-  const registerOrganization = async (e: string, p: string, on: string, orn: string, pid: string, t: Date | undefined, c: string | undefined, address?: any) => await api.apiRegisterOrganization(e, p, on, orn, pid, t, c, address);
-  const registerOutsourcedLab = async (e: string, p: string, on: string, orn: string, pid: string, t: Date | undefined, c: string | undefined, address?: any) => await api.apiRegisterOutsourcedLab(e, p, on, orn, pid, t, c, address);
-  const registerDentist = async (e: string, p: string, n: string, clinicName: string, planId: string, trialEndsAt?: Date, couponCode?: string, address?: any) => await api.apiRegisterDentist(e, p, n, clinicName, planId, trialEndsAt, couponCode, address);
-  const registerSupplier = async (e: string, p: string, on: string, orn: string, pid: string, t: Date | undefined, c: string | undefined, address?: any) => await api.apiRegisterSupplier(e, p, on, orn, pid, t, c, address);
-  const addSupplierOrder = async (order: import('../types').SupplierOrder) => await api.apiAddSupplierOrder(order);
-  const updateSupplierOrder = async (id: string, updates: Partial<import('../types').SupplierOrder>) => {
-      await api.apiUpdateSupplierOrder(id, updates);
-      
-      // WhatsApp Notifications
-      if (updates.status === 'CONFIRMED' || updates.status === 'SHIPPED' || updates.status === 'DELIVERED') {
-          const order = supplierOrders.find(o => o.id === id);
-          if (order && order.buyerPhone) {
-              await notifySupplierOrder({ ...order, ...updates } as any, updates.status as 'CONFIRMED' | 'SHIPPED' | 'DELIVERED', order.buyerPhone);
-          }
-      }
-  };
-  const validateCro = async (uf: string, numero: string, categoria: string) => await api.apiValidateCro(uf, numero, categoria);
-  const addSubscriptionPlan = async (p: SubscriptionPlan) => await api.apiAddSubscriptionPlan(p);
-  const updateSubscriptionPlan = async (id: string, u: Partial<SubscriptionPlan>) => await api.apiUpdateSubscriptionPlan(id, u);
-  const deleteSubscriptionPlan = async (id: string) => await api.apiDeleteSubscriptionPlan(id);
-  
-  const addConnectionByCode = async (code: string) => {
-      if(!currentUser?.organizationId) return;
-      await api.apiAddConnectionByCode(currentUser.organizationId, currentUser.id, code);
-  };
-
-  const addCoupon = async (c: Coupon) => await api.apiAddCoupon(c);
-  const updateCoupon = async (id: string, u: Partial<Coupon>) => await api.apiUpdateCoupon(id, u);
-  const deleteCoupon = async (id: string) => await api.apiDeleteCoupon(id);
-  const addPayment = async (p: PaymentRecord) => await api.apiAddPayment(p);
-
-  const addLabCoupon = async (c: Omit<LabCoupon, 'id' | 'organizationId' | 'usedCount'>) => {
-      const orgId = activeDataId;
-      if (!orgId) return;
-      const newCoupon: LabCoupon = {
-          ...c,
-          id: `lab_coup_${Date.now()}`,
-          organizationId: orgId,
-          usedCount: 0
-      };
-      await api.apiAddLabCoupon(orgId, newCoupon);
-  };
-  const updateLabCoupon = async (id: string, u: Partial<LabCoupon>) => {
-      const orgId = activeDataId;
-      if (!orgId) return;
-      await api.apiUpdateLabCoupon(orgId, id, u);
-  };
-  const deleteLabCoupon = async (id: string) => {
-      const orgId = activeDataId;
-      if (!orgId) return;
-      await api.apiDeleteLabCoupon(orgId, id);
-  };
-  const validateLabCoupon = async (orgId: string, code: string) => {
-      return await api.apiValidateLabCoupon(orgId, code);
-  };
-
-  const addManualDentist = async (d: Omit<ManualDentist, 'id' | 'organizationId'>) => {
-      const orgId = activeDataId;
-      if(!orgId) return;
-      await api.apiAddManualDentist(orgId, { ...d, id: `man_dent_${Date.now()}`, organizationId: orgId } as ManualDentist);
-  };
-  const updateManualDentist = async (id: string, u: Partial<ManualDentist>) => {
-      const orgId = activeDataId;
-      if(!orgId) return;
-      await api.apiUpdateManualDentist(orgId, id, u);
-  };
-  const deleteManualDentist = async (id: string) => {
-      const orgId = activeDataId;
-      if(!orgId) return;
-      await api.apiDeleteManualDentist(orgId, id);
-  };
-
-  const addOnlineRequisition = async (labId: string, r: Omit<OnlineRequisition, 'id' | 'createdAt' | 'status'>) => {
-      const id = `req_${Date.now()}`;
-      const now = new Date();
-      await api.apiAddOnlineRequisition(labId, {
-          ...r,
-          id,
-          status: 'PENDING',
-          createdAt: now,
-          sentAt: now
-      } as OnlineRequisition);
-
-      // Notificação para o Laboratório (apenas colaboradores com permissão 'clients:view' ou 'jobs:view' ou ADMIN/MANAGER recebem)
-      apiCreateNotification({
-          organizationId: labId,
-          requiredPermission: 'clients:view',
-          type: 'ONLINE_REQUISITION',
-          title: '📋 Nova Requisição Online Recebida',
-          body: `Nova requisição de trabalho para o paciente "${r.patientName || 'Paciente'}" enviada pelo Dr(a). ${r.dentistName || 'Dentista'}.`,
-          urgency: 'NORMAL',
-          senderName: r.dentistName || currentUser?.name || 'Dentista',
-          senderId: currentUser?.id,
-          data: {
-              requisitionId: id,
-              patientName: r.patientName,
-              dentistName: r.dentistName,
-              url: '/incoming-requisitions'
-          }
-      }).catch((err) => logger.warn({ err }, "Erro ao criar notificação de requisição online"));
-  };
-
-  const updateOnlineRequisition = async (labId: string, id: string, updates: Partial<OnlineRequisition>) => {
-      const finalUpdates = { ...updates };
-      const now = new Date();
-      if (updates.status === 'ACCEPTED') {
-          finalUpdates.acceptedAt = now;
-      } else if (updates.status === 'REJECTED') {
-          finalUpdates.rejectedAt = now;
-      }
-      await api.apiUpdateOnlineRequisition(labId, id, finalUpdates);
-
-      // Se o status mudou (ex: ACEITO ou REJEITADO), notificar o dentista solicitante
-      if (updates.status) {
-          const req = onlineRequisitions.find(item => item.id === id);
-          if (req && req.dentistId) {
-              const isAccepted = updates.status === 'ACCEPTED';
-              apiCreateNotification({
-                  organizationId: labId,
-                  userId: req.dentistId,
-                  type: 'ONLINE_REQUISITION',
-                  title: isAccepted ? '✅ Requisição Aceita pelo Laboratório' : '❌ Requisição Atualizada',
-                  body: isAccepted 
-                      ? `Sua requisição para o paciente "${req.patientName || 'Paciente'}" foi aceita e o caso já está em produção!`
-                      : `A requisição para "${req.patientName || 'Paciente'}" foi atualizada para ${updates.status}.`,
-                  urgency: 'NORMAL',
-                  senderName: currentOrg?.name || 'Laboratório',
-                  senderId: currentUser?.id,
-                  data: {
-                      requisitionId: id,
-                      status: updates.status,
-                      url: '/requisitions'
-                  }
-              }).catch((err) => logger.warn({ err }, "Erro ao notificar dentista sobre requisição"));
-          }
-      }
-  };
-
-  const addCardMachine = async (m: Omit<CardMachine, 'id' | 'organizationId' | 'createdAt'>) => {
-      const orgId = activeDataId;
-      if(!orgId) return;
-      await api.apiAddCardMachine(orgId, { ...m, id: `machine_${Date.now()}`, organizationId: orgId, createdAt: new Date() } as CardMachine);
-  };
-  const updateCardMachine = async (id: string, u: Partial<CardMachine>) => {
-      const orgId = activeDataId;
-      if(!orgId) return;
-      await api.apiUpdateCardMachine(orgId, id, u);
-  };
-  const deleteCardMachine = async (id: string) => {
-      const orgId = activeDataId;
-      if(!orgId) return;
-      await api.apiDeleteCardMachine(orgId, id);
-  };
-
-  const addBankAccount = async (acc: Omit<BankAccount, 'id' | 'organizationId' | 'createdAt'>) => {
-      const orgId = activeDataId;
-      if(!orgId) return;
-      await api.apiAddBankAccount(orgId, { ...acc, id: `bank_${Date.now()}`, organizationId: orgId, createdAt: new Date() } as BankAccount);
-  };
-  const updateBankAccount = async (id: string, u: Partial<BankAccount>) => {
-      const orgId = activeDataId;
-      if(!orgId) return;
-      await api.apiUpdateBankAccount(orgId, id, u);
-  };
-  const deleteBankAccount = async (id: string) => {
-      const orgId = activeDataId;
-      if(!orgId) return;
-      await api.apiDeleteBankAccount(orgId, id);
-  };
-
-  const addPriceTable = async (table: Omit<PriceTable, 'id' | 'organizationId' | 'createdAt' | 'updatedAt'>) => {
-    const orgId = activeDataId;
-    if (!orgId) return;
-    try {
-      const newTable: PriceTable = {
-        ...table,
-        id: `tab_${Date.now()}`,
-        organizationId: orgId,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
-      await api.apiAddPriceTable(orgId, newTable);
-    } catch (e: any) {
-      handleFirestoreError(e, OperationType.CREATE, `organizations/${orgId}/priceTables`);
-    }
-  };
-
-  const updatePriceTable = async (id: string, updates: Partial<PriceTable>) => {
-    const orgId = activeDataId;
-    if (!orgId) return;
-    try {
-      await api.apiUpdatePriceTable(orgId, id, updates);
-    } catch (e: any) {
-      handleFirestoreError(e, OperationType.UPDATE, `organizations/${orgId}/priceTables/${id}`);
-    }
-  };
-
-  const deletePriceTable = async (id: string) => {
-    const orgId = activeDataId;
-    if (!orgId) return;
-    try {
-      await api.apiDeletePriceTable(orgId, id);
-    } catch (e: any) {
-      handleFirestoreError(e, OperationType.DELETE, `organizations/${orgId}/priceTables/${id}`);
-    }
-  };
-
-  const addCommissionGroup = async (group: Omit<CommissionGroup, 'id' | 'createdAt' | 'updatedAt'>): Promise<string | undefined> => {
-    const orgId = activeDataId;
-    if (!orgId) return;
-    try {
-      const newId = `cg_${Date.now()}`;
-      const newGroup: CommissionGroup = {
-        ...group,
-        id: newId,
-        organizationId: orgId,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
-      await api.apiAddCommissionGroup(orgId, newGroup);
-      return newId;
-    } catch (e: any) {
-      handleFirestoreError(e, OperationType.CREATE, `organizations/${orgId}/commissionGroups`);
-    }
-  };
-
-  const updateCommissionGroup = async (id: string, updates: Partial<CommissionGroup>) => {
-    const orgId = activeDataId;
-    if (!orgId) return;
-    setCommissionGroups(prev => prev.map(g => g.id === id ? { ...g, ...updates } : g));
-    try {
-      await api.apiUpdateCommissionGroup(orgId, id, updates);
-      // Synchronize affected members' cached commissionSettings if settings were updated
-      if (updates.settings) {
-        const affectedUsers = allUsers.filter(u => u.commissionGroupId === id);
-        for (const u of affectedUsers) {
-          try {
-            await updateUser(u.id, { commissionSettings: updates.settings });
-          } catch (syncErr) {
-            logger.warn({ error: syncErr, userId: u.id }, 'Could not sync commissionSettings to user');
-          }
-        }
-      }
-    } catch (e: any) {
-      handleFirestoreError(e, OperationType.UPDATE, `organizations/${orgId}/commissionGroups/${id}`);
-    }
-  };
-
-  const deleteCommissionGroup = async (id: string) => {
-    const orgId = activeDataId;
-    if (!orgId) return;
-    setCommissionGroups(prev => prev.filter(g => g.id !== id));
-    try {
-      await api.apiDeleteCommissionGroup(orgId, id);
-      // Safely unlink members from this group
-      const affectedUsers = allUsers.filter(u => u.commissionGroupId === id);
-      for (const u of affectedUsers) {
+    if (!auth) return;
+    const unsub = onAuthStateChanged(auth, async (authUser) => {
+      if (authUser) {
+        setIsLoadingAuth(true);
         try {
-          await updateUser(u.id, { commissionGroupId: null });
-        } catch (unlinkErr) {
-          logger.warn({ error: unlinkErr, userId: u.id }, 'Could not unlink user from group');
-        }
-      }
-    } catch (e: any) {
-      handleFirestoreError(e, OperationType.DELETE, `organizations/${orgId}/commissionGroups/${id}`);
-    }
-  };
-
-  const switchActiveOrganization = (id: string | null) => {
-    if (!id) { setActiveOrganization(null); return; }
-    
-    getDoc(doc(db, 'organizations', id)).then((snap: any) => {
-         if (snap.exists()) {
-             const data = snap.data();
-             const createdAtDate = data.createdAt?.toDate ? data.createdAt.toDate() : (data.createdAt ? new Date(data.createdAt) : new Date());
-             setActiveOrganization({ id: snap.id, ...data, createdAt: createdAtDate } as Organization);
-         }
-    }).catch((err: any) => {
-         logger.warn({ err: err }, `[Firestore] Error in switchActiveOrganization for id ${id}:`);
-    });
-  };
-
-  const addJobToRoute = async (job: Job, driver: string, shift: 'MORNING' | 'AFTERNOON', date: Date, observations?: string, targetRouteId?: string) => {
-      const orgId = currentUser?.organizationId;
-      if (!orgId) return;
-
-      const dateStr = normalizeRouteDate(date);
-      const today = getTodayDateStr();
-
-      // Rule: Do not allow allocating jobs in past routes
-      if (dateStr < today) {
-          throw new Error("Não é possível alocar trabalhos em rotas de datas anteriores à atual.");
-      }
-
-      // Rule: After 12:00 PM on current date, only AFTERNOON shift is allowed
-      const nowHours = new Date().getHours();
-      if (dateStr === today && shift === 'MORNING' && nowHours >= 12) {
-          throw new Error("Após as 12:00, somente rotas do turno da TARDE podem ser selecionadas para o dia vigente.");
-      }
-
-      let routeId = targetRouteId;
-      const activeCouriersCount = couriers.filter(c => c.active !== false).length;
-
-      if (!routeId) {
-          // Check for an existing open or in-transit route on that date and shift
-          const existingRoute = routes.find(r => {
-              const rDateStr = normalizeRouteDate(r.date);
-              const driverMatch = (r.driverName || '').trim().toLowerCase() === (driver || '').trim().toLowerCase();
-              const matchDriver = activeCouriersCount <= 1 ? true : driverMatch;
-              return rDateStr === dateStr && r.shift === shift && matchDriver && r.status !== 'COMPLETED';
-          });
-
-          if (existingRoute) {
-              routeId = existingRoute.id;
-          } else {
-              routeId = `route_${dateStr}_${shift}_${driver.replace(/\s+/g, '_')}_${Date.now().toString(36)}`;
-              await api.apiAddRoute(orgId, {
-                  id: routeId, organizationId: orgId, date: createMiddayDate(dateStr), shift: shift, driverName: driver, status: 'OPEN', createdAt: new Date()
-              });
-          }
-      } else {
-          const routeSnap = await getDoc(doc(db, 'organizations', orgId, 'routes', routeId));
-          if (!routeSnap.exists()) {
-              await api.apiAddRoute(orgId, {
-                  id: routeId, organizationId: orgId, date: createMiddayDate(dateStr), shift: shift, driverName: driver, status: 'OPEN', createdAt: new Date()
-              });
-          }
-      }
-
-      // If the job was already in a different route, remove it from the old route
-      if (job.routeId && job.routeId !== routeId) {
-          try {
-              const oldItemsSnap = await getDocs(collection(db, `organizations/${orgId}/routes/${job.routeId}/items`));
-              oldItemsSnap.docs.forEach((dDoc: any) => {
-                  if (dDoc.data()?.jobId === job.id) {
-                      api.apiDeleteRouteItem(orgId, job.routeId!, dDoc.id);
-                  }
-              });
-          } catch (e) {
-              console.error("Erro ao remover da rota antiga:", e);
-          }
-      }
-
-      const dentist = manualDentists.find(d => d.id === job.dentistId);
-      const onlineDentist = allUsers.find(u => u.id === job.dentistId);
-      const targetDentist: any = dentist || onlineDentist;
-      
-      const formatRouteAddress = (d: any) => {
-        if (!d) return 'Endereço não cadastrado';
-        const parts: string[] = [];
-        if (d.address) {
-          let line = d.address;
-          if (d.number) line += `, ${d.number}`;
-          if (d.complement) line += ` - ${d.complement}`;
-          parts.push(line);
-        }
-        if (d.neighborhood) parts.push(d.neighborhood);
-        if (d.city || d.state) parts.push(`${d.city || ''}${d.city && d.state ? '/' : ''}${d.state || ''}`);
-        return parts.length > 0 ? parts.join(' - ') : (typeof d.address === 'string' && d.address.trim() ? d.address : 'Endereço não cadastrado');
-      };
-
-      const address = formatRouteAddress(targetDentist);
-
-      // Determine ordering: if client is already in route, insert directly after last item of this client; otherwise place at the very end
-      let nextOrder = 1;
-      try {
-          const itemsSnap = await getDocs(collection(db, `organizations/${orgId}/routes/${routeId}/items`));
-          const existingItems: RouteItem[] = itemsSnap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() } as RouteItem));
-          
-          if (existingItems.length > 0) {
-              const sorted = [...existingItems].sort((a, b) => (a.order || 0) - (b.order || 0));
-              const sameClientItems = sorted.filter(i => i.dentistId === job.dentistId);
-              
-              if (sameClientItems.length > 0) {
-                  const lastClientItem = sameClientItems[sameClientItems.length - 1];
-                  const lastIdx = sorted.findIndex(i => i.id === lastClientItem.id);
-                  sorted.splice(lastIdx + 1, 0, { id: 'temp_new', dentistId: job.dentistId } as any);
-                  
-                  sorted.forEach((item, idx) => {
-                      const newOrd = idx + 1;
-                      if (item.id === 'temp_new') {
-                          nextOrder = newOrd;
-                      } else if (item.order !== newOrd) {
-                          api.apiUpdateRouteItem(orgId, routeId, item.id, { order: newOrd });
-                      }
-                  });
-              } else {
-                  const maxOrder = sorted.reduce((max, i) => Math.max(max, i.order || 0), 0);
-                  nextOrder = maxOrder + 1;
+          const profile = await api.getUserProfile(authUser.uid);
+          if (profile) {
+            setCurrentUser(profile);
+            if (profile.organizationId) {
+              const orgSnap = await getDoc(doc(db, 'organizations', profile.organizationId));
+              if (orgSnap.exists()) {
+                setCurrentOrg({ id: orgSnap.id, ...orgSnap.data() } as Organization);
               }
+            }
           }
-      } catch (e) {
-          console.error("Erro ao calcular ordem dos itens da rota:", e);
+        } catch (err) {
+          console.error("Error loading user profile", err);
+        } finally {
+          setIsLoadingAuth(false);
+        }
       }
+    });
 
-      const routeItem: RouteItem = {
-          id: `item_${Date.now()}`,
-          routeId: routeId,
-          jobId: job.id,
-          dentistId: job.dentistId,
-          dentistName: job.dentistName,
-          patientName: job.patientName,
-          address: address,
-          type: 'DELIVERY',
-          order: nextOrder,
-          observations: observations || '',
-          addedByUserId: currentUser?.id,
-          addedByUserName: currentUser?.name || 'Colaborador',
-          addedAt: new Date().toISOString()
-      };
-      await api.apiAddRouteItem(orgId, routeId, routeItem);
-      await api.apiUpdateJob(orgId, job.id, { routeId });
-  };
+    return () => unsub();
+  }, []);
 
-  const generateBatchBoleto = async (dentistId: string, jobIds: string[], dueDate: Date, customAmount?: number) => {
-    const orgId = currentUser?.organizationId;
-    if (!orgId) return;
-
-    const dentist = manualDentists.find(d => d.id === dentistId) || allUsers.find(u => u.id === dentistId);
-    const dentistName = dentist?.name || 'Dentista';
-
-    const batchId = `bb_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
-    
-    let finalAmount = customAmount !== undefined && customAmount !== null ? customAmount : 0;
-    if (!finalAmount && jobIds.length > 0) {
-      const jobsInBatch = jobs.filter(j => jobIds.includes(j.id));
-      finalAmount = jobsInBatch.reduce((acc, curr) => acc + (curr.totalValue || 0), 0);
-    }
-
-    const newBatch: BillingBatch = {
-      id: batchId,
-      organizationId: orgId,
-      dentistId,
-      dentistName,
-      jobIds,
-      totalAmount: finalAmount,
-      status: 'PENDING',
-      dueDate,
-      createdAt: new Date(),
-      boletoUrl: `https://www.asaas.com/api/v3/payments/dummy_${batchId}/pdf`,
-      invoiceUrl: `https://www.asaas.com/api/v3/payments/dummy_${batchId}/invoice`
-    };
-
-    if (currentOrg?.financialSettings?.asaasWalletId) {
-       try {
-         const result = await api.apiGenerateBatchBoleto(orgId, dentistId, jobIds, dueDate, customAmount);
-         if (result) {
-           if (result.id) newBatch.id = result.id;
-           if (result.boletoUrl) newBatch.boletoUrl = result.boletoUrl;
-           if (result.invoiceUrl) newBatch.invoiceUrl = result.invoiceUrl;
-           if (result.totalAmount && !customAmount) newBatch.totalAmount = result.totalAmount;
-         }
-       } catch (err) {
-         logger.warn({ err: err }, "Real Asaas failed, using robust offline generation:");
-       }
-    }
-
-    await api.apiAddBillingBatch(orgId, newBatch);
-    return newBatch;
-  };
-
-  const addDentistPayment = async (p: Omit<DentistPayment, 'id' | 'organizationId' | 'createdAt'>) => {
-    const orgId = currentUser?.organizationId;
-    if (!orgId) return;
-    const newPayment: DentistPayment = {
-      ...p,
-      id: `pay_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
-      organizationId: orgId,
-      createdAt: new Date()
-    };
-    await api.apiAddDentistPayment(orgId, newPayment);
-  };
-
-  const updateDentistPayment = async (id: string, updates: Partial<DentistPayment>) => {
-    const orgId = currentUser?.organizationId;
-    if (!orgId) return;
-    await api.apiUpdateDentistPayment(orgId, id, updates);
-  };
-
-  const deleteDentistPayment = async (id: string) => {
-    const orgId = currentUser?.organizationId;
-    if (!orgId) return;
-    const target = dentistPayments.find(p => p.id === id);
-    if (target?.installmentGroup) {
-      const groupPayments = dentistPayments.filter(p => p.installmentGroup === target.installmentGroup);
-      for (const p of groupPayments) {
-        await api.apiDeleteDentistPayment(orgId, p.id);
-      }
-    } else {
-      await api.apiDeleteDentistPayment(orgId, id);
-    }
-  };
-
-  const updateBillingBatchStatus = async (id: string, status: BillingBatch['status']) => {
-    const orgId = currentUser?.organizationId;
-    if (!orgId) return;
-    await api.apiUpdateBillingBatchStatus(orgId, id, status);
-
-    if (status === 'PAID') {
-      try {
-        const batch = billingBatches.find(b => b.id === id);
-        if (batch) {
-          const alreadyPaid = dentistPayments.some(p => p.batchId === id);
-          if (!alreadyPaid) {
-            await addDentistPayment({
-              dentistId: batch.dentistId,
-              dentistName: batch.dentistName,
-              amount: batch.totalAmount,
-              paymentMethod: 'BOLETO',
-              paymentDate: new Date(),
-              type: 'PAYMENT',
-              notes: `Baixa de boleto - Fatura #${batch.id.slice(-6).toUpperCase()}`,
-              batchId: batch.id
-            });
+  const login = async (email: string, pass: string) => {
+    setIsLoadingAuth(true);
+    try {
+      await api.apiLogin(email, pass);
+      if (auth.currentUser) {
+        const profile = await api.getUserProfile(auth.currentUser.uid);
+        if (profile) {
+          setCurrentUser(profile);
+          if (profile.organizationId) {
+            const orgSnap = await getDoc(doc(db, 'organizations', profile.organizationId));
+            if (orgSnap.exists()) {
+              setCurrentOrg({ id: orgSnap.id, ...orgSnap.data() } as Organization);
+            }
           }
         }
-      } catch (err) {
-        logger.error({ err: err }, "Erro ao dar baixa no extrato do faturamento:");
       }
+    } finally {
+      setIsLoadingAuth(false);
     }
   };
 
-  const addPatientPayment = async (p: Omit<import('../types').PatientPayment, 'id' | 'organizationId' | 'createdAt'>) => {
-    const orgId = currentUser?.organizationId;
-    if (!orgId) return;
-    const newPayment: import('../types').PatientPayment = {
-      ...p,
-      id: `pat_pay_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
-      organizationId: orgId,
-      createdAt: new Date()
-    };
-    await api.apiAddPatientPayment(orgId, newPayment);
-  };
-
-  const updatePatientPayment = async (id: string, updates: Partial<import('../types').PatientPayment>) => {
-    const orgId = currentUser?.organizationId;
-    if (!orgId) return;
-    await api.apiUpdatePatientPayment(orgId, id, updates);
-  };
-
-  const deletePatientPayment = async (id: string) => {
-    const orgId = currentUser?.organizationId;
-    if (!orgId) return;
-    await api.apiDeletePatientPayment(orgId, id);
-  };
-
-  const addPatientBillingBatch = async (b: Omit<import('../types').PatientBillingBatch, 'id' | 'organizationId' | 'createdAt'>) => {
-    const orgId = currentUser?.organizationId;
-    if (!orgId) return;
-    const newBatch: import('../types').PatientBillingBatch = {
-      ...b,
-      id: `pat_bat_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
-      organizationId: orgId,
-      createdAt: new Date()
-    };
-    await api.apiAddPatientBillingBatch(orgId, newBatch);
-  };
-
-  const updatePatientBillingBatchStatus = async (id: string, status: import('../types').PatientBillingBatch['status']) => {
-    const orgId = currentUser?.organizationId;
-    if (!orgId) return;
-    await api.apiUpdatePatientBillingBatchStatus(orgId, id, status);
-  };
-
-  const deletePatientBillingBatch = async (id: string) => {
-    const orgId = currentUser?.organizationId;
-    if (!orgId) return;
-    await api.apiDeletePatientBillingBatch(orgId, id);
-  };
-
-  const addCourier = async (c: Omit<Courier, 'id' | 'organizationId' | 'createdAt'>) => {
-    const orgId = currentUser?.organizationId;
-    if (!orgId) return;
-    const newCourier: Courier = {
-      ...c,
-      id: `cour_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
-      organizationId: orgId,
-      createdAt: new Date()
-    };
-    await api.apiAddCourier(orgId, newCourier);
-  };
-
-  const updateCourier = async (id: string, updates: Partial<Courier>) => {
-    const orgId = currentUser?.organizationId;
-    if (!orgId) return;
-    await api.apiUpdateCourier(orgId, id, updates);
-  };
-
-  const deleteCourier = async (id: string) => {
-    const orgId = currentUser?.organizationId;
-    if (!orgId) return;
-    await api.apiDeleteCourier(orgId, id);
-  };
-
-  const unreadNotificationCount = useMemo(() => {
-    return notifications.filter(n => !n.read).length;
-  }, [notifications]);
-
-  const updateNotificationPreferences = async (prefs: NotificationPreferences) => {
-    setNotificationPreferences(prefs);
+  const logout = async () => {
+    setIsLoadingAuth(true);
     try {
-      localStorage.setItem('labprox_notif_prefs', JSON.stringify(prefs));
-      if (currentUser?.id) {
-        api.apiUpdateUser(currentUser.id, { notificationPreferences: prefs } as any).catch(() => {});
-      }
-    } catch (e) {}
+      await api.apiLogout();
+      setCurrentUser(null);
+      setCurrentOrg(null);
+    } finally {
+      setIsLoadingAuth(false);
+    }
   };
 
-  const markNotificationAsRead = async (id: string) => {
-    if (!currentUser) return;
-    const target = notifications.find(n => n.id === id);
-    const orgId = target?.organizationId || currentUser.organizationId || '';
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
-    await apiMarkNotificationAsRead(orgId, id, currentUser.id);
-  };
-
-  const markAllNotificationsAsRead = async () => {
-    if (!currentUser) return;
-    const unreadIds = notifications.filter(n => !n.read).map(n => n.id);
-    if (unreadIds.length === 0) return;
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-    const orgId = currentUser.organizationId || '';
-    await apiMarkAllNotificationsAsRead(orgId, currentUser.id, unreadIds);
-  };
-
-  const deleteNotification = async (id: string) => {
-    if (!currentUser) return;
-    const target = notifications.find(n => n.id === id);
-    const orgId = target?.organizationId || currentUser.organizationId || '';
-    setNotifications(prev => prev.filter(n => n.id !== id));
-    await apiDeleteNotification(orgId, id, currentUser.id);
-  };
-
-  const sendNotification = async (notif: Omit<AppNotification, 'id' | 'createdAt' | 'read'>) => {
-    await apiCreateNotification(notif);
-  };
-
-  const requestPushPermission = async () => {
-    const perm = await requestPushNotificationPermission();
-    setPushStatus(checkPushSupport());
-    return perm;
-  };
-
-  const contextValue = useMemo(() => ({
-    currentUser, currentOrg, currentPlan, isLoadingAuth, globalSettings,
-    allUsers, jobs, budgets, jobTypes, clinicServices, clinicRooms, clinicDentists, sectors, boxColors, alerts, commissions,
-    allOrganizations, allLaboratories, allPlans, coupons, patients, appointments, manualDentists, priceTables, commissionGroups, billingBatches, dentistPayments, 
-    patientPayments, patientBillingBatches,
-    cardMachines, bankAccounts, inventoryCategories, inventoryItems, productCatalogItems,
-    activeAlert,
-    allPayments,
-    nfcBoxes,
-    notifications,
-    unreadNotificationCount,
-    notificationPreferences,
-    updateNotificationPreferences,
-    markNotificationAsRead,
-    markAllNotificationsAsRead,
-    deleteNotification,
-    sendNotification,
-    requestPushPermission,
-    pushStatus,
-    login, logout, updateUser, addUser, deleteUser,
-    addJob, updateJob, addBudget, updateBudget, deleteBudget, addCommissionRecord, updateCommissionStatus, updateCommissionRecord, deleteCommissionRecord,
-    addInventoryCategory, updateInventoryCategory, deleteInventoryCategory, addInventoryItem, updateInventoryItem, deleteInventoryItem,
-    addProductCatalogItem, updateProductCatalogItem, deleteProductCatalogItem,
-    addJobType, updateJobType, deleteJobType,
-    addClinicService, updateClinicService, deleteClinicService,
-    addClinicRoom, updateClinicRoom, deleteClinicRoom,
-    addClinicDentist, updateClinicDentist, deleteClinicDentist,
-    addSector, updateSector, deleteSector, addBoxColor, deleteBoxColor,
-    cart, addToCart: (i: CartItem) => setCart(p => [...p,i]), removeFromCart: (id: string) => setCart(p => p.filter(i => i.cartItemId !== id)), updateCartItemQty: (id: string, qty: number) => setCart(p => p.map(item => item.cartItemId === id ? { ...item, quantity: Math.max(1, qty), finalPrice: item.unitPrice * Math.max(1, qty) } : item)), clearCart: () => setCart([]),
-    uploadFile: api.uploadJobFile,
-    getOriginalUrl: api.getOriginalUrl,
-    printData, triggerPrint: (j: Job,m: 'SHEET' | 'LABEL' | 'ADDRESS_LABEL' | 'INVOICE_SHEET' | 'BUDGET_SHEET') => setPrintData({job:j, mode:m}), 
-    triggerRoutePrint: (items: RouteItem[], driver: string, shift: string, date: string) => setPrintData({ mode: 'ROUTE', routeItems: items, driver, shift, date }),
-    clearPrint: () => setPrintData(null),
-    activeOrganization, switchActiveOrganization, userConnections,
-    onlineRequisitions, addOnlineRequisition, updateOnlineRequisition, activeManualDentistId,
-    updateOrganization, checkSlugAvailability, updateGlobalSettings, validateCoupon, createSubscription, createLabWallet, getSaaSInvoices, checkSubscriptionStatus, setSubscriptionStatus,
-    addAlert, dismissAlert, addPatient, updatePatient, deletePatient, addAppointment, updateAppointment, deleteAppointment,
-    registerOrganization, registerOutsourcedLab, registerDentist, registerSupplier, validateCro, addSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan,
-    allSuppliers, allSupplierProducts, supplierOrders, addSupplierOrder, updateSupplierOrder,
-    addConnectionByCode, addCoupon, updateCoupon, deleteCoupon, addPayment,
-    addManualDentist, updateManualDentist, deleteManualDentist,
-    addCardMachine, updateCardMachine, deleteCardMachine,
-    addBankAccount, updateBankAccount, deleteBankAccount,
-    addPriceTable, updatePriceTable, deletePriceTable,
-    addCommissionGroup, updateCommissionGroup, deleteCommissionGroup,
-    addJobToRoute, generateBatchBoleto,
-    addDentistPayment, updateDentistPayment, deleteDentistPayment, updateBillingBatchStatus,
-    addPatientPayment, updatePatientPayment, deletePatientPayment,
-    addPatientBillingBatch, updatePatientBillingBatchStatus, deletePatientBillingBatch,
-    labCoupons, addLabCoupon, updateLabCoupon, deleteLabCoupon, validateLabCoupon,
-    routes, couriers, addCourier, updateCourier, deleteCourier,
-    theme, setTheme, toggleTheme,
-    language, setLanguage
-  }), [
-    currentUser, currentOrg, currentPlan, isLoadingAuth, globalSettings,
-    allUsers, jobs, budgets, jobTypes, clinicServices, clinicRooms, clinicDentists, sectors, boxColors, alerts, commissions,
-    allOrganizations, allLaboratories, allPlans, coupons, labCoupons, patients, appointments, manualDentists, priceTables, commissionGroups, billingBatches, dentistPayments, activeAlert,
-    patientPayments, patientBillingBatches,
-    cardMachines, bankAccounts, inventoryCategories, inventoryItems,
-    allSuppliers, allSupplierProducts, supplierOrders,
-    allPayments, cart, printData, activeOrganization, userConnections, activeDataId, routes, couriers, onlineRequisitions, nfcBoxes,
-    notifications, unreadNotificationCount, notificationPreferences, pushStatus,
-    theme, setTheme, toggleTheme,
-    language, setLanguage
+  const [allUsers] = useState<User[]>([
+    {
+      id: 'u-1',
+      name: 'Administrador Labprox',
+      role: UserRole.ADMIN,
+      email: 'admin@labprox.app'
+    }
   ]);
 
+  const [manualDentists] = useState<ManualDentist[]>(initialDentists);
+
+  const [sectors] = useState<Sector[]>([
+    { id: 's-1', name: 'Gesso' },
+    { id: 's-2', name: 'CAD/CAM' },
+    { id: 's-3', name: 'Cerâmica' },
+    { id: 's-4', name: 'Acabamento' }
+  ]);
+
+  const dentistPayments: DentistPayment[] = [
+    {
+      id: 'pay-1',
+      dentistId: 'd-1',
+      dentistName: 'Dr. Carlos Silva',
+      amount: 1000,
+      paymentMethod: 'PIX',
+      paymentDate: new Date().toISOString(),
+      notes: 'Pagamento parcial OS 0655'
+    }
+  ];
+
+  const billingBatches: BillingBatch[] = [];
+  const [commissions] = useState<any[]>([]);
+  const [commissionGroups] = useState<any[]>([]);
+  const [nfcBoxes] = useState<any[]>([]);
+  const [onlineRequisitions] = useState<any[]>([]);
+  const [couriers] = useState<any[]>([]);
+  const [routes] = useState<any[]>([]);
+  const [alerts] = useState<any[]>([]);
+  const [inventoryItems] = useState<any[]>([]);
+  const [boxColors] = useState<any[]>([]);
+  const [priceTables] = useState<any[]>([]);
+  const [userConnections] = useState<any[]>([]);
+  const [allLaboratories] = useState<any[]>([]);
+  const [allSuppliers] = useState<any[]>([]);
+  const [supplierOrders] = useState<any[]>([]);
+  const [productCatalogItems] = useState<any[]>([]);
+  const [cart] = useState<any[]>([]);
+  const [storeCart] = useState<any[]>([]);
+  const [patients] = useState<any[]>([]);
+  const [allPlans] = useState<any[]>([]);
+  const [labCoupons] = useState<any[]>([]);
+  const [cardMachines] = useState<any[]>([]);
+  const [bankAccounts] = useState<any[]>([]);
+
+  const [language, setLanguageState] = useState<string>('pt-BR');
+  const [theme, setThemeState] = useState<string>('light');
+  const [printData, setPrintData] = useState<any>(null);
+
+  const asyncNoop = async () => {};
+  const asyncResultNoop = async (data?: any) => data || {};
+
   return (
-    <AppContext.Provider value={contextValue}>
+    <AppContext.Provider value={{
+      jobs,
+      budgets,
+      allUsers,
+      manualDentists,
+      sectors,
+      jobTypes,
+      currentOrg,
+      activeOrganization: currentOrg,
+      currentUser,
+      isLoadingAuth,
+      dentistPayments,
+      billingBatches,
+      commissions,
+      commissionGroups,
+      nfcBoxes,
+      onlineRequisitions,
+      couriers,
+      routes,
+      alerts,
+      inventoryItems,
+      boxColors,
+      priceTables,
+      userConnections,
+      allLaboratories,
+      allSuppliers,
+      supplierOrders,
+      productCatalogItems,
+      cart,
+      storeCart,
+      patients,
+      allPlans,
+      currentPlan: { id: 'pro', name: 'Plano Pro' },
+      language,
+      theme,
+      activeAlert: null,
+      printData,
+      globalSettings: {},
+      labCoupons,
+      activeManualDentistId: null,
+
+      setJobs,
+      setJobTypes,
+      updateJob: async (id: string, data: Partial<Job>) => {
+        setJobs(prev => prev.map(j => j.id === id ? { ...j, ...data } : j));
+        if (currentOrg?.id) {
+          try {
+            await api.apiUpdateJob(currentOrg.id, id, data);
+          } catch (err) {
+            console.error('[AppContext] Error updating job in Firestore:', err);
+          }
+        }
+      },
+      addJob: asyncResultNoop,
+      updateBudget: asyncNoop,
+      addBudget: asyncResultNoop,
+      addCommissionRecord: asyncNoop,
+      updateCommissionRecord: asyncNoop,
+      deleteCommissionRecord: asyncNoop,
+      uploadFile: async () => '',
+      addJobToRoute: asyncNoop,
+      updateOnlineRequisition: asyncNoop,
+      triggerPrint: (data) => setPrintData(data),
+      clearPrint: () => setPrintData(null),
+      addAlert: asyncNoop,
+      dismissAlert: asyncNoop,
+      login,
+      logout,
+      setTheme: (t) => setThemeState(t),
+      setLanguage: (l) => setLanguageState(l),
+      updateUser: asyncNoop,
+      deleteUser: asyncNoop,
+      registerOrganization: asyncResultNoop,
+      registerOutsourcedLab: asyncResultNoop,
+      registerDentist: asyncResultNoop,
+      registerSupplier: asyncResultNoop,
+      validateCro: async () => true,
+      validateCoupon: asyncResultNoop,
+      createSubscription: asyncResultNoop,
+      checkSubscriptionStatus: asyncResultNoop,
+      addManualDentist: asyncResultNoop,
+      updateManualDentist: asyncNoop,
+      deleteManualDentist: asyncNoop,
+      addDentistPayment: asyncResultNoop,
+      updateDentistPayment: asyncNoop,
+      deleteDentistPayment: asyncNoop,
+      updateBillingBatchStatus: asyncNoop,
+      generateBatchBoleto: asyncResultNoop,
+      cardMachines,
+      bankAccounts,
+      addCardMachine: asyncResultNoop,
+      updateCardMachine: asyncNoop,
+      deleteCardMachine: asyncNoop,
+      addBankAccount: asyncResultNoop,
+      updateBankAccount: asyncNoop,
+      deleteBankAccount: asyncNoop,
+      addBoxColor: asyncResultNoop,
+      deleteBoxColor: asyncNoop,
+      updateOrganization: asyncNoop,
+      checkSlugAvailability: async () => true,
+      createLabWallet: asyncResultNoop,
+      getSaaSInvoices: async () => [],
+      updateSupplierOrder: asyncNoop,
+      addToCart: () => {},
+      removeFromCart: () => {},
+      updateCartItemQty: () => {},
+      clearCart: () => {},
+      validateLabCoupon: asyncResultNoop,
+      updateLabCoupon: asyncNoop,
+      addLabCoupon: asyncResultNoop,
+      deleteLabCoupon: asyncNoop,
+      addConnectionByCode: asyncResultNoop,
+      switchActiveOrganization: () => {},
+      addJobType: asyncResultNoop,
+      updateJobType: asyncNoop,
+      deleteJobType: asyncNoop,
+      updateInventoryItem: asyncNoop
+    }}>
       {children}
     </AppContext.Provider>
   );
+};
+
+export const useApp = () => {
+  const context = useContext(AppContext);
+  if (!context) {
+    throw new Error('useApp must be used within an AppProvider');
+  }
+  return context;
 };

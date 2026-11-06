@@ -182,24 +182,15 @@ export function calculateJobSearchScore(
   const normId = normalizeText(rawId);
 
   // 1. Verifica se o trabalho atende aos critérios de busca
-  let matches = false;
-  if (searchTarget === 'PATIENT') {
-    matches = matchesSearchQuery(query, job.patientName);
-  } else if (searchTarget === 'OS') {
-    matches = matchesSearchQuery(query, job.osNumber, job.id);
-  } else if (searchTarget === 'BOX') {
-    matches = matchesSearchQuery(query, job.boxNumber);
-  } else {
-    matches = matchesSearchQuery(
-      query,
-      job.patientName,
-      job.dentistName,
-      job.osNumber,
-      job.boxNumber,
-      job.clinicName,
-      job.id
-    );
-  }
+  let matches = matchesSearchQuery(
+    query,
+    job.patientName,
+    job.dentistName,
+    job.clinicName,
+    job.osNumber,
+    job.boxNumber,
+    job.id
+  );
 
   if (!matches) return null;
 
@@ -262,11 +253,42 @@ export function calculateJobSearchScore(
     }
   }
 
-  // 5. Pontuação para Dentista, Clínica, ID
+  // 5. Pontuação para Nome do Cliente (Dentista)
+  if (normDentist) {
+    if (normDentist === normQuery) {
+      bestScore = Math.min(bestScore, 22);
+    } else if (normDentist.startsWith(normQuery)) {
+      bestScore = Math.min(bestScore, 32);
+    } else {
+      const dentistWords = normDentist.split(/\s+/).filter(Boolean);
+      for (let i = 0; i < dentistWords.length; i++) {
+        const w = dentistWords[i];
+        if (w === normQuery) {
+          bestScore = Math.min(bestScore, i === 0 ? 37 : 47);
+        } else if (w.startsWith(normQuery)) {
+          bestScore = Math.min(bestScore, i === 0 ? 42 : 52);
+        }
+      }
+      if (bestScore === 999 && normDentist.includes(normQuery)) {
+        bestScore = Math.min(bestScore, 72);
+      }
+    }
+  }
+
+  // 6. Pontuação para Nome da Clínica
+  if (normClinic) {
+    if (normClinic === normQuery) {
+      bestScore = Math.min(bestScore, 25);
+    } else if (normClinic.startsWith(normQuery)) {
+      bestScore = Math.min(bestScore, 35);
+    } else if (bestScore === 999 && normClinic.includes(normQuery)) {
+      bestScore = Math.min(bestScore, 75);
+    }
+  }
+
+  // 7. Pontuação para ID
   if (bestScore === 999) {
-    if (normDentist.includes(normQuery) || normClinic.includes(normQuery)) {
-      bestScore = 80;
-    } else if (normId.includes(normQuery)) {
+    if (normId.includes(normQuery)) {
       bestScore = 90;
     } else {
       bestScore = 100;
@@ -687,9 +709,22 @@ export function parseBrazilianCurrency(value: string | number | null | undefined
  * Aplica máscara de moeda brasileira em tempo real no onChange de inputs.
  * Ex: Digitar "155000" -> "1.550,00"
  */
-export function formatCurrencyInputMask(value: string): string {
-  const digits = value.replace(/\D/g, '');
-  if (!digits) return '';
-  const num = parseInt(digits, 10) / 100;
-  return num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+export function getNaturePrefix(nature?: string): string {
+  if (!nature) return '';
+  const upper = String(nature).toUpperCase();
+  if (upper === 'REPETITION' || upper === 'REPETICAO') return '[REPETIÇÃO] ';
+  if (upper === 'ADJUSTMENT' || upper === 'AJUSTE') return '[AJUSTE] ';
+  return '';
 }
+
+export function formatItemNameWithVariations(item: any): string {
+  if (!item) return '';
+  const prefix = getNaturePrefix(item.nature);
+  const baseName = item.name || '';
+  if (item.variationValues && typeof item.variationValues === 'object') {
+    const vars = Object.values(item.variationValues).filter(Boolean).join(', ');
+    if (vars) return `${prefix}${baseName} (${vars})`;
+  }
+  return `${prefix}${baseName}`;
+}
+
