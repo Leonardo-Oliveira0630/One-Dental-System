@@ -431,82 +431,6 @@ export const JobDetails = () => {
     }
   };
 
-  // Reopen Completion Modal States
-  const [showReopenCompletionModal, setShowReopenCompletionModal] = useState(false);
-  const [targetCompletionStatus, setTargetCompletionStatus] = useState<JobStatus>(JobStatus.COMPLETED);
-  const [selectedCompletionDateOption, setSelectedCompletionDateOption] = useState<'FIRST' | 'CURRENT' | 'CUSTOM'>('FIRST');
-  const [customCompletionDateInput, setCustomCompletionDateInput] = useState<string>(() => {
-    return new Date().toISOString().split('T')[0];
-  });
-
-  const getFirstCompletionDateObj = (targetJob?: Job | null): Date => {
-    const j = targetJob || job;
-    if (!j) return new Date();
-    if (j.firstCompletedAt) {
-      const d = j.firstCompletedAt;
-      return d instanceof Date ? d : new Date((d as any)?.seconds ? (d as any).seconds * 1000 : d);
-    }
-    if (j.completedAt) {
-      const d = j.completedAt;
-      return d instanceof Date ? d : new Date((d as any)?.seconds ? (d as any).seconds * 1000 : d);
-    }
-    if (j.finalizedAt) {
-      const d = j.finalizedAt;
-      return d instanceof Date ? d : new Date((d as any)?.seconds ? (d as any).seconds * 1000 : d);
-    }
-    return new Date();
-  };
-
-  const handleConfirmReopenCompletion = async () => {
-    if (!currentUser || !job || isUpdatingStatus) return;
-
-    let finalCompletionDate: Date;
-    let choiceLabel = '';
-    const firstDateObj = getFirstCompletionDateObj(job);
-
-    if (selectedCompletionDateOption === 'FIRST') {
-      finalCompletionDate = firstDateObj;
-      choiceLabel = `Data da 1ª Finalização mantida (${firstDateObj.toLocaleDateString('pt-BR')})`;
-    } else if (selectedCompletionDateOption === 'CURRENT') {
-      finalCompletionDate = new Date();
-      choiceLabel = `Data Atual definida (${finalCompletionDate.toLocaleDateString('pt-BR')})`;
-    } else {
-      if (!customCompletionDateInput) {
-        alert("Selecione uma data válida.");
-        return;
-      }
-      const parts = customCompletionDateInput.split('-');
-      const y = parseInt(parts[0], 10);
-      const m = parseInt(parts[1], 10);
-      const d = parseInt(parts[2], 10);
-      finalCompletionDate = new Date(y, m - 1, d, 12, 0, 0);
-      choiceLabel = `Data Personalizada definida (${finalCompletionDate.toLocaleDateString('pt-BR')})`;
-    }
-
-    setIsUpdatingStatus(true);
-    try {
-      await updateJob(job.id, {
-        status: targetCompletionStatus,
-        completedAt: finalCompletionDate,
-        history: [...(job.history || []).filter(Boolean), {
-          id: `hist_fin_reopen_${Date.now()}`,
-          timestamp: new Date(),
-          action: `Trabalho Concluído após Reabertura`,
-          observations: `Data de conclusão registrada: ${choiceLabel}`,
-          userId: currentUser.id,
-          userName: currentUser.name,
-          sector: 'Expedição'
-        }]
-      });
-      setShowReopenCompletionModal(false);
-    } catch (err) {
-      console.error("Erro ao finalizar caso reaberto:", err);
-      alert("Erro ao finalizar caso reaberto.");
-    } finally {
-      setIsUpdatingStatus(false);
-    }
-  };
-
   // Rejection/Cancellation Modal States
   const [showRejectionModal, setShowRejectionModal] = useState(false);
   const [rejectionTargetStatus, setRejectionTargetStatus] = useState<JobStatus | null>(null);
@@ -1787,20 +1711,12 @@ export const JobDetails = () => {
   };
 
   const handleFinalizeJob = async () => {
-    if (!currentUser || isUpdatingStatus || !job) return;
+    if (!currentUser || isUpdatingStatus) return;
 
     // New check: Is the dentist blocked?
     const dentist = allUsers.find(u => u.id === job?.dentistId) || manualDentists.find(d => d.id === job?.dentistId);
     if (dentist?.isBlocked) {
         alert("Este cliente está BLOQUEADO por limite de fatura. Não é possível FINALIZAR este trabalho até que a pendência seja resolvida.");
-        return;
-    }
-
-    // Check if job was reopened
-    if (job.isReopened || job.firstCompletedAt) {
-        setTargetCompletionStatus(JobStatus.COMPLETED);
-        setSelectedCompletionDateOption('FIRST');
-        setShowReopenCompletionModal(true);
         return;
     }
 
@@ -1823,34 +1739,21 @@ export const JobDetails = () => {
   };
 
   const handleReopenJob = async () => {
-    if (!currentUser || isUpdatingStatus || !job) return;
-    if (!window.confirm("Deseja reabrir este caso para produção?")) return;
+    if (!currentUser || isUpdatingStatus) return;
+    if (!window.confirm("Deseja reabrir este caso?")) return;
     setIsUpdatingStatus(true);
     try {
-        const firstCompDate = getFirstCompletionDateObj(job);
-        const reopenUserName = currentUser.name || currentUser.email || 'Usuário';
-
         await updateJob(job.id, {
             status: JobStatus.IN_PROGRESS,
-            isReopened: true,
-            firstCompletedAt: firstCompDate,
-            reopenedAt: new Date(),
-            reopenedBy: reopenUserName,
-            reopenCount: (job.reopenCount || 0) + 1,
             history: [...(job.history || []).filter(Boolean), {
                 id: `hist_reopen_${Date.now()}`,
                 timestamp: new Date(),
                 action: `Trabalho REABERTO`,
-                observations: `1ª Finalização registrada em: ${firstCompDate.toLocaleDateString('pt-BR')}`,
                 userId: currentUser.id,
-                userName: reopenUserName,
+                userName: currentUser.name,
                 sector: currentUser.sector || 'Gestão'
             }]
         });
-        alert("Caso reaberto com sucesso! O status foi alterado para Produção.");
-    } catch (err) {
-        console.error("Erro ao reabrir caso:", err);
-        alert("Erro ao reabrir caso.");
     } finally { setIsUpdatingStatus(false); }
   };
 
@@ -1932,7 +1835,7 @@ export const JobDetails = () => {
   };
 
   const handleQuickStatusUpdate = async (newStatus: JobStatus) => {
-    if (!currentUser || isUpdatingStatus || !job) return;
+    if (!currentUser || isUpdatingStatus) return;
 
     // New check: Is the dentist blocked?
     const dentist = allUsers.find(u => u.id === job?.dentistId) || manualDentists.find(d => d.id === job?.dentistId);
@@ -1950,17 +1853,9 @@ export const JobDetails = () => {
       return;
     }
 
-    // If completing or delivering a reopened case, open completion date confirmation modal
-    if ((newStatus === JobStatus.COMPLETED || newStatus === JobStatus.DELIVERED) && (job.isReopened || job.firstCompletedAt)) {
-      setTargetCompletionStatus(newStatus);
-      setSelectedCompletionDateOption('FIRST');
-      setShowReopenCompletionModal(true);
-      return;
-    }
-
     setIsUpdatingStatus(true);
     try {
-        const updateData: any = {
+        await updateJob(job.id, {
             status: newStatus,
             history: [...(job.history || []).filter(Boolean), {
                 id: `hist_stat_${Date.now()}`,
@@ -1970,11 +1865,7 @@ export const JobDetails = () => {
                 userName: currentUser.name,
                 sector: currentUser.sector || 'Geral'
             }]
-        };
-        if (newStatus === JobStatus.COMPLETED && !job.completedAt) {
-            updateData.completedAt = new Date();
-        }
-        await updateJob(job.id, updateData);
+        });
     } finally { setIsUpdatingStatus(false); }
   };
 
@@ -5118,26 +5009,25 @@ export const JobDetails = () => {
                         )}
                     </div>
                     {!job.isBudget && (
-                    <div className="flex items-center gap-2 flex-wrap shrink-0">
-                        <div 
-                            className="relative shrink-0"
-                            onMouseEnter={() => canChangeStatus && setIsHeaderStatusMenuOpen(true)}
-                            onMouseLeave={() => setIsHeaderStatusMenuOpen(false)}
-                        >
-                            {revealJobStatus ? (
-                                <button 
-                                    type="button"
-                                    onClick={() => canChangeStatus && setIsHeaderStatusMenuOpen(prev => !prev)}
-                                    className={`px-2.5 py-1 rounded-full text-[8px] md:text-[10px] font-black uppercase border flex items-center gap-1.5 ${getStatusColor(job.status)} shadow-sm ${canChangeStatus ? 'cursor-pointer hover:opacity-90' : 'cursor-default'}`}
-                                >
-                                    {getTranslatedStatus(job.status)} {canChangeStatus && <ChevronDown size={10}/>}
-                                </button>
-                            ) : (
-                                <button type="button" className="px-2.5 py-1 rounded-full text-[8px] md:text-[10px] font-black uppercase border flex items-center gap-1.5 bg-slate-100 text-slate-400 border-slate-200 shadow-sm cursor-not-allowed" title="Andamento ocultado pelo laboratório">
-                                    <Lock size={10} /> Indisponível
-                                </button>
-                            )}
-                            {canChangeStatus && isHeaderStatusMenuOpen && (
+                    <div 
+                        className="relative shrink-0"
+                        onMouseEnter={() => canChangeStatus && setIsHeaderStatusMenuOpen(true)}
+                        onMouseLeave={() => setIsHeaderStatusMenuOpen(false)}
+                    >
+                        {revealJobStatus ? (
+                            <button 
+                                type="button"
+                                onClick={() => canChangeStatus && setIsHeaderStatusMenuOpen(prev => !prev)}
+                                className={`px-2.5 py-1 rounded-full text-[8px] md:text-[10px] font-black uppercase border flex items-center gap-1.5 ${getStatusColor(job.status)} shadow-sm ${canChangeStatus ? 'cursor-pointer hover:opacity-90' : 'cursor-default'}`}
+                            >
+                                {getTranslatedStatus(job.status)} {canChangeStatus && <ChevronDown size={10}/>}
+                            </button>
+                        ) : (
+                            <button type="button" className="px-2.5 py-1 rounded-full text-[8px] md:text-[10px] font-black uppercase border flex items-center gap-1.5 bg-slate-100 text-slate-400 border-slate-200 shadow-sm cursor-not-allowed" title="Andamento ocultado pelo laboratório">
+                                <Lock size={10} /> Indisponível
+                            </button>
+                        )}
+                        {canChangeStatus && isHeaderStatusMenuOpen && (
                             <div className="absolute top-full left-0 pt-0.5 w-48 z-[60]">
                                 <div className="bg-white border border-slate-200 rounded-xl shadow-2xl animate-in fade-in slide-in-from-top-2 overflow-hidden">
                                     <div className="p-1.5 bg-slate-50 text-[8px] font-black text-slate-400 uppercase tracking-widest border-b flex justify-between items-center">
@@ -5165,15 +5055,6 @@ export const JobDetails = () => {
                                 </div>
                             </div>
                         )}
-                    </div>
-                    {job.isReopened && (
-                        <span 
-                            className="px-2.5 py-1 rounded-full text-[8px] md:text-[10px] font-black uppercase border border-amber-300 bg-amber-50 text-amber-700 flex items-center gap-1.5 shadow-sm shrink-0"
-                            title={`Caso reaberto ${job.reopenedAt ? 'em ' + parseDateSafely(job.reopenedAt)?.toLocaleDateString('pt-BR') : ''}`}
-                        >
-                            <RotateCcw size={10} className="text-amber-600" /> Caso Reaberto
-                        </span>
-                    )}
                     </div>
                     )}
 
@@ -5420,51 +5301,6 @@ export const JobDetails = () => {
                         </div>
                     </div>
                 </div>
-
-                {job.isReopened && (
-                    <div className="lg:col-span-3 bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 border border-amber-200 rounded-[28px] p-5 shadow-sm relative overflow-hidden animate-in fade-in">
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                            <div className="flex items-start gap-3.5">
-                                <div className="p-3 bg-amber-500 text-white rounded-2xl shadow-md shrink-0">
-                                    <RotateCcw size={22} />
-                                </div>
-                                <div>
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                        <span className="font-black text-sm uppercase tracking-wide text-amber-950">
-                                            Caso Reaberto
-                                        </span>
-                                        {job.reopenCount && job.reopenCount > 0 && (
-                                            <span className="px-2 py-0.5 bg-amber-200 text-amber-900 font-extrabold text-[10px] rounded-full">
-                                                Reaberto {job.reopenCount}x
-                                            </span>
-                                        )}
-                                    </div>
-                                    <p className="text-xs font-medium text-amber-900 mt-1">
-                                        Este trabalho foi reaberto após ter sido concluído. A 1ª finalização ocorreu em:{' '}
-                                        <span className="font-black text-amber-950 bg-amber-200/70 px-2 py-0.5 rounded-md">
-                                            {parseDateSafely(job.firstCompletedAt || job.completedAt)?.toLocaleDateString('pt-BR') || '-'}
-                                        </span>
-                                    </p>
-                                    {job.reopenedAt && (
-                                        <p className="text-[11px] text-amber-800/90 mt-1 flex items-center gap-1.5 font-medium">
-                                            <Clock size={12} className="text-amber-700" /> Reabertura realizada em:{' '}
-                                            <strong>{parseDateSafely(job.reopenedAt)?.toLocaleDateString('pt-BR')}</strong>
-                                            {job.reopenedBy ? ` por ${job.reopenedBy}` : ''}
-                                        </p>
-                                    )}
-                                </div>
-                            </div>
-                            <div className="bg-white/80 backdrop-blur-sm border border-amber-200 rounded-2xl p-3 text-xs text-amber-900 max-w-xs shrink-0 shadow-xs">
-                                <p className="font-bold text-[11px] uppercase tracking-wider text-amber-950 mb-0.5 flex items-center gap-1">
-                                    <AlertCircle size={13} className="text-amber-600" /> Faturamento Seguro
-                                </p>
-                                <p className="text-[11px] text-amber-800 leading-tight">
-                                    Ao finalizar este caso novamente, o sistema solicitará se deseja manter a data original da 1ª finalização (preservando o faturamento do mês fechado) ou utilizar a data atual.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                )}
 
                 <div className="lg:col-span-2 space-y-4 md:space-y-6 min-w-0">
                     {(routeInfo || job?.lastDeliveryAttempt) && revealJobStatus && (
@@ -7730,172 +7566,6 @@ export const JobDetails = () => {
           </div>
         </div>
       )}
-
-       {showReopenCompletionModal && job && (
-         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-[9999] animate-in fade-in duration-200">
-           <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 space-y-5 relative animate-in zoom-in-95 duration-200">
-             {/* Header */}
-             <div className="flex items-start justify-between pb-3 border-b border-slate-100">
-               <div className="flex items-center gap-3">
-                 <div className="p-2.5 bg-amber-100 text-amber-700 rounded-2xl shrink-0">
-                   <RotateCcw size={22} />
-                 </div>
-                 <div>
-                   <h3 className="font-black text-slate-900 text-base md:text-lg leading-tight">
-                     Confirmar Data de Finalização
-                   </h3>
-                   <p className="text-xs font-semibold text-slate-500">
-                     Caso Reaberto • OS #{job.osNumber || '---'}
-                   </p>
-                 </div>
-               </div>
-               <button
-                 type="button"
-                 onClick={() => setShowReopenCompletionModal(false)}
-                 className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg transition-colors cursor-pointer"
-               >
-                 <X size={18} />
-               </button>
-             </div>
-
-             {/* Description callout */}
-             <div className="p-3.5 bg-amber-50/80 rounded-2xl border border-amber-200 text-xs text-amber-900 space-y-1">
-               <p className="font-extrabold flex items-center gap-1.5 text-amber-950">
-                 <AlertTriangle size={14} className="text-amber-600 shrink-0" />
-                 Faturamento &amp; Fechamento Mensal
-               </p>
-               <p className="leading-relaxed text-[11px] text-amber-900 font-medium">
-                 Este trabalho foi reaberto anteriormente. Selecione a data a ser gravada no sistema para a conclusão do caso, garantindo que o faturamento do cliente seja alocado na competência correta:
-               </p>
-             </div>
-
-             {/* Selection Options */}
-             <div className="space-y-3">
-               {/* Option 1: Data da 1ª Finalização */}
-               <div
-                 onClick={() => setSelectedCompletionDateOption('FIRST')}
-                 className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-start gap-3 relative ${
-                   selectedCompletionDateOption === 'FIRST'
-                     ? 'border-blue-600 bg-blue-50/60 shadow-sm'
-                     : 'border-slate-200 hover:border-slate-300 bg-white'
-                 }`}
-               >
-                 <input
-                   type="radio"
-                   id="optFirstDate"
-                   name="completionDateOption"
-                   checked={selectedCompletionDateOption === 'FIRST'}
-                   onChange={() => setSelectedCompletionDateOption('FIRST')}
-                   className="mt-1 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                 />
-                 <label htmlFor="optFirstDate" className="flex-1 min-w-0 cursor-pointer">
-                   <div className="flex items-center justify-between gap-2">
-                     <span className="font-black text-xs text-slate-900 uppercase tracking-wide">
-                       Manter Data da 1ª Finalização
-                     </span>
-                     <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 font-black text-[9px] rounded-md uppercase tracking-wider shrink-0">
-                       Recomendado
-                     </span>
-                   </div>
-                   <p className="font-black text-sm text-blue-700 mt-0.5">
-                     {getFirstCompletionDateObj(job).toLocaleDateString('pt-BR')}
-                   </p>
-                   <p className="text-[11px] text-slate-500 mt-1 leading-tight">
-                     O trabalho permanecerá faturado na competência do mês original ({getFirstCompletionDateObj(job).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}). Ideal quando a fatura do dentista daquele mês já está fechada ou precisa manter o mesmo período financeiro.
-                   </p>
-                 </label>
-               </div>
-
-               {/* Option 2: Data Atual */}
-               <div
-                 onClick={() => setSelectedCompletionDateOption('CURRENT')}
-                 className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-start gap-3 relative ${
-                   selectedCompletionDateOption === 'CURRENT'
-                     ? 'border-blue-600 bg-blue-50/60 shadow-sm'
-                     : 'border-slate-200 hover:border-slate-300 bg-white'
-                 }`}
-               >
-                 <input
-                   type="radio"
-                   id="optCurrentDate"
-                   name="completionDateOption"
-                   checked={selectedCompletionDateOption === 'CURRENT'}
-                   onChange={() => setSelectedCompletionDateOption('CURRENT')}
-                   className="mt-1 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                 />
-                 <label htmlFor="optCurrentDate" className="flex-1 min-w-0 cursor-pointer">
-                   <span className="font-black text-xs text-slate-900 uppercase tracking-wide">
-                     Usar Data Atual (Hoje)
-                   </span>
-                   <p className="font-black text-sm text-slate-800 mt-0.5">
-                     {new Date().toLocaleDateString('pt-BR')}
-                   </p>
-                   <p className="text-[11px] text-slate-500 mt-1 leading-tight">
-                     Atualiza a conclusão para a data de hoje. O trabalho passará a constar no faturamento do mês atual em exercício.
-                   </p>
-                 </label>
-               </div>
-
-               {/* Option 3: Data Personalizada */}
-               <div
-                 onClick={() => setSelectedCompletionDateOption('CUSTOM')}
-                 className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-start gap-3 relative ${
-                   selectedCompletionDateOption === 'CUSTOM'
-                     ? 'border-blue-600 bg-blue-50/60 shadow-sm'
-                     : 'border-slate-200 hover:border-slate-300 bg-white'
-                 }`}
-               >
-                 <input
-                   type="radio"
-                   id="optCustomDate"
-                   name="completionDateOption"
-                   checked={selectedCompletionDateOption === 'CUSTOM'}
-                   onChange={() => setSelectedCompletionDateOption('CUSTOM')}
-                   className="mt-1 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                 />
-                 <label htmlFor="optCustomDate" className="flex-1 min-w-0 cursor-pointer space-y-2">
-                   <span className="font-black text-xs text-slate-900 uppercase tracking-wide block">
-                     Selecionar Outra Data Personalizada
-                   </span>
-                   {selectedCompletionDateOption === 'CUSTOM' && (
-                     <input
-                       type="date"
-                       value={customCompletionDateInput}
-                       onChange={(e) => setCustomCompletionDateInput(e.target.value)}
-                       onClick={(e) => e.stopPropagation()}
-                       className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                     />
-                   )}
-                   <p className="text-[11px] text-slate-500 leading-tight">
-                     Informe manualmente uma data de finalização customizada.
-                   </p>
-                 </label>
-               </div>
-             </div>
-
-             {/* Footer Buttons */}
-             <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
-               <button
-                 type="button"
-                 onClick={() => setShowReopenCompletionModal(false)}
-                 disabled={isUpdatingStatus}
-                 className="px-4 py-2.5 text-xs font-extrabold text-slate-500 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
-               >
-                 Cancelar
-               </button>
-               <button
-                 type="button"
-                 onClick={handleConfirmReopenCompletion}
-                 disabled={isUpdatingStatus}
-                 className="px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white font-black text-xs rounded-xl shadow-md flex items-center gap-2 transition-all active:scale-95 cursor-pointer disabled:opacity-50"
-               >
-                 {isUpdatingStatus ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
-                 <span>Confirmar Finalização</span>
-               </button>
-             </div>
-           </div>
-         </div>
-       )}
 
        {showReviewModal && job && (
          <LabServiceReviewModal 

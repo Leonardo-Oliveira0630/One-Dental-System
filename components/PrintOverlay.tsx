@@ -4,7 +4,7 @@ import Barcode from 'react-barcode';
 import { useApp } from '../context/AppContext';
 import { UrgencyLevel } from '../types';
 import { Printer, X, MapPin, User, Package, Truck, Clock, FileText, Calendar } from 'lucide-react';
-import { formatItemNameWithVariations, getNaturePrefix } from '../utils/stringUtils';
+import { formatItemNameWithVariations, getNaturePrefix } from '../pages/JobDetails';
 import { formatTeethRange } from '../utils/toothUtils';
 
 export const PrintOverlay = () => {

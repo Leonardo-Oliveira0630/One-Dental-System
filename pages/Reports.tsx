@@ -118,7 +118,7 @@ export default function Reports() {
   // Available report types for navigation based on view permissions
   const availableReportTabs = useMemo(() => {
     const tabs: {
-      type: 'CLIENT_SUMMARY' | 'PRODUCTION' | 'DETAILED_ORDERS' | 'SERVICE_TYPES' | 'DEBTORS_CREDITORS' | 'RECEIPTS' | 'CATEGORY_PRODUCTION';
+      type: 'CLIENT_SUMMARY' | 'PRODUCTION' | 'DETAILED_ORDERS' | 'SERVICE_TYPES' | 'DEBTORS_CREDITORS' | 'RECEIPTS';
       label: string;
       icon: any;
       activeColor: string;
@@ -159,14 +159,6 @@ export default function Reports() {
         icon: BarChart3,
         activeColor: 'bg-white text-indigo-700 shadow-sm border border-slate-200/60',
         textColor: 'text-indigo-600',
-        canExport: canExportProduction
-      });
-      tabs.push({
-        type: 'CATEGORY_PRODUCTION',
-        label: t('reports.categoryProduction', 'Relatório por Categoria'),
-        icon: Folder,
-        activeColor: 'bg-white text-blue-700 shadow-sm border border-slate-200/60',
-        textColor: 'text-blue-600',
         canExport: canExportProduction
       });
     }
@@ -236,7 +228,7 @@ export default function Reports() {
   const [statusFilter, setStatusFilter] = useState('');
   const [urgencyFilter, setUrgencyFilter] = useState('');
   const [groupBy, setGroupBy] = useState<'DATE' | 'JOB_TYPE' | 'LIST' | 'COLLABORATOR'>('DATE');
-  const [reportType, setReportType] = useState<'CLIENT_SUMMARY' | 'PRODUCTION' | 'DETAILED_ORDERS' | 'SERVICE_TYPES' | 'DEBTORS_CREDITORS' | 'RECEIPTS' | 'CATEGORY_PRODUCTION' | null>(null);
+  const [reportType, setReportType] = useState<'CLIENT_SUMMARY' | 'PRODUCTION' | 'DETAILED_ORDERS' | 'SERVICE_TYPES' | 'DEBTORS_CREDITORS' | 'RECEIPTS' | null>(null);
   const [selectedServiceCategory, setSelectedServiceCategory] = useState<string>('');
   const [receiptsSubView, setReceiptsSubView] = useState<'CLIENTS' | 'TRANSACTIONS'>('CLIENTS');
 
@@ -385,7 +377,6 @@ export default function Reports() {
       case 'PRODUCTION': return canExportProduction;
       case 'DETAILED_ORDERS': return canExportDetailedOrders;
       case 'SERVICE_TYPES': return canExportServiceTypes;
-      case 'CATEGORY_PRODUCTION': return canExportProduction;
       case 'DEBTORS_CREDITORS': return canExportClientSummary;
       case 'RECEIPTS': return canExportClientSummary;
       default: return false;
@@ -459,46 +450,6 @@ export default function Reports() {
     }
   };
 
-  // Helper to isolate items that match current service filters (Job Type, Variation, Service Category)
-  const getMatchingJobItems = useMemo(() => {
-    return (job: Job) => {
-      let items = job.items || [];
-
-      // Filter by Service Category if set
-      if (selectedServiceCategory) {
-        const catTerm = selectedServiceCategory.toLowerCase().trim();
-        const matchingTypeIds = new Set(
-          jobTypes
-            .filter(jt => (jt.category || 'Geral').toLowerCase().trim() === catTerm)
-            .map(jt => jt.id)
-        );
-
-        items = items.filter(item => {
-          if (item.jobTypeId && matchingTypeIds.has(item.jobTypeId)) return true;
-          const jt = jobTypes.find(t => t.id === item.jobTypeId || t.name === item.name);
-          return jt && (jt.category || 'Geral').toLowerCase().trim() === catTerm;
-        });
-      }
-
-      // Filter by Job Type if set
-      if (jobTypeId) {
-        items = items.filter(item => {
-          const isMatchingType = item.jobTypeId === jobTypeId || item.name === selectedJobType?.name;
-          if (!isMatchingType) return false;
-          for (const [groupId, optionId] of Object.entries(variationFilters)) {
-            if (optionId) {
-              const hasOpt = item.selectedVariationIds?.includes(optionId);
-              if (!hasOpt) return false;
-            }
-          }
-          return true;
-        });
-      }
-
-      return items;
-    };
-  }, [jobTypes, selectedServiceCategory, jobTypeId, selectedJobType, variationFilters]);
-
   // Filter jobs
   const filteredJobs = useMemo(() => {
     return jobs.filter(job => {
@@ -558,7 +509,6 @@ export default function Reports() {
       if (statusFilter) {
         if (statusFilter === 'PENDING' && job.status !== 'PENDING') return false;
         if (statusFilter === 'IN_PROGRESS' && job.status !== 'IN_PROGRESS' && job.status !== 'SECTOR_TRANSITION') return false;
-        if (statusFilter === 'COMPLETED' && job.status !== 'COMPLETED' && job.status !== 'DELIVERED') return false;
         if (statusFilter === 'DELAYED') {
           if (job.status === 'COMPLETED' || job.status === 'DELIVERED' || job.status === 'CANCELED') return false;
           const today = new Date();
@@ -655,12 +605,9 @@ export default function Reports() {
 
       const client = clientsMap[clientId];
       client.totalJobs += 1;
-      const matchingItems = getMatchingJobItems(job);
-      const itemsCount = matchingItems.reduce((sum, it) => sum + (it.quantity || 1), 0);
-      const effectiveJobValue = matchingItems.reduce((sum, it) => sum + ((it.price * (it.quantity || 1)) - (it.appliedDiscount || 0)), 0);
-
+      const itemsCount = (job.items || []).reduce((sum, it) => sum + (it.quantity || 1), 0);
       client.totalItems += itemsCount;
-      client.totalBilling += effectiveJobValue;
+      client.totalBilling += (job.totalValue || 0);
       client.jobs.push(job);
 
       if (job.status === 'PENDING') client.statusBreakdown.pending++;
@@ -669,7 +616,7 @@ export default function Reports() {
       else if (job.status === 'DELIVERED') client.statusBreakdown.delivered++;
       else if (job.status === 'CANCELED' || job.status === 'REJECTED') client.statusBreakdown.canceled++;
 
-      grandTotalBilling += effectiveJobValue;
+      grandTotalBilling += (job.totalValue || 0);
       grandTotalJobs += 1;
       grandTotalItems += itemsCount;
     });
@@ -688,7 +635,7 @@ export default function Reports() {
       grandTotalClients: clientList.length,
       averageTicketGlobal: grandTotalJobs > 0 ? grandTotalBilling / grandTotalJobs : 0
     };
-  }, [filteredJobs, manualDentists, allUsers, getMatchingJobItems]);
+  }, [filteredJobs, manualDentists, allUsers]);
 
   // Sorted and filtered clients for table
   const sortedClients = useMemo(() => {
@@ -1134,112 +1081,6 @@ export default function Reports() {
     return stats;
   }, [filteredJobs, reportType, jobTypes, selectedServiceCategory]);
 
-  // Category Production Data (Relatório por Categoria)
-  const categoryProductionData = useMemo(() => {
-    if (reportType !== 'CATEGORY_PRODUCTION') return null;
-
-    const catMap = new Map<string, {
-      categoryName: string;
-      totalQuantity: number;
-      totalValue: number;
-      services: Map<string, { serviceName: string; quantity: number; totalValue: number }>;
-    }>();
-
-    // Populate all registered categories
-    allCategoriesList.forEach(cat => {
-      if (cat && cat.trim()) {
-        const trimmed = cat.trim();
-        catMap.set(trimmed, {
-          categoryName: trimmed,
-          totalQuantity: 0,
-          totalValue: 0,
-          services: new Map()
-        });
-      }
-    });
-
-    // Populate job types into category services
-    jobTypes.forEach(jt => {
-      const cat = (jt.category || 'Geral').trim() || 'Geral';
-      if (!catMap.has(cat)) {
-        catMap.set(cat, {
-          categoryName: cat,
-          totalQuantity: 0,
-          totalValue: 0,
-          services: new Map()
-        });
-      }
-      const catObj = catMap.get(cat)!;
-      if (!catObj.services.has(jt.name)) {
-        catObj.services.set(jt.name, {
-          serviceName: jt.name,
-          quantity: 0,
-          totalValue: 0
-        });
-      }
-    });
-
-    // Aggregate from filteredJobs
-    filteredJobs.forEach(job => {
-      job.items?.forEach((item: any) => {
-        const typeId = item.jobTypeId || item.name;
-        const matchingJt = jobTypes.find(tj => tj.id === typeId || tj.name === item.name);
-        const cat = (matchingJt?.category || 'Geral').trim() || 'Geral';
-        const serviceName = matchingJt?.name || item.name;
-
-        if (!catMap.has(cat)) {
-          catMap.set(cat, {
-            categoryName: cat,
-            totalQuantity: 0,
-            totalValue: 0,
-            services: new Map()
-          });
-        }
-
-        const catObj = catMap.get(cat)!;
-        if (!catObj.services.has(serviceName)) {
-          catObj.services.set(serviceName, {
-            serviceName,
-            quantity: 0,
-            totalValue: 0
-          });
-        }
-
-        const qty = item.quantity || 1;
-        const val = (item.price * qty) - (item.appliedDiscount || 0);
-
-        catObj.totalQuantity += qty;
-        catObj.totalValue += val;
-
-        const srvObj = catObj.services.get(serviceName)!;
-        srvObj.quantity += qty;
-        srvObj.totalValue += val;
-      });
-    });
-
-    const categoriesList = Array.from(catMap.values()).map(catObj => ({
-      ...catObj,
-      servicesList: Array.from(catObj.services.values()).sort((a, b) => b.quantity - a.quantity || a.serviceName.localeCompare(b.serviceName, 'pt-BR'))
-    })).sort((a, b) => {
-      if (b.totalValue !== a.totalValue) return b.totalValue - a.totalValue;
-      if (b.totalQuantity !== a.totalQuantity) return b.totalQuantity - a.totalQuantity;
-      return a.categoryName.localeCompare(b.categoryName, 'pt-BR');
-    });
-
-    let grandTotalQuantity = 0;
-    let grandTotalValue = 0;
-    categoriesList.forEach(c => {
-      grandTotalQuantity += c.totalQuantity;
-      grandTotalValue += c.totalValue;
-    });
-
-    return {
-      categories: categoriesList,
-      grandTotalQuantity,
-      grandTotalValue
-    };
-  }, [filteredJobs, reportType, allCategoriesList, jobTypes]);
-
   // Export to PDF
   const generatePDF = () => {
     if (!canExportCurrentReport) {
@@ -1257,7 +1098,6 @@ export default function Reports() {
     if (reportType === 'RECEIPTS') title = `Relatório de Recebimentos - ${orgName}`;
     if (reportType === 'DETAILED_ORDERS') title = t('reports.pdfReportTitleDetailedOrders', 'Relatório Detalhado de Pedidos - {{org}}', { org: orgName });
     if (reportType === 'SERVICE_TYPES') title = t('reports.pdfReportTitleServiceTypes', 'Relatório de Tipos de Serviço - {{org}}', { org: orgName });
-    if (reportType === 'CATEGORY_PRODUCTION') title = `Relatório de Produção por Categoria - ${orgName}`;
     doc.text(title, 14, 20);
     
     doc.setFontSize(10);
@@ -1503,72 +1343,6 @@ export default function Reports() {
       return;
     }
 
-    // --- PDF: CATEGORY_PRODUCTION ---
-    if (reportType === 'CATEGORY_PRODUCTION' && categoryProductionData) {
-      doc.setFontSize(11);
-      doc.setTextColor(30, 41, 59);
-      doc.text(
-        `Total de Elementos: ${categoryProductionData.grandTotalQuantity}  |  Valor Total Produzido: R$ ${categoryProductionData.grandTotalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 
-        14, 34
-      );
-
-      const tableData: any[] = [];
-      categoryProductionData.categories.forEach(cat => {
-        tableData.push([
-          `CATEGORIA: ${cat.categoryName.toUpperCase()}`,
-          `${cat.totalQuantity} elem.`,
-          `R$ ${cat.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-        ]);
-
-        cat.servicesList.forEach(srv => {
-          tableData.push([
-            `   • ${srv.serviceName}`,
-            `${srv.quantity}`,
-            `R$ ${srv.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-          ]);
-        });
-      });
-
-      tableData.push([
-        'TOTAL GERAL',
-        `${categoryProductionData.grandTotalQuantity} elem.`,
-        `R$ ${categoryProductionData.grandTotalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-      ]);
-
-      autoTable(doc, {
-        startY: 40,
-        head: [[
-          'Categoria / Tipo de Serviço',
-          'Quantidade (Quant)',
-          'Valor Total (R$)'
-        ]],
-        body: tableData,
-        theme: 'grid',
-        headStyles: { fillColor: [37, 99, 235] },
-        styles: { fontSize: 8.5, cellPadding: 3 },
-        columnStyles: {
-          0: { fontStyle: 'bold' },
-          1: { halign: 'center' },
-          2: { fontStyle: 'bold', halign: 'right' }
-        },
-        didParseCell: (data) => {
-          const rowText = String(data.row.cells[0]?.raw || '');
-          if (rowText.startsWith('CATEGORIA:')) {
-            data.cell.styles.fontStyle = 'bold';
-            data.cell.styles.fillColor = [239, 246, 255];
-            data.cell.styles.textColor = [30, 58, 138];
-          } else if (rowText === 'TOTAL GERAL') {
-            data.cell.styles.fontStyle = 'bold';
-            data.cell.styles.fillColor = [219, 234, 254];
-            data.cell.styles.textColor = [30, 58, 138];
-          }
-        }
-      });
-      
-      doc.save(`relatorio-producao-por-categoria-${new Date().getTime()}.pdf`);
-      return;
-    }
-
     let filterText = `Filtros: ${filteredJobs.length} trabalhos encontrados`;
     if (selectedDentist) {
       filterText += `  |  Cliente: ${selectedDentist.name}`;
@@ -1592,16 +1366,13 @@ export default function Reports() {
           let entryDate = new Date(job.createdAt).toLocaleDateString();
           let finishDate = job.status === JobStatus.COMPLETED && job.history ? new Date(job.history.slice().reverse().find((h: any) => h.action === 'COMPLETED' || h.statusTo === JobStatus.COMPLETED)?.timestamp || new Date()).toLocaleDateString() : '-';
           
-          const matchingItems = getMatchingJobItems(job);
-          const effectiveJobValue = matchingItems.reduce((sum, item) => sum + ((item.price * (item.quantity || 1)) - (item.appliedDiscount || 0)), 0);
-
-          let itemsText = matchingItems.map(item => {
+          let itemsText = (job.items || []).map(item => {
             const jt = jobTypes.find(t => t.id === item.jobTypeId);
-            return `${item.quantity || 1}x ${jt ? jt.name : item.name}`;
+            return `${item.quantity}x ${jt ? jt.name : item.name}`;
           }).join('\n');
           
-          let pricesText = matchingItems.map(item => {
-            return `R$ ${(((item.price * (item.quantity || 1))) - (item.appliedDiscount || 0)).toFixed(2)}`;
+          let pricesText = (job.items || []).map(item => {
+            return `R$ ${((item.price * item.quantity) - (item.appliedDiscount || 0)).toFixed(2)}`;
           }).join('\n');
 
           tableData.push([
@@ -1611,7 +1382,7 @@ export default function Reports() {
             job.patientName,
             itemsText,
             pricesText,
-            `R$ ${effectiveJobValue.toFixed(2)}`,
+            `R$ ${job.totalValue.toFixed(2)}`,
             entryDate,
             finishDate
           ]);
@@ -1745,39 +1516,6 @@ export default function Reports() {
       XLSX.writeFile(wb, `relatorio_recebimentos_${currentOrg?.name || 'labprox'}_${new Date().toISOString().split('T')[0]}.xlsx`);
       return;
     }
-    if (reportType === 'CATEGORY_PRODUCTION' && categoryProductionData) {
-      const rows: any[] = [];
-      categoryProductionData.categories.forEach(cat => {
-        rows.push({
-          'Categoria': cat.categoryName,
-          'Tipo de Serviço': '[RESUMO CATEGORIA]',
-          'Quantidade (Quant)': cat.totalQuantity,
-          'Valor Total (R$)': Number(cat.totalValue.toFixed(2))
-        });
-
-        cat.servicesList.forEach(srv => {
-          rows.push({
-            'Categoria': cat.categoryName,
-            'Tipo de Serviço': srv.serviceName,
-            'Quantidade (Quant)': srv.quantity,
-            'Valor Total (R$)': Number(srv.totalValue.toFixed(2))
-          });
-        });
-      });
-
-      rows.push({
-        'Categoria': 'TOTAL GERAL',
-        'Tipo de Serviço': 'TODOS',
-        'Quantidade (Quant)': categoryProductionData.grandTotalQuantity,
-        'Valor Total (R$)': Number(categoryProductionData.grandTotalValue.toFixed(2))
-      });
-
-      const ws = XLSX.utils.json_to_sheet(rows);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Producao_por_Categoria');
-      XLSX.writeFile(wb, `relatorio_producao_categoria_${currentOrg?.name || 'labprox'}_${new Date().toISOString().split('T')[0]}.xlsx`);
-      return;
-    }
     if (reportType === 'CLIENT_SUMMARY') {
       const rows = sortedClients.map((c, index) => ({
         '#': index + 1,
@@ -1809,44 +1547,34 @@ export default function Reports() {
       XLSX.utils.book_append_sheet(wb, ws, t('reports.excelClientBillingSheet', 'Faturamento por Cliente'));
 
       // Also add detailed orders sheet
-      const detailedRows = filteredJobs.map(job => {
-        const matchingItems = getMatchingJobItems(job);
-        const effectiveJobValue = matchingItems.reduce((sum, item) => sum + ((item.price * (item.quantity || 1)) - (item.appliedDiscount || 0)), 0);
-        return {
-          [t('reports.osNumber', 'OS')]: job.osNumber || '-',
-          [t('reports.box', 'Caixa')]: job.boxNumber || '-',
-          [t('reports.clientDentist', 'Dentista')]: job.dentistName,
-          [t('reports.clinicHeader', 'Clínica')]: job.clinicName || '-',
-          [t('reports.patient', 'Paciente')]: job.patientName,
-          [t('reports.services', 'Serviços')]: matchingItems.map(it => `${it.quantity || 1}x ${it.name}`).join('; '),
-          [`${t('reports.total', 'Valor Total')} (R$)`]: Number(effectiveJobValue.toFixed(2)),
-          [t('reports.entryDate', 'Data Entrada')]: new Date(job.createdAt).toLocaleDateString(),
-          [t('reports.deliveryDate', 'Data Entrega')]: new Date(job.dueDate).toLocaleDateString(),
-          [t('reports.status', 'Status')]: getStatusLabel(job.status),
-          [t('reports.sector', 'Setor')]: job.currentSector || 'Recepção'
-        };
-      });
+      const detailedRows = filteredJobs.map(job => ({
+        [t('reports.osNumber', 'OS')]: job.osNumber || '-',
+        [t('reports.box', 'Caixa')]: job.boxNumber || '-',
+        [t('reports.clientDentist', 'Dentista')]: job.dentistName,
+        [t('reports.clinicHeader', 'Clínica')]: job.clinicName || '-',
+        [t('reports.patient', 'Paciente')]: job.patientName,
+        [`${t('reports.total', 'Valor Total')} (R$)`]: Number((job.totalValue || 0).toFixed(2)),
+        [t('reports.entryDate', 'Data Entrada')]: new Date(job.createdAt).toLocaleDateString(),
+        [t('reports.deliveryDate', 'Data Entrega')]: new Date(job.dueDate).toLocaleDateString(),
+        [t('reports.status', 'Status')]: getStatusLabel(job.status),
+        [t('reports.sector', 'Setor')]: job.currentSector || 'Recepção'
+      }));
       const wsDetail = XLSX.utils.json_to_sheet(detailedRows);
       XLSX.utils.book_append_sheet(wb, wsDetail, t('reports.excelPeriodCasesSheet', 'Casos do Período'));
 
       XLSX.writeFile(wb, `faturamento_clientes_${currentOrg?.name || 'labprox'}_${new Date().toISOString().split('T')[0]}.xlsx`);
     } else {
-      const rows = filteredJobs.map(job => {
-        const matchingItems = getMatchingJobItems(job);
-        const effectiveJobValue = matchingItems.reduce((sum, item) => sum + ((item.price * (item.quantity || 1)) - (item.appliedDiscount || 0)), 0);
-        return {
-          [t('reports.osNumber', 'OS')]: job.osNumber || '-',
-          [t('reports.box', 'Caixa')]: job.boxNumber || '-',
-          [t('reports.clientDentist', 'Dentista')]: job.dentistName,
-          [t('reports.patient', 'Paciente')]: job.patientName,
-          [t('reports.services', 'Serviços')]: matchingItems.map(it => `${it.quantity || 1}x ${it.name}`).join('; '),
-          [`${t('reports.total', 'Valor Total')} (R$)`]: Number(effectiveJobValue.toFixed(2)),
-          [t('reports.entryDate', 'Data Entrada')]: new Date(job.createdAt).toLocaleDateString(),
-          [t('reports.deliveryDate', 'Data Entrega')]: new Date(job.dueDate).toLocaleDateString(),
-          [t('reports.status', 'Status')]: getStatusLabel(job.status),
-          [t('reports.sector', 'Setor')]: job.currentSector || 'Recepção'
-        };
-      });
+      const rows = filteredJobs.map(job => ({
+        [t('reports.osNumber', 'OS')]: job.osNumber || '-',
+        [t('reports.box', 'Caixa')]: job.boxNumber || '-',
+        [t('reports.clientDentist', 'Dentista')]: job.dentistName,
+        [t('reports.patient', 'Paciente')]: job.patientName,
+        [`${t('reports.total', 'Valor Total')} (R$)`]: Number((job.totalValue || 0).toFixed(2)),
+        [t('reports.entryDate', 'Data Entrada')]: new Date(job.createdAt).toLocaleDateString(),
+        [t('reports.deliveryDate', 'Data Entrega')]: new Date(job.dueDate).toLocaleDateString(),
+        [t('reports.status', 'Status')]: getStatusLabel(job.status),
+        [t('reports.sector', 'Setor')]: job.currentSector || 'Recepção'
+      }));
 
       const ws = XLSX.utils.json_to_sheet(rows);
       const wb = XLSX.utils.book_new();
@@ -2051,43 +1779,23 @@ export default function Reports() {
 
           <div className="space-y-2 flex-1">
             {canViewProduction && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => setReportType('PRODUCTION')}
-                  className={`w-full text-left p-3.5 rounded-2xl transition-all border cursor-pointer ${
-                    reportType === 'PRODUCTION'
-                      ? 'bg-indigo-50/90 border-indigo-300 ring-2 ring-indigo-500/20 text-indigo-950 shadow-sm'
-                      : 'bg-slate-50/60 hover:bg-slate-100/80 border-slate-200/70 text-slate-800'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-xs uppercase tracking-wide">Produção Básica</span>
-                    {reportType === 'PRODUCTION' && <span className="text-[10px] font-black uppercase text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded-md">Ativo</span>}
-                  </div>
-                  <p className="text-[11px] text-slate-500 font-medium mt-1 leading-snug">
-                    Acompanhamento geral dos trabalhos por data de entrada, entrega, setor ou colaborador.
-                  </p>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setReportType('CATEGORY_PRODUCTION')}
-                  className={`w-full text-left p-3.5 rounded-2xl transition-all border cursor-pointer ${
-                    reportType === 'CATEGORY_PRODUCTION'
-                      ? 'bg-blue-50/90 border-blue-300 ring-2 ring-blue-500/20 text-blue-950 shadow-sm'
-                      : 'bg-slate-50/60 hover:bg-slate-100/80 border-slate-200/70 text-slate-800'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-xs uppercase tracking-wide">Relatório por Categoria</span>
-                    {reportType === 'CATEGORY_PRODUCTION' && <span className="text-[10px] font-black uppercase text-blue-700 bg-blue-100 px-2 py-0.5 rounded-md">Ativo</span>}
-                  </div>
-                  <p className="text-[11px] text-slate-500 font-medium mt-1 leading-snug">
-                    Somatória de quantidade de elementos e valor total por categoria cadastrada e por tipo de serviço.
-                  </p>
-                </button>
-              </>
+              <button
+                type="button"
+                onClick={() => setReportType('PRODUCTION')}
+                className={`w-full text-left p-3.5 rounded-2xl transition-all border cursor-pointer ${
+                  reportType === 'PRODUCTION'
+                    ? 'bg-indigo-50/90 border-indigo-300 ring-2 ring-indigo-500/20 text-indigo-950 shadow-sm'
+                    : 'bg-slate-50/60 hover:bg-slate-100/80 border-slate-200/70 text-slate-800'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-xs uppercase tracking-wide">Produção Básica</span>
+                  {reportType === 'PRODUCTION' && <span className="text-[10px] font-black uppercase text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded-md">Ativo</span>}
+                </div>
+                <p className="text-[11px] text-slate-500 font-medium mt-1 leading-snug">
+                  Acompanhamento geral dos trabalhos por data de entrada, entrega, setor ou colaborador.
+                </p>
+              </button>
             )}
 
             {canViewDetailedOrders && (
@@ -2709,74 +2417,6 @@ export default function Reports() {
             </div>
           )}
 
-          {/* ALWAYS VISIBLE: SERVICE CATEGORY FILTER */}
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1.5">
-                <Folder size={13} className="text-teal-600" /> Categoria de Serviço
-              </label>
-              {selectedServiceCategory && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedServiceCategory('');
-                    setJobTypeId('');
-                  }}
-                  className="text-[10px] font-bold text-slate-400 hover:text-rose-500 cursor-pointer"
-                >
-                  {t('common.clear', 'Limpar')}
-                </button>
-              )}
-            </div>
-            <select 
-              value={selectedServiceCategory} 
-              onChange={(e) => {
-                setSelectedServiceCategory(e.target.value);
-                setJobTypeId('');
-              }} 
-              className={`w-full p-3 border rounded-xl font-bold text-slate-700 focus:ring-2 outline-none text-sm transition-all shadow-sm ${
-                selectedServiceCategory ? 'bg-teal-50/40 border-teal-300 ring-1 ring-teal-200' : 'bg-slate-50 border-slate-200 focus:ring-teal-500'
-              }`}
-            >
-              <option value="">Todas as Categorias</option>
-              {allCategoriesList.map(cat => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* ALWAYS VISIBLE: SERVICE TYPE FILTER */}
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1.5">
-                <Package size={13} className="text-teal-600" /> Tipo de Serviço
-              </label>
-              {jobTypeId && (
-                <button
-                  type="button"
-                  onClick={() => setJobTypeId('')}
-                  className="text-[10px] font-bold text-slate-400 hover:text-rose-500 cursor-pointer"
-                >
-                  {t('common.clear', 'Limpar')}
-                </button>
-              )}
-            </div>
-            <select 
-              value={jobTypeId} 
-              onChange={(e) => { setJobTypeId(e.target.value); setVariationFilters({}); }} 
-              className={`w-full p-3 border rounded-xl font-bold text-slate-700 focus:ring-2 outline-none text-sm transition-all shadow-sm ${
-                jobTypeId ? 'bg-teal-50/40 border-teal-300 ring-1 ring-teal-200' : 'bg-slate-50 border-slate-200 focus:ring-teal-500'
-              }`}
-            >
-              <option value="">{t('reports.allTypes', 'Todos os Tipos de Serviço')}</option>
-              {availableJobTypesForFilter.map(jt => (
-                <option key={jt.id} value={jt.id}>
-                  {jt.name} {!selectedServiceCategory && jt.category ? `(${jt.category})` : ''}
-                </option>
-              ))}
-            </select>
-          </div>
-
           {reportType !== 'CLIENT_SUMMARY' && (
             <>
               <div className="space-y-1.5">
@@ -2801,7 +2441,6 @@ export default function Reports() {
                   <option value="">{t('reports.allStatuses', 'Todos os Status')}</option>
                   <option value="PENDING">{t('reports.pending', 'Pendente')}</option>
                   <option value="IN_PROGRESS">{t('reports.inProgress', 'Em Produção')}</option>
-                  <option value="COMPLETED">Concluído / Faturado</option>
                   <option value="DELAYED">{t('reports.delayed', 'Atrasado')}</option>
                 </select>
               </div>
@@ -2812,6 +2451,34 @@ export default function Reports() {
                   <option value="">{t('reports.allPriorities', 'Todas as Prioridades')}</option>
                   <option value="NORMAL">{t('reports.normalLow', 'Normal / Baixa')}</option>
                   <option value="URGENT">{t('reports.urgentVip', 'Urgente / VIP')}</option>
+                </select>
+              </div>
+
+              {/* SERVICE CATEGORY FILTER */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1.5">
+                  <Folder size={13} className="text-teal-600" /> Categoria de Serviço
+                </label>
+                <select 
+                  value={selectedServiceCategory} 
+                  onChange={(e) => {
+                    setSelectedServiceCategory(e.target.value);
+                    setJobTypeId('');
+                  }} 
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 focus:ring-2 focus:ring-teal-500 outline-none text-sm"
+                >
+                  <option value="">Todas as Categorias</option>
+                  {allCategoriesList.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-500 uppercase">{t('reports.jobType', 'Tipo de Trabalho')}</label>
+                <select value={jobTypeId} onChange={(e) => { setJobTypeId(e.target.value); setVariationFilters({}); }} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 focus:ring-2 focus:ring-teal-500 outline-none text-sm">
+                  <option value="">{t('reports.allTypes', 'Todos os Tipos')}</option>
+                  {availableJobTypesForFilter.map(jt => <option key={jt.id} value={jt.id}>{jt.name}</option>)}
                 </select>
               </div>
 
@@ -3390,31 +3057,27 @@ export default function Reports() {
                                         </tr>
                                       </thead>
                                       <tbody className="divide-y divide-slate-100">
-                                        {client.jobs.map(job => {
-                                          const matchingItems = getMatchingJobItems(job);
-                                          const effectiveJobValue = matchingItems.reduce((sum, it) => sum + ((it.price * (it.quantity || 1)) - (it.appliedDiscount || 0)), 0);
-                                          return (
-                                            <tr key={job.id} className="hover:bg-slate-50">
-                                              <td className="py-2.5 px-3 font-mono font-bold text-slate-800">{job.osNumber || '-'}</td>
-                                              <td className="py-2.5 px-3 font-bold text-slate-900">{job.patientName}</td>
-                                              <td className="py-2.5 px-3 text-slate-600">
-                                                {matchingItems.map((it, idx) => (
-                                                  <div key={idx} className="truncate max-w-xs">{it.quantity || 1}x {it.name}</div>
-                                                ))}
-                                              </td>
-                                              <td className="py-2.5 px-3 text-slate-500">{new Date(job.createdAt).toLocaleDateString()}</td>
-                                              <td className="py-2.5 px-3 text-slate-500">{new Date(job.dueDate).toLocaleDateString()}</td>
-                                              <td className="py-2.5 px-3">
-                                                <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-slate-100 text-slate-700">
-                                                  {getStatusLabel(job.status)}
-                                                </span>
-                                              </td>
-                                              <td className="py-2.5 px-3 text-right font-black text-teal-700">
-                                                R$ {effectiveJobValue.toFixed(2)}
-                                              </td>
-                                            </tr>
-                                          );
-                                        })}
+                                        {client.jobs.map(job => (
+                                          <tr key={job.id} className="hover:bg-slate-50">
+                                            <td className="py-2.5 px-3 font-mono font-bold text-slate-800">{job.osNumber || '-'}</td>
+                                            <td className="py-2.5 px-3 font-bold text-slate-900">{job.patientName}</td>
+                                            <td className="py-2.5 px-3 text-slate-600">
+                                              {(job.items || []).map((it, idx) => (
+                                                <div key={idx} className="truncate max-w-xs">{it.quantity}x {it.name}</div>
+                                              ))}
+                                            </td>
+                                            <td className="py-2.5 px-3 text-slate-500">{new Date(job.createdAt).toLocaleDateString()}</td>
+                                            <td className="py-2.5 px-3 text-slate-500">{new Date(job.dueDate).toLocaleDateString()}</td>
+                                            <td className="py-2.5 px-3">
+                                              <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-slate-100 text-slate-700">
+                                                {getStatusLabel(job.status)}
+                                              </span>
+                                            </td>
+                                            <td className="py-2.5 px-3 text-right font-black text-teal-700">
+                                              R$ {(job.totalValue || 0).toFixed(2)}
+                                            </td>
+                                          </tr>
+                                        ))}
                                       </tbody>
                                     </table>
                                   </div>
@@ -3452,102 +3115,6 @@ export default function Reports() {
                     </tr>
                   </tfoot>
                 </table>
-              </div>
-            )}
-          </div>
-        ) : reportType === 'CATEGORY_PRODUCTION' && categoryProductionData ? (
-          /* --- VIEW: CATEGORY_PRODUCTION --- */
-          <div className="p-5 sm:p-6 space-y-6">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-gradient-to-r from-blue-500/10 via-indigo-500/5 to-transparent p-5 rounded-2xl border border-blue-200/80">
-              <div>
-                <h3 className="font-black text-slate-900 text-lg">Relatório de Produção por Categoria</h3>
-                <p className="text-xs text-slate-500 font-medium">
-                  Consolidado de quantidade de elementos e valor total por categoria cadastrada e tipos de serviço.
-                </p>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <div className="bg-white px-4 py-2 rounded-xl border border-blue-200 shadow-2xs text-center">
-                  <span className="text-[10px] font-black uppercase text-slate-400 block">Total Elementos</span>
-                  <span className="text-base font-black text-blue-700">{categoryProductionData.grandTotalQuantity}</span>
-                </div>
-                <div className="bg-white px-4 py-2 rounded-xl border border-blue-200 shadow-2xs text-center">
-                  <span className="text-[10px] font-black uppercase text-slate-400 block">Montante Total</span>
-                  <span className="text-base font-black text-emerald-700">
-                    R$ {categoryProductionData.grandTotalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {categoryProductionData.categories.length === 0 ? (
-              <div className="text-center py-12 text-slate-500">
-                <Folder size={48} className="mx-auto mb-4 opacity-20" />
-                <p className="font-bold">Nenhuma categoria encontrada com os filtros atuais.</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {categoryProductionData.categories.map((cat) => (
-                  <div key={cat.categoryName} className="bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-2xs">
-                    {/* Category Header Row */}
-                    <div className="bg-slate-50/80 p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-200/60">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-800 font-black flex items-center justify-center text-xs">
-                          <Folder size={16} />
-                        </div>
-                        <div>
-                          <h4 className="font-black text-slate-900 text-base">{cat.categoryName}</h4>
-                          <span className="text-[11px] text-slate-500 font-medium">
-                            {cat.servicesList.length} {cat.servicesList.length === 1 ? 'tipo de serviço' : 'tipos de serviço'}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-4 self-end sm:self-auto">
-                        <div className="text-right">
-                          <span className="text-[10px] font-bold text-slate-400 uppercase block">Quant. Elementos</span>
-                          <span className="text-sm font-black text-slate-800">{cat.totalQuantity} <span className="text-xs font-medium text-slate-500">elem.</span></span>
-                        </div>
-                        <div className="text-right pl-3 border-l border-slate-200">
-                          <span className="text-[10px] font-bold text-slate-400 uppercase block">Valor Total</span>
-                          <span className="text-sm font-black text-teal-700">
-                            R$ {cat.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Service Types Breakdown Table */}
-                    {cat.servicesList.length > 0 ? (
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse">
-                          <thead>
-                            <tr className="bg-slate-100/50 text-slate-500 text-[10px] uppercase tracking-wider font-bold">
-                              <th className="py-2.5 px-4">Tipo de Serviço</th>
-                              <th className="py-2.5 px-4 text-center">Quantidade (Quant)</th>
-                              <th className="py-2.5 px-4 text-right">Valor Total (R$)</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-100 text-xs">
-                            {cat.servicesList.map((srv) => (
-                              <tr key={srv.serviceName} className="hover:bg-slate-50/80">
-                                <td className="py-2.5 px-4 font-bold text-slate-700">{srv.serviceName}</td>
-                                <td className="py-2.5 px-4 text-center font-bold text-slate-600">{srv.quantity}</td>
-                                <td className="py-2.5 px-4 text-right font-black text-slate-800">
-                                  R$ {srv.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    ) : (
-                      <div className="p-3 text-center text-slate-400 text-xs italic">
-                        Nenhum serviço produzido nesta categoria no período selecionado.
-                      </div>
-                    )}
-                  </div>
-                ))}
               </div>
             )}
           </div>
@@ -3740,8 +3307,6 @@ export default function Reports() {
                         {groupJobs.map(job => {
                           if (reportType === 'DETAILED_ORDERS') {
                             const finishDate = job.status === JobStatus.COMPLETED && job.history ? new Date(job.history.slice().reverse().find((h: any) => h.action === 'COMPLETED' || h.statusTo === JobStatus.COMPLETED)?.timestamp || new Date()).toLocaleDateString() : '-';
-                            const matchingItems = getMatchingJobItems(job);
-                            const effectiveJobValue = matchingItems.reduce((sum, item) => sum + ((item.price * (item.quantity || 1)) - (item.appliedDiscount || 0)), 0);
                             return (
                               <tr key={job.id} className="hover:bg-slate-50">
                                 <td className="p-3 font-mono font-bold text-slate-700 text-xs">{job.osNumber || '-'}</td>
@@ -3749,19 +3314,19 @@ export default function Reports() {
                                 <td className="p-3 text-sm text-slate-600">{job.dentistName}</td>
                                 <td className="p-3 font-bold text-slate-900 text-sm">{job.patientName}</td>
                                 <td className="p-3 text-xs text-slate-600">
-                                  {matchingItems.map((item: any, i: number) => {
+                                  {(job.items || []).map((item: any, i: number) => {
                                     const jt = jobTypes.find(tj => tj.id === item.jobTypeId);
                                     return (
-                                      <div key={i}>{item.quantity || 1}x {jt ? jt.name : item.name}</div>
+                                      <div key={i}>{item.quantity}x {jt ? jt.name : item.name}</div>
                                     );
                                   })}
                                 </td>
                                 <td className="p-3 text-xs text-slate-600">
-                                  {matchingItems.map((item: any, i: number) => (
-                                    <div key={i}>R$ {(((item.price * (item.quantity || 1))) - (item.appliedDiscount || 0)).toFixed(2)}</div>
+                                  {(job.items || []).map((item: any, i: number) => (
+                                    <div key={i}>R$ {((item.price * item.quantity) - (item.appliedDiscount || 0)).toFixed(2)}</div>
                                   ))}
                                 </td>
-                                <td className="p-3 font-black text-teal-700 text-sm">R$ {effectiveJobValue.toFixed(2)}</td>
+                                <td className="p-3 font-black text-teal-700 text-sm">R$ {job.totalValue.toFixed(2)}</td>
                                 <td className="p-3 text-sm text-slate-600">{new Date(job.createdAt).toLocaleDateString()}</td>
                                 <td className="p-3 text-sm text-slate-600">{finishDate}</td>
                               </tr>

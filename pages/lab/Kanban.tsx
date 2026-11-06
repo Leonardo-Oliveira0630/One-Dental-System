@@ -25,7 +25,8 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
-import { matchesSearchQuery, calculateJobSearchScore, getJobNatureBadge } from '../../utils/stringUtils';
+import { getJobNatureBadge } from '../JobsList';
+import { matchesSearchQuery, calculateJobSearchScore } from '../../utils/stringUtils';
 
 export const Kanban = () => {
   const { t } = useTranslation();

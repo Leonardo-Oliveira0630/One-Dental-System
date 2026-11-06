@@ -726,11 +726,6 @@ export interface Job {
   dueTime?: string;
   completedAt?: Date;
   finalizedAt?: Date;
-  isReopened?: boolean;
-  firstCompletedAt?: Date | string;
-  reopenedAt?: Date | string;
-  reopenedBy?: string;
-  reopenCount?: number;
   boxNumber?: string;
   boxColor?: BoxColor;
   receivedMaterials?: string[];

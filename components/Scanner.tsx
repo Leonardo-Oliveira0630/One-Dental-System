@@ -719,7 +719,7 @@ export const GlobalScanner: React.FC = () => {
 
                 const finalCommAmount = totalSectorUserComm > 0 ? totalSectorUserComm : commissionEarned;
 
-                const matchingPendingComms = (commissions || []).filter(c => 
+                const matchingPendingComms = commissions.filter(c => 
                     c.jobId === currentJob.id && 
                     c.userId === user.id && 
                     c.sector === sector && 
@@ -997,8 +997,7 @@ export const GlobalScanner: React.FC = () => {
                 {(scannedJob.items || []).map((item) => {
                     const jt = jobTypes.find(t => t.id === item.jobTypeId);
                     const sector = activeanySector || currentUser?.sector || (currentUser?.sectors && currentUser.sectors[0]) || 'Gestão';
-                    const rawStages = item.sectorStages?.[sector] || jt?.sectorStages?.[sector];
-                    const itemSectorStages: string[] = Array.isArray(rawStages) ? rawStages : [];
+                    const itemSectorStages = item.sectorStages?.[sector] || jt?.sectorStages?.[sector] || [];
                     
                     const execution = scannedJob.itemExecutions?.find(e => e.itemId === item.id && e.sector === sector);
                     const stageTimes = execution?.stageTimes || {};
@@ -1040,11 +1039,11 @@ export const GlobalScanner: React.FC = () => {
                                     })()
                                 ) : (
                                     (() => {
-                                        const completedStages = (itemSectorStages || []).filter((st: string) => {
+                                        const completedStages = itemSectorStages.filter((st: string) => {
                                             const stTime = stageTimes[st] || {};
                                             return !!stTime.exitTime || (execution?.executedStages && execution.executedStages.includes(st));
                                         }).length;
-                                        const inProgressStages = (itemSectorStages || []).filter((st: string) => {
+                                        const inProgressStages = itemSectorStages.filter((st: string) => {
                                             const stTime = stageTimes[st] || {};
                                             const isDone = !!stTime.exitTime || (execution?.executedStages && execution.executedStages.includes(st));
                                             return !isDone && !!stTime.entryTime;

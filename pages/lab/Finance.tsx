@@ -1,301 +1,4632 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useApp } from '../../context/AppContext';
-import { JobStatus, Job, UserRole } from '../../types';
-import { DollarSign, Search, Calendar, Plus, Download, History, ArrowUpCircle, ArrowDownCircle, Mail, AlertCircle, Trash2 } from 'lucide-react';
-import { calculateJobSearchScore, parseBrazilianCurrency } from '../../utils/stringUtils';
+import { JobStatus, UserRole, Expense, Job, TransactionCategory, BillingBatch, DentistPayment } from '../../types';
+import * as api from '../../services/firebaseService';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, Legend } from 'recharts';
+import { DollarSign, TrendingUp, TrendingDown, Search, Calendar, Plus, Printer, FileText, Download, AlertCircle, Wallet, Briefcase, CheckCircle, CreditCard, Loader2, User, Package, Clock, X, Filter, FileCheck, Receipt, Check, Trash2, ShoppingCart, ArrowUpRight, ArrowDownRight, ChevronDown, ChevronLeft, History, ExternalLink, Copy, Tag, AlertTriangle, ShieldCheck, Zap, ArrowUpCircle, ArrowDownCircle, FileSpreadsheet, Building, UserCheck, Save, Banknote, ChevronRight, Mail, Send } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { SendDebtsEmailModal } from '../../components/SendDebtsEmailModal';
+import { filterAndSortClients, parseBrazilianCurrency, formatCurrencyInputMask } from '../../utils/stringUtils';
 
-export const Finance: React.FC = () => {
-  const { jobs, manualDentists, allUsers, dentistPayments, addDentistPayment } = useApp();
+const translatePaymentMethod = (method: string, t?: (key: string, def?: string) => string) => {
+    switch (method) {
+        case 'PIX': return t ? t('finance.paymentMethods.PIX', 'PIX') : 'PIX';
+        case 'CASH': return t ? t('finance.paymentMethods.CASH', 'Dinheiro') : 'Dinheiro';
+        case 'CHEQUE':
+        case 'CHECK': return t ? t('finance.paymentMethods.CHEQUE', 'Cheque') : 'Cheque';
+        case 'CREDIT_CARD': return t ? t('finance.paymentMethods.CREDIT_CARD', 'Cartão Crédito') : 'Cartão Crédito';
+        case 'DEBIT_CARD': return t ? t('finance.paymentMethods.DEBIT_CARD', 'Cartão Débito') : 'Cartão Débito';
+        case 'BANK_TRANSFER': return t ? t('finance.paymentMethods.BANK_TRANSFER', 'Transf. Bancária') : 'Transf. Bancária';
+        case 'BOLETO': return t ? t('finance.paymentMethods.BOLETO', 'Boleto') : 'Boleto';
+        case 'DISCOUNT': return t ? t('finance.paymentMethods.DISCOUNT', 'Desconto/Cortesia') : 'Desconto/Cortesia';
+        case 'CLIENT_CREDIT': return t ? t('finance.paymentMethods.CLIENT_CREDIT', 'Saldo Crédito') : 'Saldo Crédito';
+        default: return method;
+    }
+};
 
+export const Finance = () => {
+  const { t } = useTranslation();
+  const { 
+    jobs, allUsers, manualDentists, currentOrg, dentistPayments, billingBatches, 
+    addDentistPayment, updateDentistPayment, deleteDentistPayment, uploadFile, updateBillingBatchStatus, generateBatchBoleto,
+    cardMachines, bankAccounts, addCardMachine, updateCardMachine, deleteCardMachine,
+    addBankAccount, updateBankAccount, deleteBankAccount,
+    currentPlan, currentUser
+  } = useApp();
+  const [activeTab, setActiveTab] = useState<'DASHBOARD' | 'RECEIVABLES' | 'EXPENSES' | 'BATCHES' | 'SETTINGS' | 'REPORTS'>('DASHBOARD');
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  const isFreeLab = currentOrg?.orgType === 'LAB' && (currentPlan?.id === 'free_lab' || currentPlan?.features?.isLabFreeStoreOnly === true);
+
+  // States
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  // const [billingBatches, setBillingBatches] = useState<BillingBatch[]>([]); // Using from context now for sync
+
+  const [isWithdrawing, setIsWithdrawing] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [syncingStore, setSyncingStore] = useState(false);
+
+  const handleSyncStoreSales = async () => {
+    if (!currentOrg?.id) return;
+    setSyncingStore(true);
+    try {
+      const res = await api.apiSyncStoreOrders({ organizationId: currentOrg.id });
+      alert(`Sincronização concluída com sucesso! Pedidos da loja verificados: ${res.jobsChecked || 0}. Status de pagamentos atualizados: ${res.paymentsUpdated || 0}. Vouchers de combos gerados: ${res.vouchersGenerated || 0}. Seu financeiro foi atualizado e consolidado.`);
+    } catch (err: any) {
+      console.error("Erro ao sincronizar vendas online:", err);
+      alert("Erro ao sincronizar vendas online: " + (err.message || err));
+    } finally {
+      setSyncingStore(false);
+    }
+  };
+
+  // Advanced Financial View State
+  const [showStatement, setShowStatement] = useState(false);
+  const [statementClient, setStatementClient] = useState<any | null>(null);
+  const [dentistJobs, setDentistJobs] = useState<Job[]>([]);
+  const [isLoadingStatement, setIsLoadingStatement] = useState(false);
+  const [activeSubTab, setActiveSubTab] = useState<'EXTRATO' | 'RECEBIMENTOS' | 'FATURAS'>('EXTRATO');
+  const [showManualEntryModal, setShowManualEntryModal] = useState(false);
+  const [manualEntryType, setManualEntryType] = useState<'MANUAL_DEBIT' | 'MANUAL_CREDIT'>('MANUAL_DEBIT');
+  const [manualEntryAmount, setManualEntryAmount] = useState('');
+  const [manualEntryNotes, setManualEntryNotes] = useState('');
+  const [isAddingManualEntry, setIsAddingManualEntry] = useState(false);
+  const [showAsaasError, setShowAsaasError] = useState(false);
   const [filterStartDate, setFilterStartDate] = useState(() => {
-    const d = new Date();
-    return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+      const d = new Date();
+      return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
   });
   const [filterEndDate, setFilterEndDate] = useState(() => {
-    const d = new Date();
-    return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
+      const d = new Date();
+      return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
+  });
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Reports Tab States
+  const [reportStartDate, setReportStartDate] = useState(() => {
+      const d = new Date();
+      return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+  });
+  const [reportEndDate, setReportEndDate] = useState(() => {
+      const d = new Date();
+      return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
+  });
+  const [reportType, setReportType] = useState<'ALL' | 'DESPESA' | 'RECEBIMENTO' | 'DEBITO' | 'DRE' | 'DEBITOS'>('ALL');
+  const [reportSource, setReportSource] = useState<'ALL' | 'MANUAL_OR_ASAAS' | 'ONLINE_STORE' | 'EXPENSE'>('ALL');
+  const [reportStatus, setReportStatus] = useState<'ALL' | 'PAID' | 'PENDING'>('ALL');
+  const [reportSearchTerm, setReportSearchTerm] = useState('');
+  const [showDebtsEmailModal, setShowDebtsEmailModal] = useState(false);
+  const [selectedEmailClientId, setSelectedEmailClientId] = useState<string | undefined>(undefined);
+  const [reportEmailStatusFilter, setReportEmailStatusFilter] = useState<'ALL' | 'SENT' | 'NOT_SENT' | 'BOUNCED' | 'NO_EMAIL'>('ALL');
+  const [clientEmailStatuses, setClientEmailStatuses] = useState<Record<string, { status: 'SENT' | 'BOUNCED' | 'NOT_SENT'; errorMsg?: string; lastSentAt?: string }>>(() => {
+      try {
+          const saved = localStorage.getItem(`labprox_email_statuses_${currentOrg?.id || 'default'}`);
+          return saved ? JSON.parse(saved) : {};
+      } catch {
+          return {};
+      }
   });
 
-  const [selectedClient, setSelectedClient] = useState<any | null>(null);
-  const [showStatementModal, setShowStatementModal] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+  useEffect(() => {
+      if (currentOrg?.id) {
+          localStorage.setItem(`labprox_email_statuses_${currentOrg.id}`, JSON.stringify(clientEmailStatuses));
+      }
+  }, [clientEmailStatuses, currentOrg?.id]);
 
-  const [showManualModal, setShowManualModal] = useState(false);
-  const [manualEntryType, setManualEntryType] = useState<'PAYMENT' | 'MANUAL_DEBIT' | 'MANUAL_CREDIT'>('PAYMENT');
-  const [manualAmount, setManualAmount] = useState('');
-  const [manualNotes, setManualNotes] = useState('');
+  const handleEmailStatusUpdate = (results: Array<{ clientId: string; status: 'SUCCESS' | 'ERROR'; message?: string }>) => {
+      setClientEmailStatuses(prev => {
+          const next = { ...prev };
+          results.forEach(r => {
+              const msg = (r.message || '').toLowerCase();
+              const isRefusal = r.status === 'ERROR' && (
+                  msg.includes('recusa') ||
+                  msg.includes('bounce') ||
+                  msg.includes('reject') ||
+                  msg.includes('refus') ||
+                  msg.includes('block') ||
+                  msg.includes('spam') ||
+                  msg.includes('550') ||
+                  msg.includes('554') ||
+                  msg.includes('invalid') ||
+                  msg.includes('blacklisted')
+              );
 
-  // Clients list for finance
-  const clients = useMemo(() => {
-    const list = [...manualDentists, ...allUsers.filter(u => u.role === UserRole.CLIENT)];
-    if (!searchTerm.trim()) return list;
-    return list.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase()));
-  }, [manualDentists, allUsers, searchTerm]);
+              next[r.clientId] = {
+                  status: r.status === 'SUCCESS' ? 'SENT' : 'BOUNCED',
+                  errorMsg: r.message,
+                  lastSentAt: new Date().toISOString()
+              };
+          });
+          return next;
+      });
+  };
 
-  // Chronological Statement logic (using completedAt for completion dates)
-  const chronoHistory = useMemo(() => {
-    if (!selectedClient) return { history: [], previousBalance: 0, overallBalance: 0 };
+  const safeDate = (d: any): Date => {
+      if (!d) return new Date();
+      if (typeof d.toDate === 'function') return d.toDate();
+      const parsed = new Date(d);
+      return isNaN(parsed.getTime()) ? new Date() : parsed;
+  };
 
-    const clientJobs = jobs.filter(j => 
-      j.dentistId === selectedClient.id && 
-      (j.status === JobStatus.COMPLETED || j.status === JobStatus.DELIVERED)
-    );
-    const clientPayments = dentistPayments.filter(p => p.dentistId === selectedClient.id);
+  // Calculations for Client Debits Report
+  const reportDebts = useMemo(() => {
+    const sDate = reportStartDate ? new Date(`${reportStartDate}T00:00:00`) : new Date(0);
+    const eDate = reportEndDate ? new Date(`${reportEndDate}T23:59:59`) : new Date(8640000000000000);
 
-    const history = [
-      ...clientJobs.map(j => ({
-        id: j.id,
-        date: j.completedAt || j.deliveredAt || j.createdAt,
-        type: 'DEBIT' as const,
-        description: `OS #${j.osNumber || j.id.slice(-4)} - Paciente: ${j.patientName}`,
-        amount: j.totalValue || 0,
-        job: j
-      })),
-      ...clientPayments.map(p => ({
+    const manualEmails = new Set<string>();
+    const manualDocs = new Set<string>();
+
+    const uniqueManual = manualDentists.map(d => {
+        if (d.email) manualEmails.add(d.email.toLowerCase().trim());
+        const cleanDoc = (d.cpfCnpj || '').replace(/\D/g, '');
+        if (cleanDoc) manualDocs.add(cleanDoc);
+        return d;
+    });
+
+    const uniqueOnline = allUsers.filter(u => u.role === UserRole.CLIENT).filter(u => {
+        const userEmail = u.email ? u.email.toLowerCase().trim() : '';
+        const userDoc = (u.cpfCnpj || '').replace(/\D/g, '');
+        const isDuplicateEmail = userEmail && manualEmails.has(userEmail);
+        const isDuplicateDoc = userDoc && manualDocs.has(userDoc);
+        const hasSameId = uniqueManual.some(m => m.id === u.id);
+        return !hasSameId && !isDuplicateEmail && !isDuplicateDoc;
+    });
+
+    // Build alias map to unify online users and manual dentists
+    const aliasMap = new Map<string, string>();
+    const emailToId = new Map<string, string>();
+    const docToId = new Map<string, string>();
+
+    manualDentists.forEach(m => {
+        aliasMap.set(m.id, m.id);
+        const email = m.email ? m.email.toLowerCase().trim() : '';
+        if (email) emailToId.set(email, m.id);
+        const doc = (m.cpfCnpj || '').replace(/\D/g, '');
+        if (doc) docToId.set(doc, m.id);
+    });
+
+    allUsers.filter(u => u.role === UserRole.CLIENT).forEach(u => {
+        const email = u.email ? u.email.toLowerCase().trim() : '';
+        const doc = (u.cpfCnpj || '').replace(/\D/g, '');
+        let targetId = u.id;
+        if (email && emailToId.has(email)) {
+            targetId = emailToId.get(email)!;
+        } else if (doc && docToId.has(doc)) {
+            targetId = docToId.get(doc)!;
+        }
+        aliasMap.set(u.id, targetId);
+    });
+
+    const getPrimaryId = (id: string) => aliasMap.get(id) || id;
+
+    const allDents = [...uniqueOnline, ...uniqueManual];
+    const map = new Map<string, any>();
+
+    allDents.forEach(d => {
+        const primaryId = getPrimaryId(d.id);
+        if (!map.has(primaryId)) {
+            map.set(primaryId, {
+                id: primaryId,
+                name: d.name,
+                clinicName: d.clinicName || '',
+                phone: (d as any).phone || (d as any).whatsapp || '',
+                cpfCnpj: d.cpfCnpj || '',
+                email: d.email || '',
+                dentistObj: d,
+                totalDebitsUpTo: 0,
+                totalCreditsUpTo: 0,
+                balanceUpToEndDate: 0,
+                periodDebits: 0,
+                periodCredits: 0,
+                pendingJobs: [] as Job[],
+                allJobsCount: 0,
+                pendingJobsCount: 0,
+            });
+        }
+    });
+
+    // Process all jobs
+    jobs.forEach(job => {
+        if (job.status === JobStatus.CANCELED || job.status === JobStatus.REJECTED) return;
+        
+        const isOnline = job.origin === 'ONLINE_ORDER' || job.origin === 'ONLINE_REQUISITION';
+        const isCompleted = job.status === JobStatus.COMPLETED || job.status === JobStatus.DELIVERED;
+        if (!isOnline && !isCompleted) return;
+
+        const primaryId = getPrimaryId(job.dentistId);
+        let entry = map.get(primaryId);
+        if (!entry) {
+            entry = {
+                id: primaryId,
+                name: job.dentistName || 'Cliente sem Nome',
+                clinicName: '',
+                phone: '',
+                cpfCnpj: '',
+                email: '',
+                dentistObj: { id: primaryId, name: job.dentistName || 'Cliente' },
+                totalDebitsUpTo: 0,
+                totalCreditsUpTo: 0,
+                balanceUpToEndDate: 0,
+                periodDebits: 0,
+                periodCredits: 0,
+                pendingJobs: [] as Job[],
+                allJobsCount: 0,
+                pendingJobsCount: 0,
+            };
+            map.set(primaryId, entry);
+        }
+
+        const jobDate = safeDate((job as any).completedAt || job.deliveredAt || job.createdAt);
+        const jobVal = Number(job.totalValue) || 0;
+        
+        if (jobDate <= eDate) {
+            entry.totalDebitsUpTo += jobVal;
+            entry.allJobsCount += 1;
+            
+            const isUnpaid = (job.paymentStatus === 'PENDING' || !job.paymentStatus) && !job.batchId && !job.asaasPaymentId;
+            if (isUnpaid) {
+                entry.pendingJobsCount += 1;
+                entry.pendingJobs.push(job);
+            }
+        }
+
+        if (jobDate >= sDate && jobDate <= eDate) {
+            entry.periodDebits += jobVal;
+        }
+    });
+
+    // Process all payments/credits/manual debits
+    dentistPayments.forEach(p => {
+        const primaryId = getPrimaryId(p.dentistId);
+        let entry = map.get(primaryId);
+        if (!entry) {
+            entry = {
+                id: primaryId,
+                name: p.dentistName || 'Cliente',
+                clinicName: '',
+                phone: '',
+                cpfCnpj: '',
+                email: '',
+                dentistObj: { id: primaryId, name: p.dentistName },
+                totalDebitsUpTo: 0,
+                totalCreditsUpTo: 0,
+                balanceUpToEndDate: 0,
+                periodDebits: 0,
+                periodCredits: 0,
+                pendingJobs: [] as Job[],
+                allJobsCount: 0,
+                pendingJobsCount: 0,
+            };
+            map.set(primaryId, entry);
+        }
+
+        const payDate = safeDate(p.paymentDate || p.createdAt);
+        const isDebit = p.type === 'MANUAL_DEBIT';
+        const creditAmount = p.type === 'DISCOUNT' || p.type === 'MANUAL_CREDIT' 
+            ? Number(p.amount || 0) 
+            : (Number(p.amount || 0) + Number(p.discount || 0));
+
+        if (payDate <= eDate) {
+            if (isDebit) {
+                entry.totalDebitsUpTo += Number(p.amount || 0);
+            } else {
+                entry.totalCreditsUpTo += creditAmount;
+            }
+        }
+
+        if (payDate >= sDate && payDate <= eDate) {
+            if (isDebit) {
+                entry.periodDebits += Number(p.amount || 0);
+            } else {
+                entry.periodCredits += creditAmount;
+            }
+        }
+    });
+
+    // Calculate final balance and filter
+    let results = Array.from(map.values()).map(d => {
+        const balance = d.totalDebitsUpTo - d.totalCreditsUpTo;
+        const hasEmail = Boolean(d.email && d.email.trim().includes('@'));
+        let emailStatus: 'SENT' | 'NOT_SENT' | 'BOUNCED' | 'NO_EMAIL' = 'NOT_SENT';
+
+        if (!hasEmail) {
+            emailStatus = 'NO_EMAIL';
+        } else {
+            const stored = clientEmailStatuses[d.id];
+            if (stored?.status) {
+                emailStatus = stored.status;
+            } else {
+                emailStatus = 'NOT_SENT';
+            }
+        }
+
+        return {
+            ...d,
+            balanceUpToEndDate: balance,
+            emailStatus,
+            emailErrorMsg: clientEmailStatuses[d.id]?.errorMsg
+        };
+    });
+
+    // Filter to only those with actual debt (balance > 0)
+    results = results.filter(d => d.balanceUpToEndDate > 0);
+
+    // Apply email status filter
+    if (reportEmailStatusFilter !== 'ALL') {
+        results = results.filter(d => d.emailStatus === reportEmailStatusFilter);
+    }
+
+    // Apply search filter and sorting
+    if (reportSearchTerm.trim()) {
+        results = filterAndSortClients(results, reportSearchTerm, (a, b) => b.balanceUpToEndDate - a.balanceUpToEndDate);
+    } else {
+        results.sort((a, b) => b.balanceUpToEndDate - a.balanceUpToEndDate);
+    }
+
+    return results;
+  }, [jobs, manualDentists, allUsers, dentistPayments, reportStartDate, reportEndDate, reportSearchTerm, reportEmailStatusFilter, clientEmailStatuses]);
+
+  const reportDebtStats = useMemo(() => {
+    const totalClientsWithDebt = reportDebts.length;
+    const totalDebtAmount = reportDebts.reduce((sum, d) => sum + Math.max(0, d.balanceUpToEndDate), 0);
+    const totalPendingJobs = reportDebts.reduce((sum, d) => sum + d.pendingJobsCount, 0);
+    const avgDebt = totalClientsWithDebt > 0 ? totalDebtAmount / totalClientsWithDebt : 0;
+    const maxDebtClient = reportDebts.length > 0 ? reportDebts[0] : null;
+
+    return {
+        totalClientsWithDebt,
+        totalDebtAmount,
+        totalPendingJobs,
+        avgDebt,
+        maxDebtClient
+    };
+  }, [reportDebts]);
+
+  // Comprehensive DRE (Demonstrativo do Resultado do Exercício) Data
+  const dreData = useMemo(() => {
+    const sDate = reportStartDate ? new Date(`${reportStartDate}T00:00:00`) : new Date(0);
+    const eDate = reportEndDate ? new Date(`${reportEndDate}T23:59:59`) : new Date(8640000000000000);
+
+    // 1. Lab Jobs within period (Apenas casos concluídos/entregues para faturamento laboratorial; exceção: loja online)
+    const periodJobs = jobs.filter(j => {
+      if (j.status === JobStatus.CANCELED || j.status === JobStatus.REJECTED) return false;
+      const isOnline = j.origin === 'ONLINE_ORDER' || j.origin === 'ONLINE_REQUISITION';
+      const isCompleted = j.status === JobStatus.COMPLETED || j.status === JobStatus.DELIVERED;
+      if (!isOnline && !isCompleted) return false;
+      const jDate = safeDate((j as any).completedAt || j.deliveredAt || j.createdAt);
+      return jDate >= sDate && jDate <= eDate;
+    });
+
+    // Métrica de previsão a faturar no período (OSs em produção não concluídas)
+    const periodInProgressJobs = jobs.filter(j => {
+      if (j.status === JobStatus.CANCELED || j.status === JobStatus.REJECTED) return false;
+      if (j.origin === 'ONLINE_ORDER' || j.origin === 'ONLINE_REQUISITION') return false;
+      if (j.status === JobStatus.COMPLETED || j.status === JobStatus.DELIVERED) return false;
+      const jDate = safeDate(j.createdAt);
+      return jDate >= sDate && jDate <= eDate;
+    });
+    const inProgressGrossForecast = periodInProgressJobs.reduce((sum, j) => sum + (Number(j.totalValue) || 0), 0);
+    const inProgressJobsCount = periodInProgressJobs.length;
+
+    const labProductionGross = periodJobs
+      .filter(j => j.origin !== 'ONLINE_ORDER' && j.origin !== 'ONLINE_REQUISITION')
+      .reduce((sum, j) => sum + (Number(j.totalValue) || 0), 0);
+    const labJobsCount = periodJobs.filter(j => j.origin !== 'ONLINE_ORDER' && j.origin !== 'ONLINE_REQUISITION').length;
+
+    const storeGross = periodJobs
+      .filter(j => j.origin === 'ONLINE_ORDER' || j.origin === 'ONLINE_REQUISITION')
+      .reduce((sum, j) => sum + (Number(j.totalValue) || 0), 0);
+    const storeOrdersCount = periodJobs.filter(j => j.origin === 'ONLINE_ORDER' || j.origin === 'ONLINE_REQUISITION').length;
+
+    // 2. Manual Debits in period
+    const manualDebits = dentistPayments
+      .filter(p => p.type === 'MANUAL_DEBIT')
+      .filter(p => {
+        const pDate = safeDate(p.paymentDate || p.createdAt);
+        return pDate >= sDate && pDate <= eDate;
+      })
+      .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+
+    const grossRevenue = labProductionGross + storeGross + manualDebits;
+
+    // 3. Deductions / Discounts in period
+    const discountsGiven = dentistPayments
+      .filter(p => p.type === 'DISCOUNT')
+      .filter(p => {
+        const pDate = safeDate(p.paymentDate || p.createdAt);
+        return pDate >= sDate && pDate <= eDate;
+      })
+      .reduce((sum, p) => sum + (Number(p.amount) || 0), 0) +
+      dentistPayments
+      .filter(p => p.type === 'PAYMENT' && p.discount && p.discount > 0)
+      .filter(p => {
+        const pDate = safeDate(p.paymentDate || p.createdAt);
+        return pDate >= sDate && pDate <= eDate;
+      })
+      .reduce((sum, p) => sum + (Number(p.discount) || 0), 0);
+
+    const netRevenue = Math.max(0, grossRevenue - discountsGiven);
+
+    // 4. Expenses by category in period
+    const periodExpenses = expenses.filter(e => {
+      const eDateObj = safeDate(e.date ? (typeof e.date === 'string' && (e.date as string).length === 10 ? (e.date as string) + 'T12:00:00' : e.date) : (e as any).createdAt);
+      return eDateObj >= sDate && eDateObj <= eDate;
+    });
+
+    const expensesByCategory: Record<string, number> = {};
+    let totalExpenses = 0;
+    periodExpenses.forEach(e => {
+      const cat = e.category || 'Geral';
+      expensesByCategory[cat] = (expensesByCategory[cat] || 0) + (Number(e.amount) || 0);
+      totalExpenses += (Number(e.amount) || 0);
+    });
+
+    const netOperatingProfit = netRevenue - totalExpenses;
+    const profitMargin = netRevenue > 0 ? (netOperatingProfit / netRevenue) * 100 : 0;
+
+    // 5. Cash Flow Realized in period
+    const cashInflows = dentistPayments
+      .filter(p => p.type === 'PAYMENT' || p.type === 'MANUAL_CREDIT' || !p.type)
+      .filter(p => {
+        const pDate = safeDate(p.paymentDate || p.createdAt);
+        return pDate >= sDate && pDate <= eDate;
+      })
+      .reduce((sum, p) => sum + (Number(p.amount) || 0), 0) +
+      periodJobs
+      .filter(j => j.origin === 'ONLINE_ORDER' && (j.paymentStatus === 'PAID' || j.paymentStatus === 'VOUCHER'))
+      .reduce((sum, j) => sum + (Number(j.totalValue) || 0), 0);
+
+    const cashOutflows = periodExpenses
+      .filter(e => e.status === 'PAID')
+      .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+
+    const cashBalance = cashInflows - cashOutflows;
+
+    // Pending to receive from this period
+    const pendingToReceive = periodJobs
+      .filter(j => (j.paymentStatus === 'PENDING' || !j.paymentStatus) && !j.batchId && !j.asaasPaymentId)
+      .reduce((sum, j) => sum + (Number(j.totalValue) || 0), 0);
+
+    return {
+      labProductionGross,
+      labJobsCount,
+      storeGross,
+      storeOrdersCount,
+      manualDebits,
+      grossRevenue,
+      discountsGiven,
+      netRevenue,
+      expensesByCategory,
+      totalExpenses,
+      periodExpensesCount: periodExpenses.length,
+      netOperatingProfit,
+      profitMargin,
+      cashInflows,
+      cashOutflows,
+      cashBalance,
+      pendingToReceive,
+      inProgressGrossForecast,
+      inProgressJobsCount
+    };
+  }, [jobs, expenses, dentistPayments, reportStartDate, reportEndDate]);
+
+  const reportMovements = useMemo(() => {
+    // 1. Expenses
+    const movementsFromExpenses = expenses.map(e => ({
+      id: e.id,
+      date: safeDate(e.date ? (typeof e.date === 'string' && (e.date as string).length === 10 ? (e.date as string) + 'T12:00:00' : e.date) : (e as any).createdAt),
+      description: e.description,
+      type: 'DESPESA' as const,
+      category: `Despesa (${e.category || 'Geral'})`,
+      amount: Number(e.amount || 0),
+      paymentMethod: '---',
+      status: e.status === 'PAID' ? ('PAID' as const) : ('PENDING' as const),
+      source: 'EXPENSE' as const,
+      refId: e.id,
+      dentistName: '---'
+    }));
+
+    // 2. Manual and Asaas Dentist Payments / Debits
+    const movementsFromPayments = dentistPayments.map(p => {
+      const isDebit = p.type === 'MANUAL_DEBIT';
+      const isDiscount = p.type === 'DISCOUNT';
+      const isCredit = p.type === 'MANUAL_CREDIT';
+
+      let movementType: 'RECEBIMENTO' | 'DESPESA' | 'DEBITO' = 'RECEBIMENTO';
+      let category = p.batchId ? 'Recebimento Asaas' : 'Recebimento Manual';
+      let status: 'PAID' | 'PENDING' = 'PAID';
+
+      if (isDebit) {
+        movementType = 'DEBITO';
+        category = 'Débito Manual (Saldo Devedor)';
+        status = 'PENDING';
+      } else if (isDiscount) {
+        movementType = 'DESPESA';
+        category = 'Desconto Concedido';
+        status = 'PAID';
+      } else if (isCredit) {
+        movementType = 'RECEBIMENTO';
+        category = 'Crédito Manual';
+        status = 'PAID';
+      }
+
+      return {
         id: p.id,
-        date: typeof p.paymentDate === 'string' ? p.paymentDate : p.paymentDate.toISOString(),
-        type: p.type === 'MANUAL_DEBIT' ? ('DEBIT' as const) : ('CREDIT' as const),
-        description: p.notes || (p.type === 'MANUAL_DEBIT' ? 'Débito Manual' : `Recebimento (${p.paymentMethod})`),
-        amount: p.amount,
-        payment: p
-      }))
+        date: safeDate(p.paymentDate || p.createdAt),
+        description: p.notes || (isDebit ? `Débito Manual - ${p.dentistName}` : `Recebimento - ${p.dentistName}`),
+        type: movementType,
+        category,
+        amount: Number(p.amount || 0),
+        paymentMethod: isDebit ? 'Débito em Conta' : (p.paymentMethod || '---'),
+        status,
+        source: 'MANUAL_OR_ASAAS' as const,
+        refId: p.id,
+        dentistName: p.dentistName || '---'
+      };
+    });
+
+    // 3. Online Store Jobs
+    const movementsFromOnlineStore = jobs
+      .filter(j => j.origin === 'ONLINE_ORDER' || j.origin === 'ONLINE_REQUISITION')
+      .map(j => ({
+        id: j.id,
+        date: safeDate(j.createdAt),
+        description: `Pedido Loja Online OS #${j.osNumber || j.id.substring(0, 6)} - Paciente: ${j.patientName || '---'}`,
+        type: 'RECEBIMENTO' as const,
+        category: 'Loja Online',
+        amount: Number(j.totalValue || 0),
+        paymentMethod: 'Cartão/Pix (Asaas)',
+        status: (j.paymentStatus === 'PAID' || j.paymentStatus === 'VOUCHER') ? ('PAID' as const) : ('PENDING' as const),
+        source: 'ONLINE_STORE' as const,
+        refId: j.id,
+        dentistName: j.dentistName || '---'
+      }));
+
+    // 4. Laboratory Jobs / Internal Services (Débitos dos Dentistas por Serviços Laboratoriais Concluídos)
+    // Regra: O trabalho só pode ser faturado após a conclusão do caso (COMPLETED ou DELIVERED).
+    // Casos em andamento ficam como métricas de valores a faturar.
+    const movementsFromLabJobs = jobs
+      .filter(j => 
+        j.origin !== 'ONLINE_ORDER' && 
+        j.origin !== 'ONLINE_REQUISITION' && 
+        j.status !== JobStatus.CANCELED && 
+        j.status !== JobStatus.REJECTED && 
+        (j.status === JobStatus.COMPLETED || j.status === JobStatus.DELIVERED) &&
+        (j.totalValue && j.totalValue > 0)
+      )
+      .map(j => {
+        const isPaid = j.paymentStatus === 'PAID' || j.paymentStatus === 'VOUCHER';
+        const dObj = manualDentists.find(d => d.id === j.dentistId) || allUsers.find(u => u.id === j.dentistId);
+        const dentistName = j.dentistName || dObj?.name || 'Cliente';
+        const jobDate = safeDate((j as any).completedAt || j.deliveredAt || j.createdAt);
+
+        let statusLabel = 'Concluído';
+        if (j.status === JobStatus.DELIVERED) statusLabel = 'Entregue';
+
+        return {
+          id: `job-${j.id}`,
+          date: jobDate,
+          description: `Trabalho OS #${j.osNumber || j.id.substring(0, 6)} - Paciente: ${j.patientName || '---'} (${statusLabel})`,
+          type: 'DEBITO' as const,
+          category: 'Serviço Laboratorial (OS Concluída)',
+          amount: Number(j.totalValue || 0),
+          paymentMethod: isPaid ? (j.paymentMethod || 'Pago') : (j.batchId ? 'Faturado em Boleto' : 'Aguardando Cobrança'),
+          status: isPaid ? ('PAID' as const) : ('PENDING' as const),
+          source: 'MANUAL_OR_ASAAS' as const,
+          refId: j.id,
+          dentistName
+        };
+      });
+
+    // Combine all
+    let allMovements = [
+      ...movementsFromExpenses,
+      ...movementsFromPayments,
+      ...movementsFromOnlineStore,
+      ...movementsFromLabJobs
     ];
 
-    const sorted = history.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    // Filter by start date and end date
+    const sDate = reportStartDate ? new Date(`${reportStartDate}T00:00:00`) : new Date(0);
+    const eDate = reportEndDate ? new Date(`${reportEndDate}T23:59:59`) : new Date(8640000000000000);
 
+    allMovements = allMovements.filter(m => m.date >= sDate && m.date <= eDate);
+
+    // Filter by type
+    if (reportType !== 'ALL' && reportType !== 'DEBITOS' && reportType !== 'DRE') {
+      allMovements = allMovements.filter(m => m.type === reportType);
+    }
+
+    // Filter by source
+    if (reportSource !== 'ALL') {
+      allMovements = allMovements.filter(m => m.source === reportSource);
+    }
+
+    // Filter by status
+    if (reportStatus !== 'ALL') {
+      allMovements = allMovements.filter(m => m.status === reportStatus);
+    }
+
+    // Filter by search term
+    if (reportSearchTerm.trim()) {
+      const s = reportSearchTerm.toLowerCase();
+      allMovements = allMovements.filter(m => 
+        m.description.toLowerCase().includes(s) || 
+        m.dentistName.toLowerCase().includes(s) ||
+        m.category.toLowerCase().includes(s)
+      );
+    }
+
+    // Sort by date descending
+    return allMovements.sort((a, b) => b.date.getTime() - a.date.getTime());
+  }, [expenses, dentistPayments, jobs, manualDentists, allUsers, reportStartDate, reportEndDate, reportType, reportSource, reportStatus, reportSearchTerm]);
+
+  const reportStats = useMemo(() => {
+    let totalInflows = 0;
+    let totalOutflows = 0;
+    let totalDebitsBilled = 0;
+    let pendingInflows = 0;
+    let pendingOutflows = 0;
+
+    reportMovements.forEach(m => {
+      if (m.type === 'RECEBIMENTO') {
+        if (m.status === 'PAID') {
+          totalInflows += m.amount;
+        } else {
+          pendingInflows += m.amount;
+        }
+      } else if (m.type === 'DESPESA') {
+        if (m.status === 'PAID') {
+          totalOutflows += m.amount;
+        } else {
+          pendingOutflows += m.amount;
+        }
+      } else if (m.type === 'DEBITO') {
+        totalDebitsBilled += m.amount;
+        if (m.status === 'PENDING') {
+          pendingInflows += m.amount;
+        }
+      }
+    });
+
+    const sDate = reportStartDate ? new Date(`${reportStartDate}T00:00:00`) : new Date(0);
+    const eDate = reportEndDate ? new Date(`${reportEndDate}T23:59:59`) : new Date(8640000000000000);
+
+    // Métricas de valores a serem faturados (OSs em produção não concluídas no período que aguardam conclusão)
+    const inProgressJobs = jobs.filter(j => {
+      if (j.status === JobStatus.CANCELED || j.status === JobStatus.REJECTED) return false;
+      if (j.origin === 'ONLINE_ORDER' || j.origin === 'ONLINE_REQUISITION') return false;
+      if (j.status === JobStatus.COMPLETED || j.status === JobStatus.DELIVERED) return false;
+      const jDate = safeDate(j.createdAt);
+      return jDate >= sDate && jDate <= eDate;
+    });
+    const pendingToInvoiceValue = inProgressJobs.reduce((sum, j) => sum + (Number(j.totalValue) || 0), 0);
+    const pendingToInvoiceCount = inProgressJobs.length;
+
+    // Casos concluídos/faturados no período (internos concluídos + loja online)
+    const completedJobs = jobs.filter(j => {
+      if (j.status === JobStatus.CANCELED || j.status === JobStatus.REJECTED) return false;
+      const isOnline = j.origin === 'ONLINE_ORDER' || j.origin === 'ONLINE_REQUISITION';
+      const isCompleted = j.status === JobStatus.COMPLETED || j.status === JobStatus.DELIVERED;
+      if (!isOnline && !isCompleted) return false;
+      const jDate = safeDate((j as any).completedAt || j.deliveredAt || j.createdAt);
+      return jDate >= sDate && jDate <= eDate;
+    });
+    const completedJobsCount = completedJobs.length;
+    const totalCompletedBilled = completedJobs.reduce((sum, j) => sum + (Number(j.totalValue) || 0), 0);
+    const averageCompletedTicket = completedJobsCount > 0 ? (totalCompletedBilled / completedJobsCount) : 0;
+
+    return {
+      totalInflows,
+      totalOutflows,
+      totalDebitsBilled,
+      pendingInflows,
+      pendingOutflows,
+      netBalance: totalInflows - totalOutflows,
+      pendingToInvoiceValue,
+      pendingToInvoiceCount,
+      completedJobsCount,
+      totalCompletedBilled,
+      averageCompletedTicket
+    };
+  }, [reportMovements, jobs, reportStartDate, reportEndDate]);
+
+  const exportReportCSV = () => {
+    if (!currentOrg) return;
+
+    if (reportType === 'DRE') {
+      const headers = ['Item / Descrição', 'Valor (R$)', '% da Receita Bruta'];
+      const rows = [
+        ['1. RECEITA OPERACIONAL BRUTA', '', '100.0%'],
+        ['  1.1 Faturamento Produção Laboratorial (OSs)', dreData.labProductionGross.toFixed(2), dreData.grossRevenue > 0 ? `${((dreData.labProductionGross / dreData.grossRevenue) * 100).toFixed(1)}%` : '0%'],
+        ['  1.2 Pedidos Loja Online', dreData.storeGross.toFixed(2), dreData.grossRevenue > 0 ? `${((dreData.storeGross / dreData.grossRevenue) * 100).toFixed(1)}%` : '0%'],
+        ['  1.3 Débitos Manuais / Outros Serviços', dreData.manualDebits.toFixed(2), dreData.grossRevenue > 0 ? `${((dreData.manualDebits / dreData.grossRevenue) * 100).toFixed(1)}%` : '0%'],
+        ['(=) TOTAL DA RECEITA BRUTA', dreData.grossRevenue.toFixed(2), '100.0%'],
+        ['', '', ''],
+        ['2. DEDUÇÕES DA RECEITA BRUTA', '', ''],
+        ['  2.1 Descontos Comerciais & Cortesias', dreData.discountsGiven.toFixed(2), dreData.grossRevenue > 0 ? `${((dreData.discountsGiven / dreData.grossRevenue) * 100).toFixed(1)}%` : '0%'],
+        ['(=) RECEITA OPERACIONAL LÍQUIDA', dreData.netRevenue.toFixed(2), dreData.grossRevenue > 0 ? `${((dreData.netRevenue / dreData.grossRevenue) * 100).toFixed(1)}%` : '0%'],
+        ['', '', ''],
+        ['3. CUSTOS & DESPESAS OPERACIONAIS', '', ''],
+        ...Object.entries(dreData.expensesByCategory).map(([cat, val]) => [
+          `  Despesa: ${cat}`,
+          val.toFixed(2),
+          dreData.netRevenue > 0 ? `${((val / dreData.netRevenue) * 100).toFixed(1)}%` : '0%'
+        ]),
+        ['(=) TOTAL DE DESPESAS OPERACIONAIS', dreData.totalExpenses.toFixed(2), dreData.netRevenue > 0 ? `${((dreData.totalExpenses / dreData.netRevenue) * 100).toFixed(1)}%` : '0%'],
+        ['', '', ''],
+        ['4. RESULTADO OPERACIONAL LÍQUIDO', '', ''],
+        ['(=) LUCRO / PREJUÍZO LÍQUIDO DO PERÍODO', dreData.netOperatingProfit.toFixed(2), dreData.netRevenue > 0 ? `${dreData.profitMargin.toFixed(1)}%` : '0%'],
+        ['', '', ''],
+        ['5. CONCILIAÇÃO DE CAIXA REALIZADO', '', ''],
+        ['  Entradas Efetivamente Recebidas em Caixa', dreData.cashInflows.toFixed(2), ''],
+        ['  Saídas Efetivamente Pagas em Despesas', dreData.cashOutflows.toFixed(2), ''],
+        ['(=) SALDO LÍQUIDO DE CAIXA REALIZADO', dreData.cashBalance.toFixed(2), ''],
+        ['  Faturamento Pendente a Receber (Em Aberto/Gaveta)', dreData.pendingToReceive.toFixed(2), '']
+      ];
+
+      const csvContent = [
+        headers.join(';'),
+        ...rows.map(row => row.join(';'))
+      ].join('\n');
+
+      const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `DRE_Demonstrativo_Resultado_${currentOrg.name.replace(/\s+/g, '_')}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      return;
+    }
+
+    if (reportType === 'DEBITOS') {
+      const headers = ['Cliente (Dentista)', 'Clinica', 'Documento', 'Telefone', 'OSs Pendentes (Qtd)', 'Debito no Periodo (R$)', 'Pagamentos no Periodo (R$)', 'Saldo Devedor Total (R$)'];
+      const rows = reportDebts.map(d => [
+        (d.name || '').replace(/;/g, ','),
+        (d.clinicName || '').replace(/;/g, ','),
+        (d.cpfCnpj || '').replace(/;/g, ','),
+        (d.phone || '').replace(/;/g, ','),
+        d.pendingJobsCount,
+        d.periodDebits.toFixed(2),
+        d.periodCredits.toFixed(2),
+        d.balanceUpToEndDate.toFixed(2)
+      ]);
+
+      const csvContent = [
+        headers.join(';'),
+        ...rows.map(row => row.join(';'))
+      ].join('\n');
+
+      const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `Relatorio_Debitos_Clientes_${currentOrg.name.replace(/\s+/g, '_')}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      return;
+    }
+
+    const headers = ['Data', 'Descricao', 'Tipo', 'Origem/Categoria', 'Cliente (Dentista)', 'Metodo Pagamento', 'Valor (R$)', 'Status'];
+    const rows = reportMovements.map(m => [
+      m.date.toLocaleDateString('pt-BR'),
+      m.description.replace(/;/g, ','),
+      m.type,
+      m.category,
+      m.dentistName,
+      m.paymentMethod || '---',
+      m.amount.toFixed(2),
+      m.status === 'PAID' ? 'Pago' : 'Pendente'
+    ]);
+
+    const csvContent = [
+      headers.join(';'),
+      ...rows.map(row => row.join(';'))
+    ].join('\n');
+
+    const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `Relatorio_Financeiro_${currentOrg.name.replace(/\s+/g, '_')}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const exportReportPDF = () => {
+    if (!currentOrg) return;
+    const doc = new jsPDF();
+    const sDate = reportStartDate ? new Date(`${reportStartDate}T00:00:00`).toLocaleDateString('pt-BR') : 'Início';
+    const eDate = reportEndDate ? new Date(`${reportEndDate}T23:59:59`).toLocaleDateString('pt-BR') : 'Fim';
+
+    if (reportType === 'DRE') {
+      // Header
+      doc.setFillColor(15, 23, 42); // slate-900 color
+      doc.rect(0, 0, 210, 40, 'F');
+      
+      doc.setFontSize(18);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(255, 255, 255);
+      doc.text(currentOrg.name, 14, 18);
+      
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(200, 220, 255);
+      doc.text("DRE - Demonstrativo do Resultado do Exercício", 14, 28);
+      
+      doc.setFontSize(10);
+      doc.setTextColor(255, 255, 255);
+      doc.text(`Período: ${sDate} - ${eDate}`, 195, 28, { align: 'right' });
+
+      // Summary metrics
+      doc.setTextColor(50, 50, 50);
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.text("Resumo Executivo do DRE", 14, 52);
+      
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Faturamento Bruto: R$ ${dreData.grossRevenue.toFixed(2)}`, 14, 60);
+      doc.text(`Receita Líquida: R$ ${dreData.netRevenue.toFixed(2)}`, 14, 66);
+      doc.text(`Despesas Operacionais: R$ ${dreData.totalExpenses.toFixed(2)}`, 14, 72);
+      doc.text(`Resultado Líquido: R$ ${dreData.netOperatingProfit.toFixed(2)} (${dreData.profitMargin.toFixed(1)}%)`, 110, 60);
+      doc.text(`Saldo de Caixa Realizado: R$ ${dreData.cashBalance.toFixed(2)}`, 110, 66);
+      doc.text(`A Receber do Período: R$ ${dreData.pendingToReceive.toFixed(2)}`, 110, 72);
+
+      const dreTableRows = [
+        ['1. RECEITA OPERACIONAL BRUTA', `R$ ${dreData.grossRevenue.toFixed(2)}`, '100.0%'],
+        ['   • Serviços Laboratoriais (OSs)', `R$ ${dreData.labProductionGross.toFixed(2)}`, dreData.grossRevenue > 0 ? `${((dreData.labProductionGross / dreData.grossRevenue) * 100).toFixed(1)}%` : '0%'],
+        ['   • Loja Online / Pedidos', `R$ ${dreData.storeGross.toFixed(2)}`, dreData.grossRevenue > 0 ? `${((dreData.storeGross / dreData.grossRevenue) * 100).toFixed(1)}%` : '0%'],
+        ['   • Débitos Manuais', `R$ ${dreData.manualDebits.toFixed(2)}`, dreData.grossRevenue > 0 ? `${((dreData.manualDebits / dreData.grossRevenue) * 100).toFixed(1)}%` : '0%'],
+        ['2. DEDUÇÕES DA RECEITA', `R$ ${dreData.discountsGiven.toFixed(2)}`, dreData.grossRevenue > 0 ? `${((dreData.discountsGiven / dreData.grossRevenue) * 100).toFixed(1)}%` : '0%'],
+        ['3. RECEITA OPERACIONAL LÍQUIDA', `R$ ${dreData.netRevenue.toFixed(2)}`, '100.0%'],
+        ['4. CUSTOS E DESPESAS OPERACIONAIS', `R$ ${dreData.totalExpenses.toFixed(2)}`, dreData.netRevenue > 0 ? `${((dreData.totalExpenses / dreData.netRevenue) * 100).toFixed(1)}%` : '0%'],
+        ...Object.entries(dreData.expensesByCategory).map(([cat, val]) => [
+          `   • Despesa: ${cat}`,
+          `R$ ${val.toFixed(2)}`,
+          dreData.netRevenue > 0 ? `${((val / dreData.netRevenue) * 100).toFixed(1)}%` : '0%'
+        ]),
+        ['5. RESULTADO LÍQUIDO DO EXERCÍCIO', `R$ ${dreData.netOperatingProfit.toFixed(2)}`, `${dreData.profitMargin.toFixed(1)}%`]
+      ];
+
+      autoTable(doc, {
+        startY: 80,
+        head: [['Estrutura do DRE', 'Valor (R$)', '% Receita']],
+        body: dreTableRows,
+        theme: 'striped',
+        headStyles: { fillColor: [15, 23, 42] },
+        styles: { fontSize: 8 }
+      });
+
+      doc.save(`DRE_Demonstrativo_${currentOrg.name.replace(/\s+/g, '_')}.pdf`);
+      return;
+    }
+
+    if (reportType === 'DEBITOS') {
+      // Header
+      doc.setFillColor(15, 23, 42); // slate-900 color
+      doc.rect(0, 0, 210, 40, 'F');
+      
+      doc.setFontSize(18);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(255, 255, 255);
+      doc.text(currentOrg.name, 14, 18);
+      
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(200, 220, 255);
+      doc.text("Relatório de Débitos de Clientes", 14, 28);
+      
+      doc.setFontSize(10);
+      doc.setTextColor(255, 255, 255);
+      doc.text(`Período: ${sDate} - ${eDate}`, 195, 28, { align: 'right' });
+      
+      // Summary metrics section
+      doc.setTextColor(50, 50, 50);
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.text("Resumo de Débitos de Clientes", 14, 52);
+      
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Total de Clientes em Débito: ${reportDebtStats.totalClientsWithDebt}`, 14, 60);
+      doc.text(`Saldo Total Devedor: R$ ${reportDebtStats.totalDebtAmount.toFixed(2)}`, 14, 66);
+      doc.text(`Total de OSs Pendentes: ${reportDebtStats.totalPendingJobs}`, 14, 72);
+      
+      doc.text(`Média por Devedor: R$ ${reportDebtStats.avgDebt.toFixed(2)}`, 110, 60);
+      const maxClientStr = reportDebtStats.maxDebtClient ? `${reportDebtStats.maxDebtClient.name} (R$ ${reportDebtStats.maxDebtClient.balanceUpToEndDate.toFixed(2)})` : '---';
+      doc.text(`Maior Débito Individual: ${maxClientStr}`, 110, 66);
+      
+      // Table of client debts
+      const tableData = reportDebts.map(d => [
+        d.name,
+        d.clinicName || d.phone || '---',
+        `${d.pendingJobsCount} OS(s)`,
+        `R$ ${d.periodDebits.toFixed(2)}`,
+        `R$ ${d.periodCredits.toFixed(2)}`,
+        `R$ ${d.balanceUpToEndDate.toFixed(2)}`
+      ]);
+      
+      autoTable(doc, {
+        startY: 80,
+        head: [['Cliente / Dentista', 'Clínica / Contato', 'OSs Pendentes', 'Débito Período', 'Pagamentos Período', 'Saldo Devedor Total']],
+        body: tableData,
+        theme: 'striped',
+        headStyles: { fillColor: [15, 23, 42] },
+        styles: { fontSize: 8 },
+        columnStyles: {
+          5: { fontStyle: 'bold', textColor: [220, 38, 38] }
+        }
+      });
+      
+      doc.save(`Relatorio_Debitos_Clientes_${currentOrg.name.replace(/\s+/g, '_')}.pdf`);
+      return;
+    }
+
+    // Header
+    doc.setFillColor(15, 23, 42); // slate-900 color
+    doc.rect(0, 0, 210, 40, 'F');
+    
+    doc.setFontSize(18);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(255, 255, 255);
+    doc.text(currentOrg.name, 14, 18);
+    
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(200, 220, 255);
+    doc.text("Relatório de Movimentações Financeiras", 14, 28);
+    
+    doc.setFontSize(10);
+    doc.setTextColor(255, 255, 255);
+    doc.text(`Período: ${sDate} - ${eDate}`, 195, 28, { align: 'right' });
+    
+    // Summary metrics section
+    doc.setTextColor(50, 50, 50);
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text("Resumo Financeiro do Período", 14, 52);
+    
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Total Faturado (Débitos): R$ ${reportStats.totalDebitsBilled.toFixed(2)}`, 14, 60);
+    doc.text(`Receita Realizada (Entradas): R$ ${reportStats.totalInflows.toFixed(2)}`, 14, 66);
+    doc.text(`Despesas Realizadas (Saídas): R$ ${reportStats.totalOutflows.toFixed(2)}`, 14, 72);
+    
+    doc.text(`Saldo Líquido Caixa: R$ ${reportStats.netBalance.toFixed(2)}`, 110, 60);
+    doc.text(`Recebimentos Pendentes: R$ ${reportStats.pendingInflows.toFixed(2)}`, 110, 66);
+    doc.text(`Qtd. de Movimentações: ${reportMovements.length}`, 110, 72);
+    
+    // Table of movements
+    const tableData = reportMovements.map(m => [
+      m.date.toLocaleDateString('pt-BR'),
+      m.description,
+      m.type === 'RECEBIMENTO' ? 'Recebimento' : m.type === 'DEBITO' ? 'Débito' : 'Despesa',
+      m.category,
+      m.dentistName || '---',
+      `R$ ${m.amount.toFixed(2)}`,
+      m.status === 'PAID' ? 'Pago' : 'Pendente'
+    ]);
+    
+    autoTable(doc, {
+      startY: 80,
+      head: [['Data', 'Descrição', 'Tipo', 'Categoria/Origem', 'Cliente', 'Valor', 'Status']],
+      body: tableData,
+      theme: 'striped',
+      headStyles: { fillColor: [15, 23, 42] },
+      styles: { fontSize: 8 },
+      columnStyles: {
+        5: { fontStyle: 'bold' }
+      }
+    });
+    
+    doc.save(`Relatorio_Financeiro_${currentOrg.name.replace(/\s+/g, '_')}.pdf`);
+  };
+
+  const generateFreeLabReportPDF = () => {
+    if (!currentOrg) return;
+    const doc = new jsPDF();
+    const sDate = filterStartDate ? new Date(`${filterStartDate}T00:00:00`) : new Date(0);
+    const eDate = filterEndDate ? new Date(`${filterEndDate}T23:59:59`) : new Date();
+
+    const periodStr = `${sDate.toLocaleDateString('pt-BR')} - ${eDate.toLocaleDateString('pt-BR')}`;
+    
+    // Header
+    doc.setFillColor(15, 23, 42); // slate-900 color
+    doc.rect(0, 0, 210, 40, 'F');
+    
+    doc.setFontSize(18);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(255, 255, 255);
+    doc.text(currentOrg.name, 14, 18);
+    
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(200, 220, 255);
+    doc.text("Relatório de Vendas - Loja Online", 14, 28);
+    
+    doc.setFontSize(10);
+    doc.setTextColor(255, 255, 255);
+    doc.text(`Período: ${periodStr}`, 195, 28, { align: 'right' });
+    
+    // Body / Metrics
+    const periodJobs = jobs.filter(j => {
+      if (j.origin !== 'ONLINE_ORDER' && j.origin !== 'ONLINE_REQUISITION') return false;
+      const d = new Date(j.createdAt);
+      return d >= sDate && d <= eDate;
+    });
+    
+    const paidSum = periodJobs.filter(j => j.paymentStatus === 'PAID' || j.paymentStatus === 'VOUCHER').reduce((acc, c) => acc + c.totalValue, 0);
+    const pendingSum = periodJobs.filter(j => j.paymentStatus !== 'PAID' && j.paymentStatus !== 'VOUCHER').reduce((acc, c) => acc + c.totalValue, 0);
+    
+    doc.setTextColor(50, 50, 50);
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text("Resumo Financeiro", 14, 52);
+    
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Total Vendas Pagas: R$ ${paidSum.toFixed(2)}`, 14, 60);
+    doc.text(`Total Vendas Pendentes: R$ ${pendingSum.toFixed(2)}`, 14, 66);
+    doc.text(`Quantidade de Pedidos: ${periodJobs.length}`, 14, 72);
+    
+    // Table of sales
+    const tableData = periodJobs.map(j => [
+      j.osNumber || j.id.substring(0, 6),
+      j.dentistName || '---',
+      j.patientName || '---',
+      new Date(j.createdAt).toLocaleDateString('pt-BR'),
+      `R$ ${(j.totalValue || 0).toFixed(2)}`,
+      (j.paymentStatus === 'PAID' || j.paymentStatus === 'VOUCHER') ? 'Pago' : 'Pendente'
+    ]);
+    
+    autoTable(doc, {
+      startY: 80,
+      head: [['Cód / OS', 'Dentista', 'Paciente', 'Data', 'Valor', 'Pagamento']],
+      body: tableData,
+      theme: 'striped',
+      headStyles: { fillColor: [15, 23, 42] },
+      styles: { fontSize: 9 }
+    });
+    
+    doc.save(`Relatorio_Vendas_Loja_${currentOrg.name.replace(/\s+/g, '_')}.pdf`);
+  };
+
+  // Manual Payment Form
+  const [showPaymentForm, setShowPaymentForm] = useState(false);
+  const [paymentAmount, setPaymentAmount] = useState<number>(0);
+  const [paymentInterest, setPaymentInterest] = useState<number>(0);
+  const [paymentFees, setPaymentFees] = useState<number>(0);
+  const [paymentDiscount, setPaymentDiscount] = useState<number>(0);
+  const [paymentMethod, setPaymentMethod] = useState<DentistPayment['paymentMethod']>('PIX');
+  const [paymentCardMachineId, setPaymentCardMachineId] = useState<string>('');
+  const [paymentBankAccountId, setPaymentBankAccountId] = useState<string>('');
+  const [paymentType, setPaymentType] = useState<DentistPayment['type']>('PAYMENT');
+  const [paymentNotes, setPaymentNotes] = useState('');
+
+  // Cheque Fields
+  const [paymentCheckBank, setPaymentCheckBank] = useState<string>('');
+  const [paymentCheckAgency, setPaymentCheckAgency] = useState<string>('');
+  const [paymentCheckAccount, setPaymentCheckAccount] = useState<string>('');
+  const [paymentCheckName, setPaymentCheckName] = useState<string>('');
+  const [paymentCheckGoodForDate, setPaymentCheckGoodForDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [paymentCheckNumber, setPaymentCheckNumber] = useState<string>('');
+
+  // Credit Card Fields
+  const [paymentCardInstallments, setPaymentCardInstallments] = useState<number>(1);
+  const [paymentCardAuthorizationCode, setPaymentCardAuthorizationCode] = useState<string>('');
+
+  const [showBoletoModal, setShowBoletoModal] = useState(false);
+  const [customBoletoAmount, setCustomBoletoAmount] = useState<number>(0);
+  const [customBoletoDueDate, setCustomBoletoDueDate] = useState<string>(() => {
+      const d = new Date();
+      d.setDate(d.getDate() + 5);
+      return d.toISOString().split('T')[0];
+  });
+
+  // Attachment upload states
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
+  const [paymentAttachmentUrl, setPaymentAttachmentUrl] = useState('');
+  const [paymentAttachmentName, setPaymentAttachmentName] = useState('');
+
+  // Selected payment detail state
+  const [selectedPaymentForDetail, setSelectedPaymentForDetail] = useState<DentistPayment | null>(null);
+  const [isEditingDetailPayment, setIsEditingDetailPayment] = useState(false);
+
+  // States when editing detailed payment
+  const [editDetailAmount, setEditDetailAmount] = useState<number>(0);
+  const [editDetailInterest, setEditDetailInterest] = useState<number>(0);
+  const [editDetailFees, setEditDetailFees] = useState<number>(0);
+  const [editDetailDiscount, setEditDetailDiscount] = useState<number>(0);
+  const [editDetailMethod, setEditDetailMethod] = useState<DentistPayment['paymentMethod']>('PIX');
+  const [editDetailCardMachineId, setEditDetailCardMachineId] = useState<string>('');
+  const [editDetailBankAccountId, setEditDetailBankAccountId] = useState<string>('');
+  const [editDetailDate, setEditDetailDate] = useState<string>('');
+  const [editDetailNotes, setEditDetailNotes] = useState('');
+  const [editDetailAttachmentUrl, setEditDetailAttachmentUrl] = useState('');
+  const [editDetailAttachmentName, setEditDetailAttachmentName] = useState('');
+  const [uploadingEditAttachment, setUploadingEditAttachment] = useState(false);
+
+  // Edit Detail Cheque & Credit Card Fields
+  const [editDetailCheckBank, setEditDetailCheckBank] = useState<string>('');
+  const [editDetailCheckAgency, setEditDetailCheckAgency] = useState<string>('');
+  const [editDetailCheckAccount, setEditDetailCheckAccount] = useState<string>('');
+  const [editDetailCheckName, setEditDetailCheckName] = useState<string>('');
+  const [editDetailCheckGoodForDate, setEditDetailCheckGoodForDate] = useState<string>('');
+  const [editDetailCheckNumber, setEditDetailCheckNumber] = useState<string>('');
+  const [editDetailCardInstallments, setEditDetailCardInstallments] = useState<number>(1);
+  const [editDetailCardAuthorizationCode, setEditDetailCardAuthorizationCode] = useState<string>('');
+
+  // Expense Form State
+  const [showExpenseModal, setShowExpenseModal] = useState(false);
+  const [expenseForm, setExpenseForm] = useState({
+      description: '',
+      amount: 0,
+      category: 'SUPPLIES' as TransactionCategory,
+      date: new Date().toISOString().split('T')[0],
+      status: 'PAID' as 'PAID' | 'PENDING'
+  });
+
+  useEffect(() => {
+    if (showStatement && statementClient && currentOrg) {
+        setIsLoadingStatement(true);
+        let isMounted = true;
+        api.getDentistJobs(currentOrg.id, statementClient.id).then(data => {
+            if (isMounted) {
+                setDentistJobs(data);
+                setIsLoadingStatement(false);
+            }
+        }).catch(err => {
+            console.error("Error fetching statement jobs", err);
+            if (isMounted) setIsLoadingStatement(false);
+        });
+        return () => { isMounted = false; };
+    } else {
+        setDentistJobs([]);
+        setIsLoadingStatement(false);
+    }
+  }, [showStatement, statementClient, currentOrg]);
+
+  useEffect(() => {
+    if (currentOrg) {
+      const unsubExp = api.subscribeExpenses(currentOrg.id, setExpenses);
+      return () => { unsubExp(); };
+    }
+  }, [currentOrg]);
+
+  // Chrono History Logic (Synchronized with Dentists.tsx)
+  const chronoHistory = useMemo(() => {
+    if (!statementClient) return { history: [], previousBalance: 0, overallBalance: 0 };
+    
+    const clientEmail = statementClient.email ? statementClient.email.toLowerCase().trim() : '';
+    const clientDoc = (statementClient.cpfCnpj || '').replace(/\D/g, '');
+    
+    const equivalentIds = new Set<string>([statementClient.id]);
+    allUsers.filter(u => u.role === UserRole.CLIENT).forEach(u => {
+        const uEmail = u.email ? u.email.toLowerCase().trim() : '';
+        const uDoc = (u.cpfCnpj || '').replace(/\D/g, '');
+        if ((clientEmail && uEmail === clientEmail) || (clientDoc && uDoc === clientDoc)) {
+            equivalentIds.add(u.id);
+        }
+    });
+    manualDentists.forEach(m => {
+        const mEmail = m.email ? m.email.toLowerCase().trim() : '';
+        const mDoc = (m.cpfCnpj || '').replace(/\D/g, '');
+        if ((clientEmail && mEmail === clientEmail) || (clientDoc && mDoc === clientDoc)) {
+            equivalentIds.add(m.id);
+        }
+    });
+
+    const clientJobs = (dentistJobs && dentistJobs.length > 0 ? dentistJobs : jobs).filter(j => j.dentistId && equivalentIds.has(j.dentistId) && (j.status === JobStatus.COMPLETED || j.status === JobStatus.DELIVERED));
+    const clientPayments = dentistPayments.filter(p => p.dentistId && equivalentIds.has(p.dentistId));
+    
+    const processedPayments: any[] = [];
+    const handledGroups = new Set<string>();
+
+    clientPayments.forEach(p => {
+        if (p.installmentGroup) {
+            if (handledGroups.has(p.installmentGroup)) return;
+            handledGroups.add(p.installmentGroup);
+
+            const groupItems = clientPayments.filter(gp => gp.installmentGroup === p.installmentGroup);
+            const totalGroupAmount = groupItems.reduce((acc, curr) => acc + (Number(curr.amount || 0) + Number(curr.discount || 0)), 0);
+            const firstInst = groupItems.slice().sort((a, b) => new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime())[0];
+            const instCount = p.totalInstallments || groupItems.length;
+
+            const rawNote = (firstInst.notes || '').replace(/^Parcela \(\d+\/\d+\)\s*-?\s*/i, '');
+
+            processedPayments.push({
+                id: firstInst.id,
+                date: firstInst.paymentDate,
+                type: 'PAYMENT' as const,
+                description: `Pagamento: Cartão Crédito ${instCount}x${rawNote ? ` - ${rawNote}` : ''}`,
+                amount: totalGroupAmount,
+                payment: firstInst
+            });
+        } else {
+            processedPayments.push({
+                id: p.id,
+                date: p.paymentDate,
+                type: (p.type === 'DISCOUNT' || p.type === 'MANUAL_CREDIT' ? 'CREDIT' : p.type === 'MANUAL_DEBIT' ? 'DEBIT' : 'PAYMENT') as 'CREDIT' | 'PAYMENT' | 'DEBIT',
+                description: p.type === 'DISCOUNT' ? `Desconto: ${p.notes || ''}` : 
+                             p.type === 'MANUAL_DEBIT' ? `Débito Manual${p.notes ? ': ' + p.notes : ''}` : 
+                             p.type === 'MANUAL_CREDIT' ? `Crédito Manual${p.notes ? ': ' + p.notes : ''}` : 
+                             `Pagamento: ${translatePaymentMethod(p.paymentMethod)}${p.cardInstallments && p.cardInstallments > 1 ? ` ${p.cardInstallments}x` : ''} ${p.notes ? `- ${p.notes}` : ''}`,
+                amount: p.type === 'DISCOUNT' ? Number(p.amount || 0) : 
+                        (p.type === 'MANUAL_DEBIT' || p.type === 'MANUAL_CREDIT') ? Number(p.amount || 0) : 
+                        (Number(p.amount || 0) + Number(p.discount || 0)),
+                payment: p
+            });
+        }
+    });
+
+    const history = [
+        ...clientJobs.map(j => ({
+            id: j.id,
+            date: j.createdAt,
+            type: 'DEBIT' as const,
+            description: `OS #${j.osNumber || j.id.substring(0,6)} - Paciente: ${j.patientName}`,
+            amount: j.totalValue || 0,
+            job: j
+        })),
+        ...processedPayments
+    ];
+    
+    const sorted = history.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    
     const sDate = filterStartDate ? new Date(`${filterStartDate}T00:00:00`) : new Date(0);
     const eDate = filterEndDate ? new Date(`${filterEndDate}T23:59:59`) : new Date(8640000000000000);
 
     let runningBalance = 0;
     let previousBalance = 0;
-
+    
     const historyWithBalance = sorted.map(item => {
-      if (item.type === 'DEBIT') runningBalance -= item.amount;
-      else runningBalance += item.amount;
-
-      const isBefore = new Date(item.date) < sDate;
-      if (isBefore) previousBalance = runningBalance;
-
-      return { ...item, balanceAfter: runningBalance };
+        if (item.type === 'DEBIT') runningBalance -= item.amount;
+        else if (item.payment?.paymentMethod !== 'CLIENT_CREDIT') runningBalance += item.amount;
+        
+        const isBefore = new Date(item.date) < sDate;
+        if (isBefore) previousBalance = runningBalance;
+        
+        return { ...item, balanceAfter: runningBalance };
     });
 
-    const filteredHistory = historyWithBalance.filter(item => {
-      const d = new Date(item.date);
+        const overallBalance = runningBalance;
+
+        const filteredHistory = historyWithBalance.filter(item => {
+            const d = new Date(item.date);
+            return d >= sDate && d <= eDate;
+        });
+
+        return { history: filteredHistory, previousBalance, overallBalance };
+    }, [statementClient, dentistJobs, dentistPayments, jobs, allUsers, manualDentists, filterStartDate, filterEndDate]);
+
+  const handleAddManualEntry = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!statementClient || !currentOrg) return;
+
+    const amount = parseBrazilianCurrency(manualEntryAmount);
+    if (isNaN(amount) || amount <= 0) {
+        alert("Digite um valor válido.");
+        return;
+    }
+
+    setIsAddingManualEntry(true);
+    try {
+        await addDentistPayment({
+            dentistId: statementClient.id,
+            dentistName: statementClient.name,
+            amount: amount,
+            paymentMethod: 'CASH',
+            paymentDate: new Date(),
+            type: manualEntryType === 'MANUAL_DEBIT' ? 'MANUAL_DEBIT' : 'MANUAL_CREDIT',
+            notes: manualEntryNotes || (manualEntryType === 'MANUAL_DEBIT' ? 'Ajuste a Débito' : 'Ajuste a Crédito')
+        } as any);
+        
+        setShowManualEntryModal(false);
+        setManualEntryAmount('');
+        setManualEntryNotes('');
+        alert('Lançamento manual registrado com sucesso!');
+    } catch (error) {
+        console.error(error);
+        alert('Erro ao registrar lançamento manual.');
+    } finally {
+        setIsAddingManualEntry(false);
+    }
+  };
+
+  const generateStatementPDF = async () => {
+    if (!statementClient || !currentOrg) return;
+
+    const doc = new jsPDF();
+    const sDate = filterStartDate ? new Date(`${filterStartDate}T00:00:00`) : new Date();
+    const eDate = filterEndDate ? new Date(`${filterEndDate}T23:59:59`) : new Date();
+
+    const periodStr = `${sDate.toLocaleDateString('pt-BR')} - ${eDate.toLocaleDateString('pt-BR')}`;
+    const startDateStr = sDate.toLocaleDateString('pt-BR');
+    const endDateStr = eDate.toLocaleDateString('pt-BR');
+
+    // Header Background / Setup (Optional light background for header box)
+    doc.setFillColor(255, 255, 255);
+    doc.rect(0, 0, 210, 35, 'F'); 
+
+    // Logo
+    if (currentOrg?.logoUrl) {
+        try {
+            const img = new Image();
+            img.crossOrigin = 'Anonymous';
+            img.src = currentOrg.logoUrl;
+            await new Promise((resolve) => {
+                img.onload = resolve;
+                img.onerror = resolve; 
+            });
+            
+            if (img.width > 0) {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                    ctx.drawImage(img, 0, 0);
+                    const dataURL = canvas.toDataURL('image/png');
+                    const imgRatio = img.height / img.width;
+                    let finalWidth = 40;
+                    let finalHeight = 40 * imgRatio;
+                    if (finalHeight > 25) {
+                        finalHeight = 25;
+                        finalWidth = 25 / imgRatio;
+                    }
+                    doc.addImage(dataURL, 'PNG', 14, 5, finalWidth, finalHeight);
+                }
+            }
+        } catch (e) {
+            console.error("Erro renderizando logo", e);
+        }
+    }
+
+    // Extrato Title
+    doc.setFontSize(22);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(0, 0, 0);
+    doc.text("Extrato", 195, 20, { align: 'right' });
+    
+    doc.setFontSize(9);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`${startDateStr} - ${endDateStr}`, 195, 26, { align: 'right' });
+
+    doc.setDrawColor(220, 220, 220);
+    doc.line(14, 35, 195, 35);
+
+    // Client Info
+    doc.setFontSize(9);
+    doc.setTextColor(0, 0, 0);
+    doc.setFont("helvetica", "bold");
+    doc.text("Cliente:", 14, 45);
+    doc.setFont("helvetica", "normal");
+    doc.text(statementClient.name.toUpperCase(), 30, 45);
+
+    doc.setFont("helvetica", "bold");
+    doc.text("Documento:", 14, 52);
+    doc.setFont("helvetica", "normal");
+    doc.text(statementClient.cpfCnpj || '-', 36, 52);
+    
+    doc.setFont("helvetica", "bold");
+    doc.text("Período:", 14, 59);
+    doc.setFont("helvetica", "normal");
+    doc.text(`${startDateStr} - ${endDateStr}`, 30, 59);
+
+    // Address Right Side
+    doc.setFont("helvetica", "bold");
+    doc.text("Endereço:", 120, 45);
+    doc.setFont("helvetica", "normal");
+    
+    let addressStr = '';
+    if (statementClient.address) {
+        addressStr = `${statementClient.address}${statementClient.number ? `, ${statementClient.number}` : ''}${statementClient.complement ? ` - ${statementClient.complement}` : ''}`;
+        if (statementClient.neighborhood) addressStr += `, ${statementClient.neighborhood}`;
+        let secondLine = [];
+        if (statementClient.cep) secondLine.push(statementClient.cep);
+        if (statementClient.city) secondLine.push(`${statementClient.city}${statementClient.state ? `, ${statementClient.state}` : ''}`);
+        if(secondLine.length > 0) addressStr += `\n${secondLine.join(', ')}`;
+    } else {
+        addressStr = statementClient.clinicName || 'Não informado';
+    }
+    
+    const splitAddr = doc.splitTextToSize(addressStr, 60);
+    doc.text(splitAddr, 140, 45);
+
+    doc.line(14, 65, 195, 65);
+
+    // Table
+    const tableBody: any[] = [];
+    tableBody.push([
+        { content: '', styles: { lineWidth: { bottom: 0.1 } as any, lineColor: [220,220,220] } },
+        { content: 'Saldo anterior', styles: { fontStyle: 'normal', lineWidth: { bottom: 0.1 } as any, lineColor: [220,220,220] } },
+        { content: '', styles: { lineWidth: { bottom: 0.1 } as any, lineColor: [220,220,220] } },
+        { content: `R$ ${chronoHistory.previousBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, styles: { halign: 'left', fontStyle: 'normal', lineWidth: { bottom: 0.1 } as any, lineColor: [220,220,220] } }
+    ]);
+
+    chronoHistory.history.forEach((item) => {
+        const isDebit = item.type === 'DEBIT';
+        const amountStr = isDebit ? `R$ -${item.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}` : `R$ ${item.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+        const textColor = isDebit ? [239, 68, 68] : [34, 197, 94]; 
+        
+        const hasItems = 'job' in item && item.job && item.job.items && item.job.items.length > 0;
+        const hasProducts = 'job' in item && item.job && item.job.products && item.job.products.length > 0;
+        const hasSubDetails = hasItems || hasProducts;
+        
+        let description = '';
+        if ('job' in item) {
+            const dentistName = (statementClient.name && statementClient.name.split(' ')[0]) || 'Dr.';
+            description = `${item.job?.osNumber || '-'} - Dr(a): ${dentistName.toUpperCase()} - Paciente: ${(item.job?.patientName || '').toUpperCase()}`;
+        } else {
+            description = item.description;
+        }
+
+        tableBody.push([
+            { content: new Date(item.date).toLocaleDateString('pt-BR'), styles: { lineWidth: { bottom: hasSubDetails ? 0 : 0.1 } as any, lineColor: [220,220,220] } },
+            { content: description, styles: { lineWidth: { bottom: hasSubDetails ? 0 : 0.1 } as any, lineColor: [220,220,220] } },
+            { content: amountStr, styles: { textColor: textColor, lineWidth: { bottom: hasSubDetails ? 0 : 0.1 } as any, lineColor: [220,220,220] } },
+            { content: `R$ ${item.balanceAfter.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, styles: { halign: 'left', lineWidth: { bottom: hasSubDetails ? 0 : 0.1 } as any, lineColor: [220,220,220] } }
+        ]);
+        
+        const totalSubCount = (hasItems && item.job?.items ? item.job.items.length : 0) + (hasProducts && item.job?.products ? item.job.products.length : 0);
+        let currentIndex = 0;
+
+        if (hasItems && 'job' in item && item.job && item.job.items) {
+            item.job.items.forEach((subItem: any) => {
+                currentIndex++;
+                const isLast = currentIndex === totalSubCount;
+                tableBody.push([
+                    { content: '', styles: { lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220,220,220] } },
+                    { content: `${subItem.quantity}      ${subItem.name.toUpperCase()}`, styles: { textColor: [100,100,100], fontSize: 8, lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220,220,220] } },
+                    { content: `R$ ${(subItem.price * subItem.quantity).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`, styles: { textColor: [100,100,100], fontSize: 8, lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220,220,220] } },
+                    { content: '', styles: { lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220,220,220] } }
+                ]);
+            });
+        }
+
+        if (hasProducts && 'job' in item && item.job && item.job.products) {
+            item.job.products.forEach((prod: any) => {
+                currentIndex++;
+                const isLast = currentIndex === totalSubCount;
+                tableBody.push([
+                    { content: '', styles: { lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220,220,220] } },
+                    { content: `${prod.quantity || 1}      [IMPLANTE/PRODUTO] ${(prod.name || '').toUpperCase()}`, styles: { textColor: [180, 83, 9], fontSize: 8, fontStyle: 'bold', lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220,220,220] } },
+                    { content: `R$ ${((prod.unitPrice || 0) * (prod.quantity || 1)).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`, styles: { textColor: [180, 83, 9], fontSize: 8, fontStyle: 'bold', lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220,220,220] } },
+                    { content: '', styles: { lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220,220,220] } }
+                ]);
+            });
+        }
+    });
+
+    autoTable(doc, {
+        startY: 70,
+        head: [['Data', 'Descrição', 'Valor', 'Saldo']],
+        body: tableBody,
+        theme: 'plain',
+        headStyles: { fontStyle: 'bold', fontSize: 9, fillColor: [255, 255, 255], textColor: [0, 0, 0], lineWidth: { bottom: 0.1 } as any, lineColor: [220,220,220] },
+        styles: { fontSize: 8, cellPadding: { top: 3, bottom: 3, left: 2, right: 2 } },
+        columnStyles: { 0: { cellWidth: 25 }, 2: { halign: 'left', cellWidth: 35 }, 3: { halign: 'left', cellWidth: 35 } }
+    });
+
+    const lastY = (doc as any).lastAutoTable?.finalY || 180;
+    let cY = lastY + 15;
+    
+    // Safety check: A4 page height is 297mm. Summary box takes ~45mm.
+    // If starting cY + 45mm exceeds 275mm, create a clean new page.
+    if (cY + 45 > 275) {
+        doc.addPage();
+        cY = 25;
+    }
+
+    const totalServices = chronoHistory.history.filter(i => i.type === 'DEBIT').reduce((acc, curr) => acc + curr.amount, 0);
+    const totalPayments = chronoHistory.history.filter(i => i.type !== 'DEBIT').reduce((acc, curr) => acc + curr.amount, 0);
+    const currentBalance = chronoHistory.history.length > 0 ? chronoHistory.history[chronoHistory.history.length - 1].balanceAfter : chronoHistory.previousBalance;
+
+    // Draw Summary Box aligned to right side
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    
+    const summaryX = 80;
+    const valX = 195;
+
+    doc.text("Saldo anterior", summaryX, cY);
+    doc.setTextColor(239, 68, 68);
+    doc.text(`R$ ${chronoHistory.previousBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, valX, cY, { align: 'right' });
+    
+    cY += 8;
+    doc.setDrawColor(230, 230, 230);
+    doc.line(summaryX, cY - 4, valX, cY - 4);
+    
+    doc.setTextColor(0, 0, 0);
+    doc.text("Total de serviços", summaryX, cY);
+    doc.setTextColor(239, 68, 68);
+    doc.text(`R$ -${totalServices.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, valX, cY, { align: 'right' });
+
+    cY += 8;
+    doc.line(summaryX, cY - 4, valX, cY - 4);
+
+    doc.setTextColor(0, 0, 0);
+    doc.text("Total de pagamentos", summaryX, cY);
+    doc.setTextColor(34, 197, 94);
+    doc.text(`R$ ${totalPayments.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, valX, cY, { align: 'right' });
+
+    cY += 15;
+    doc.line(summaryX, cY - 10, valX, cY - 10);
+
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(10);
+    doc.text("Saldo atual no período", summaryX, cY);
+    const balanceColor = currentBalance < 0 ? [239, 68, 68] : [34, 197, 94];
+    doc.setTextColor(balanceColor[0], balanceColor[1], balanceColor[2] as number);
+    doc.text(`R$ ${currentBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, valX, cY, { align: 'right' });
+
+    doc.save(`Extrato_${statementClient.name.replace(/\s+/g, '_')}_${startDateStr.replace(/\//g,'-')}_a_${endDateStr.replace(/\//g,'-')}.pdf`);
+  };
+
+  const generateReceiptsPDF = async () => {
+      if (!statementClient || !currentOrg) return;
+
+      const doc = new jsPDF();
+      const sDate = filterStartDate ? new Date(`${filterStartDate}T00:00:00`) : new Date(0);
+      const eDate = filterEndDate ? new Date(`${filterEndDate}T23:59:59`) : new Date(8640000000000000);
+
+      const startDateStr = sDate.toLocaleDateString('pt-BR');
+      const endDateStr = eDate.toLocaleDateString('pt-BR');
+
+      doc.setFillColor(255, 255, 255);
+      doc.rect(0, 0, 210, 35, 'F'); 
+
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(30, 41, 59);
+      doc.setFontSize(16);
+      doc.text("RECIBO DE PAGAMENTOS", 14, 25);
+      
+      doc.setFontSize(10);
+      doc.text("Cliente: ", 14, 45);
+      doc.setFont("helvetica", "normal");
+      doc.text(statementClient.name.toUpperCase(), 30, 45);
+      
+      doc.setFont("helvetica", "bold");
+      doc.text("Documento: ", 14, 52);
+      doc.setFont("helvetica", "normal");
+      doc.text(statementClient.cpfCnpj || '-', 36, 52);
+      
+      doc.setFont("helvetica", "bold");
+      doc.text("Período:", 14, 59);
+      doc.setFont("helvetica", "normal");
+      doc.text(`${startDateStr} - ${endDateStr}`, 30, 59);
+
+      let addressStr = '';
+      if (statementClient.address) {
+          addressStr = `${statementClient.address}${statementClient.number ? `, ${statementClient.number}` : ''}${statementClient.complement ? ` - ${statementClient.complement}` : ''}`;
+          if (statementClient.neighborhood) addressStr += `, ${statementClient.neighborhood}`;
+          let secondLine = [];
+          if (statementClient.cep) secondLine.push(statementClient.cep);
+          if (statementClient.city) secondLine.push(`${statementClient.city}${statementClient.state ? `, ${statementClient.state}` : ''}`);
+          if(secondLine.length > 0) addressStr += `\n${secondLine.join(', ')}`;
+      } else {
+          addressStr = statementClient.clinicName || 'Não informado';
+      }
+
+      doc.setFont("helvetica", "bold");
+      doc.text("Endereço: ", 120, 45);
+      doc.setFont("helvetica", "normal");
+      const splitAddr = doc.splitTextToSize(addressStr, 75);
+      doc.text(splitAddr, 140, 45);
+
+      doc.line(14, 65, 195, 65);
+
+      const filteredPayments = dentistPayments.filter(p => p.dentistId === statementClient.id && new Date(p.paymentDate) >= sDate && new Date(p.paymentDate) <= eDate);
+      
+      const tableBody: any[] = [];
+      let totalPaid = 0;
+
+      filteredPayments.forEach(p => {
+          totalPaid += p.amount;
+          tableBody.push([
+              new Date(p.paymentDate).toLocaleDateString('pt-BR'),
+              p.notes || 'Recebimento de valores',
+              `R$ ${p.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`
+          ]);
+      });
+
+      tableBody.push([
+          { content: 'TOTAL', styles: { fontStyle: 'bold', halign: 'right' } },
+          '',
+          { content: `R$ ${totalPaid.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`, styles: { fontStyle: 'bold' } }
+      ]);
+
+      autoTable(doc, {
+          startY: 70,
+          head: [['Data', 'Observação / Forma de Pagamento', 'Valor']],
+          body: tableBody,
+          theme: 'plain',
+          headStyles: { fontStyle: 'bold', fontSize: 9, fillColor: [255, 255, 255], textColor: [0, 0, 0], lineWidth: { bottom: 0.1 } as any, lineColor: [220,220,220] },
+          styles: { fontSize: 8, cellPadding: { top: 3, bottom: 3, left: 2, right: 2 } },
+          columnStyles: { 0: { cellWidth: 30 }, 2: { cellWidth: 40 } }
+      });
+
+      let finalY = (doc as any).lastAutoTable.finalY + 20;
+      if (finalY + 25 > 275) {
+          doc.addPage();
+          finalY = 30;
+      }
+      doc.setFontSize(9);
+      doc.text("_____________________________________________________", 105, finalY, { align: 'center' });
+      doc.text(currentOrg.name || 'Laboratório', 105, finalY + 5, { align: 'center' });
+      doc.text((currentOrg as any).document || '', 105, finalY + 10, { align: 'center' });
+
+      doc.save(`Recibos_${statementClient.name.replace(/\s+/g, '_')}_${startDateStr.replace(/\//g,'-')}_a_${endDateStr.replace(/\//g,'-')}.pdf`);
+  };
+
+  const handleSavePayment = async () => {
+    if (!statementClient || paymentAmount <= 0) return;
+    setIsSaving(true);
+    try {
+        const netTotal = Math.max(0, paymentAmount + paymentInterest - paymentDiscount - paymentFees);
+        const baseDate = new Date();
+
+        if (paymentMethod === 'CREDIT_CARD' && paymentCardInstallments > 1) {
+            const totalInstallments = paymentCardInstallments;
+            const baseInstVal = Math.floor((netTotal / totalInstallments) * 100) / 100;
+            const remainderCents = Math.round((netTotal - (baseInstVal * totalInstallments)) * 100) / 100;
+            const groupId = `inst_grp_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+
+            for (let i = 1; i <= totalInstallments; i++) {
+                const instDate = new Date(baseDate);
+                instDate.setMonth(instDate.getMonth() + (i - 1));
+                const instAmount = i === 1 ? baseInstVal + remainderCents : baseInstVal;
+                const instNotes = paymentNotes ? `Parcela (${i}/${totalInstallments}) - ${paymentNotes}` : `Parcela (${i}/${totalInstallments})`;
+
+                await addDentistPayment({
+                    dentistId: statementClient.id,
+                    dentistName: statementClient.name,
+                    amount: instAmount,
+                    interest: i === 1 ? paymentInterest : 0,
+                    fees: i === 1 ? paymentFees : 0,
+                    discount: i === 1 ? paymentDiscount : 0,
+                    paymentMethod: paymentMethod,
+                    cardMachineId: paymentCardMachineId || undefined,
+                    bankAccountId: paymentBankAccountId || undefined,
+                    paymentDate: instDate,
+                    type: paymentType,
+                    notes: instNotes,
+                    cardInstallments: totalInstallments,
+                    cardAuthorizationCode: paymentCardAuthorizationCode || undefined,
+                    installmentGroup: groupId,
+                    installmentNumber: i,
+                    totalInstallments: totalInstallments,
+                    attachmentUrl: paymentAttachmentUrl || undefined,
+                    attachmentName: paymentAttachmentName || undefined
+                });
+            }
+        } else {
+            await addDentistPayment({
+                dentistId: statementClient.id,
+                dentistName: statementClient.name,
+                amount: paymentAmount,
+                interest: paymentInterest,
+                fees: paymentFees,
+                discount: paymentDiscount,
+                paymentMethod: paymentMethod,
+                cardMachineId: (paymentMethod === 'CREDIT_CARD' || paymentMethod === 'DEBIT_CARD') ? paymentCardMachineId : undefined,
+                bankAccountId: (paymentMethod === 'BANK_TRANSFER' || paymentMethod === 'CHEQUE') ? paymentBankAccountId : undefined,
+                paymentDate: baseDate,
+                type: paymentType,
+                notes: paymentNotes,
+                attachmentUrl: paymentAttachmentUrl || undefined,
+                attachmentName: paymentAttachmentName || undefined,
+                checkBank: paymentMethod === 'CHEQUE' ? paymentCheckBank : undefined,
+                checkAgency: paymentMethod === 'CHEQUE' ? paymentCheckAgency : undefined,
+                checkAccount: paymentMethod === 'CHEQUE' ? paymentCheckAccount : undefined,
+                checkName: paymentMethod === 'CHEQUE' ? paymentCheckName : undefined,
+                checkGoodForDate: paymentMethod === 'CHEQUE' ? paymentCheckGoodForDate : undefined,
+                checkNumber: paymentMethod === 'CHEQUE' ? paymentCheckNumber : undefined,
+                cardInstallments: paymentMethod === 'CREDIT_CARD' ? paymentCardInstallments : undefined,
+                cardAuthorizationCode: paymentMethod === 'CREDIT_CARD' ? paymentCardAuthorizationCode : undefined
+            });
+        }
+
+        setPaymentAmount(0);
+        setPaymentInterest(0);
+        setPaymentFees(0);
+        setPaymentDiscount(0);
+        setPaymentCardMachineId('');
+        setPaymentBankAccountId('');
+        setPaymentNotes('');
+        setPaymentAttachmentUrl('');
+        setPaymentAttachmentName('');
+        setPaymentCheckBank('');
+        setPaymentCheckAgency('');
+        setPaymentCheckAccount('');
+        setPaymentCheckName('');
+        setPaymentCheckGoodForDate(new Date().toISOString().split('T')[0]);
+        setPaymentCheckNumber('');
+        setPaymentCardInstallments(1);
+        setPaymentCardAuthorizationCode('');
+        setShowPaymentForm(false);
+    } catch (err) {
+        console.error(err);
+        alert("Erro ao salvar pagamento.");
+    } finally {
+        setIsSaving(false);
+    }
+  };
+
+  // --- ANALYTICS CALCULATIONS ---
+  const dentistSummary = useMemo(() => {
+    const map = new Map<string, any>();
+    
+    // Build alias map to unify online users and manual dentists
+    const aliasMap = new Map<string, string>();
+    const emailToId = new Map<string, string>();
+    const docToId = new Map<string, string>();
+
+    manualDentists.forEach(m => {
+        aliasMap.set(m.id, m.id);
+        const email = m.email ? m.email.toLowerCase().trim() : '';
+        if (email) emailToId.set(email, m.id);
+        const doc = (m.cpfCnpj || '').replace(/\D/g, '');
+        if (doc) docToId.set(doc, m.id);
+    });
+
+    allUsers.filter(u => u.role === UserRole.CLIENT).forEach(u => {
+        const email = u.email ? u.email.toLowerCase().trim() : '';
+        const doc = (u.cpfCnpj || '').replace(/\D/g, '');
+        let targetId = u.id;
+        if (email && emailToId.has(email)) {
+            targetId = emailToId.get(email)!;
+        } else if (doc && docToId.has(doc)) {
+            targetId = docToId.get(doc)!;
+        }
+        aliasMap.set(u.id, targetId);
+    });
+
+    const getPrimaryId = (id: string) => aliasMap.get(id) || id;
+
+    const manualEmails = new Set<string>();
+    const manualDocs = new Set<string>();
+
+    const uniqueManual = manualDentists.map(d => {
+        if (d.email) manualEmails.add(d.email.toLowerCase().trim());
+        const cleanDoc = (d.cpfCnpj || '').replace(/\D/g, '');
+        if (cleanDoc) manualDocs.add(cleanDoc);
+        return d;
+    });
+
+    const uniqueOnline = allUsers.filter(u => u.role === UserRole.CLIENT).filter(u => {
+        const userEmail = u.email ? u.email.toLowerCase().trim() : '';
+        const userDoc = (u.cpfCnpj || '').replace(/\D/g, '');
+        const isDuplicateEmail = userEmail && manualEmails.has(userEmail);
+        const isDuplicateDoc = userDoc && manualDocs.has(userDoc);
+        const hasSameId = uniqueManual.some(m => m.id === u.id);
+        return !hasSameId && !isDuplicateEmail && !isDuplicateDoc;
+    });
+
+    const allDents = [...uniqueOnline, ...uniqueManual];
+    
+    allDents.forEach(d => {
+        const primaryId = getPrimaryId(d.id);
+        if (!map.has(primaryId)) {
+            map.set(primaryId, { ...d, id: primaryId, totalPending: 0, history: [], pendingJobs: [] });
+        }
+    });
+
+    jobs.forEach(job => {
+        const primaryId = getPrimaryId(job.dentistId);
+        let entry = map.get(primaryId);
+        if (!entry) {
+            entry = { id: primaryId, name: job.dentistName || 'Cliente', totalPending: 0, history: [], pendingJobs: [] };
+            map.set(primaryId, entry);
+        }
+        
+        if (
+            (job.paymentStatus === 'PENDING' || !job.paymentStatus) && 
+            (job.status === JobStatus.COMPLETED || job.status === JobStatus.DELIVERED) &&
+            !job.batchId && !job.asaasPaymentId
+        ) {
+            entry.totalPending += job.totalValue;
+            entry.pendingJobs.push(job);
+        }
+    });
+
+    // Deduct manual payments/credits and ADD manual debits to totalPending for each dentist
+    dentistPayments.forEach(p => {
+        const primaryId = getPrimaryId(p.dentistId);
+        let entry = map.get(primaryId);
+        if (!entry) {
+            entry = { 
+                id: primaryId, 
+                name: p.dentistName || 'Cliente', 
+                clinicName: '',
+                phone: '',
+                cpfCnpj: '',
+                email: '',
+                totalPending: 0, 
+                history: [], 
+                pendingJobs: [] 
+            };
+            map.set(primaryId, entry);
+        }
+        if (entry) {
+            if (p.type === 'MANUAL_DEBIT') {
+                entry.totalPending += Number(p.amount || 0);
+            } else {
+                const payAmount = p.type === 'DISCOUNT' ? Number(p.amount || 0) : (Number(p.amount || 0) + Number(p.discount || 0));
+                entry.totalPending -= payAmount;
+            }
+        }
+    });
+
+    const pendingList = Array.from(map.values())
+        .filter(d => d.totalPending !== 0 || d.pendingJobs.length > 0);
+
+    return filterAndSortClients(pendingList, searchTerm, (a, b) => b.totalPending - a.totalPending);
+  }, [jobs, allUsers, manualDentists, dentistPayments, searchTerm]);
+
+  const stats = useMemo(() => {
+    const paidFromJobs = jobs.filter(j => j.paymentStatus === 'PAID' || j.paymentStatus === 'VOUCHER').reduce((acc, curr) => acc + curr.totalValue, 0);
+    const paidFromManualPayments = dentistPayments
+        .filter(p => p.type === 'PAYMENT' || !p.type || p.type === 'MANUAL_CREDIT')
+        .reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
+    const paidRevenue = paidFromJobs + paidFromManualPayments;
+
+    const pendingRevenue = dentistSummary.reduce((acc, curr) => acc + Math.max(0, curr.totalPending || 0), 0);
+
+    const inBatchesPending = billingBatches.filter(b => b.status === 'PENDING').reduce((acc, curr) => acc + curr.totalAmount, 0);
+
+    const totalExpenses = expenses.filter(e => e.status === 'PAID').reduce((acc, curr) => acc + curr.amount, 0);
+    
+    return { paidRevenue, pendingRevenue, inBatchesPending, totalExpenses, profit: paidRevenue - totalExpenses };
+  }, [jobs, expenses, billingBatches, dentistPayments, dentistSummary]);
+
+
+
+  const handleWithdrawFunds = async () => {
+      if (!currentOrg?.financialSettings?.balance || currentOrg.financialSettings.balance <= 0) {
+          alert("Você não possui saldo disponível para saque.");
+          return;
+      }
+      if (!window.confirm(`Deseja transferir R$ ${currentOrg.financialSettings.balance.toFixed(2)} para sua conta bancária cadastrada no Asaas?`)) return;
+      
+      setIsWithdrawing(true);
+      try {
+          await api.apiRequestWithdrawal(currentOrg.id, currentOrg.financialSettings.balance);
+          alert("Solicitação de transferência enviada com sucesso!");
+      } catch (err: any) {
+          alert("Erro ao solicitar saque: " + err.message);
+      } finally { setIsWithdrawing(false); }
+  };
+
+  const handleAddExpense = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!currentOrg) return;
+      try {
+          await api.apiAddExpense(currentOrg.id, {
+              ...expenseForm,
+              id: `exp_${Date.now()}`,
+              organizationId: currentOrg.id,
+              date: new Date(expenseForm.date),
+              createdAt: new Date()
+          } as any);
+          setShowExpenseModal(false);
+          setExpenseForm({ description: '', amount: 0, category: 'SUPPLIES', date: new Date().toISOString().split('T')[0], status: 'PAID' });
+      } catch (e) { alert("Erro ao salvar despesa."); }
+  };
+
+  const copyBoletoLink = (url: string, id: string) => {
+      navigator.clipboard.writeText(url);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  if (isFreeLab) {
+    const sDate = filterStartDate ? new Date(`${filterStartDate}T00:00:00`) : new Date(0);
+    const eDate = filterEndDate ? new Date(`${filterEndDate}T23:59:59`) : new Date();
+
+    const periodJobs = jobs.filter(j => {
+      if (j.origin !== 'ONLINE_ORDER' && j.origin !== 'ONLINE_REQUISITION') return false;
+      const d = new Date(j.createdAt);
       return d >= sDate && d <= eDate;
     });
 
-    return { history: filteredHistory, previousBalance, overallBalance: runningBalance };
-  }, [selectedClient, jobs, dentistPayments, filterStartDate, filterEndDate]);
+    const paidSum = periodJobs.filter(j => j.paymentStatus === 'PAID' || j.paymentStatus === 'VOUCHER').reduce((acc, c) => acc + c.totalValue, 0);
+    const pendingSum = periodJobs.filter(j => j.paymentStatus !== 'PAID' && j.paymentStatus !== 'VOUCHER').reduce((acc, c) => acc + c.totalValue, 0);
 
-  const handleAddPayment = async () => {
-    if (!selectedClient) return;
-    const amt = parseBrazilianCurrency(manualAmount);
-    if (amt <= 0) {
-      alert('Digite um valor válido.');
-      return;
-    }
-
-    await addDentistPayment({
-      dentistId: selectedClient.id,
-      dentistName: selectedClient.name,
-      amount: amt,
-      paymentMethod: 'PIX',
-      paymentDate: new Date(),
-      type: manualEntryType,
-      notes: manualNotes || 'Lançamento Financeiro'
-    });
-
-    setShowManualModal(false);
-    setManualAmount('');
-    setManualNotes('');
-  };
-
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-black text-slate-800 tracking-tight">Gestão Financeira & Extratos</h1>
-          <p className="text-xs text-slate-500 font-bold">Acompanhe faturamento, recebimentos e extratos dos clientes</p>
+    return (
+      <div className="space-y-6 pb-20 animate-in fade-in duration-500">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <h1 className="text-2xl font-black text-slate-900 flex items-center gap-2">
+              <Wallet className="text-blue-600" /> Extrato de Vendas - Loja Online
+            </h1>
+            <p className="text-slate-500 font-medium">Histórico e faturamento dos trabalhos vendidos na sua loja online.</p>
+          </div>
+          <button 
+            onClick={generateFreeLabReportPDF}
+            className="px-5 py-2.5 bg-blue-600 text-white font-black text-sm rounded-xl shadow-md hover:bg-blue-500 transition-all flex items-center gap-2"
+          >
+            <Download size={16} /> GERAR RELATÓRIO PDF
+          </button>
         </div>
-      </div>
 
-      {/* Client Selection */}
-      <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-4">
-        <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">Selecionar Cliente para Extrato</h3>
-        <div className="relative">
-          <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            placeholder="Buscar cliente por nome..."
-            className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-700 outline-none"
-          />
+        {/* STATS */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm">
+            <p className="text-xs font-bold text-slate-400 uppercase mb-1">Receita Realizada (Paga)</p>
+            <h3 className="text-2xl font-black text-green-600">R$ {paidSum.toFixed(2)}</h3>
+          </div>
+          <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm">
+            <p className="text-xs font-bold text-slate-400 uppercase mb-1">Receita Pendente</p>
+            <h3 className="text-2xl font-black text-orange-600">R$ {pendingSum.toFixed(2)}</h3>
+          </div>
+          <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm">
+            <p className="text-xs font-bold text-slate-400 uppercase mb-1">Total de Pedidos no Período</p>
+            <h3 className="text-2xl font-black text-blue-600">{periodJobs.length}</h3>
+          </div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-          {clients.slice(0, 6).map(client => (
-            <div
-              key={client.id}
-              onClick={() => { setSelectedClient(client); setShowStatementModal(true); }}
-              className="p-4 bg-slate-50 hover:bg-teal-50 border border-slate-200 hover:border-teal-300 rounded-2xl cursor-pointer transition-all flex items-center justify-between"
-            >
-              <div>
-                <span className="font-black text-xs text-slate-900 block">{client.name}</span>
-                <span className="text-[10px] text-slate-400 font-bold">{client.clinicName || 'Consultório'}</span>
-              </div>
-              <History size={18} className="text-teal-600" />
+
+        {/* FILTERS */}
+        <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
+          <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+            <Filter size={16} className="text-slate-500" /> Filtrar por Período
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Data Início</label>
+              <input 
+                type="date" 
+                value={filterStartDate} 
+                onChange={(e) => setFilterStartDate(e.target.value)}
+                className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+              />
             </div>
-          ))}
+            <div>
+              <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Data Fim</label>
+              <input 
+                type="date" 
+                value={filterEndDate} 
+                onChange={(e) => setFilterEndDate(e.target.value)}
+                className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+              />
+            </div>
+          </div>
         </div>
-      </div>
 
-      {/* Statement Modal */}
-      {showStatementModal && selectedClient && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-3xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-100 overflow-hidden animate-in zoom-in duration-200">
-            {/* Modal Header */}
-            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-              <div>
-                <h3 className="text-lg font-black text-slate-900">Extrato Financeiro - {selectedClient.name}</h3>
-                <p className="text-xs text-slate-500 font-bold">Lançamentos por data de conclusão do caso</p>
-              </div>
-              <button onClick={() => setShowStatementModal(false)} className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 rounded-xl font-bold text-xs text-slate-700">
-                Fechar
-              </button>
-            </div>
-
-            {/* Filter Date Bar */}
-            <div className="p-4 border-b border-slate-100 bg-white flex flex-col sm:flex-row justify-between items-center gap-3">
-              <div className="flex items-center gap-2">
-                <input
-                  type="date"
-                  value={filterStartDate}
-                  onChange={e => setFilterStartDate(e.target.value)}
-                  className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none"
-                />
-                <span className="text-xs text-slate-400 font-bold">até</span>
-                <input
-                  type="date"
-                  value={filterEndDate}
-                  onChange={e => setFilterEndDate(e.target.value)}
-                  className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none"
-                />
-              </div>
-              <button
-                onClick={() => setShowManualModal(true)}
-                className="px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center gap-1.5"
-              >
-                <Plus size={14} /> Novo Lançamento
-              </button>
-            </div>
-
-            {/* Statement Table */}
-            <div className="flex-1 overflow-y-auto p-6">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-black uppercase text-slate-400 tracking-widest">
-                    <th className="p-3">Data Conclusão/Lançamento</th>
-                    <th className="p-3">Descrição / OS</th>
-                    <th className="p-3 text-right">Valor</th>
-                    <th className="p-3 text-right">Saldo</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-xs font-bold text-slate-700">
-                  <tr className="bg-slate-50/50 font-black">
-                    <td className="p-3 text-slate-400">{filterStartDate}</td>
-                    <td className="p-3 text-slate-500 uppercase tracking-widest">Saldo Anterior Carregado</td>
-                    <td className="p-3 text-right">-</td>
-                    <td className={`p-3 text-right ${chronoHistory.previousBalance < 0 ? 'text-red-500' : 'text-green-600'}`}>
-                      R$ {chronoHistory.previousBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+        {/* TABLE */}
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-left">
+              <thead>
+                <tr className="bg-slate-50 text-slate-400 text-[10px] font-black uppercase border-b border-slate-100">
+                  <th className="px-6 py-4">OS / Pedido</th>
+                  <th className="px-6 py-4">Dentista</th>
+                  <th className="px-6 py-4">Paciente</th>
+                  <th className="px-6 py-4">Data Venda</th>
+                  <th className="px-6 py-4">Valor</th>
+                  <th className="px-6 py-4">Status OS</th>
+                  <th className="px-6 py-4">Pagamento</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-sm font-medium text-slate-700">
+                {periodJobs.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="text-center py-8 text-slate-400">
+                      Nenhum trabalho vendido no período selecionado.
                     </td>
                   </tr>
-                  {chronoHistory.history.length === 0 ? (
-                    <tr>
-                      <td colSpan={4} className="p-8 text-center text-slate-400 italic">
-                        Nenhum trabalho concluído ou lançamento neste período.
+                ) : (
+                  periodJobs.map((job) => (
+                    <tr key={job.id} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="px-6 py-4 font-bold text-slate-900">#{job.osNumber || job.id.substring(0, 6)}</td>
+                      <td className="px-6 py-4">{job.dentistName}</td>
+                      <td className="px-6 py-4">{job.patientName}</td>
+                      <td className="px-6 py-4 text-slate-500">{new Date(job.createdAt).toLocaleDateString('pt-BR')}</td>
+                      <td className="px-6 py-4 text-slate-900">R$ {(job.totalValue || 0).toFixed(2)}</td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-black uppercase ${
+                          job.status === 'COMPLETED' || job.status === 'DELIVERED' 
+                            ? 'bg-green-100 text-green-700' 
+                            : 'bg-blue-100 text-blue-700'
+                        }`}>
+                          {job.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-black uppercase ${
+                          (job.paymentStatus === 'PAID' || job.paymentStatus === 'VOUCHER') 
+                            ? 'bg-green-100 text-green-700' 
+                            : 'bg-yellow-100 text-yellow-700'
+                        }`}>
+                          {(job.paymentStatus === 'PAID' || job.paymentStatus === 'VOUCHER') ? 'Pago' : 'Pendente'}
+                        </span>
                       </td>
                     </tr>
-                  ) : (
-                    chronoHistory.history.map((item, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                        <td className="p-3 text-slate-500">
-                          {new Date(item.date).toLocaleDateString('pt-BR')}
-                        </td>
-                        <td className="p-3 font-black text-slate-800">
-                          {item.description}
-                        </td>
-                        <td className={`p-3 text-right font-black ${item.type === 'DEBIT' ? 'text-red-600' : 'text-green-600'}`}>
-                          {item.type === 'DEBIT' ? '-' : '+'} R$ {item.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                        </td>
-                        <td className={`p-3 text-right font-black ${item.balanceAfter < 0 ? 'text-red-500' : 'text-green-600'}`}>
-                          R$ {item.balanceAfter.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6 pb-20 animate-in fade-in duration-500">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-black text-slate-900 flex items-center gap-2"><Wallet className="text-blue-600" /> {t('finance.title', 'Financeiro do Laboratório')}</h1>
+          <p className="text-slate-500 font-medium">{t('finance.subtitle', 'Gestão de faturamento acumulado e fluxo de caixa.')}</p>
+        </div>
+      </div>
+
+      {/* ASAAS WALLET QUICK INFO (Sempre Visível) */}
+      {currentOrg?.financialSettings?.asaasWalletId && (
+          <div className="bg-slate-900 rounded-3xl p-4 sm:p-6 text-white shadow-xl flex flex-col md:flex-row justify-between items-center gap-4 sm:p-8 relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-4 sm:p-8 opacity-10 pointer-events-none"><ShieldCheck size={120} /></div>
+              <div className="flex-1 text-center md:text-left relative z-10">
+                  <div className="flex items-center justify-center md:justify-start gap-2 text-blue-400 font-black text-[10px] uppercase tracking-widest mb-2">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div> Conta Digital Ativa (Split ProTrack)
+                  </div>
+                  <h2 className="text-sm font-bold text-slate-400 uppercase">{t('finance.summary.netBalance', 'Saldo Disponível para Saque')}</h2>
+                  <p className="text-4xl font-black text-white mt-1">R$ {(currentOrg.financialSettings.balance || 0).toFixed(2)}</p>
+                  <p className="text-xs text-slate-400 mt-2 font-medium flex items-center justify-center md:justify-start gap-2">
+                      <Clock size={12} /> {t('finance.summary.overdue', 'Lançamentos a liberar')}: <strong>R$ {(currentOrg.financialSettings.pendingBalance || 0).toFixed(2)}</strong>
+                  </p>
+              </div>
+              <div className="flex flex-col gap-2 w-full md:w-auto relative z-10">
+                  <button 
+                    onClick={handleWithdrawFunds}
+                    disabled={isWithdrawing || !currentOrg.financialSettings.balance}
+                    className="px-8 py-3 bg-blue-600 text-white font-black rounded-2xl shadow-lg shadow-blue-900/40 hover:bg-blue-500 transition-all flex items-center justify-center gap-2 disabled:opacity-50 active:scale-95"
+                  >
+                      {isWithdrawing ? <Loader2 className="animate-spin" size={20}/> : <><ArrowUpCircle size={20}/> SOLICITAR SAQUE</>}
+                  </button>
+                  <a href="https://www.asaas.com" target="_blank" rel="noreferrer" className="text-center text-[10px] font-bold text-slate-400 hover:text-white flex items-center justify-center gap-1 transition-colors">
+                      Gerenciar via Painel Asaas <ExternalLink size={10}/>
+                  </a>
+              </div>
+          </div>
       )}
 
-      {/* Manual Entry Modal */}
-      {showManualModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-3xl p-6 max-w-sm w-full space-y-4 shadow-2xl border border-slate-100">
-            <h3 className="text-base font-black text-slate-900">Novo Lançamento Financeiro</h3>
-            <div className="space-y-3">
-              <div>
-                <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">Tipo</label>
-                <select
-                  value={manualEntryType}
-                  onChange={e => setManualEntryType(e.target.value as any)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none"
-                >
-                  <option value="PAYMENT">Recebimento de Pagamento</option>
-                  <option value="MANUAL_CREDIT">Crédito Manual</option>
-                  <option value="MANUAL_DEBIT">Débito Manual</option>
-                </select>
+       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+           <div className="w-full overflow-x-auto pb-1 no-scrollbar">
+               <div className="flex bg-slate-200 p-1 rounded-2xl w-max gap-1">
+                  <button onClick={() => setActiveTab('DASHBOARD')} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'DASHBOARD' ? 'bg-white text-blue-600 shadow' : 'text-slate-500 hover:text-slate-700'}`}>{t('finance.tabs.dashboard', 'Métricas')}</button>
+                  <button onClick={() => setActiveTab('RECEIVABLES')} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'RECEIVABLES' ? 'bg-white text-blue-600 shadow' : 'text-slate-500 hover:text-slate-700'}`}>{t('finance.tabs.receivables', 'Extrato p/ Faturamento')}</button>
+                  <button onClick={() => setActiveTab('BATCHES')} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'BATCHES' ? 'bg-white text-blue-600 shadow' : 'text-slate-500 hover:text-slate-700'}`}>{t('finance.tabs.batches', 'Faturas & Boletos')}</button>
+                  <button onClick={() => setActiveTab('EXPENSES')} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'EXPENSES' ? 'bg-white text-blue-600 shadow' : 'text-slate-500 hover:text-slate-700'}`}>{t('finance.tabs.expenses', 'Despesas')}</button>
+                  <button onClick={() => setActiveTab('REPORTS')} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'REPORTS' ? 'bg-white text-blue-600 shadow' : 'text-slate-500 hover:text-slate-700'}`}>{t('finance.tabs.reports', 'Relatórios')}</button>
+                  <button onClick={() => setActiveTab('SETTINGS')} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'SETTINGS' ? 'bg-white text-blue-600 shadow' : 'text-slate-500 hover:text-slate-700'}`}>{t('finance.tabs.settings', 'Configurações')}</button>
+               </div>
+           </div>
+       </div>
+
+      {activeTab === 'DASHBOARD' && (
+          <div className="space-y-8 animate-in fade-in duration-300">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm">
+                      <p className="text-xs font-bold text-slate-400 uppercase mb-1">{t('finance.summary.received', 'Receita Realizada (Paga)')}</p>
+                      <h3 className="text-2xl font-black text-green-600">R$ {stats.paidRevenue.toFixed(2)}</h3>
+                  </div>
+                  <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm">
+                      <p className="text-xs font-bold text-slate-400 uppercase mb-1">{t('finance.summary.overdue', 'Faturado Pendente (Boletos)')}</p>
+                      <h3 className="text-2xl font-black text-orange-600">R$ {stats.inBatchesPending.toFixed(2)}</h3>
+                  </div>
+                  <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm">
+                      <p className="text-xs font-bold text-slate-400 uppercase mb-1">{t('finance.summary.toReceive', 'A Faturar (Concluídos)')}</p>
+                      <h3 className="text-2xl font-black text-blue-600">R$ {stats.pendingRevenue.toFixed(2)}</h3>
+                  </div>
+                   <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm">
+                      <p className="text-xs font-bold text-slate-400 uppercase mb-1">{t('finance.summary.totalExpenses', 'Total Despesas Pagas')}</p>
+                      <h3 className="text-2xl font-black text-red-500">R$ {stats.totalExpenses.toFixed(2)}</h3>
+                  </div>
               </div>
-              <div>
-                <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">Valor (R$)</label>
-                <input
-                  type="text"
-                  value={manualAmount}
-                  onChange={e => setManualAmount(e.target.value)}
-                  placeholder="0,00"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none"
-                />
-              </div>
-              <div>
-                <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">Observações</label>
-                <input
-                  type="text"
-                  value={manualNotes}
-                  onChange={e => setManualNotes(e.target.value)}
-                  placeholder="Ex: Pagamento PIX..."
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none"
-                />
-              </div>
-            </div>
-            <div className="flex gap-2 pt-2">
-              <button
-                onClick={() => setShowManualModal(false)}
-                className="flex-1 py-2.5 bg-slate-100 text-slate-700 font-bold text-xs rounded-xl"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleAddPayment}
-                className="flex-1 py-2.5 bg-teal-500 text-white font-black text-xs rounded-xl shadow-md"
-              >
-                Confirmar
-              </button>
-            </div>
           </div>
-        </div>
       )}
+
+      {activeTab === 'RECEIVABLES' && (
+          <div className="space-y-6 animate-in slide-in-from-right-2">
+              <div className="bg-white p-4 sm:p-6 rounded-3xl border border-slate-100 shadow-sm">
+                  <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-8">
+                      <div>
+                        <h2 className="text-xl font-bold text-slate-800">{t('finance.receivables.title', 'Prontos para Cobrança')}</h2>
+                        <p className="text-sm text-slate-500">{t('finance.receivables.pendingCases', 'Apenas trabalhos internos concluídos que ainda não foram faturados.')}</p>
+                      </div>
+                      <div className="relative w-full md:w-80">
+                          <Search className="absolute left-3 top-2.5 text-slate-400" size={18} />
+                          <input placeholder={t('finance.receivables.searchPlaceholder', 'Buscar dentista...')} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
+                      </div>
+                  </div>
+
+                  {dentistSummary.length === 0 ? (
+                      <div className="py-20 text-center text-slate-400 border-2 border-dashed rounded-3xl italic">
+                          {t('finance.receivables.empty', 'Nenhum trabalho concluído aguardando faturamento.')}
+                      </div>
+                  ) : (
+                      <div className="overflow-x-auto border border-slate-100 rounded-2xl">
+                          <table className="w-full text-left border-collapse min-w-[700px] lg:min-w-full">
+                              <thead>
+                                  <tr className="bg-slate-50/80 text-[11px] font-black uppercase tracking-wider text-slate-500 border-b border-slate-100">
+                                      <th className="py-3.5 px-4 sm:px-6">{t('finance.receivables.colClient', 'Cliente & Consultório')}</th>
+                                      <th className="py-3.5 px-4">{t('finance.receivables.colPending', 'Débito na Gaveta')}</th>
+                                      <th className="py-3.5 px-4">{t('finance.batches.status', 'Boletos Gerados')}</th>
+                                      <th className="py-3.5 px-4">{t('finance.summary.overdue', 'Boletos Expirados')}</th>
+                                      <th className="py-3.5 px-4">{t('finance.expenses.statusPaid', 'Boletos Pagos')}</th>
+                                      <th className="py-3.5 px-4 sm:px-6 text-right">{t('finance.receivables.colActions', 'Ações')}</th>
+                                  </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100 text-sm">
+                                  {dentistSummary.map(d => {
+                                      const clientBatches = billingBatches.filter(b => b.dentistId === d.id);
+                                      const gBatches = clientBatches.filter(b => b.status === 'PENDING');
+                                      const eBatches = clientBatches.filter(b => b.status === 'OVERDUE');
+                                      const pBatches = clientBatches.filter(b => b.status === 'PAID');
+                                      const pendingJobsCount = d.pendingJobs?.length || 0;
+
+                                      return (
+                                          <tr 
+                                              key={d.id} 
+                                              onClick={() => { setStatementClient(d); setShowStatement(true); }}
+                                              className="hover:bg-blue-50/50 cursor-pointer transition-colors group"
+                                          >
+                                              {/* Cliente & Consultório */}
+                                              <td className="py-3.5 px-4 sm:px-6">
+                                                  <div className="flex items-center gap-3">
+                                                      <div className="w-10 h-10 bg-slate-100 group-hover:bg-blue-600 group-hover:text-white rounded-xl flex items-center justify-center font-black text-blue-600 shadow-sm shrink-0 transition-colors">
+                                                          {d.name.charAt(0).toUpperCase()}
+                                                      </div>
+                                                      <div className="min-w-0 max-w-[220px] sm:max-w-xs">
+                                                          <p className="font-bold text-slate-800 truncate group-hover:text-blue-600 transition-colors">{d.name}</p>
+                                                          <p className="text-[11px] text-slate-400 font-bold uppercase truncate">{d.clinicName || t('finance.receivables.client', 'Consultório')}</p>
+                                                      </div>
+                                                  </div>
+                                              </td>
+
+                                              {/* Débito na Gaveta */}
+                                              <td className="py-3.5 px-4 whitespace-nowrap">
+                                                  <div className="space-y-0.5">
+                                                      <p className="text-base font-black text-red-600">R$ {d.totalPending.toFixed(2)}</p>
+                                                      <p className="text-[10px] font-bold text-slate-400 uppercase">
+                                                          {pendingJobsCount} {pendingJobsCount === 1 ? 'trabalho' : 'trabalhos'} a faturar
+                                                      </p>
+                                                  </div>
+                                              </td>
+
+                                              {/* Boletos Gerados */}
+                                              <td className="py-3.5 px-4 whitespace-nowrap">
+                                                  <div className="inline-flex flex-col">
+                                                      <span className="font-bold text-blue-600 text-xs">{gBatches.length} {gBatches.length === 1 ? 'boleto' : 'boletos'}</span>
+                                                      <span className="text-[11px] text-slate-500 font-medium">R$ {gBatches.reduce((sum, b) => sum + b.totalAmount, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                                  </div>
+                                              </td>
+
+                                              {/* Boletos Expirados */}
+                                              <td className="py-3.5 px-4 whitespace-nowrap">
+                                                  <div className="inline-flex flex-col">
+                                                      <span className={`font-bold text-xs ${eBatches.length > 0 ? 'text-red-600' : 'text-slate-500'}`}>
+                                                          {eBatches.length} {eBatches.length === 1 ? 'boleto' : 'boletos'}
+                                                      </span>
+                                                      <span className="text-[11px] text-slate-500 font-medium">R$ {eBatches.reduce((sum, b) => sum + b.totalAmount, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                                  </div>
+                                              </td>
+
+                                              {/* Boletos Pagos */}
+                                              <td className="py-3.5 px-4 whitespace-nowrap">
+                                                  <div className="inline-flex flex-col">
+                                                      <span className="font-bold text-green-600 text-xs">{pBatches.length} {pBatches.length === 1 ? 'boleto' : 'boletos'}</span>
+                                                      <span className="text-[11px] text-slate-500 font-medium">R$ {pBatches.reduce((sum, b) => sum + b.totalAmount, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                                  </div>
+                                              </td>
+
+                                              {/* Ações */}
+                                              <td className="py-3.5 px-4 sm:px-6 text-right whitespace-nowrap">
+                                                  <button 
+                                                      type="button"
+                                                      onClick={(e) => {
+                                                          e.stopPropagation();
+                                                          setStatementClient(d);
+                                                          setShowStatement(true);
+                                                      }}
+                                                      className="px-3.5 py-1.5 bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white font-bold rounded-xl transition-all inline-flex items-center gap-1.5 text-xs shadow-xs"
+                                                  >
+                                                      <Receipt size={14} />
+                                                      <span>{t('finance.receivables.btnStatement', 'Extrato / Faturar')}</span>
+                                                      <ChevronRight size={14} className="opacity-70" />
+                                                  </button>
+                                              </td>
+                                          </tr>
+                                      );
+                                  })}
+                              </tbody>
+                          </table>
+                      </div>
+                  )}
+              </div>
+          </div>
+      )}
+
+      {activeTab === 'BATCHES' && (
+          <div className="space-y-6 animate-in slide-in-from-right-2">
+              <div className="bg-white p-4 sm:p-6 rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+                  <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2"><Receipt className="text-blue-600"/> Histórico de Faturas e Boletos</h3>
+                  
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                        <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase border-b">
+                            <tr>
+                                <th className="p-4">Fatura ID</th>
+                                <th className="p-4">Dentista</th>
+                                <th className="p-4">Vencimento</th>
+                                <th className="p-4">Valor Total</th>
+                                <th className="p-4">Status</th>
+                                <th className="p-4 text-right">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 text-sm">
+                            {billingBatches.map(batch => (
+                                <tr key={batch.id} className="hover:bg-slate-50 transition-colors">
+                                    <td className="p-4 font-mono font-bold text-slate-500 uppercase">{batch.id.substring(0, 8)}...</td>
+                                    <td className="p-4 font-bold text-slate-800">{batch.dentistName}</td>
+                                    <td className="p-4 text-slate-600 font-medium">{new Date(batch.dueDate).toLocaleDateString()}</td>
+                                    <td className="p-4 font-black text-slate-800">R$ {batch.totalAmount.toFixed(2)}</td>
+                                    <td className="p-4">
+                                        <span className={`px-2 py-1 rounded-full text-[10px] font-black ${
+                                            batch.status === 'PAID' ? 'bg-green-100 text-green-700' : 
+                                            batch.status === 'OVERDUE' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'
+                                        }`}>
+                                            {batch.status === 'PAID' ? 'PAGO' : batch.status === 'OVERDUE' ? 'VENCIDO' : 'AGUARDANDO'}
+                                        </span>
+                                    </td>
+                                    <td className="p-4 text-right">
+                                        <div className="flex justify-end gap-2">
+                                            {batch.invoiceUrl && (
+                                                <>
+                                                    <button 
+                                                        onClick={() => copyBoletoLink(batch.invoiceUrl!, batch.id)}
+                                                        className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${copiedId === batch.id ? 'bg-green-600 text-white' : 'bg-slate-900 text-white hover:bg-slate-800'}`}
+                                                    >
+                                                        {copiedId === batch.id ? <Check size={14}/> : <Copy size={14}/>} {copiedId === batch.id ? 'Copiado' : 'Link Boleto'}
+                                                    </button>
+                                                    <a href={batch.invoiceUrl} target="_blank" rel="noreferrer" className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100">
+                                                        <ExternalLink size={16} />
+                                                    </a>
+                                                </>
+                                            )}
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {activeTab === 'EXPENSES' && (
+          <div className="space-y-6 animate-in slide-in-from-right-2">
+              <div className="flex justify-end">
+                  <button onClick={() => setShowExpenseModal(true)} className="px-6 py-3 bg-red-600 text-white font-bold rounded-2xl shadow-lg flex items-center gap-2 hover:bg-red-700 transition-all">
+                      <Plus size={20} /> LANÇAR DESPESA
+                  </button>
+              </div>
+
+              <div className="bg-white p-4 sm:p-6 rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+                  <table className="w-full text-left">
+                      <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase border-b">
+                          <tr>
+                              <th className="p-4">Data</th>
+                              <th className="p-4">Descrição</th>
+                              <th className="p-4">Categoria</th>
+                              <th className="p-4">Valor</th>
+                              <th className="p-4">Status</th>
+                              <th className="p-4 text-right">Ações</th>
+                          </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                          {expenses.map(exp => (
+                              <tr key={exp.id} className="hover:bg-slate-50 transition-colors">
+                                  <td className="p-4 text-sm font-medium text-slate-600">{new Date(exp.date).toLocaleDateString()}</td>
+                                  <td className="p-4 font-bold text-slate-800">{exp.description}</td>
+                                  <td className="p-4"><span className="text-[10px] font-black bg-slate-100 px-2 py-1 rounded text-slate-500">{exp.category}</span></td>
+                                  <td className="p-4 font-black text-red-600">R$ {exp.amount.toFixed(2)}</td>
+                                  <td className="p-4"><span className={`px-2 py-1 rounded-full text-[10px] font-black ${exp.status === 'PAID' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>{exp.status === 'PAID' ? 'PAGA' : 'PENDENTE'}</span></td>
+                                  <td className="p-4 text-right">
+                                      <button onClick={() => api.apiDeleteExpense(currentOrg!.id, exp.id)} className="p-2 text-slate-300 hover:text-red-500 rounded-lg"><Trash2 size={18}/></button>
+                                  </td>
+                              </tr>
+                          ))}
+                      </tbody>
+                  </table>
+              </div>
+          </div>
+      )}
+
+      {activeTab === 'REPORTS' && (
+          <div className="space-y-6 animate-in slide-in-from-right-2">
+              {/* Filters Panel */}
+              <div className="bg-white p-4 sm:p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4">
+                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                      <div>
+                          <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
+                              <FileText className="text-blue-600" /> Relatório de Movimentações
+                          </h3>
+                          <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-0.5">Filtre, analise e exporte o fluxo financeiro</p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+                          {reportType === 'DEBITOS' && (
+                              <button 
+                                  onClick={() => {
+                                      setSelectedEmailClientId(undefined);
+                                      setShowDebtsEmailModal(true);
+                                  }}
+                                  className="flex-1 md:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white hover:bg-blue-700 rounded-xl text-xs font-black uppercase transition-all shadow-md shadow-blue-500/20 cursor-pointer"
+                                  title="Enviar extratos individuais em PDF por e-mail"
+                              >
+                                  <Mail size={16} /> Enviar Extratos por E-mail
+                              </button>
+                          )}
+                          <button 
+                              onClick={exportReportPDF}
+                              className="flex-1 md:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl text-xs font-black uppercase transition-all shadow-sm cursor-pointer"
+                          >
+                              <FileText size={16} /> Exportar PDF
+                          </button>
+                          <button 
+                              onClick={exportReportCSV}
+                              className="flex-1 md:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 bg-green-50 text-green-600 hover:bg-green-100 rounded-xl text-xs font-black uppercase transition-all shadow-sm cursor-pointer"
+                          >
+                              <Download size={16} /> Exportar CSV
+                          </button>
+                      </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 pt-2">
+                      <div className="lg:col-span-2">
+                          <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">
+                              {reportType === 'DEBITOS' ? 'Buscar Dentista / Clínica / CPF / Tel' : 'Buscar por Descrição/Dentista'}
+                          </label>
+                          <input 
+                              type="text"
+                              value={reportSearchTerm}
+                              onChange={e => setReportSearchTerm(e.target.value)}
+                              placeholder={reportType === 'DEBITOS' ? 'Nome do dentista, clínica, documento...' : 'Pesquisar...'}
+                              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xs font-bold focus:ring-2 focus:ring-blue-500"
+                          />
+                      </div>
+                      <div>
+                          <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Data Início</label>
+                          <input 
+                              type="date"
+                              value={reportStartDate}
+                              onChange={e => setReportStartDate(e.target.value)}
+                              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xs font-bold focus:ring-2 focus:ring-blue-500"
+                          />
+                      </div>
+                      <div>
+                          <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Data Fim</label>
+                          <input 
+                              type="date"
+                              value={reportEndDate}
+                              onChange={e => setReportEndDate(e.target.value)}
+                              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xs font-bold focus:ring-2 focus:ring-blue-500"
+                          />
+                      </div>
+                      <div>
+                          <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Tipo de Entrada / Relatório</label>
+                          <select 
+                              value={reportType}
+                              onChange={e => setReportType(e.target.value as any)}
+                              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xs font-bold focus:ring-2 focus:ring-blue-500 font-sans"
+                          >
+                              <option value="ALL">Todas as Movimentações (OSs, Recebimentos, Despesas)</option>
+                              <option value="DRE">Demonstrativo de Resultado do Exercício (DRE)</option>
+                              <option value="DEBITOS">Painel Consolidado de Clientes em Débito</option>
+                              <option value="DEBITO">Débitos de OSs e Serviços Laboratoriais</option>
+                              <option value="RECEBIMENTO">Recebimentos e Pagamentos Realizados</option>
+                              <option value="DESPESA">Despesas e Custos</option>
+                          </select>
+                      </div>
+                      <div>
+                          <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Origem/Canal</label>
+                          <select 
+                              value={reportSource}
+                              onChange={e => setReportSource(e.target.value as any)}
+                              disabled={reportType === 'DEBITOS' || reportType === 'DRE'}
+                              className={`w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xs font-bold focus:ring-2 focus:ring-blue-500 ${
+                                  (reportType === 'DEBITOS' || reportType === 'DRE') ? 'opacity-60 cursor-not-allowed text-slate-400' : ''
+                              }`}
+                          >
+                              {(reportType === 'DEBITOS' || reportType === 'DRE') ? (
+                                  <option value="ALL">Todos os Registros</option>
+                              ) : (
+                                  <>
+                                      <option value="ALL">Todos os Canais</option>
+                                      <option value="MANUAL_OR_ASAAS">Ordens de Serviço & Faturas</option>
+                                      <option value="ONLINE_STORE">Loja Online (Pedidos)</option>
+                                      <option value="EXPENSE">Despesas Operacionais</option>
+                                  </>
+                              )}
+                          </select>
+                      </div>
+                      {reportType === 'DEBITOS' && (
+                          <div>
+                              <label className="block text-[10px] font-black text-blue-600 uppercase mb-1">Status do E-mail</label>
+                              <select 
+                                  value={reportEmailStatusFilter}
+                                  onChange={e => setReportEmailStatusFilter(e.target.value as any)}
+                                  className="w-full px-3 py-2 bg-blue-50/70 border border-blue-200 rounded-xl outline-none text-xs font-bold text-blue-900 focus:ring-2 focus:ring-blue-500 font-sans"
+                              >
+                                  <option value="ALL">Todos os E-mails</option>
+                                  <option value="SENT">Extratos Enviados</option>
+                                  <option value="NOT_SENT">Não Enviados</option>
+                                  <option value="BOUNCED">Recusa do Servidor</option>
+                                  <option value="NO_EMAIL">E-mail Não Cadastrado</option>
+                              </select>
+                          </div>
+                      )}
+                  </div>
+              </div>
+
+              {/* Statistics Row */}
+              {reportType === 'DRE' ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                      <div className="bg-white p-5 rounded-2xl border border-blue-100 shadow-sm bg-gradient-to-br from-white to-blue-50/30">
+                          <p className="text-[10px] font-black text-blue-600 uppercase mb-1">Receita Bruta Faturada</p>
+                          <h4 className="text-xl font-black text-slate-800">R$ {dreData.grossRevenue.toFixed(2)}</h4>
+                          <span className="text-[10px] text-slate-400 font-bold block mt-1">{dreData.labJobsCount + dreData.storeOrdersCount} OSs faturadas / loja</span>
+                      </div>
+                      <div className="bg-white p-5 rounded-2xl border border-emerald-100 shadow-sm bg-gradient-to-br from-white to-emerald-50/20">
+                          <p className="text-[10px] font-black text-emerald-700 uppercase mb-1">Receita Líquida</p>
+                          <h4 className="text-xl font-black text-emerald-600">R$ {dreData.netRevenue.toFixed(2)}</h4>
+                          <span className="text-[10px] text-slate-400 font-bold block mt-1">Desc: R$ {dreData.discountsGiven.toFixed(2)}</span>
+                      </div>
+                      <div className="bg-white p-5 rounded-2xl border border-rose-100 shadow-sm bg-gradient-to-br from-white to-rose-50/30">
+                          <p className="text-[10px] font-black text-rose-500 uppercase mb-1">Despesas Operacionais</p>
+                          <h4 className="text-xl font-black text-rose-600">R$ {dreData.totalExpenses.toFixed(2)}</h4>
+                          <span className="text-[10px] text-slate-400 font-bold block mt-1">{dreData.periodExpensesCount} lançamento(s)</span>
+                      </div>
+                      <div className={`p-5 rounded-2xl border shadow-sm ${dreData.netOperatingProfit >= 0 ? 'bg-emerald-50/50 border-emerald-200' : 'bg-rose-50/50 border-rose-200'}`}>
+                          <p className={`text-[10px] font-black uppercase mb-1 ${dreData.netOperatingProfit >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                              {dreData.netOperatingProfit >= 0 ? 'Lucro Líquido' : 'Prejuízo Líquido'}
+                          </p>
+                          <h4 className={`text-xl font-black ${dreData.netOperatingProfit >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                              R$ {dreData.netOperatingProfit.toFixed(2)}
+                          </h4>
+                          <span className="text-[10px] font-black block mt-1 opacity-80">Margem: {dreData.profitMargin.toFixed(1)}%</span>
+                      </div>
+                      <div className="bg-white p-5 rounded-2xl border border-indigo-100 shadow-sm bg-gradient-to-br from-white to-indigo-50/30">
+                          <p className="text-[10px] font-black text-indigo-700 uppercase mb-1">Saldo Caixa Realizado</p>
+                          <h4 className={`text-xl font-black ${dreData.cashBalance >= 0 ? 'text-slate-800' : 'text-rose-600'}`}>
+                              R$ {dreData.cashBalance.toFixed(2)}
+                          </h4>
+                          <span className="text-[10px] text-slate-400 font-bold block mt-1">A faturar (produção): R$ {dreData.inProgressGrossForecast.toFixed(2)}</span>
+                      </div>
+                  </div>
+              ) : reportType === 'DEBITOS' ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                      <div className="bg-white p-5 rounded-2xl border border-blue-200 shadow-sm bg-gradient-to-br from-white to-blue-50/30">
+                          <p className="text-[10px] font-black text-blue-600 uppercase mb-1">Clientes em Débito</p>
+                          <h4 className="text-xl font-black text-blue-900">{reportDebtStats.totalClientsWithDebt}</h4>
+                          <span className="text-[10px] text-blue-600/70 font-bold block mt-1">Clientes com saldo devedor</span>
+                      </div>
+                      <div className="bg-white p-5 rounded-2xl border border-rose-200 shadow-sm bg-gradient-to-br from-white to-rose-50/40">
+                          <p className="text-[10px] font-black text-rose-500 uppercase mb-1">Saldo Total Devedor</p>
+                          <h4 className="text-xl font-black text-rose-600">R$ {reportDebtStats.totalDebtAmount.toFixed(2)}</h4>
+                          <span className="text-[10px] text-rose-500/70 font-bold block mt-1">Débito total consolidado</span>
+                      </div>
+                      <div className="bg-white p-5 rounded-2xl border border-amber-200 shadow-sm bg-gradient-to-br from-white to-amber-50/40">
+                          <p className="text-[10px] font-black text-amber-700 uppercase mb-1">OSs Pendentes Concluídas</p>
+                          <h4 className="text-xl font-black text-amber-600">{reportDebtStats.totalPendingJobs}</h4>
+                          <span className="text-[10px] text-amber-600/70 font-bold block mt-1">Aguardando cobrança/pagamento</span>
+                      </div>
+                      <div className="bg-white p-5 rounded-2xl border border-violet-200 shadow-sm bg-gradient-to-br from-white to-violet-50/40">
+                          <p className="text-[10px] font-black text-violet-700 uppercase mb-1">Média por Devedor</p>
+                          <h4 className="text-xl font-black text-violet-700">R$ {reportDebtStats.avgDebt.toFixed(2)}</h4>
+                          <span className="text-[10px] text-violet-600/70 font-bold block mt-1">Ticket médio em débito</span>
+                      </div>
+                      <div className="bg-white p-5 rounded-2xl border border-orange-200 shadow-sm bg-gradient-to-br from-white to-orange-50/30">
+                          <p className="text-[10px] font-black text-orange-700 uppercase mb-1">Maior Débito</p>
+                          <h4 className="text-sm font-black text-slate-800 truncate" title={reportDebtStats.maxDebtClient ? reportDebtStats.maxDebtClient.name : '---'}>
+                              {reportDebtStats.maxDebtClient ? (
+                                  <>
+                                      <span className="text-orange-600 block text-base font-black">R$ {reportDebtStats.maxDebtClient.balanceUpToEndDate.toFixed(2)}</span>
+                                      <span className="text-xs text-slate-500 font-bold truncate block">{reportDebtStats.maxDebtClient.name}</span>
+                                  </>
+                              ) : (
+                                  '---'
+                              )}
+                          </h4>
+                      </div>
+                  </div>
+              ) : (
+                  <div className="space-y-4">
+                      {/* LINHA 1: Fluxo Realizado & Faturamento Concluído */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                          <div className="bg-white p-5 rounded-2xl border border-emerald-200 shadow-sm bg-gradient-to-br from-white to-emerald-50/40">
+                              <p className="text-[10px] font-black text-emerald-700 uppercase mb-1">Recebimentos Realizados</p>
+                              <h4 className="text-xl font-black text-emerald-600">R$ {reportStats.totalInflows.toFixed(2)}</h4>
+                              <span className="text-[10px] text-emerald-600/80 font-bold block mt-1">Entradas quitadas no período</span>
+                          </div>
+                          <div className="bg-white p-5 rounded-2xl border border-rose-200 shadow-sm bg-gradient-to-br from-white to-rose-50/40">
+                              <p className="text-[10px] font-black text-rose-700 uppercase mb-1">Despesas Pagas</p>
+                              <h4 className="text-xl font-black text-rose-600">R$ {reportStats.totalOutflows.toFixed(2)}</h4>
+                              <span className="text-[10px] text-rose-600/80 font-bold block mt-1">Saídas operacionais quitadas</span>
+                          </div>
+                          <div className={`p-5 rounded-2xl border shadow-sm ${reportStats.netBalance >= 0 ? 'bg-gradient-to-br from-white to-blue-50/50 border-blue-200' : 'bg-gradient-to-br from-white to-rose-50/50 border-rose-200'}`}>
+                              <p className={`text-[10px] font-black uppercase mb-1 ${reportStats.netBalance >= 0 ? 'text-blue-700' : 'text-rose-700'}`}>Saldo Líquido Realizado</p>
+                              <h4 className={`text-xl font-black ${reportStats.netBalance >= 0 ? 'text-blue-700' : 'text-rose-600'}`}>
+                                  R$ {reportStats.netBalance.toFixed(2)}
+                              </h4>
+                              <span className="text-[10px] font-bold block mt-1 opacity-80 text-slate-500">Recebimentos menos despesas</span>
+                          </div>
+                          <div className="bg-white p-5 rounded-2xl border border-violet-200 shadow-sm bg-gradient-to-br from-white to-violet-50/40">
+                              <p className="text-[10px] font-black text-violet-700 uppercase mb-1">Faturamento Concluído</p>
+                              <h4 className="text-xl font-black text-violet-700">R$ {reportStats.totalCompletedBilled.toFixed(2)}</h4>
+                              <span className="text-[10px] text-violet-600/80 font-bold block mt-1">{reportStats.completedJobsCount} trabalhos concluídos / loja</span>
+                          </div>
+                          <div className="bg-white p-5 rounded-2xl border border-amber-200 shadow-sm bg-gradient-to-br from-white to-amber-50/50">
+                              <p className="text-[10px] font-black text-amber-800 uppercase mb-1">A Faturar (Em Produção)</p>
+                              <h4 className="text-xl font-black text-amber-700">R$ {reportStats.pendingToInvoiceValue.toFixed(2)}</h4>
+                              <span className="text-[10px] text-amber-700/80 font-bold block mt-1">{reportStats.pendingToInvoiceCount} OSs aguardando conclusão</span>
+                          </div>
+                      </div>
+
+                      {/* LINHA 2: Pendências, Previsões e Indicadores Operacionais com cores e métricas diferentes */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                          <div className="bg-white p-5 rounded-2xl border border-orange-200 shadow-sm bg-gradient-to-br from-white to-orange-50/40">
+                              <p className="text-[10px] font-black text-orange-700 uppercase mb-1">Cobranças Pendentes (Gaveta)</p>
+                              <h4 className="text-xl font-black text-orange-600">R$ {reportStats.pendingInflows.toFixed(2)}</h4>
+                              <span className="text-[10px] text-orange-600/80 font-bold block mt-1">Casos concluídos não quitados</span>
+                          </div>
+                          <div className="bg-white p-5 rounded-2xl border border-red-200 shadow-sm bg-gradient-to-br from-white to-red-50/40">
+                              <p className="text-[10px] font-black text-red-700 uppercase mb-1">Despesas Pendentes</p>
+                              <h4 className="text-xl font-black text-red-600">R$ {reportStats.pendingOutflows.toFixed(2)}</h4>
+                              <span className="text-[10px] text-red-600/80 font-bold block mt-1">Contas a pagar em aberto</span>
+                          </div>
+                          <div className="bg-white p-5 rounded-2xl border border-cyan-200 shadow-sm bg-gradient-to-br from-white to-cyan-50/40">
+                              <p className="text-[10px] font-black text-cyan-700 uppercase mb-1">Casos Concluídos no Período</p>
+                              <h4 className="text-xl font-black text-cyan-700">{reportStats.completedJobsCount} OSs</h4>
+                              <span className="text-[10px] text-cyan-600/80 font-bold block mt-1">Finalizados e faturáveis</span>
+                          </div>
+                          <div className="bg-white p-5 rounded-2xl border border-indigo-200 shadow-sm bg-gradient-to-br from-white to-indigo-50/40">
+                              <p className="text-[10px] font-black text-indigo-700 uppercase mb-1">Casos em Andamento</p>
+                              <h4 className="text-xl font-black text-indigo-700">{reportStats.pendingToInvoiceCount} OSs</h4>
+                              <span className="text-[10px] text-indigo-600/80 font-bold block mt-1">Faturamento após a entrega</span>
+                          </div>
+                          <div className="bg-white p-5 rounded-2xl border border-teal-200 shadow-sm bg-gradient-to-br from-white to-teal-50/40">
+                              <p className="text-[10px] font-black text-teal-700 uppercase mb-1">Ticket Médio (Faturado)</p>
+                              <h4 className="text-xl font-black text-teal-700">R$ {reportStats.averageCompletedTicket.toFixed(2)}</h4>
+                              <span className="text-[10px] text-teal-600/80 font-bold block mt-1">Média por trabalho faturado</span>
+                          </div>
+                      </div>
+                  </div>
+              )}
+
+              {/* Table Section */}
+              {reportType === 'DRE' ? (
+                  <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+                      <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                          <div className="flex items-center gap-2">
+                              <span className="text-xs font-black text-slate-800 uppercase tracking-wider">
+                                  Demonstrativo do Resultado do Exercício (DRE)
+                              </span>
+                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-blue-800">
+                                  Competência / Período
+                              </span>
+                          </div>
+                          <span className="text-[11px] text-slate-400 font-bold">
+                              {reportStartDate ? new Date(`${reportStartDate}T00:00:00`).toLocaleDateString('pt-BR') : 'Início'} até {reportEndDate ? new Date(`${reportEndDate}T23:59:59`).toLocaleDateString('pt-BR') : 'Fim'}
+                          </span>
+                      </div>
+
+                      <div className="overflow-x-auto">
+                          <table className="w-full text-left border-collapse">
+                              <thead>
+                                  <tr className="bg-slate-100/70 border-b border-slate-200/80 text-[10px] font-black text-slate-500 uppercase tracking-wider">
+                                      <th className="py-3 px-6">Estrutura Contábil / Indicador</th>
+                                      <th className="py-3 px-6 text-right">Valor no Período</th>
+                                      <th className="py-3 px-6 text-right">% Receita Bruta</th>
+                                  </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100 text-xs">
+                                  {/* 1. Receita Bruta */}
+                                  <tr className="bg-blue-50/40 font-black text-slate-800">
+                                      <td className="py-3.5 px-6 uppercase tracking-wider flex items-center gap-2">
+                                          <span className="w-2 h-2 rounded-full bg-blue-600"></span> 1. RECEITA OPERACIONAL BRUTA
+                                      </td>
+                                      <td className="py-3.5 px-6 text-right text-blue-700 font-black text-sm">
+                                          R$ {dreData.grossRevenue.toFixed(2)}
+                                      </td>
+                                      <td className="py-3.5 px-6 text-right font-bold text-slate-500">100.0%</td>
+                                  </tr>
+                                  <tr className="hover:bg-slate-50 text-slate-700">
+                                      <td className="py-2.5 px-8 pl-10">
+                                          • Faturamento Produção Laboratorial (OSs Internas) ({dreData.labJobsCount} casos)
+                                      </td>
+                                      <td className="py-2.5 px-6 text-right font-bold">R$ {dreData.labProductionGross.toFixed(2)}</td>
+                                      <td className="py-2.5 px-6 text-right text-slate-400">
+                                          {dreData.grossRevenue > 0 ? `${((dreData.labProductionGross / dreData.grossRevenue) * 100).toFixed(1)}%` : '0%'}
+                                      </td>
+                                  </tr>
+                                  <tr className="hover:bg-slate-50 text-slate-700">
+                                      <td className="py-2.5 px-8 pl-10">
+                                          • Pedidos Loja Online ({dreData.storeOrdersCount} pedidos)
+                                      </td>
+                                      <td className="py-2.5 px-6 text-right font-bold">R$ {dreData.storeGross.toFixed(2)}</td>
+                                      <td className="py-2.5 px-6 text-right text-slate-400">
+                                          {dreData.grossRevenue > 0 ? `${((dreData.storeGross / dreData.grossRevenue) * 100).toFixed(1)}%` : '0%'}
+                                      </td>
+                                  </tr>
+                                  <tr className="hover:bg-slate-50 text-slate-700">
+                                      <td className="py-2.5 px-8 pl-10">
+                                          • Débitos Manuais / Outros Lançamentos
+                                      </td>
+                                      <td className="py-2.5 px-6 text-right font-bold">R$ {dreData.manualDebits.toFixed(2)}</td>
+                                      <td className="py-2.5 px-6 text-right text-slate-400">
+                                          {dreData.grossRevenue > 0 ? `${((dreData.manualDebits / dreData.grossRevenue) * 100).toFixed(1)}%` : '0%'}
+                                      </td>
+                                  </tr>
+
+                                  {/* 2. Deduções */}
+                                  <tr className="bg-amber-50/30 font-black text-slate-800">
+                                      <td className="py-3 px-6 uppercase tracking-wider flex items-center gap-2">
+                                          <span className="w-2 h-2 rounded-full bg-amber-500"></span> 2. DEDUÇÕES DA RECEITA BRUTA
+                                      </td>
+                                      <td className="py-3 px-6 text-right text-amber-700 font-black">
+                                          - R$ {dreData.discountsGiven.toFixed(2)}
+                                      </td>
+                                      <td className="py-3 px-6 text-right font-bold text-slate-500">
+                                          {dreData.grossRevenue > 0 ? `${((dreData.discountsGiven / dreData.grossRevenue) * 100).toFixed(1)}%` : '0%'}
+                                      </td>
+                                  </tr>
+                                  <tr className="hover:bg-slate-50 text-slate-700">
+                                      <td className="py-2 px-8 pl-10">• Descontos Comerciais, Promoções & Cortesias</td>
+                                      <td className="py-2 px-6 text-right font-bold">- R$ {dreData.discountsGiven.toFixed(2)}</td>
+                                      <td className="py-2 px-6 text-right text-slate-400">
+                                          {dreData.grossRevenue > 0 ? `${((dreData.discountsGiven / dreData.grossRevenue) * 100).toFixed(1)}%` : '0%'}
+                                      </td>
+                                  </tr>
+
+                                  {/* 3. Receita Líquida */}
+                                  <tr className="bg-emerald-50/40 font-black text-emerald-900 border-y border-emerald-100">
+                                      <td className="py-3.5 px-6 uppercase tracking-wider text-xs">
+                                          (=) RECEITA OPERACIONAL LÍQUIDA
+                                      </td>
+                                      <td className="py-3.5 px-6 text-right font-black text-sm text-emerald-700">
+                                          R$ {dreData.netRevenue.toFixed(2)}
+                                      </td>
+                                      <td className="py-3.5 px-6 text-right font-black text-emerald-800">
+                                          {dreData.grossRevenue > 0 ? `${((dreData.netRevenue / dreData.grossRevenue) * 100).toFixed(1)}%` : '100%'}
+                                      </td>
+                                  </tr>
+
+                                  {/* 4. Despesas */}
+                                  <tr className="bg-rose-50/30 font-black text-slate-800">
+                                      <td className="py-3 px-6 uppercase tracking-wider flex items-center gap-2">
+                                          <span className="w-2 h-2 rounded-full bg-rose-500"></span> 3. CUSTOS & DESPESAS OPERACIONAIS
+                                      </td>
+                                      <td className="py-3 px-6 text-right text-rose-700 font-black">
+                                          - R$ {dreData.totalExpenses.toFixed(2)}
+                                      </td>
+                                      <td className="py-3 px-6 text-right font-bold text-slate-500">
+                                          {dreData.netRevenue > 0 ? `${((dreData.totalExpenses / dreData.netRevenue) * 100).toFixed(1)}%` : '0%'}
+                                      </td>
+                                  </tr>
+                                  {Object.keys(dreData.expensesByCategory).length === 0 ? (
+                                      <tr className="text-slate-400 italic">
+                                          <td colSpan={3} className="py-2 px-10">Nenhuma despesa lançada no período selecionado.</td>
+                                      </tr>
+                                  ) : (
+                                      Object.entries(dreData.expensesByCategory).map(([cat, amount]) => (
+                                          <tr key={cat} className="hover:bg-slate-50 text-slate-700">
+                                              <td className="py-2 px-8 pl-10">• Despesa: {cat}</td>
+                                              <td className="py-2 px-6 text-right font-bold text-rose-600">- R$ {amount.toFixed(2)}</td>
+                                              <td className="py-2 px-6 text-right text-slate-400">
+                                                  {dreData.netRevenue > 0 ? `${((amount / dreData.netRevenue) * 100).toFixed(1)}%` : '0%'}
+                                              </td>
+                                          </tr>
+                                      ))
+                                  )}
+
+                                  {/* 5. Lucro / Prejuízo Líquido */}
+                                  <tr className={`border-y-2 font-black text-sm ${
+                                      dreData.netOperatingProfit >= 0 
+                                          ? 'bg-emerald-100/60 text-emerald-900 border-emerald-300' 
+                                          : 'bg-rose-100/60 text-rose-900 border-rose-300'
+                                  }`}>
+                                      <td className="py-4 px-6 uppercase tracking-wider">
+                                          (=) RESULTADO OPERACIONAL LÍQUIDO ({dreData.netOperatingProfit >= 0 ? 'LUCRO' : 'PREJUÍZO'})
+                                      </td>
+                                      <td className={`py-4 px-6 text-right font-black text-base ${dreData.netOperatingProfit >= 0 ? 'text-emerald-800' : 'text-rose-800'}`}>
+                                          R$ {dreData.netOperatingProfit.toFixed(2)}
+                                      </td>
+                                      <td className="py-4 px-6 text-right font-black">
+                                          {dreData.profitMargin.toFixed(1)}% Margem
+                                      </td>
+                                  </tr>
+
+                                  {/* 6. Conciliação de Caixa Realizado */}
+                                  <tr className="bg-slate-100 font-black text-slate-800">
+                                      <td colSpan={3} className="py-3 px-6 uppercase tracking-wider text-[11px] text-slate-600">
+                                          4. CONCILIAÇÃO FINANCEIRA DE CAIXA REALIZADO (RECEBIMENTOS VS PAGAMENTOS EFETIVOS)
+                                      </td>
+                                  </tr>
+                                  <tr className="hover:bg-slate-50 text-slate-700">
+                                      <td className="py-2.5 px-8 pl-10">(+) Entradas Efetivamente Recebidas em Caixa (Pagamentos / Asaas)</td>
+                                      <td className="py-2.5 px-6 text-right font-bold text-emerald-600">R$ {dreData.cashInflows.toFixed(2)}</td>
+                                      <td className="py-2.5 px-6 text-right text-slate-400">---</td>
+                                  </tr>
+                                  <tr className="hover:bg-slate-50 text-slate-700">
+                                      <td className="py-2.5 px-8 pl-10">(-) Saídas Efetivamente Pagas em Despesas</td>
+                                      <td className="py-2.5 px-6 text-right font-bold text-rose-600">- R$ {dreData.cashOutflows.toFixed(2)}</td>
+                                      <td className="py-2.5 px-6 text-right text-slate-400">---</td>
+                                  </tr>
+                                  <tr className="bg-slate-50 font-black text-slate-800 border-t border-slate-200">
+                                      <td className="py-3 px-8 pl-10">(=) SALDO LÍQUIDO DE CAIXA REALIZADO</td>
+                                      <td className={`py-3 px-6 text-right font-black ${dreData.cashBalance >= 0 ? 'text-blue-700' : 'text-rose-700'}`}>
+                                          R$ {dreData.cashBalance.toFixed(2)}
+                                      </td>
+                                      <td className="py-3 px-6 text-right text-slate-400">---</td>
+                                  </tr>
+                                  <tr className="hover:bg-slate-50 text-slate-600">
+                                      <td className="py-2.5 px-8 pl-10">(+) Faturamento Pendente a Receber (Em Aberto / Gaveta)</td>
+                                      <td className="py-2.5 px-6 text-right font-bold text-amber-600">R$ {dreData.pendingToReceive.toFixed(2)}</td>
+                                      <td className="py-2.5 px-6 text-right text-slate-400">---</td>
+                                  </tr>
+                              </tbody>
+                          </table>
+                      </div>
+                  </div>
+              ) : reportType === 'DEBITOS' ? (
+                  <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+                      <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                              <span className="text-xs font-black text-slate-700 uppercase tracking-wider">
+                                  Clientes com Débitos Pendentes
+                              </span>
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-50 text-rose-600">
+                                  {reportDebts.length} encontrado(s)
+                              </span>
+                          </div>
+                          <span className="text-[11px] text-slate-400 font-bold">
+                              Clique em <strong className="text-blue-600 font-bold">Extrato</strong> para ver os lançamentos detalhados do período
+                          </span>
+                      </div>
+
+                      <div className="overflow-x-auto">
+                          <table className="w-full text-left border-collapse">
+                              <thead>
+                                  <tr className="bg-slate-50 border-b border-slate-100">
+                                      <th className="p-4 text-[10px] font-black text-slate-400 uppercase">Cliente / Dentista</th>
+                                      <th className="p-4 text-[10px] font-black text-slate-400 uppercase">Clínica & Contato</th>
+                                      <th className="p-4 text-[10px] font-black text-slate-400 uppercase text-center">OSs Pendentes</th>
+                                      <th className="p-4 text-[10px] font-black text-slate-400 uppercase text-right">Débito no Período</th>
+                                      <th className="p-4 text-[10px] font-black text-slate-400 uppercase text-right">Pagamentos Período</th>
+                                      <th className="p-4 text-[10px] font-black text-slate-400 uppercase text-right">Saldo Devedor Total</th>
+                                      <th className="p-4 text-[10px] font-black text-slate-400 uppercase text-center">Ações</th>
+                                  </tr>
+                              </thead>
+                              <tbody>
+                                  {reportDebts.length === 0 ? (
+                                      <tr>
+                                          <td colSpan={7} className="p-12 text-center text-slate-400 font-bold">
+                                              Nenhum cliente com débito pendente encontrado para o período e filtros selecionados.
+                                          </td>
+                                      </tr>
+                                  ) : (
+                                      reportDebts.map(d => (
+                                          <tr key={d.id} className="hover:bg-slate-50/80 border-b border-slate-100 transition-colors">
+                                              <td className="p-4">
+                                                  <div className="flex items-center gap-3">
+                                                      <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center font-black text-slate-600 text-xs shrink-0">
+                                                          {d.name.substring(0, 2).toUpperCase()}
+                                                      </div>
+                                                      <div>
+                                                          <p className="text-xs font-black text-slate-800 leading-snug">{d.name}</p>
+                                                          {d.cpfCnpj && <p className="text-[10px] font-bold text-slate-400">{d.cpfCnpj}</p>}
+                                                      </div>
+                                                  </div>
+                                              </td>
+                                              <td className="p-4 text-xs font-bold text-slate-600">
+                                                  <p className="text-slate-700">{d.clinicName || '---'}</p>
+                                                  {d.phone && <p className="text-[10px] text-slate-400 font-bold">{d.phone}</p>}
+                                              </td>
+                                              <td className="p-4 text-center">
+                                                  <span className={`px-2.5 py-1 rounded-full text-[10px] font-black ${
+                                                      d.pendingJobsCount > 0 
+                                                          ? 'bg-amber-100 text-amber-800' 
+                                                          : 'bg-slate-100 text-slate-600'
+                                                  }`}>
+                                                      {d.pendingJobsCount} OS(s)
+                                                  </span>
+                                              </td>
+                                              <td className="p-4 text-xs font-bold text-slate-700 text-right">
+                                                  R$ {d.periodDebits.toFixed(2)}
+                                              </td>
+                                              <td className="p-4 text-xs font-bold text-emerald-600 text-right">
+                                                  R$ {d.periodCredits.toFixed(2)}
+                                              </td>
+                                              <td className="p-4 text-right">
+                                                  {d.balanceUpToEndDate > 0 ? (
+                                                      <span className="text-sm font-black text-rose-600 bg-rose-50 px-2.5 py-1 rounded-xl">
+                                                          R$ {d.balanceUpToEndDate.toFixed(2)}
+                                                      </span>
+                                                  ) : d.balanceUpToEndDate < 0 ? (
+                                                      <span className="text-sm font-black text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-xl">
+                                                          R$ {Math.abs(d.balanceUpToEndDate).toFixed(2)} (Crédito)
+                                                      </span>
+                                                  ) : (
+                                                      <span className="text-sm font-black text-slate-600 bg-slate-100 px-2.5 py-1 rounded-xl">
+                                                          R$ 0,00
+                                                      </span>
+                                                  )}
+                                              </td>
+                                              <td className="p-4 text-center">
+                                                  <div className="flex items-center justify-center gap-1.5">
+                                                      <button
+                                                          onClick={() => {
+                                                              setStatementClient(d.dentistObj || d);
+                                                              setFilterStartDate(reportStartDate);
+                                                              setFilterEndDate(reportEndDate);
+                                                              setActiveSubTab('EXTRATO');
+                                                              setShowStatement(true);
+                                                          }}
+                                                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white rounded-xl text-xs font-black uppercase transition-all shadow-sm cursor-pointer"
+                                                          title="Abrir Extrato Financeiro do Período"
+                                                      >
+                                                          <History size={14} /> Extrato
+                                                      </button>
+                                                      <button
+                                                          onClick={() => {
+                                                              setSelectedEmailClientId(d.id);
+                                                              setShowDebtsEmailModal(true);
+                                                          }}
+                                                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white rounded-xl text-xs font-black uppercase transition-all shadow-sm cursor-pointer"
+                                                          title="Enviar Extrato deste Cliente por E-mail"
+                                                      >
+                                                          <Mail size={14} /> Enviar E-mail
+                                                      </button>
+                                                  </div>
+                                              </td>
+                                          </tr>
+                                      ))
+                                  )}
+                              </tbody>
+                          </table>
+                      </div>
+                  </div>
+              ) : (
+                  <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+                      <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                          <span className="text-xs font-black text-slate-400 uppercase tracking-widest">
+                              Mostrando {reportMovements.length} registro(s)
+                          </span>
+                      </div>
+
+                      <div className="overflow-x-auto">
+                          <table className="w-full text-left border-collapse">
+                              <thead>
+                                  <tr className="bg-slate-50 border-b border-slate-100">
+                                      <th className="p-4 text-[10px] font-black text-slate-400 uppercase">Data</th>
+                                      <th className="p-4 text-[10px] font-black text-slate-400 uppercase">Descrição</th>
+                                      <th className="p-4 text-[10px] font-black text-slate-400 uppercase">Tipo</th>
+                                      <th className="p-4 text-[10px] font-black text-slate-400 uppercase">Canal / Origem</th>
+                                      <th className="p-4 text-[10px] font-black text-slate-400 uppercase">Cliente</th>
+                                      <th className="p-4 text-[10px] font-black text-slate-400 uppercase text-right">Valor</th>
+                                      <th className="p-4 text-[10px] font-black text-slate-400 uppercase text-center">Status</th>
+                                      <th className="p-4 text-[10px] font-black text-slate-400 uppercase text-center">Ações</th>
+                                  </tr>
+                              </thead>
+                              <tbody>
+                                  {reportMovements.length === 0 ? (
+                                      <tr>
+                                          <td colSpan={8} className="p-12 text-center text-slate-400 font-bold">
+                                              Nenhuma movimentação encontrada para os filtros selecionados.
+                                          </td>
+                                      </tr>
+                                  ) : (
+                                      reportMovements.map(m => (
+                                          <tr key={`${m.source}-${m.id}`} className="hover:bg-slate-50 border-b border-slate-100 transition-colors">
+                                              <td className="p-4 text-xs font-bold text-slate-500">
+                                                  {m.date.toLocaleDateString('pt-BR')}
+                                              </td>
+                                              <td className="p-4 text-xs font-bold text-slate-800 max-w-xs truncate">
+                                                  {m.description}
+                                              </td>
+                                              <td className="p-4">
+                                                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${
+                                                      m.type === 'RECEBIMENTO' 
+                                                          ? 'bg-green-50 text-green-600' 
+                                                          : m.type === 'DEBITO'
+                                                              ? 'bg-orange-50 text-orange-600'
+                                                              : 'bg-red-50 text-red-600'
+                                                  }`}>
+                                                      {m.type === 'RECEBIMENTO' ? 'RECEBIMENTO' : m.type === 'DEBITO' ? 'DÉBITO' : 'DESPESA'}
+                                                  </span>
+                                              </td>
+                                              <td className="p-4 text-xs font-bold text-slate-600">
+                                                  {m.category}
+                                              </td>
+                                              <td className="p-4 text-xs font-bold text-slate-500">
+                                                  {m.dentistName}
+                                              </td>
+                                              <td className={`p-4 text-xs font-black text-right ${
+                                                  m.type === 'RECEBIMENTO' 
+                                                      ? 'text-green-600' 
+                                                      : m.type === 'DEBITO' 
+                                                          ? 'text-orange-600' 
+                                                          : 'text-red-600'
+                                              }`}>
+                                                  {m.type === 'RECEBIMENTO' ? '+' : '-'} R$ {m.amount.toFixed(2)}
+                                              </td>
+                                              <td className="p-4 text-center">
+                                                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${
+                                                      m.status === 'PAID' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                                                  }`}>
+                                                      {m.status === 'PAID' ? 'PAGO' : 'PENDENTE'}
+                                                  </span>
+                                              </td>
+                                              <td className="p-4 text-center">
+                                                  {m.source === 'MANUAL_OR_ASAAS' && (
+                                                      <button 
+                                                          type="button"
+                                                          onClick={async (e) => {
+                                                              e.stopPropagation();
+                                                              const label = m.type === 'DEBITO' ? 'este débito manual' : 'este recebimento/crédito';
+                                                              if (window.confirm(`Deseja realmente excluir ${label} (${m.description} - R$ ${m.amount.toFixed(2)})?`)) {
+                                                                  try {
+                                                                      await deleteDentistPayment(m.refId);
+                                                                      alert("Lançamento excluído com sucesso!");
+                                                                  } catch (err) {
+                                                                      console.error(err);
+                                                                      alert("Erro ao excluir lançamento.");
+                                                                  }
+                                                              }
+                                                          }}
+                                                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                          title="Excluir Lançamento"
+                                                      >
+                                                          <Trash2 size={14} />
+                                                      </button>
+                                                  )}
+                                                  {m.source === 'EXPENSE' && (
+                                                      <button 
+                                                          type="button"
+                                                          onClick={async (e) => {
+                                                              e.stopPropagation();
+                                                              if (window.confirm(`Deseja realmente excluir esta despesa (${m.description} - R$ ${m.amount.toFixed(2)})?`)) {
+                                                                  if (currentOrg) {
+                                                                      try {
+                                                                          await api.apiDeleteExpense(currentOrg.id, m.refId);
+                                                                          alert("Despesa excluída com sucesso!");
+                                                                      } catch (err) {
+                                                                          console.error(err);
+                                                                          alert("Erro ao excluir despesa.");
+                                                                      }
+                                                                  }
+                                                              }
+                                                          }}
+                                                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                          title="Excluir Despesa"
+                                                      >
+                                                          <Trash2 size={14} />
+                                                      </button>
+                                                  )}
+                                                  {m.source === 'ONLINE_STORE' && (
+                                                      <span className="text-[10px] text-slate-300 font-bold">---</span>
+                                                  )}
+                                              </td>
+                                          </tr>
+                                      ))
+                                  )}
+                              </tbody>
+                          </table>
+                      </div>
+                  </div>
+              )}
+          </div>
+      )}
+
+      {/* MODAL: SELEÇÃO DE TRABALHOS P/ FATURAMENTO */}
+      {activeTab === 'SETTINGS' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:p-8 animate-in slide-in-from-right-2">
+              {/* Maquinas de Cartão */}
+              <div className="bg-white p-4 sm:p-6 rounded-3xl border border-slate-100 shadow-sm space-y-6">
+                  <div className="flex justify-between items-center">
+                      <h3 className="text-lg font-black text-slate-800 flex items-center gap-2"><CreditCard className="text-blue-600"/> Máquinas de Cartão</h3>
+                      <button 
+                        onClick={() => {
+                            const name = prompt("Nome da Máquina (Ex: Moderninha, Stone):");
+                            if (name) addCardMachine({ name, active: true });
+                        }}
+                        className="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100"
+                      >
+                          <Plus size={20}/>
+                      </button>
+                  </div>
+                  <div className="space-y-2">
+                      {cardMachines.map(m => (
+                          <div key={m.id} className="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-100 group">
+                              <span className="font-bold text-slate-700">{m.name}</span>
+                              <div className="flex items-center gap-2">
+                                  <button onClick={() => deleteCardMachine(m.id)} className="p-2 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={16}/></button>
+                              </div>
+                          </div>
+                      ))}
+                      {cardMachines.length === 0 && <p className="text-sm text-slate-400 italic text-center py-4">Nenhuma máquina cadastrada.</p>}
+                  </div>
+              </div>
+
+              {/* Contas Bancárias */}
+              <div className="bg-white p-4 sm:p-6 rounded-3xl border border-slate-100 shadow-sm space-y-6">
+                  <div className="flex justify-between items-center">
+                      <h3 className="text-lg font-black text-slate-800 flex items-center gap-2"><Building className="text-blue-600"/> Contas Bancárias</h3>
+                      <button 
+                        onClick={() => {
+                            const name = prompt("Nome da Conta (Ex: Itau, Nubank, Banco do Brasil):");
+                            if (name) addBankAccount({ name, active: true });
+                        }}
+                        className="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100"
+                      >
+                          <Plus size={20}/>
+                      </button>
+                  </div>
+                  <div className="space-y-2">
+                      {bankAccounts.map(b => (
+                          <div key={b.id} className="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-100 group">
+                              <span className="font-bold text-slate-700">{b.name}</span>
+                              <div className="flex items-center gap-2">
+                                  <button onClick={() => deleteBankAccount(b.id)} className="p-2 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={16}/></button>
+                              </div>
+                          </div>
+                      ))}
+                      {bankAccounts.length === 0 && <p className="text-sm text-slate-400 italic text-center py-4">Nenhuma conta cadastrada.</p>}
+                  </div>
+              </div>
+          </div>
+      )}
+      {/* MODAL: NOVA DESPESA */}
+      {showExpenseModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-4 sm:p-6 animate-in zoom-in duration-200">
+                  <div className="flex justify-between items-center mb-6 border-b pb-4">
+                      <h3 className="text-xl font-black text-slate-800">Lançar Nova Despesa</h3>
+                      <button onClick={() => setShowExpenseModal(false)} className="p-2 text-slate-400 hover:text-slate-600 transition-colors"><X size={24}/></button>
+                  </div>
+                  <form onSubmit={handleAddExpense} className="space-y-4">
+                      <div>
+                          <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Descrição</label>
+                          <input required value={expenseForm.description} onChange={e => setExpenseForm({...expenseForm, description: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-red-500" placeholder="Ex: Compra de Resina" />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Valor (R$)</label>
+                            <input type="number" required value={expenseForm.amount || ''} onChange={e => setExpenseForm({...expenseForm, amount: parseFloat(e.target.value)})} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-red-500" placeholder="0.00" />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Data</label>
+                            <input type="date" required value={expenseForm.date} onChange={e => setExpenseForm({...expenseForm, date: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-red-500" />
+                          </div>
+                      </div>
+                      <button type="submit" className="w-full py-4 bg-red-600 text-white font-black rounded-2xl shadow-xl hover:bg-red-700 transition-all transform active:scale-95 flex items-center justify-center gap-2">
+                        <DollarSign size={20}/> REGISTRAR SAÍDA
+                      </button>
+                  </form>
+              </div>
+          </div>
+      )}
+
+      {/* MODAL: EXTRATO COMPLETO (SINC COM DENTISTS.TSX) */}
+      {showStatement && statementClient && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-2 sm:p-4">
+                    <div className="bg-slate-50 rounded-2xl sm:rounded-[40px] shadow-2xl w-full max-w-6xl h-[94vh] sm:h-[90vh] flex flex-col animate-in zoom-in duration-300 overflow-hidden border border-white">
+                        {/* HEADER */}
+                        <div className="p-4 sm:p-6 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white relative gap-3">
+                            <div className="flex items-center gap-3 sm:gap-4 pr-10 sm:pr-0">
+                                <div className="w-12 h-12 sm:w-16 sm:h-16 bg-blue-600 rounded-2xl sm:rounded-3xl flex items-center justify-center text-white shadow-xl shadow-blue-200 shrink-0">
+                                    <History size={24} className="sm:w-8 sm:h-8" />
+                                </div>
+                                <div className="min-w-0">
+                                    <h3 className="text-lg sm:text-2xl font-black text-slate-800 tracking-tight truncate">{statementClient.name}</h3>
+                                    <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                                        <span className="text-[9px] sm:text-[10px] font-black text-blue-600 uppercase tracking-widest bg-blue-50 px-2 py-0.5 rounded-lg">Financeiro Unificado</span>
+                                        <span className="text-xs text-slate-400 font-bold truncate">• {statementClient.clinicName || 'Consultório'}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button onClick={() => setShowStatement(false)} className="absolute top-3 right-3 sm:relative sm:top-auto sm:right-auto p-2 hover:bg-slate-100 rounded-2xl transition-all text-slate-400">
+                                <X size={24} />
+                            </button>
+
+                            <div className="w-full sm:w-auto overflow-x-auto no-scrollbar">
+                                <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-2xl w-full sm:w-auto">
+                                    <button 
+                                        onClick={() => setActiveSubTab('EXTRATO')}
+                                        className={`flex-1 sm:flex-initial px-4 sm:px-6 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all whitespace-nowrap ${activeSubTab === 'EXTRATO' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                    >
+                                        Extrato
+                                    </button>
+                                    <button 
+                                        onClick={() => setActiveSubTab('RECEBIMENTOS')}
+                                        className={`flex-1 sm:flex-initial px-4 sm:px-6 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all whitespace-nowrap ${activeSubTab === 'RECEBIMENTOS' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                    >
+                                        Recebimentos
+                                    </button>
+                                    <button 
+                                        onClick={() => setActiveSubTab('FATURAS')}
+                                        className={`flex-1 sm:flex-initial px-4 sm:px-6 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all whitespace-nowrap ${activeSubTab === 'FATURAS' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                    >
+                                        Faturas/Boletos
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* CONTENT */}
+                        <div className="flex-1 overflow-y-auto p-3 sm:p-6 bg-slate-50/50 relative">
+                            {isLoadingStatement && (
+                                <div className="absolute inset-0 z-10 bg-white/60 backdrop-blur-sm flex flex-col items-center justify-center">
+                                    <Loader2 className="w-10 h-10 text-blue-600 animate-spin mb-4" />
+                                    <p className="text-sm font-black text-slate-800 uppercase tracking-widest">Sincronizando Dados...</p>
+                                </div>
+                            )}
+
+                            {activeSubTab === 'EXTRATO' && (
+                                <div className="space-y-4 sm:space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                    <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 bg-white p-3 sm:p-6 rounded-2xl sm:rounded-[32px] border border-slate-100 shadow-sm">
+                                        <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-2xl border border-slate-100 w-full sm:w-auto">
+                                            <input 
+                                                type="date"
+                                                value={filterStartDate}
+                                                onChange={(e) => setFilterStartDate(e.target.value)}
+                                                className="flex-1 sm:flex-initial px-2 sm:px-4 py-2 bg-transparent text-xs sm:text-sm font-bold text-slate-700 outline-none"
+                                            />
+                                            <span className="text-slate-400 font-bold px-1 sm:px-2 text-xs">até</span>
+                                            <input 
+                                                type="date"
+                                                value={filterEndDate}
+                                                onChange={(e) => setFilterEndDate(e.target.value)}
+                                                className="flex-1 sm:flex-initial px-2 sm:px-4 py-2 bg-transparent text-xs sm:text-sm font-bold text-slate-700 outline-none"
+                                            />
+                                        </div>
+                                        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+                                            <button 
+                                                onClick={() => setShowManualEntryModal(true)}
+                                                className="flex-1 sm:flex-initial px-3 sm:px-4 py-2.5 sm:py-3 bg-blue-600 text-white text-[10px] font-black uppercase rounded-xl sm:rounded-2xl hover:bg-blue-700 transition-all flex items-center justify-center gap-1.5 shadow-md shadow-blue-500/20 whitespace-nowrap"
+                                            >
+                                                <Plus size={15} /> Lançamento
+                                            </button>
+                                            <button 
+                                                onClick={generateStatementPDF}
+                                                className="flex-1 sm:flex-initial px-3 sm:px-5 py-2.5 sm:py-3 bg-slate-900 text-white text-[10px] font-black uppercase rounded-xl sm:rounded-2xl hover:bg-slate-800 transition-all flex items-center justify-center gap-1.5 shadow-md shadow-slate-200 whitespace-nowrap"
+                                            >
+                                                <Download size={15} /> PDF
+                                            </button>
+                                            <button 
+                                                onClick={() => {
+                                                    if (statementClient) {
+                                                        setSelectedEmailClientId(statementClient.id);
+                                                        setReportStartDate(filterStartDate);
+                                                        setReportEndDate(filterEndDate);
+                                                        setShowDebtsEmailModal(true);
+                                                    }
+                                                }}
+                                                className="w-full sm:w-auto px-4 py-2.5 sm:py-3 bg-blue-600 text-white text-[10px] font-black uppercase rounded-xl sm:rounded-2xl hover:bg-blue-700 transition-all flex items-center justify-center gap-1.5 shadow-md shadow-blue-500/20 whitespace-nowrap"
+                                                title="Enviar este Extrato em PDF por E-mail"
+                                            >
+                                                <Mail size={15} /> Enviar por E-mail
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-white rounded-2xl sm:rounded-[32px] border border-slate-100 shadow-sm overflow-hidden">
+                                        <div className="overflow-x-auto w-full">
+                                            <table className="w-full text-left min-w-[540px]">
+                                                <thead className="bg-slate-50 border-b border-slate-100">
+                                                    <tr>
+                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Data</th>
+                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Lançamento</th>
+                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Valor</th>
+                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Saldo</th>
+                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Ações</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-50">
+                                                    <tr className="bg-slate-50/50 font-bold border-b border-slate-200">
+                                                        <td className="px-4 sm:px-6 py-3 sm:py-4 text-xs text-slate-400">
+                                                            {filterStartDate ? new Date(`${filterStartDate}T00:00:00`).toLocaleDateString('pt-BR') : '-'}
+                                                        </td>
+                                                        <td className="px-4 sm:px-6 py-3 sm:py-4 text-xs text-slate-500 uppercase tracking-widest">Saldo Anterior Carregado</td>
+                                                        <td className="px-4 sm:px-6 py-3 sm:py-4 text-right text-xs">-</td>
+                                                        <td className={`px-4 sm:px-6 py-3 sm:py-4 text-right text-xs font-black ${chronoHistory.previousBalance < 0 ? 'text-red-500' : 'text-green-600'}`}>
+                                                            R$ {chronoHistory.previousBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                        </td>
+                                                        <td className="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs text-slate-300">-</td>
+                                                    </tr>
+                                                    {chronoHistory.history.length === 0 ? (
+                                                        <tr>
+                                                            <td colSpan={5} className="px-6 py-12 text-center text-slate-400 font-bold italic bg-slate-50/10">
+                                                                Nenhum registro encontrado neste período.
+                                                            </td>
+                                                        </tr>
+                                                    ) : (
+                                                        chronoHistory.history.slice().reverse().map((item, idx) => (
+                                                            <tr key={idx} className="hover:bg-slate-50 transition-colors group">
+                                                                <td className="px-4 sm:px-6 py-3 sm:py-4 text-xs font-bold text-slate-500">
+                                                                    {new Date(item.date).toLocaleDateString('pt-BR')}
+                                                                </td>
+                                                                <td className="px-4 sm:px-6 py-3 sm:py-4">
+                                                                    <div className="flex flex-col gap-1">
+                                                                        <div className="flex items-center gap-2 sm:gap-3">
+                                                                            <div className={`p-1.5 sm:p-2 rounded-lg ${item.type === 'DEBIT' ? 'bg-red-50 text-red-500' : 'bg-green-50 text-green-500'}`}>
+                                                                                {item.type === 'DEBIT' ? <ArrowDownCircle size={14} /> : <ArrowUpCircle size={14} />}
+                                                                            </div>
+                                                                            <span className="text-xs font-black text-slate-800">{item.description}</span>
+                                                                        </div>
+                                                                        {'job' in item && item.job && (
+                                                                            <div className="ml-6 sm:ml-10 space-y-1">
+                                                                                {item.job.items?.map((it:any, iIdx:number) => (
+                                                                                    <div key={`item-${iIdx}`} className="flex items-center gap-4 text-[9px] font-bold text-slate-400 uppercase">
+                                                                                        <span>{it.quantity} x {it.name}</span>
+                                                                                        <span className="text-slate-300">R$ {it.price.toFixed(2)}</span>
+                                                                                    </div>
+                                                                                ))}
+                                                                                {item.job.products?.map((prod:any, pIdx:number) => (
+                                                                                    <div key={`prod-${pIdx}`} className="flex items-center gap-4 text-[9px] font-extrabold text-amber-600 uppercase">
+                                                                                        <span>{prod.quantity || 1} x [IMPLANTE/PRODUTO] {prod.name}</span>
+                                                                                        <span className="text-amber-500">R$ {((prod.unitPrice || 0) * (prod.quantity || 1)).toFixed(2)}</span>
+                                                                                    </div>
+                                                                                ))}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                </td>
+                                                                <td className={`px-4 sm:px-6 py-3 sm:py-4 text-xs font-black text-right ${item.type === 'DEBIT' ? 'text-red-600' : 'text-green-600'}`}>
+                                                                    {item.type === 'DEBIT' ? '-' : '+'} R$ {item.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                                </td>
+                                                                <td className={`px-4 sm:px-6 py-3 sm:py-4 text-xs font-black text-right ${item.balanceAfter < 0 ? 'text-red-500' : 'text-green-600'}`}>
+                                                                    R$ {item.balanceAfter.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                                </td>
+                                                                <td className="px-4 sm:px-6 py-3 sm:py-4 text-center">
+                                                                    {(item as any).payment ? (
+                                                                        <div className="flex items-center justify-center gap-1">
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                    const p = (item as any).payment;
+                                                                                    setSelectedPaymentForDetail(p);
+                                                                                    setIsEditingDetailPayment(false);
+                                                                                    setEditDetailAmount(p.amount);
+                                                                                    setEditDetailInterest(p.interest || 0);
+                                                                                    setEditDetailFees(p.fees || 0);
+                                                                                    setEditDetailDiscount(p.discount || 0);
+                                                                                    setEditDetailMethod(p.paymentMethod);
+                                                                                    setEditDetailCardMachineId(p.cardMachineId || '');
+                                                                                    setEditDetailBankAccountId(p.bankAccountId || '');
+                                                                                    setEditDetailDate(new Date(p.paymentDate).toISOString().split('T')[0]);
+                                                                                    setEditDetailNotes(p.notes || '');
+                                                                                    setEditDetailAttachmentUrl(p.attachmentUrl || '');
+                                                                                    setEditDetailAttachmentName(p.attachmentName || '');
+                                                                                }}
+                                                                                className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                                                title="Ver/Editar Detalhes"
+                                                                            >
+                                                                                <FileText size={14} />
+                                                                            </button>
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={async (e) => {
+                                                                                    e.stopPropagation();
+                                                                                    const pay = (item as any).payment;
+                                                                                    const label = pay.type === 'MANUAL_DEBIT' ? 'este débito manual' : pay.type === 'MANUAL_CREDIT' ? 'este crédito manual' : 'este recebimento';
+                                                                                    if (window.confirm(`Deseja realmente excluir ${label} (${item.description})?`)) {
+                                                                                        try {
+                                                                                            await deleteDentistPayment(pay.id);
+                                                                                            alert("Lançamento excluído com sucesso!");
+                                                                                        } catch (err) {
+                                                                                            console.error(err);
+                                                                                            alert("Erro ao excluir lançamento.");
+                                                                                        }
+                                                                                    }
+                                                                                }}
+                                                                                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                                                title="Excluir Lançamento"
+                                                                            >
+                                                                                <Trash2 size={14} />
+                                                                            </button>
+                                                                        </div>
+                                                                    ) : (
+                                                                        <span className="text-[10px] text-slate-300 font-bold">OS</span>
+                                                                    )}
+                                                                </td>
+                                                            </tr>
+                                                        ))
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {activeSubTab === 'RECEBIMENTOS' && (
+                                <div className="space-y-4 sm:space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                                        <h4 className="text-xs sm:text-sm font-black text-slate-800 uppercase tracking-widest">Histórico de Recebimentos</h4>
+                                        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+                                            <button 
+                                                onClick={generateReceiptsPDF}
+                                                className="flex-1 sm:flex-initial px-3 sm:px-4 py-2 bg-indigo-50 text-indigo-700 text-[10px] font-black uppercase rounded-xl hover:bg-indigo-100 transition-all flex items-center justify-center gap-1.5 whitespace-nowrap"
+                                            >
+                                                <Printer size={14} />
+                                                Recibo em PDF
+                                            </button>
+                                            <button 
+                                                onClick={() => setShowPaymentForm(!showPaymentForm)}
+                                                className="flex-1 sm:flex-initial px-3 sm:px-4 py-2 bg-green-600 text-white text-[10px] font-black uppercase rounded-xl hover:bg-green-700 transition-all shadow-lg shadow-green-100 flex items-center justify-center gap-1.5 whitespace-nowrap"
+                                            >
+                                                {showPaymentForm ? <Trash2 size={14} /> : <Plus size={14} />}
+                                                Novo Recebimento
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {showPaymentForm && (
+                                        <div className="bg-white p-4 sm:p-6 rounded-2xl border-2 border-green-200 animate-in slide-in-from-top-4 duration-300">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4">
+                                                <div className="md:col-span-1">
+                                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Valor Recebido (R$)</label>
+                                                    <input 
+                                                        type="number"
+                                                        value={paymentAmount || ''}
+                                                        onChange={e => setPaymentAmount(parseFloat(e.target.value) || 0)}
+                                                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none font-black text-slate-700"
+                                                        placeholder="0,00"
+                                                    />
+                                                </div>
+                                                <div className="md:col-span-1">
+                                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest text-red-500">Juros/Mora (+)</label>
+                                                    <input 
+                                                        type="number"
+                                                        value={paymentInterest || ''}
+                                                        onChange={e => setPaymentInterest(parseFloat(e.target.value) || 0)}
+                                                        className="w-full px-4 py-2.5 bg-red-50/50 border border-red-100 rounded-xl focus:ring-2 focus:ring-red-500 outline-none font-bold text-red-700"
+                                                        placeholder="0,00"
+                                                    />
+                                                </div>
+                                                <div className="md:col-span-1">
+                                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest text-green-600">Desconto (-)</label>
+                                                    <input 
+                                                        type="number"
+                                                        value={paymentDiscount || ''}
+                                                        onChange={e => setPaymentDiscount(parseFloat(e.target.value) || 0)}
+                                                        className="w-full px-4 py-2.5 bg-green-50/50 border border-green-100 rounded-xl focus:ring-2 focus:ring-green-500 outline-none font-bold text-green-700"
+                                                        placeholder="0,00"
+                                                    />
+                                                </div>
+                                                <div className="md:col-span-1">
+                                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest text-orange-600">Taxas (-)</label>
+                                                    <input 
+                                                        type="number"
+                                                        value={paymentFees || ''}
+                                                        onChange={e => setPaymentFees(parseFloat(e.target.value) || 0)}
+                                                        className="w-full px-4 py-2.5 bg-orange-50/50 border border-orange-100 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none font-bold text-orange-700"
+                                                        placeholder="0,00"
+                                                    />
+                                                </div>
+                                                <div className="md:col-span-1">
+                                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Forma</label>
+                                                    <select 
+                                                        value={paymentMethod}
+                                                        onChange={e => setPaymentMethod(e.target.value as any)}
+                                                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none font-bold text-slate-700 h-[46px]"
+                                                    >
+                                                        <option value="PIX">PIX</option>
+                                                        <option value="CASH">Dinheiro</option>
+                                                        <option value="CHEQUE">Cheque</option>
+                                                        <option value="CREDIT_CARD">Cartão de Crédito</option>
+                                                        <option value="DEBIT_CARD">Cartão de Débito</option>
+                                                        <option value="BANK_TRANSFER">Transferência Bancária</option>
+                                                        <option value="BOLETO">Boleto (Pago)</option>
+                                                        <option value="DISCOUNT">Desconto/Cortesia</option>
+                                                        <option value="CLIENT_CREDIT">Saldo de Crédito</option>
+                                                    </select>
+                                                </div>
+
+                                                {(paymentMethod === 'CREDIT_CARD' || paymentMethod === 'DEBIT_CARD') && (
+                                                    <div className="md:col-span-1 animate-in slide-in-from-top-2">
+                                                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Cartão / Máquina</label>
+                                                        <select 
+                                                            value={paymentCardMachineId}
+                                                            onChange={e => setPaymentCardMachineId(e.target.value)}
+                                                            className="w-full px-4 py-2.5 bg-blue-50 border border-blue-100 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-blue-700 h-[46px]"
+                                                        >
+                                                            <option value="">Selecione...</option>
+                                                            {cardMachines.map(m => (
+                                                                <option key={m.id} value={m.id}>{m.name}</option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                )}
+
+                                                {paymentMethod === 'CREDIT_CARD' && (
+                                                    <>
+                                                        <div className="md:col-span-1 animate-in slide-in-from-top-2">
+                                                            <label className="block text-[10px] font-black text-red-500 uppercase mb-1 tracking-widest">Parcelamento *</label>
+                                                            <select 
+                                                                value={paymentCardInstallments}
+                                                                onChange={e => setPaymentCardInstallments(parseInt(e.target.value) || 1)}
+                                                                className="w-full px-4 py-2.5 bg-slate-50 border border-red-200 rounded-xl focus:ring-2 focus:ring-red-500 outline-none font-bold text-slate-700 h-[46px]"
+                                                            >
+                                                                <option value={1}>1x (À vista)</option>
+                                                                {[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(n => (
+                                                                    <option key={n} value={n}>{n}x parcelado</option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
+                                                        <div className="md:col-span-1 animate-in slide-in-from-top-2">
+                                                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Autorização</label>
+                                                            <input 
+                                                                type="text"
+                                                                value={paymentCardAuthorizationCode}
+                                                                onChange={e => setPaymentCardAuthorizationCode(e.target.value)}
+                                                                placeholder="Código da transação"
+                                                                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none font-bold text-slate-700 h-[46px]"
+                                                            />
+                                                        </div>
+                                                    </>
+                                                )}
+
+                                                {paymentMethod === 'BANK_TRANSFER' && (
+                                                    <div className="md:col-span-1 animate-in slide-in-from-top-2">
+                                                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Conta</label>
+                                                        <select 
+                                                            value={paymentBankAccountId}
+                                                            onChange={e => setPaymentBankAccountId(e.target.value)}
+                                                            className="w-full px-4 py-2.5 bg-blue-50 border border-blue-100 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-blue-700 h-[46px]"
+                                                        >
+                                                            <option value="">Selecione...</option>
+                                                            {bankAccounts.map(b => (
+                                                                <option key={b.id} value={b.id}>{b.name}</option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                )}
+
+                                                {paymentMethod === 'CHEQUE' && (
+                                                    <div className="md:col-span-full bg-blue-50/40 p-4 rounded-2xl border border-blue-100 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 animate-in slide-in-from-top-2 my-1">
+                                                        <div>
+                                                            <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 tracking-widest">Conta Bancária</label>
+                                                            <select 
+                                                                value={paymentBankAccountId}
+                                                                onChange={e => setPaymentBankAccountId(e.target.value)}
+                                                                className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-700 h-[42px] text-xs"
+                                                            >
+                                                                <option value="">Selecione a conta...</option>
+                                                                {bankAccounts.map(b => (
+                                                                    <option key={b.id} value={b.id}>{b.name}</option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 tracking-widest">Banco</label>
+                                                            <input 
+                                                                type="text"
+                                                                value={paymentCheckBank}
+                                                                onChange={e => setPaymentCheckBank(e.target.value)}
+                                                                placeholder="Ex: Itaú, Bradesco, Banco do Brasil..."
+                                                                className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-700 text-xs h-[42px]"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 tracking-widest">Agência</label>
+                                                            <input 
+                                                                type="text"
+                                                                value={paymentCheckAgency}
+                                                                onChange={e => setPaymentCheckAgency(e.target.value)}
+                                                                placeholder="Agência"
+                                                                className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-700 text-xs h-[42px]"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 tracking-widest">Conta corrente</label>
+                                                            <input 
+                                                                type="text"
+                                                                value={paymentCheckAccount}
+                                                                onChange={e => setPaymentCheckAccount(e.target.value)}
+                                                                placeholder="Conta corrente"
+                                                                className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-700 text-xs h-[42px]"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 tracking-widest">Nome do Titular</label>
+                                                            <input 
+                                                                type="text"
+                                                                value={paymentCheckName}
+                                                                onChange={e => setPaymentCheckName(e.target.value)}
+                                                                placeholder="Nome impresso no cheque"
+                                                                className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-700 text-xs h-[42px]"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-[10px] font-black text-blue-600 uppercase mb-1 tracking-widest">Bom para *</label>
+                                                            <input 
+                                                                type="date"
+                                                                value={paymentCheckGoodForDate}
+                                                                onChange={e => setPaymentCheckGoodForDate(e.target.value)}
+                                                                className="w-full px-4 py-2 bg-white border border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-blue-800 text-xs h-[42px]"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 tracking-widest">Número do Cheque</label>
+                                                            <input 
+                                                                type="text"
+                                                                value={paymentCheckNumber}
+                                                                onChange={e => setPaymentCheckNumber(e.target.value)}
+                                                                placeholder="Número do cheque"
+                                                                className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-700 text-xs h-[42px]"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                <div className="md:col-span-1">
+                                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest italic">Total Líquido</label>
+                                                    <div className="w-full px-4 py-2.5 bg-slate-200 border border-slate-300 rounded-xl font-black text-slate-800 h-[46px] flex items-center">
+                                                        R$ {(paymentAmount + paymentInterest - paymentDiscount - paymentFees).toFixed(2)}
+                                                    </div>
+                                                </div>
+                                                <div className="md:col-span-full">
+                                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Observações/Ref.</label>
+                                                    <input 
+                                                        value={paymentNotes}
+                                                        onChange={e => setPaymentNotes(e.target.value)}
+                                                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none font-bold text-slate-700"
+                                                        placeholder="Ex: Ref. OS 123, Promoção especial..."
+                                                    />
+                                                </div>
+
+                                                {/* DEMONSTRATIVO DO PARCELAMENTO */}
+                                                {paymentMethod === "CREDIT_CARD" && paymentCardInstallments > 1 && (paymentAmount + paymentInterest - paymentDiscount - paymentFees) > 0 && (
+                                                    <div className="md:col-span-full bg-blue-50/80 border border-blue-200 rounded-2xl p-4 animate-in fade-in slide-in-from-top-2 my-2">
+                                                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-3 border-b border-blue-200/80 pb-2">
+                                                            <div className="flex items-center gap-2 text-blue-900 font-extrabold text-xs uppercase tracking-wider">
+                                                                <CreditCard size={18} className="text-blue-600" />
+                                                                Demonstrativo do Parcelamento no Cartão de Crédito ({paymentCardInstallments}x)
+                                                            </div>
+                                                            <span className="bg-blue-600 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase">
+                                                                {paymentCardInstallments}x de R$ {((paymentAmount + paymentInterest - paymentDiscount - paymentFees) / paymentCardInstallments).toFixed(2)}
+                                                            </span>
+                                                        </div>
+
+                                                        <p className="text-[11px] text-blue-800 font-medium mb-3 leading-relaxed">
+                                                            Ao confirmar este recebimento, as <strong>{paymentCardInstallments} parcelas</strong> serão lançadas individualmente mês a mês na aba <strong>Recebimentos</strong>. No <strong>Extrato</strong> do cliente, o valor total de <strong>R$ {(paymentAmount + paymentInterest - paymentDiscount - paymentFees).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</strong> abaterá a dívida na data do pagamento.
+                                                        </p>
+
+                                                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                                                            {Array.from({ length: paymentCardInstallments }).map((_, idx) => {
+                                                                const netTot = Math.max(0, paymentAmount + paymentInterest - paymentDiscount - paymentFees);
+                                                                const baseVal = Math.floor((netTot / paymentCardInstallments) * 100) / 100;
+                                                                const rem = Math.round((netTot - (baseVal * paymentCardInstallments)) * 100) / 100;
+                                                                const instVal = idx === 0 ? baseVal + rem : baseVal;
+                                                                const instD = new Date();
+                                                                instD.setMonth(instD.getMonth() + idx);
+
+                                                                return (
+                                                                    <div key={idx} className="bg-white p-2.5 rounded-xl border border-blue-100 flex items-center justify-between text-xs shadow-xs">
+                                                                        <div className="flex flex-col">
+                                                                            <span className="font-extrabold text-slate-800">Parcela ({idx + 1}/{paymentCardInstallments})</span>
+                                                                            <span className="text-[10px] text-slate-400 font-bold">{instD.toLocaleDateString("pt-BR")}</span>
+                                                                        </div>
+                                                                        <span className="font-black text-blue-700 font-mono">
+                                                                            R$ {instVal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                                                                        </span>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                <div className="md:col-span-full border-t border-slate-100 pt-3">
+                                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest flex items-center gap-1.5">
+                                                        <FileText size={12} /> Comprovante de Recebimento
+                                                    </label>
+                                                    <div className="mt-1 flex items-center gap-3 font-sans">
+                                                        <label className="cursor-pointer flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-black uppercase rounded-xl transition-all border border-slate-200">
+                                                            {uploadingAttachment ? (
+                                                                <>
+                                                                    <Loader2 className="animate-spin" size={14} />
+                                                                    Enviando...
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <Plus size={14} /> Selecionar Comprovante
+                                                                </>
+                                                            )}
+                                                            <input 
+                                                                type="file" 
+                                                                accept="image/*,application/pdf"
+                                                                className="hidden" 
+                                                                onChange={async (e) => {
+                                                                    const file = e.target.files?.[0];
+                                                                    if (!file) return;
+                                                                    setUploadingAttachment(true);
+                                                                    try {
+                                                                        const url = await uploadFile(file);
+                                                                        setPaymentAttachmentUrl(url);
+                                                                        setPaymentAttachmentName(file.name);
+                                                                    } catch (err) {
+                                                                        console.error(err);
+                                                                        alert("Erro ao fazer upload do comprovante.");
+                                                                    } finally {
+                                                                        setUploadingAttachment(false);
+                                                                    }
+                                                                }}
+                                                                disabled={uploadingAttachment}
+                                                            />
+                                                        </label>
+                                                        {paymentAttachmentName ? (
+                                                            <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-100 px-3 py-1.5 rounded-xl">
+                                                                <span className="text-[10px] font-black text-emerald-700 truncate max-w-[250px]">{paymentAttachmentName}</span>
+                                                                <button 
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        setPaymentAttachmentUrl('');
+                                                                        setPaymentAttachmentName('');
+                                                                    }}
+                                                                    className="text-emerald-700 hover:text-emerald-900"
+                                                                >
+                                                                    <X size={14} />
+                                                                </button>
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-[10px] font-bold text-slate-400 italic">Nenhum arquivo selecionado (Opcional)</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="flex justify-end mt-4 gap-3">
+                                                <button onClick={() => setShowPaymentForm(false)} className="px-4 py-2 text-xs font-black text-slate-400 uppercase hover:bg-slate-50 rounded-xl transition-all">Cancelar</button>
+                                                <button 
+                                                    disabled={isSaving || paymentAmount <= 0}
+                                                    onClick={handleSavePayment}
+                                                    className="px-8 py-2 bg-green-600 text-white text-xs font-black uppercase rounded-xl hover:bg-green-700 transition-all disabled:opacity-50 flex items-center gap-2"
+                                                >
+                                                    {isSaving ? <Loader2 className="animate-spin" size={14}/> : <Save size={14} />} Confirmar Recebimento (R$ {(paymentAmount + paymentInterest - paymentDiscount - paymentFees).toFixed(2)})
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                                        <div className="overflow-x-auto w-full">
+                                            <table className="w-full text-left min-w-[500px]">
+                                                <thead className="bg-slate-50 border-b border-slate-100">
+                                                    <tr>
+                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Data</th>
+                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Tipo / Forma</th>
+                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Observação</th>
+                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Comprovante</th>
+                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Valor</th>
+                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Ações</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-50">
+                                                    {dentistPayments.filter(p => p.dentistId === statementClient.id && new Date(p.paymentDate) >= new Date(`${filterStartDate}T00:00:00`) && new Date(p.paymentDate) <= new Date(`${filterEndDate}T23:59:59`)).length === 0 ? (
+                                                        <tr>
+                                                            <td colSpan={6} className="px-4 sm:px-6 py-12 text-center text-slate-400 font-bold italic">Nenhum lançamento registrado neste período.</td>
+                                                        </tr>
+                                                    ) : (
+                                                        dentistPayments.filter(p => p.dentistId === statementClient.id && new Date(p.paymentDate) >= new Date(`${filterStartDate}T00:00:00`) && new Date(p.paymentDate) <= new Date(`${filterEndDate}T23:59:59`)).map((p, idx) => (
+                                                            <tr 
+                                                                key={p.id} 
+                                                                onClick={() => {
+                                                                    setSelectedPaymentForDetail(p);
+                                                                    setIsEditingDetailPayment(false);
+                                                                    setEditDetailAmount(p.amount);
+                                                                    setEditDetailInterest(p.interest || 0);
+                                                                    setEditDetailFees(p.fees || 0);
+                                                                    setEditDetailDiscount(p.discount || 0);
+                                                                    setEditDetailMethod(p.paymentMethod);
+                                                                    setEditDetailCardMachineId(p.cardMachineId || '');
+                                                                    setEditDetailBankAccountId(p.bankAccountId || '');
+                                                                    setEditDetailDate(new Date(p.paymentDate).toISOString().split('T')[0]);
+                                                                    setEditDetailNotes(p.notes || '');
+                                                                    setEditDetailAttachmentUrl(p.attachmentUrl || '');
+                                                                    setEditDetailAttachmentName(p.attachmentName || '');
+                                                                }}
+                                                                className="hover:bg-slate-50 transition-colors cursor-pointer"
+                                                            >
+                                                                <td className="px-4 sm:px-6 py-3 sm:py-4 text-xs font-bold text-slate-500">
+                                                                    {new Date(p.paymentDate).toLocaleDateString('pt-BR')}
+                                                                </td>
+                                                                <td className="px-4 sm:px-6 py-3 sm:py-4">
+                                                                    <span className={`px-2 py-1 text-[9px] font-black uppercase rounded-lg ${
+                                                                        p.type === 'MANUAL_DEBIT' 
+                                                                            ? 'bg-orange-50 text-orange-700 border border-orange-200' 
+                                                                            : p.type === 'MANUAL_CREDIT'
+                                                                                ? 'bg-green-50 text-green-700 border border-green-200'
+                                                                                : p.type === 'DISCOUNT'
+                                                                                    ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                                                                    : 'bg-slate-100 text-slate-600'
+                                                                    }`}>
+                                                                        {p.type === 'MANUAL_DEBIT' 
+                                                                            ? 'DÉBITO MANUAL' 
+                                                                            : p.type === 'MANUAL_CREDIT'
+                                                                                ? 'CRÉDITO MANUAL'
+                                                                                : p.type === 'DISCOUNT'
+                                                                                    ? 'DESCONTO'
+                                                                                    : translatePaymentMethod(p.paymentMethod)}
+                                                                    </span>
+                                                                </td>
+                                                                <td className="px-4 sm:px-6 py-3 sm:py-4 text-xs font-bold text-slate-600 italic">
+                                                                    {p.notes || '-'}
+                                                                </td>
+                                                                <td className="px-4 sm:px-6 py-3 sm:py-4 text-center">
+                                                                    {p.attachmentUrl ? (
+                                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 border border-emerald-100 text-emerald-700 text-[9px] font-black uppercase rounded-lg">
+                                                                            <FileCheck size={10} /> Sim
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span className="inline-flex px-2 py-0.5 bg-slate-50 text-slate-400 border border-slate-100 text-[9px] font-mono rounded">Não</span>
+                                                                    )}
+                                                                </td>
+                                                                <td className={`px-4 sm:px-6 py-3 sm:py-4 text-xs font-black text-right ${p.type === 'MANUAL_DEBIT' ? 'text-orange-600' : 'text-green-600'}`}>
+                                                                    {p.type === 'MANUAL_DEBIT' ? '-' : '+'} R$ {p.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                                </td>
+                                                                <td className="px-4 sm:px-6 py-3 sm:py-4 text-center">
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={async (e) => {
+                                                                            e.stopPropagation();
+                                                                            const label = p.type === 'MANUAL_DEBIT' ? 'este débito manual' : p.type === 'MANUAL_CREDIT' ? 'este crédito manual' : 'este recebimento';
+                                                                            if (window.confirm(`Deseja realmente excluir ${label} no valor de R$ ${p.amount.toFixed(2)}?`)) {
+                                                                                try {
+                                                                                    await deleteDentistPayment(p.id);
+                                                                                    alert("Lançamento excluído com sucesso!");
+                                                                                } catch (err) {
+                                                                                    console.error(err);
+                                                                                    alert("Erro ao excluir lançamento.");
+                                                                                }
+                                                                            }
+                                                                        }}
+                                                                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                                        title="Excluir Lançamento"
+                                                                    >
+                                                                        <Trash2 size={14} />
+                                                                    </button>
+                                                                </td>
+                                                            </tr>
+                                                        ))
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {activeSubTab === 'FATURAS' && (
+                                <div className="space-y-4 sm:space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                    <div className="flex justify-between items-center">
+                                        <h4 className="text-xs sm:text-sm font-black text-slate-800 uppercase tracking-widest">Faturas & Boletos</h4>
+                                    </div>
+
+                                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                                        <div className="overflow-x-auto w-full">
+                                            <table className="w-full text-left min-w-[480px]">
+                                                <thead className="bg-slate-50 border-b border-slate-100">
+                                                    <tr>
+                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">ID</th>
+                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Vencimento</th>
+                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
+                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Valor</th>
+                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Ações</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-50">
+                                                    {billingBatches.filter(b => b.dentistId === statementClient.id).length === 0 ? (
+                                                        <tr>
+                                                            <td colSpan={5} className="px-4 sm:px-6 py-12 text-center text-slate-400 font-bold italic">Nenhuma fatura gerada para este cliente.</td>
+                                                        </tr>
+                                                    ) : (
+                                                        billingBatches.filter(b => b.dentistId === statementClient.id).map((b) => (
+                                                            <tr key={b.id} className="hover:bg-slate-50 transition-colors">
+                                                                <td className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400">#{b.id.slice(-6).toUpperCase()}</td>
+                                                                <td className="px-4 sm:px-6 py-3 sm:py-4 text-xs font-bold text-slate-600">
+                                                                    {new Date(b.dueDate).toLocaleDateString('pt-BR')}
+                                                                </td>
+                                                                <td className="px-4 sm:px-6 py-3 sm:py-4">
+                                                                    <span className={`px-2 py-1 text-[9px] font-black uppercase rounded-lg ${
+                                                                        b.status === 'PAID' ? 'bg-green-100 text-green-700' : 
+                                                                        b.status === 'OVERDUE' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
+                                                                    }`}>
+                                                                        {b.status === 'PAID' ? 'Paga' : b.status === 'OVERDUE' ? 'Atrasada' : 'Pendente'}
+                                                                    </span>
+                                                                </td>
+                                                                <td className="px-4 sm:px-6 py-3 sm:py-4 text-xs font-black text-right text-slate-800">
+                                                                    R$ {b.totalAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                                </td>
+                                                                <td className="px-4 sm:px-6 py-3 sm:py-4 text-center">
+                                                                    <div className="flex items-center justify-center gap-2">
+                                                                        {b.status !== 'PAID' && (
+                                                                            <button 
+                                                                                onClick={() => updateBillingBatchStatus(b.id, 'PAID')}
+                                                                                className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-all"
+                                                                                title="Marcar como Pago"
+                                                                            >
+                                                                                <Check size={16} />
+                                                                            </button>
+                                                                        )}
+                                                                        {b.boletoUrl && (
+                                                                            <a href={b.boletoUrl} target="_blank" className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Ver Boleto">
+                                                                                <FileText size={16} />
+                                                                            </a>
+                                                                        )}
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                        ))
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* FOOTER */}
+                        {(() => {
+                            const overallBal = chronoHistory.overallBalance ?? 0;
+                            return (
+                                <div className="p-3 sm:px-6 sm:py-4 border-t border-slate-100 bg-white flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
+                                    <div className="flex items-center justify-between sm:justify-start gap-4">
+                                        <div className="flex flex-col">
+                                            <span className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                                {overallBal < 0 ? 'Saldo Devedor Total' : overallBal > 0 ? 'Saldo de Crédito Total' : 'Saldo Total'}
+                                            </span>
+                                            <span className={`text-lg sm:text-xl font-black ${overallBal < 0 ? 'text-red-600' : overallBal > 0 ? 'text-emerald-600' : 'text-slate-600'}`}>
+                                                R$ {Math.abs(overallBal).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                {overallBal > 0 ? ' (A favor)' : ''}
+                                            </span>
+                                        </div>
+                                        <div className="h-8 w-px bg-slate-100 mx-2 hidden sm:block" />
+                                        <div className="flex flex-col text-right sm:text-left">
+                                            <span className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest">Último Pagamento</span>
+                                            <span className="text-xs sm:text-sm font-bold text-slate-600">
+                                                {chronoHistory.history.filter(i => i.type === 'PAYMENT').pop()?.date ? new Date(chronoHistory.history.filter(i => i.type === 'PAYMENT').pop()!.date).toLocaleDateString('pt-BR') : '--/--/----'}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+                                        <button 
+                                            onClick={() => {
+                                                const defaultAmount = overallBal < 0 ? Math.abs(overallBal) : 0;
+                                                setCustomBoletoAmount(defaultAmount);
+                                                setShowBoletoModal(true);
+                                            }}
+                                            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-4 sm:px-8 py-2.5 sm:py-3 bg-blue-600 text-white font-black rounded-xl sm:rounded-2xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 uppercase text-xs whitespace-nowrap"
+                                        >
+                                            <Receipt size={16} /> Fechar Faturamento
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setActiveSubTab('RECEBIMENTOS');
+                                                setShowPaymentForm(true);
+                                            }}
+                                            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-8 py-3 bg-slate-100 text-slate-600 font-bold rounded-2xl hover:bg-slate-200 transition-all uppercase text-xs"
+                                        >
+                                            <Banknote size={18} /> Pagar Manual
+                                        </button>
+                                    </div>
+                                </div>
+                            );
+                        })()}
+                    </div>
+                </div>
+      )}
+
+      {showBoletoModal && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
+              <div className="bg-white rounded-3xl p-4 sm:p-8 max-w-md w-full shadow-2xl animate-in fade-in zoom-in duration-300">
+                  <div className="flex justify-between items-center mb-6">
+                      <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">Gerar Boleto de Cobrança</h3>
+                      <button onClick={() => setShowBoletoModal(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+                          <X size={20} />
+                      </button>
+                  </div>
+                  <div className="space-y-4">
+                      <div>
+                          <label className="block text-xs font-black text-slate-400 uppercase tracking-wider mb-2">Valor da Cobrança (R$)</label>
+                          <input 
+                              type="number"
+                              step="0.01"
+                              value={customBoletoAmount}
+                              onChange={e => setCustomBoletoAmount(Math.max(0, parseFloat(e.target.value) || 0))}
+                              className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-800"
+                              placeholder="Valor em R$"
+                          />
+                          <span className="block text-[10px] text-slate-400 font-bold mt-1 font-mono">
+                              {(() => {
+                                  const overallBal = chronoHistory.overallBalance ?? 0;
+                                  if (overallBal < 0) return `Saldo devedor atual do cliente: R$ ${Math.abs(overallBal).toFixed(2)}`;
+                                  if (overallBal > 0) return `Cliente possui crédito a favor de: R$ ${overallBal.toFixed(2)}`;
+                                  return 'Cliente não possui saldo devedor.';
+                              })()}
+                          </span>
+                      </div>
+                      <div>
+                          <label className="block text-xs font-black text-slate-400 uppercase tracking-wider mb-2">Data de Vencimento</label>
+                          <input 
+                              type="date"
+                              value={customBoletoDueDate}
+                              onChange={e => setCustomBoletoDueDate(e.target.value)}
+                              className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-800"
+                          />
+                      </div>
+                      <div className="pt-4 flex gap-2">
+                           <button 
+                               onClick={() => setShowBoletoModal(false)}
+                               className="flex-1 py-3 px-4 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-all uppercase text-xs"
+                           >
+                               Cancelar
+                           </button>
+                           <button 
+                               onClick={async () => {
+                                   if (customBoletoAmount <= 0) {
+                                       alert('Por favor, informe um valor maior que zero para o boleto.');
+                                       return;
+                                   }
+                                   if (!customBoletoDueDate) {
+                                       alert('Por favor, informe uma data de vencimento válida.');
+                                       return;
+                                   }
+
+                                   const pendingJobIds = chronoHistory.history
+                                       .filter(item => item.type === 'DEBIT')
+                                       .map(item => item.id);
+
+                                   try {
+                                       await generateBatchBoleto(statementClient.id, pendingJobIds, new Date(customBoletoDueDate), customBoletoAmount);
+                                       alert('Boleto de cobrança gerado com sucesso!');
+                                       setShowBoletoModal(false);
+                                       setActiveSubTab('FATURAS');
+                                   } catch (err: any) {
+                                       console.error(err);
+                                       if (err.message === 'ASAAS_NOT_CONFIGURED') {
+                                           setShowBoletoModal(false);
+                                           setShowAsaasError(true);
+                                       } else {
+                                           alert('Erro ao gerar boleto.');
+                                       }
+                                   }
+                               }}
+                               className="flex-1 py-3 px-4 bg-blue-600 text-white font-black rounded-xl hover:bg-blue-700 transition-all uppercase text-xs"
+                           >
+                               Confirmar
+                           </button>
+                      </div>
+                  </div>
+              </div>
+          </div>
+       )}
+
+      {showAsaasError && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
+              <div className="bg-white rounded-3xl p-4 sm:p-8 max-w-md w-full shadow-2xl animate-in fade-in zoom-in duration-300">
+                  <div className="flex flex-col items-center text-center gap-4">
+                      <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center text-red-500 mb-2">
+                          <AlertTriangle size={40} />
+                      </div>
+                      <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight text-red-600">Erro de Geração de Boleto</h3>
+                      <p className="text-slate-500 font-bold">
+                          Sua conta Asaas não está devidamente criada ou configurada para esta operação.
+                      </p>
+                      <p className="text-slate-400 text-sm">
+                          Verifique as chaves de API e o ID da Carteira nas configurações do seu laboratório.
+                      </p>
+                      <button 
+                          onClick={() => setShowAsaasError(false)}
+                          className="w-full mt-6 py-4 bg-slate-800 text-white font-black uppercase rounded-2xl hover:bg-slate-900 transition-all shadow-xl shadow-slate-200"
+                      >
+                          Entendido
+                      </button>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {showManualEntryModal && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+              <div className="bg-white rounded-3xl p-4 sm:p-8 max-w-md w-full shadow-2xl animate-in zoom-in duration-200">
+                  <div className="flex justify-between items-center mb-6">
+                      <h3 className="text-xl font-black text-slate-800 tracking-tight flex items-center gap-2">
+                          <Plus className="text-blue-600" />
+                          Lançamento Manual
+                      </h3>
+                      <button onClick={() => setShowManualEntryModal(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+                          <X size={20} className="text-slate-500" />
+                      </button>
+                  </div>
+                  
+                  <form onSubmit={handleAddManualEntry} className="space-y-4">
+                      <div>
+                          <label className="block text-xs font-black text-slate-500 mb-1 uppercase tracking-wider">Tipo</label>
+                          <div className="flex gap-2">
+                              <button 
+                                  type="button"
+                                  onClick={() => setManualEntryType('MANUAL_DEBIT')}
+                                  className={`flex-1 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${manualEntryType === 'MANUAL_DEBIT' ? 'bg-red-50 text-red-600 border-2 border-red-200' : 'bg-slate-50 text-slate-400 border-2 border-transparent'}`}
+                              >
+                                  Débito
+                              </button>
+                              <button 
+                                  type="button"
+                                  onClick={() => setManualEntryType('MANUAL_CREDIT')}
+                                  className={`flex-1 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${manualEntryType === 'MANUAL_CREDIT' ? 'bg-green-50 text-green-600 border-2 border-green-200' : 'bg-slate-50 text-slate-400 border-2 border-transparent'}`}
+                              >
+                                  Crédito
+                              </button>
+                          </div>
+                      </div>
+
+                      <div>
+                          <label className="block text-xs font-black text-slate-500 mb-1 uppercase tracking-wider">Valor (R$)</label>
+                          <input 
+                              type="text"
+                              value={manualEntryAmount}
+                              onChange={e => setManualEntryAmount(formatCurrencyInputMask(e.target.value))}
+                              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-black text-lg text-slate-800"
+                              placeholder="0,00"
+                              required
+                          />
+                      </div>
+
+                      <div>
+                          <label className="block text-xs font-black text-slate-500 mb-1 uppercase tracking-wider">Observação (Opcional)</label>
+                          <textarea 
+                              value={manualEntryNotes}
+                              onChange={e => setManualEntryNotes(e.target.value)}
+                              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500"
+                              placeholder={manualEntryType === 'MANUAL_DEBIT' ? 'Ex: Ajuste de saldo, Retrabalho...' : 'Ex: Pagamento extra, Desconto...'}
+                              rows={2}
+                          ></textarea>
+                      </div>
+
+                      <button 
+                          type="submit" 
+                          disabled={isAddingManualEntry}
+                          className="w-full py-4 bg-blue-600 text-white font-black uppercase tracking-widest rounded-xl hover:bg-blue-700 transition-all shadow-lg flex items-center justify-center gap-2 mt-4"
+                      >
+                          {isAddingManualEntry ? <Loader2 size={20} className="animate-spin" /> : 'Registrar Lançamento'}
+                      </button>
+                  </form>
+              </div>
+          </div>
+      )}
+
+      {selectedPaymentForDetail && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4 font-sans">
+              <div className="bg-white rounded-3xl max-w-2xl w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
+                  <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+                      <div>
+                          <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                              <FileText size={18} className={selectedPaymentForDetail.type === 'MANUAL_DEBIT' ? 'text-orange-600' : 'text-green-600'} />
+                              {isEditingDetailPayment 
+                                  ? (selectedPaymentForDetail.type === 'MANUAL_DEBIT' ? 'Editar Débito Manual' : selectedPaymentForDetail.type === 'MANUAL_CREDIT' ? 'Editar Crédito Manual' : 'Editar Recebimento')
+                                  : (selectedPaymentForDetail.type === 'MANUAL_DEBIT' ? 'Detalhes do Débito Manual' : selectedPaymentForDetail.type === 'MANUAL_CREDIT' ? 'Detalhes do Crédito Manual' : 'Detalhes do Recebimento')}
+                          </h3>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Dentista: {selectedPaymentForDetail.dentistName}</p>
+                      </div>
+                      <button 
+                          onClick={() => {
+                              setSelectedPaymentForDetail(null);
+                              setIsEditingDetailPayment(false);
+                          }} 
+                          className="text-slate-400 hover:text-slate-600 transition-colors"
+                      >
+                          <X size={24}/>
+                      </button>
+                  </div>
+
+                  <div className="px-4 pb-4 sm:px-6 sm:pb-6 space-y-6 max-h-[80vh] overflow-y-auto">
+                      {isEditingDetailPayment ? (
+                          /* EDIT MODE FORM */
+                          <div className="space-y-4">
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                  <div>
+                                      <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 tracking-widest">Valor Recebido (R$)</label>
+                                      <input 
+                                          type="number"
+                                          value={editDetailAmount}
+                                          onChange={e => setEditDetailAmount(parseFloat(e.target.value) || 0)}
+                                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none font-black text-slate-700 text-xs"
+                                      />
+                                  </div>
+                                  <div>
+                                      <label className="block text-[10px] font-black text-red-500 uppercase mb-1 tracking-widest">Juros/Mora (+)</label>
+                                      <input 
+                                          type="number"
+                                          value={editDetailInterest}
+                                          onChange={e => setEditDetailInterest(parseFloat(e.target.value) || 0)}
+                                          className="w-full px-4 py-2.5 bg-red-50/50 border border-red-100 rounded-xl focus:ring-2 focus:ring-red-500 outline-none font-bold text-red-700 text-xs"
+                                      />
+                                  </div>
+                                  <div>
+                                      <label className="block text-[10px] font-black text-green-600 uppercase mb-1 tracking-widest">Desconto (-)</label>
+                                      <input 
+                                          type="number"
+                                          value={editDetailDiscount}
+                                          onChange={e => setEditDetailDiscount(parseFloat(e.target.value) || 0)}
+                                          className="w-full px-4 py-2.5 bg-green-50/50 border border-green-100 rounded-xl focus:ring-2 focus:ring-green-500 outline-none font-bold text-green-700 text-xs"
+                                      />
+                                  </div>
+                                  <div>
+                                      <label className="block text-[10px] font-black text-orange-600 uppercase mb-1 tracking-widest">Taxas (-)</label>
+                                      <input 
+                                          type="number"
+                                          value={editDetailFees}
+                                          onChange={e => setEditDetailFees(parseFloat(e.target.value) || 0)}
+                                          className="w-full px-4 py-2.5 bg-orange-50/50 border border-orange-100 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none font-bold text-orange-700 text-xs"
+                                      />
+                                  </div>
+                                  <div>
+                                      <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 tracking-widest">Forma</label>
+                                      <select 
+                                          value={editDetailMethod}
+                                          onChange={e => setEditDetailMethod(e.target.value as any)}
+                                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none font-bold text-slate-700 h-[38px] text-xs font-sans"
+                                      >
+                                          <option value="PIX">PIX</option>
+                                          <option value="CASH">Dinheiro</option>
+                                           <option value="CHEQUE">Cheque</option>
+                                          <option value="CREDIT_CARD">Cartão de Crédito</option>
+                                          <option value="DEBIT_CARD">Cartão de Débito</option>
+                                          <option value="BANK_TRANSFER">Transferência Bancária</option>
+                                          <option value="BOLETO">Boleto (Pago)</option>
+                                          <option value="DISCOUNT">Desconto/Cortesia</option>
+                                          <option value="CLIENT_CREDIT">Saldo de Crédito</option>
+                                      </select>
+                                  </div>
+                                  <div>
+                                      <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 tracking-widest">Data Lanc.</label>
+                                      <input 
+                                          type="date"
+                                          value={editDetailDate}
+                                          onChange={e => setEditDetailDate(e.target.value)}
+                                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none font-bold text-slate-700 text-xs h-[38px]"
+                                      />
+                                  </div>
+
+                                  {(editDetailMethod === 'CREDIT_CARD' || editDetailMethod === 'DEBIT_CARD') && (
+                                      <div className="animate-in slide-in-from-top-2">
+                                          <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Máquina</label>
+                                          <select 
+                                              value={editDetailCardMachineId}
+                                              onChange={e => setEditDetailCardMachineId(e.target.value)}
+                                              className="w-full px-4 py-2.5 bg-blue-50 border border-blue-100 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-blue-700 text-xs h-[38px]"
+                                          >
+                                              <option value="">Selecione...</option>
+                                              {cardMachines.map(m => (
+                                                  <option key={m.id} value={m.id}>{m.name}</option>
+                                              ))}
+                                          </select>
+                                      </div>
+                                  )}
+
+                                  {editDetailMethod === 'BANK_TRANSFER' && (
+                                      <div className="animate-in slide-in-from-top-2">
+                                          <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Conta</label>
+                                          <select 
+                                              value={editDetailBankAccountId}
+                                              onChange={e => setEditDetailBankAccountId(e.target.value)}
+                                              className="w-full px-4 py-2.5 bg-blue-50 border border-blue-100 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-blue-700 text-xs h-[38px]"
+                                          >
+                                              <option value="">Selecione...</option>
+                                              {bankAccounts.map(b => (
+                                                  <option key={b.id} value={b.id}>{b.name}</option>
+                                              ))}
+                                          </select>
+                                      </div>
+                                  )}
+
+                                  <div className="md:col-span-1">
+                                      <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 tracking-widest italic">Total Líquido</label>
+                                      <div className="w-full px-4 py-2.5 bg-slate-100 border border-slate-200 rounded-xl font-black text-slate-800 text-xs h-[38px] flex items-center">
+                                          R$ {(editDetailAmount + editDetailInterest - editDetailDiscount - editDetailFees).toFixed(2)}
+                                      </div>
+                                  </div>
+                              </div>
+
+                              <div>
+                                  <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 tracking-widest">Observações/Ref.</label>
+                                  <input 
+                                      value={editDetailNotes}
+                                      onChange={e => setEditDetailNotes(e.target.value)}
+                                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none font-bold text-slate-700 text-xs"
+                                      placeholder="Ex: Ref. OS 123..."
+                                  />
+                              </div>
+
+                              <div className="border-t border-slate-100 pt-4">
+                                  <label className="block text-[10px] font-black text-slate-500 uppercase mb-1.5 tracking-widest flex items-center gap-1.5">
+                                      <FileText size={12} /> Comprovante de Recebimento
+                                  </label>
+                                  <div className="flex items-center gap-3">
+                                      <label className="cursor-pointer flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-black uppercase rounded-xl transition-all border border-slate-200">
+                                          {uploadingEditAttachment ? (
+                                              <>
+                                                  <Loader2 className="animate-spin" size={14} />
+                                                  Enviando...
+                                              </>
+                                          ) : (
+                                              <>
+                                                  <Plus size={14} /> Selecionar Comprovante
+                                              </>
+                                          )}
+                                          <input 
+                                              type="file" 
+                                              accept="image/*,application/pdf"
+                                              className="hidden" 
+                                              onChange={async (e) => {
+                                                  const file = e.target.files?.[0];
+                                                  if (!file) return;
+                                                  setUploadingEditAttachment(true);
+                                                  try {
+                                                      const url = await uploadFile(file);
+                                                      setEditDetailAttachmentUrl(url);
+                                                      setEditDetailAttachmentName(file.name);
+                                                  } catch (err) {
+                                                      console.error(err);
+                                                      alert("Erro ao fazer upload do comprovante.");
+                                                  } finally {
+                                                      setUploadingEditAttachment(false);
+                                                  }
+                                              }}
+                                              disabled={uploadingEditAttachment}
+                                          />
+                                      </label>
+                                      {editDetailAttachmentName ? (
+                                          <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-100 px-3 py-1.5 rounded-xl">
+                                              <span className="text-[10px] font-black text-emerald-700 truncate max-w-[200px]">{editDetailAttachmentName}</span>
+                                              <button 
+                                                  type="button"
+                                                  onClick={() => {
+                                                      setEditDetailAttachmentUrl('');
+                                                      setEditDetailAttachmentName('');
+                                                  }}
+                                                  className="text-emerald-700 hover:text-emerald-950"
+                                              >
+                                                  <X size={14} />
+                                              </button>
+                                          </div>
+                                      ) : (
+                                          <span className="text-[10px] font-bold text-slate-400 italic">Nenhum arquivo anexado</span>
+                                      )}
+                                  </div>
+                              </div>
+
+                              <div className="flex gap-3 pt-4 border-t border-slate-100">
+                                  <button 
+                                      type="button" 
+                                      onClick={() => setIsEditingDetailPayment(false)}
+                                      className="flex-1 py-3 bg-slate-100 text-slate-600 font-black rounded-xl hover:bg-slate-200 transition-all uppercase text-xs animate-in duration-100"
+                                  >
+                                      Cancelar
+                                  </button>
+                                  <button 
+                                      type="button"
+                                      disabled={isSaving || editDetailAmount <= 0}
+                                      onClick={async () => {
+                                          if (!selectedPaymentForDetail) return;
+                                          setIsSaving(true);
+                                          try {
+                                              const updates = {
+                                                  amount: editDetailAmount,
+                                                  interest: editDetailInterest,
+                                                  fees: editDetailFees,
+                                                  discount: editDetailDiscount,
+                                                  paymentMethod: editDetailMethod,
+                                                  cardMachineId: (editDetailMethod === 'CREDIT_CARD' || editDetailMethod === 'DEBIT_CARD') ? editDetailCardMachineId : undefined,
+                                                  bankAccountId: editDetailMethod === 'BANK_TRANSFER' ? editDetailBankAccountId : undefined,
+                                                  paymentDate: new Date(`${editDetailDate}T12:00:00`),
+                                                  notes: editDetailNotes,
+                                                  attachmentUrl: editDetailAttachmentUrl || undefined,
+                                                  attachmentName: editDetailAttachmentName || undefined,
+                                                   checkBank: editDetailMethod === 'CHEQUE' ? editDetailCheckBank : undefined,
+                                                   checkAgency: editDetailMethod === 'CHEQUE' ? editDetailCheckAgency : undefined,
+                                                   checkAccount: editDetailMethod === 'CHEQUE' ? editDetailCheckAccount : undefined,
+                                                   checkName: editDetailMethod === 'CHEQUE' ? editDetailCheckName : undefined,
+                                                   checkGoodForDate: editDetailMethod === 'CHEQUE' ? editDetailCheckGoodForDate : undefined,
+                                                   checkNumber: editDetailMethod === 'CHEQUE' ? editDetailCheckNumber : undefined,
+                                                   cardInstallments: editDetailMethod === 'CREDIT_CARD' ? editDetailCardInstallments : undefined,
+                                                   cardAuthorizationCode: editDetailMethod === 'CREDIT_CARD' ? editDetailCardAuthorizationCode : undefined
+                                              };
+                                              await updateDentistPayment(selectedPaymentForDetail.id, updates);
+                                              setSelectedPaymentForDetail({ ...selectedPaymentForDetail, ...updates });
+                                              setIsEditingDetailPayment(false);
+                                              alert("Lançamento de recebimento atualizado com sucesso!");
+                                          } catch (err) {
+                                              console.error(err);
+                                              alert("Erro ao atualizar o recebimento.");
+                                          } finally {
+                                              setIsSaving(false);
+                                          }
+                                      }}
+                                      className="flex-1 py-3 bg-green-600 text-white font-black rounded-xl hover:bg-green-700 transition-all uppercase text-xs flex items-center justify-center gap-2"
+                                  >
+                                      {isSaving ? <Loader2 className="animate-spin" size={14} /> : <Save size={14} />}
+                                      Salvar Alterações
+                                  </button>
+                              </div>
+                          </div>
+                      ) : (
+                          /* READ ONLY VIEW MODE */
+                          <div className="space-y-6">
+                              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                  <div>
+                                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Valor Recebido</p>
+                                      <p className="text-sm font-black text-slate-800">R$ {selectedPaymentForDetail.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                                  </div>
+                                  <div>
+                                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest text-red-500">Juros/Mora (+)</p>
+                                      <p className="text-sm font-black text-red-600">R$ {(selectedPaymentForDetail.interest || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                                  </div>
+                                  <div>
+                                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest text-green-600">Desconto (-)</p>
+                                      <p className="text-sm font-black text-green-600">R$ {(selectedPaymentForDetail.discount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                                  </div>
+                                  <div>
+                                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest text-orange-600">Taxas (-)</p>
+                                      <p className="text-sm font-black text-orange-600">R$ {(selectedPaymentForDetail.fees || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                                  </div>
+                                  <div>
+                                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Forma de Pagamento</p>
+                                      <span className="inline-block mt-0.5 px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-black uppercase rounded">
+                                          {translatePaymentMethod(selectedPaymentForDetail.paymentMethod)}
+                                      </span>
+                                  </div>
+                                  <div>
+                                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Data do Lançamento</p>
+                                      <p className="text-xs font-bold text-slate-700">{new Date(selectedPaymentForDetail.paymentDate).toLocaleDateString('pt-BR')}</p>
+                                  </div>
+                              </div>
+
+                               {selectedPaymentForDetail.paymentMethod === 'CHEQUE' && (
+                                   <div className="bg-blue-50/60 p-4 rounded-2xl border border-blue-100 grid grid-cols-2 md:grid-cols-3 gap-3">
+                                       <div>
+                                           <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest">Banco</p>
+                                           <p className="text-xs font-bold text-blue-900">{selectedPaymentForDetail.checkBank || '-'}</p>
+                                       </div>
+                                       <div>
+                                           <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest">Agência / Conta</p>
+                                           <p className="text-xs font-bold text-blue-900">{selectedPaymentForDetail.checkAgency || '-'} / {selectedPaymentForDetail.checkAccount || '-'}</p>
+                                       </div>
+                                       <div>
+                                           <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest">Titular</p>
+                                           <p className="text-xs font-bold text-blue-900">{selectedPaymentForDetail.checkName || '-'}</p>
+                                       </div>
+                                       <div>
+                                           <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest">Bom para</p>
+                                           <p className="text-xs font-bold text-blue-900">{selectedPaymentForDetail.checkGoodForDate ? new Date(`${selectedPaymentForDetail.checkGoodForDate}T12:00:00`).toLocaleDateString('pt-BR') : '-'}</p>
+                                       </div>
+                                       <div>
+                                           <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest">Nº do Cheque</p>
+                                           <p className="text-xs font-bold text-blue-900">{selectedPaymentForDetail.checkNumber || '-'}</p>
+                                       </div>
+                                   </div>
+                               )}
+
+                               {selectedPaymentForDetail.paymentMethod === 'CREDIT_CARD' && (
+                                   <div className="bg-indigo-50/60 p-4 rounded-2xl border border-indigo-100 grid grid-cols-2 md:grid-cols-3 gap-3">
+                                       <div>
+                                           <p className="text-[9px] font-black text-indigo-500 uppercase tracking-widest">Parcelamento</p>
+                                           <p className="text-xs font-bold text-indigo-900">{selectedPaymentForDetail.cardInstallments || 1}x</p>
+                                       </div>
+                                       <div>
+                                           <p className="text-[9px] font-black text-indigo-500 uppercase tracking-widest">Autorização</p>
+                                           <p className="text-xs font-bold text-indigo-900">{selectedPaymentForDetail.cardAuthorizationCode || '-'}</p>
+                                       </div>
+                                   </div>
+                               )}
+
+                              {selectedPaymentForDetail.notes && (
+                                  <div>
+                                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Observações/Referência</p>
+                                      <p className="text-xs font-medium text-slate-600 bg-slate-50/50 p-3 rounded-xl border border-slate-100 mt-1 italic">
+                                          "{selectedPaymentForDetail.notes}"
+                                      </p>
+                                  </div>
+                              )}
+
+                              {/* COMPROVANTE ATTACHMENT AREA */}
+                              <div className="border-t border-slate-100 pt-6">
+                                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                                      <FileText size={14} className="text-blue-600" />
+                                      Comprovante de Recebimento
+                                  </h4>
+
+                                  {selectedPaymentForDetail.attachmentUrl ? (
+                                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-emerald-50/60 border border-emerald-100 rounded-2xl">
+                                          <div className="flex items-center gap-3">
+                                              <div className="p-3 bg-emerald-100 text-emerald-700 rounded-xl">
+                                                  <FileText size={20} />
+                                              </div>
+                                              <div className="min-w-0">
+                                                  <p className="text-xs font-black text-emerald-800 truncate max-w-[280px]">
+                                                      {selectedPaymentForDetail.attachmentName || "comprovante.pdf"}
+                                                  </p>
+                                                  <p className="text-[10px] text-emerald-600 font-bold">Comprovante anexado</p>
+                                              </div>
+                                          </div>
+                                          <div className="flex items-center gap-2">
+                                              <a 
+                                                  href={selectedPaymentForDetail.attachmentUrl} 
+                                                  target="_blank" 
+                                                  rel="noreferrer"
+                                                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase rounded-xl transition-all flex items-center gap-1.5 shadow-sm"
+                                              >
+                                                  <ExternalLink size={12} /> Visualizar
+                                              </a>
+                                              <button 
+                                                  onClick={async () => {
+                                                      if (!confirm("Deseja realmente remover o comprovante anexado?")) return;
+                                                      setIsSaving(true);
+                                                      try {
+                                                          await updateDentistPayment(selectedPaymentForDetail.id, {
+                                                              attachmentUrl: undefined,
+                                                              attachmentName: undefined
+                                                          });
+                                                          setSelectedPaymentForDetail({
+                                                              ...selectedPaymentForDetail,
+                                                              attachmentUrl: undefined,
+                                                              attachmentName: undefined
+                                                          });
+                                                          alert("Comprovante removido com sucesso!");
+                                                      } catch (err) {
+                                                          console.error(err);
+                                                          alert("Erro ao remover comprovante.");
+                                                      } finally {
+                                                          setIsSaving(false);
+                                                      }
+                                                  }}
+                                                  className="px-3 py-2 bg-slate-100 hover:bg-red-50 hover:text-red-600 text-slate-500 text-[10px] font-black uppercase rounded-xl transition-all"
+                                              >
+                                                  Remover
+                                              </button>
+                                          </div>
+                                      </div>
+                                  ) : (
+                                      <div className="flex flex-col items-center justify-center p-4 sm:p-6 bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl text-center">
+                                          <FileText size={32} className="text-slate-300 mb-2" />
+                                          <p className="text-xs font-bold text-slate-500">Nenhum comprovante anexado neste recebimento</p>
+                                          <p className="text-[10px] text-slate-400 mt-1 mb-4">Selecione ou clique abaixo para anexar um documento agora.</p>
+
+                                          <label className="cursor-pointer flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase rounded-xl transition-all shadow-md shadow-blue-100">
+                                              {uploadingAttachment ? (
+                                                  <>
+                                                      <Loader2 className="animate-spin" size={12} />
+                                                      Anexando arquivo...
+                                                  </>
+                                              ) : (
+                                                  <>
+                                                      <Plus size={12} /> Anexar Comprovante
+                                                  </>
+                                              )}
+                                              <input 
+                                                  type="file" 
+                                                  accept="image/*,application/pdf"
+                                                  className="hidden" 
+                                                  disabled={uploadingAttachment}
+                                                  onChange={async (e) => {
+                                                      const file = e.target.files?.[0];
+                                                      if (!file) return;
+                                                      setUploadingAttachment(true);
+                                                      try {
+                                                          const url = await uploadFile(file);
+                                                          await updateDentistPayment(selectedPaymentForDetail.id, {
+                                                              attachmentUrl: url,
+                                                              attachmentName: file.name
+                                                          });
+                                                          setSelectedPaymentForDetail({
+                                                              ...selectedPaymentForDetail,
+                                                              attachmentUrl: url,
+                                                              attachmentName: file.name
+                                                          });
+                                                          alert("Comprovante anexado!");
+                                                      } catch (err) {
+                                                          console.error(err);
+                                                          alert("Erro ao fazer upload do comprovante.");
+                                                      } finally {
+                                                          setUploadingAttachment(false);
+                                                      }
+                                                  }}
+                                              />
+                                          </label>
+                                      </div>
+                                  )}
+                              </div>
+
+                              <div className="flex gap-3 pt-4 border-t border-slate-100">
+                                  <button 
+                                      type="button" 
+                                      onClick={() => {
+                                          setSelectedPaymentForDetail(null);
+                                          setIsEditingDetailPayment(false);
+                                      }}
+                                      className="flex-1 py-3 bg-slate-100 text-slate-600 font-black rounded-xl hover:bg-slate-200 transition-all uppercase text-xs"
+                                  >
+                                      Fechar
+                                  </button>
+                                  <button 
+                                      type="button" 
+                                      onClick={async () => {
+                                          if (!selectedPaymentForDetail) return;
+                                          const label = selectedPaymentForDetail.type === 'MANUAL_DEBIT' ? 'este débito manual' : selectedPaymentForDetail.type === 'MANUAL_CREDIT' ? 'este crédito manual' : 'este recebimento';
+                                          if (!window.confirm(`Deseja realmente excluir ${label} no valor de R$ ${selectedPaymentForDetail.amount.toFixed(2)}?`)) return;
+                                          setIsSaving(true);
+                                          try {
+                                              await deleteDentistPayment(selectedPaymentForDetail.id);
+                                              setSelectedPaymentForDetail(null);
+                                              setIsEditingDetailPayment(false);
+                                              alert("Lançamento excluído com sucesso!");
+                                          } catch (err) {
+                                              console.error(err);
+                                              alert("Erro ao excluir lançamento.");
+                                          } finally {
+                                              setIsSaving(false);
+                                          }
+                                      }}
+                                      className="px-6 py-3 bg-red-50 hover:bg-red-100 text-red-600 font-black rounded-xl transition-all uppercase text-xs flex items-center justify-center gap-1.5"
+                                  >
+                                      <Trash2 size={14} /> Excluir
+                                  </button>
+                                  <button 
+                                      type="button" 
+                                      onClick={() => {
+                                          setIsEditingDetailPayment(true);
+                                      }}
+                                      className="flex-1 py-3 bg-blue-600 text-white font-black rounded-xl hover:bg-blue-700 transition-all uppercase text-xs flex items-center justify-center gap-2"
+                                  >
+                                      <Plus size={14} /> Editar Lançamento
+                                  </button>
+                              </div>
+                          </div>
+                      )}
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {/* MODAL DE ENVIO DE EXTRATOS POR E-MAIL */}
+      <SendDebtsEmailModal 
+          isOpen={showDebtsEmailModal}
+          onClose={() => {
+              setShowDebtsEmailModal(false);
+              setSelectedEmailClientId(undefined);
+          }}
+          reportDebts={reportDebts}
+          reportStartDate={reportStartDate}
+          reportEndDate={reportEndDate}
+          allJobs={jobs}
+          dentistPayments={dentistPayments}
+          initialSelectedClientId={selectedEmailClientId}
+          statementClient={statementClient}
+          onEmailStatusUpdate={handleEmailStatusUpdate}
+      />
     </div>
   );
 };

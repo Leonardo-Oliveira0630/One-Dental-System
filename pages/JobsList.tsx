@@ -10,7 +10,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { getContrastColor } from '../services/mockData';
 import { MultiSelect } from '../components/MultiSelect';
 import { usePageFilterCache, cachedNormalizeText } from '../utils/pageCache';
-import { matchesSearchQuery, calculateJobSearchScore, getJobNatureBadge } from '../utils/stringUtils';
+import { matchesSearchQuery, calculateJobSearchScore } from '../utils/stringUtils';
 
 import { StoreTopMenu } from '../components/StoreTopMenu';
 
@@ -113,7 +113,30 @@ export const getJobCompletionInfo = (job: Job) => {
 };
 
 // Helper to identify if job has a Repetition (R) or Adjustment (A)
-export { getJobNatureBadge };
+export const getJobNatureBadge = (job: any) => {
+  if (!job) return null;
+  
+  const topNature = String(job.nature || '').toUpperCase();
+  let hasRepetition = topNature === 'REPETITION' || topNature === 'REPETICAO' || topNature === 'REPETIÇÃO';
+  let hasAdjustment = topNature === 'ADJUSTMENT' || topNature === 'AJUSTE';
+
+  if (job.items && Array.isArray(job.items) && job.items.length > 0) {
+    job.items.forEach((i: any) => {
+      const n = String(i.nature || '').toUpperCase();
+      if (n === 'REPETITION' || n === 'REPETICAO' || n === 'REPETIÇÃO') hasRepetition = true;
+      if (n === 'ADJUSTMENT' || n === 'AJUSTE') hasAdjustment = true;
+    });
+  }
+
+  if (hasRepetition && hasAdjustment) {
+    return { code: '(R/A)', label: 'Repetição e Ajuste', className: 'bg-amber-500 text-white border-amber-600 font-extrabold' };
+  } else if (hasRepetition) {
+    return { code: '(R)', label: 'Repetição', className: 'bg-amber-500 text-white border-amber-600 font-extrabold' };
+  } else if (hasAdjustment) {
+    return { code: '(A)', label: 'Ajuste', className: 'bg-purple-600 text-white border-purple-700 font-extrabold' };
+  }
+  return null;
+};
 
 // Componente de Linha Memoizado para evitar re-renders desnecessários
 const JobRow = memo(({ isJobOverdue, 
@@ -921,25 +944,8 @@ const handleUpdateStatus = async (jobId: string, status: JobStatus) => {
 
   const handleReopenJob = async (job: Job) => {
       if (!window.confirm(t('orders.confirmReopenJob', { name: job.patientName, defaultValue: `Deseja reabrir o caso de ${job.patientName}?` }))) return;
-      
-      let firstCompDate = job.firstCompletedAt;
-      if (!firstCompDate) {
-        if (job.completedAt) {
-          firstCompDate = job.completedAt instanceof Date ? job.completedAt : new Date((job.completedAt as any)?.seconds ? (job.completedAt as any).seconds * 1000 : job.completedAt);
-        } else if (job.finalizedAt) {
-          firstCompDate = job.finalizedAt instanceof Date ? job.finalizedAt : new Date((job.finalizedAt as any)?.seconds ? (job.finalizedAt as any).seconds * 1000 : job.finalizedAt);
-        } else {
-          firstCompDate = new Date();
-        }
-      }
-
       await updateJob(job.id, {
           status: JobStatus.IN_PROGRESS,
-          isReopened: true,
-          firstCompletedAt: firstCompDate,
-          reopenedAt: new Date(),
-          reopenedBy: currentUser?.name || 'Sistema',
-          reopenCount: (job.reopenCount || 0) + 1,
           history: [...(job.history || []).filter(Boolean), {
               id: `hist_reopen_${Date.now()}`,
               timestamp: new Date(),
