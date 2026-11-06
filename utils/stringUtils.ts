@@ -728,3 +728,29 @@ export function formatItemNameWithVariations(item: any): string {
   return `${prefix}${baseName}`;
 }
 
+export function getJobNatureBadge(job: any): { code: string; label: string; className: string } | null {
+  if (!job) return null;
+
+  const topNature = String(job.nature || '').toUpperCase();
+  let hasRepetition = topNature === 'REPETITION' || topNature === 'REPETICAO' || topNature === 'REPETIÇÃO';
+  let hasAdjustment = topNature === 'ADJUSTMENT' || topNature === 'AJUSTE';
+
+  if (job.items && Array.isArray(job.items) && job.items.length > 0) {
+    job.items.forEach((i: any) => {
+      const n = String(i.nature || '').toUpperCase();
+      if (n === 'REPETITION' || n === 'REPETICAO' || n === 'REPETIÇÃO') hasRepetition = true;
+      if (n === 'ADJUSTMENT' || n === 'AJUSTE') hasAdjustment = true;
+    });
+  }
+
+  if (hasRepetition && hasAdjustment) {
+    return { code: '(R/A)', label: 'Repetição e Ajuste', className: 'bg-amber-500 text-white border-amber-600 font-extrabold' };
+  } else if (hasRepetition) {
+    return { code: '(R)', label: 'Repetição', className: 'bg-amber-500 text-white border-amber-600 font-extrabold' };
+  } else if (hasAdjustment) {
+    return { code: '(A)', label: 'Ajuste', className: 'bg-purple-600 text-white border-purple-700 font-extrabold' };
+  }
+  return null;
+}
+
+
