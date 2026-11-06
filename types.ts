@@ -725,6 +725,8 @@ export interface Job {
   dueDate: Date;
   dueTime?: string;
   completedAt?: Date;
+  originalCompletedAt?: Date;
+  isReopened?: boolean;
   finalizedAt?: Date;
   boxNumber?: string;
   boxColor?: BoxColor;

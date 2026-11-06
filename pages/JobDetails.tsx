@@ -436,6 +436,42 @@ export const JobDetails = () => {
   const [rejectionTargetStatus, setRejectionTargetStatus] = useState<JobStatus | null>(null);
   const [rejectionReasonText, setRejectionReasonText] = useState('');
   const [isRejectionRequisition, setIsRejectionRequisition] = useState(false);
+  const [showReopenCompleteModal, setShowReopenCompleteModal] = useState(false);
+  const [pendingCompletionStatus, setPendingCompletionStatus] = useState<JobStatus | null>(null);
+
+  const handleConfirmReopenCompletion = async (useOriginalDate: boolean) => {
+    if (!currentUser || !job) return;
+    setShowReopenCompleteModal(false);
+    setIsUpdatingStatus(true);
+    try {
+        const finalDate = useOriginalDate && job?.originalCompletedAt ? parseSafeDate(job.originalCompletedAt) || new Date() : new Date();
+        const dateStrFormatted = finalDate.toLocaleDateString('pt-BR');
+        const actionLabel = useOriginalDate 
+            ? `Trabalho Finalizado (Data Original: ${dateStrFormatted})` 
+            : `Trabalho Finalizado e Conferido (Data Atual: ${dateStrFormatted})`;
+        
+        const targetStatus = pendingCompletionStatus || JobStatus.COMPLETED;
+        await updateJob(job.id, {
+            status: targetStatus,
+            completedAt: finalDate,
+            isReopened: false,
+            history: [...(job.history || []).filter(Boolean), {
+                id: `hist_fin_${Date.now()}`,
+                timestamp: new Date(),
+                action: actionLabel,
+                userId: currentUser.id,
+                userName: currentUser.name,
+                sector: 'Expedição'
+            }]
+        });
+    } catch (err) {
+        console.error(err);
+        alert("Erro ao finalizar o caso.");
+    } finally {
+        setIsUpdatingStatus(false);
+        setPendingCompletionStatus(null);
+    }
+  };
 
   const handleConfirmRejectionStatus = async () => {
     if (!currentUser || !job) return;
@@ -1720,12 +1756,19 @@ export const JobDetails = () => {
         return;
     }
 
+    if (job?.isReopened || job?.originalCompletedAt) {
+        setPendingCompletionStatus(JobStatus.COMPLETED);
+        setShowReopenCompleteModal(true);
+        return;
+    }
+
     if (!window.confirm("Finalizar este caso agora?")) return;
     setIsUpdatingStatus(true);
     try {
         await updateJob(job.id, {
             status: JobStatus.COMPLETED,
             completedAt: new Date(),
+            isReopened: false,
             history: [...(job.history || []).filter(Boolean), {
                 id: `hist_fin_${Date.now()}`,
                 timestamp: new Date(),
@@ -1743,8 +1786,11 @@ export const JobDetails = () => {
     if (!window.confirm("Deseja reabrir este caso?")) return;
     setIsUpdatingStatus(true);
     try {
+        const prevCompletedAt = job.completedAt || job.finalizedAt || new Date();
         await updateJob(job.id, {
             status: JobStatus.IN_PROGRESS,
+            isReopened: true,
+            originalCompletedAt: job.originalCompletedAt || parseSafeDate(prevCompletedAt) || new Date(),
             history: [...(job.history || []).filter(Boolean), {
                 id: `hist_reopen_${Date.now()}`,
                 timestamp: new Date(),
@@ -1853,9 +1899,15 @@ export const JobDetails = () => {
       return;
     }
 
+    if ((newStatus === JobStatus.COMPLETED || newStatus === JobStatus.DELIVERED) && (job?.isReopened || job?.originalCompletedAt) && job?.status !== JobStatus.COMPLETED && job?.status !== JobStatus.DELIVERED) {
+        setPendingCompletionStatus(newStatus);
+        setShowReopenCompleteModal(true);
+        return;
+    }
+
     setIsUpdatingStatus(true);
     try {
-        await updateJob(job.id, {
+        const payload: any = {
             status: newStatus,
             history: [...(job.history || []).filter(Boolean), {
                 id: `hist_stat_${Date.now()}`,
@@ -1865,7 +1917,12 @@ export const JobDetails = () => {
                 userName: currentUser.name,
                 sector: currentUser.sector || 'Geral'
             }]
-        });
+        };
+        if (newStatus === JobStatus.COMPLETED || newStatus === JobStatus.DELIVERED) {
+            payload.completedAt = new Date();
+            payload.isReopened = false;
+        }
+        await updateJob(job.id, payload);
     } finally { setIsUpdatingStatus(false); }
   };
 
@@ -3103,7 +3160,8 @@ export const JobDetails = () => {
   }
 
   return (
-    <div className="w-full space-y-4 md:space-y-6 pb-20 animate-in fade-in slide-in-from-bottom-4 duration-500 overflow-x-hidden">
+    <>
+      <div className="w-full space-y-4 md:space-y-6 pb-20 animate-in fade-in slide-in-from-bottom-4 duration-500 overflow-x-hidden">
       
       {job.isPseudo && job.status === 'REJECTED_REQUISITION' && (
         <div className="bg-red-50 border border-red-200 text-red-800 rounded-3xl p-4 md:p-4 sm:p-6 mb-4 flex flex-col md:flex-row md:items-center p-5 justify-between gap-4 shadow-sm animate-in fade-in duration-300">
@@ -5008,6 +5066,11 @@ export const JobDetails = () => {
                             </div>
                         )}
                     </div>
+                    {(job.isReopened || job.originalCompletedAt) && (
+                        <span className="px-2.5 py-1 rounded-full text-[8px] md:text-[10px] font-black uppercase border bg-amber-50 text-amber-700 border-amber-200 flex items-center gap-1 shadow-sm" title={`Caso Reaberto (Original em: ${job.originalCompletedAt ? parseSafeDate(job.originalCompletedAt)?.toLocaleDateString('pt-BR') : 'N/A'})`}>
+                            <RotateCcw size={10} /> Reaberto
+                        </span>
+                    )}
                     {!job.isBudget && (
                     <div 
                         className="relative shrink-0"
@@ -7601,6 +7664,70 @@ export const JobDetails = () => {
         )}
       </div>
     </div>
+
+       {showReopenCompleteModal && (
+         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in" id="reopenCompleteModal">
+           <div className="bg-white rounded-[32px] p-6 w-full max-w-md shadow-2xl border border-slate-100 animate-in zoom-in duration-200">
+             <div className="flex justify-between items-center mb-4">
+               <h3 className="text-base font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
+                 <AlertTriangle size={20} className="text-amber-500" />
+                 Confirmar Data de Finalização
+               </h3>
+               <button
+                 type="button"
+                 onClick={() => { setShowReopenCompleteModal(false); setPendingCompletionStatus(null); }}
+                 className="text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-50 transition cursor-pointer"
+               >
+                 <X size={18} />
+               </button>
+             </div>
+
+             <p className="text-xs font-bold text-slate-600 mb-4 leading-relaxed">
+               Este caso foi reaberto anteriormente. A data da primeira finalização foi <strong className="text-slate-900">{job?.originalCompletedAt ? parseSafeDate(job.originalCompletedAt)?.toLocaleDateString('pt-BR') : 'N/A'}</strong>. 
+               Deseja utilizar a data original para cálculo na fatura do cliente ou a data atual?
+             </p>
+
+             <div className="space-y-2 mb-6">
+               <button
+                 type="button"
+                 onClick={() => handleConfirmReopenCompletion(true)}
+                 disabled={isUpdatingStatus}
+                 className="w-full text-left p-3.5 rounded-2xl border border-blue-200 bg-blue-50/50 hover:bg-blue-50 transition flex items-center justify-between cursor-pointer"
+               >
+                 <div>
+                   <p className="text-xs font-black text-blue-900 uppercase">Usar Data Original</p>
+                   <p className="text-[10px] font-bold text-blue-700">{job?.originalCompletedAt ? parseSafeDate(job.originalCompletedAt)?.toLocaleDateString('pt-BR') : '-'}</p>
+                 </div>
+                 <CheckCircle2 size={18} className="text-blue-600 shrink-0" />
+               </button>
+
+               <button
+                 type="button"
+                 onClick={() => handleConfirmReopenCompletion(false)}
+                 disabled={isUpdatingStatus}
+                 className="w-full text-left p-3.5 rounded-2xl border border-slate-200 bg-slate-50 hover:bg-slate-100 transition flex items-center justify-between cursor-pointer"
+               >
+                 <div>
+                   <p className="text-xs font-black text-slate-800 uppercase">Usar Data Atual</p>
+                   <p className="text-[10px] font-bold text-slate-500">{new Date().toLocaleDateString('pt-BR')}</p>
+                 </div>
+                 <Calendar size={18} className="text-slate-600 shrink-0" />
+               </button>
+             </div>
+
+             <div className="flex justify-end">
+               <button
+                 type="button"
+                 onClick={() => { setShowReopenCompleteModal(false); setPendingCompletionStatus(null); }}
+                 className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-2xl text-xs font-black uppercase tracking-tight transition active:scale-95 cursor-pointer"
+               >
+                 Cancelar
+               </button>
+             </div>
+           </div>
+         </div>
+       )}
+    </>
   );
 };
 

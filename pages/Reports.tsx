@@ -2417,6 +2417,74 @@ export default function Reports() {
             </div>
           )}
 
+          {/* ALWAYS VISIBLE: SERVICE CATEGORY FILTER */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1.5">
+                <Folder size={13} className="text-teal-600" /> Categoria de Serviço
+              </label>
+              {selectedServiceCategory && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedServiceCategory('');
+                    setJobTypeId('');
+                  }}
+                  className="text-[10px] font-bold text-slate-400 hover:text-rose-500 cursor-pointer"
+                >
+                  {t('common.clear', 'Limpar')}
+                </button>
+              )}
+            </div>
+            <select 
+              value={selectedServiceCategory} 
+              onChange={(e) => {
+                setSelectedServiceCategory(e.target.value);
+                setJobTypeId('');
+              }} 
+              className={`w-full p-3 border rounded-xl font-bold text-slate-700 focus:ring-2 outline-none text-sm transition-all shadow-sm ${
+                selectedServiceCategory ? 'bg-teal-50/40 border-teal-300 ring-1 ring-teal-200' : 'bg-slate-50 border-slate-200 focus:ring-teal-500'
+              }`}
+            >
+              <option value="">Todas as Categorias</option>
+              {allCategoriesList.map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* ALWAYS VISIBLE: SERVICE TYPE FILTER */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1.5">
+                <Package size={13} className="text-teal-600" /> Tipo de Serviço
+              </label>
+              {jobTypeId && (
+                <button
+                  type="button"
+                  onClick={() => setJobTypeId('')}
+                  className="text-[10px] font-bold text-slate-400 hover:text-rose-500 cursor-pointer"
+                >
+                  {t('common.clear', 'Limpar')}
+                </button>
+              )}
+            </div>
+            <select 
+              value={jobTypeId} 
+              onChange={(e) => { setJobTypeId(e.target.value); setVariationFilters({}); }} 
+              className={`w-full p-3 border rounded-xl font-bold text-slate-700 focus:ring-2 outline-none text-sm transition-all shadow-sm ${
+                jobTypeId ? 'bg-teal-50/40 border-teal-300 ring-1 ring-teal-200' : 'bg-slate-50 border-slate-200 focus:ring-teal-500'
+              }`}
+            >
+              <option value="">{t('reports.allTypes', 'Todos os Tipos de Serviço')}</option>
+              {availableJobTypesForFilter.map(jt => (
+                <option key={jt.id} value={jt.id}>
+                  {jt.name} {!selectedServiceCategory && jt.category ? `(${jt.category})` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {reportType !== 'CLIENT_SUMMARY' && (
             <>
               <div className="space-y-1.5">
@@ -2451,34 +2519,6 @@ export default function Reports() {
                   <option value="">{t('reports.allPriorities', 'Todas as Prioridades')}</option>
                   <option value="NORMAL">{t('reports.normalLow', 'Normal / Baixa')}</option>
                   <option value="URGENT">{t('reports.urgentVip', 'Urgente / VIP')}</option>
-                </select>
-              </div>
-
-              {/* SERVICE CATEGORY FILTER */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1.5">
-                  <Folder size={13} className="text-teal-600" /> Categoria de Serviço
-                </label>
-                <select 
-                  value={selectedServiceCategory} 
-                  onChange={(e) => {
-                    setSelectedServiceCategory(e.target.value);
-                    setJobTypeId('');
-                  }} 
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 focus:ring-2 focus:ring-teal-500 outline-none text-sm"
-                >
-                  <option value="">Todas as Categorias</option>
-                  {allCategoriesList.map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-500 uppercase">{t('reports.jobType', 'Tipo de Trabalho')}</label>
-                <select value={jobTypeId} onChange={(e) => { setJobTypeId(e.target.value); setVariationFilters({}); }} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 focus:ring-2 focus:ring-teal-500 outline-none text-sm">
-                  <option value="">{t('reports.allTypes', 'Todos os Tipos')}</option>
-                  {availableJobTypesForFilter.map(jt => <option key={jt.id} value={jt.id}>{jt.name}</option>)}
                 </select>
               </div>
 
