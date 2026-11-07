@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '../../context/AppContext';
 import { UserRole, ManualDentist, Job, JobStatus, DentistPayment, BillingBatch } from '../../types';
-import { Stethoscope, Building, Search, Loader2, ArrowRight, Tag, Percent, Save, X, DollarSign, Globe, HardDrive, UserCheck, Package, Table, FileText, Lock, Unlock, RefreshCw, Check, Calendar, ArrowUpCircle, ArrowDownCircle, Receipt, History, CreditCard, Banknote, Wallet, FileSpreadsheet, Plus, Info, MinusCircle, PlusCircle, CheckCircle2, Printer, Download, ChevronLeft, ChevronRight, Users, Filter, RotateCcw, Trash2, Pin } from 'lucide-react';
+import { Stethoscope, Building, Search, Loader2, ArrowRight, Tag, Percent, Save, X, DollarSign, Globe, HardDrive, UserCheck, Package, Table, FileText, Lock, Unlock, RefreshCw, Check, Calendar, ArrowUpCircle, ArrowDownCircle, Receipt, History, CreditCard, Banknote, Wallet, FileSpreadsheet, Plus, Info, MinusCircle, PlusCircle, CheckCircle2, Printer, Download, ChevronLeft, ChevronRight, Users, Filter, RotateCcw, Trash2, Pin, Share2, Link2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getDentistJobs, subscribeDentistJobs } from '../../services/firebaseService';
 import jsPDF from 'jspdf';
@@ -63,6 +63,13 @@ export const Dentists = () => {
     const setStatusFilter = (val: any) => setFilter('statusFilter', val);
     const setClientTypeFilter = (val: any) => setFilter('clientTypeFilter', val);
     const setPriceTableFilter = (val: string) => setFilter('priceTableFilter', val);
+
+    const handleCopyInviteLink = (client: any) => {
+        const orgId = currentOrg?.id || currentUser?.organizationId || '';
+        const inviteUrl = `${window.location.origin}/#/requisition-invite?orgId=${orgId}&dentistId=${client.id}`;
+        navigator.clipboard.writeText(inviteUrl);
+        alert(t('dentists.inviteCopiedAlert', `Link de convite para requisições online de Dr(a). ${client.name} (Código: ${client.id}) copiado com sucesso!\n\nEnvie este link para o cliente se cadastrar e suas requisições virão vinculadas exclusivamente a este cadastro.\n\nLink: ${inviteUrl}`));
+    };
     const setCustomPricingFilter = (val: any) => setFilter('customPricingFilter', val);
 
     useEffect(() => {
@@ -527,27 +534,8 @@ export const Dentists = () => {
     const chronoHistory = useMemo(() => {
         if (!statementClient) return { history: [], previousBalance: 0, overallBalance: 0 };
         
-        const clientEmail = statementClient.email ? statementClient.email.toLowerCase().trim() : '';
-        const clientDoc = (statementClient.cpfCnpj || '').replace(/\D/g, '');
-        
-        const equivalentIds = new Set<string>([statementClient.id]);
-        allUsers.filter(u => u.role === UserRole.CLIENT).forEach(u => {
-            const uEmail = u.email ? u.email.toLowerCase().trim() : '';
-            const uDoc = (u.cpfCnpj || '').replace(/\D/g, '');
-            if ((clientEmail && uEmail === clientEmail) || (clientDoc && uDoc === clientDoc)) {
-                equivalentIds.add(u.id);
-            }
-        });
-        manualDentists.forEach(m => {
-            const mEmail = m.email ? m.email.toLowerCase().trim() : '';
-            const mDoc = (m.cpfCnpj || '').replace(/\D/g, '');
-            if ((clientEmail && mEmail === clientEmail) || (clientDoc && mDoc === clientDoc)) {
-                equivalentIds.add(m.id);
-            }
-        });
-
-        const clientJobs = (dentistJobs && dentistJobs.length > 0 ? dentistJobs : jobs).filter(j => j.dentistId && equivalentIds.has(j.dentistId) && (j.status === JobStatus.COMPLETED || j.status === JobStatus.DELIVERED));
-        const clientPayments = dentistPayments.filter(p => p.dentistId && equivalentIds.has(p.dentistId));
+        const clientJobs = (dentistJobs && dentistJobs.length > 0 ? dentistJobs : jobs).filter(j => j.dentistId === statementClient.id && (j.status === JobStatus.COMPLETED || j.status === JobStatus.DELIVERED));
+        const clientPayments = dentistPayments.filter(p => p.dentistId === statementClient.id);
 
         const processedPayments: any[] = [];
         const handledGroups = new Set<string>();
@@ -1385,6 +1373,15 @@ export const Dentists = () => {
                                                         <FileText size={13} className="text-amber-600 shrink-0" />
                                                         <span>Notas</span>
                                                     </button>
+                                                    <button 
+                                                        type="button"
+                                                        onClick={() => handleCopyInviteLink(client)}
+                                                        className="px-2.5 py-1.5 bg-teal-50 hover:bg-teal-100 text-teal-800 font-bold rounded-xl transition-all inline-flex items-center gap-1 text-xs border border-teal-200 cursor-pointer shadow-2xs"
+                                                        title={t('dentists.copyInviteTitle', 'Copiar Link de Convite e Cadastro Online para este Cliente')}
+                                                    >
+                                                        <Share2 size={13} className="text-teal-600 shrink-0" />
+                                                        <span>{t('dentists.inviteBtn', 'Convite')}</span>
+                                                    </button>
                                                     {canViewPrices && (
                                                         <button 
                                                             onClick={() => handleOpenPricing(client)}
@@ -1441,7 +1438,17 @@ export const Dentists = () => {
                                 <h3 className="text-xl font-black text-slate-800 truncate" title={`${t('dentists.priceTableModalTitle', 'Tabela de Preços:')} ${selectedClient.name}`}>{t('dentists.priceTableModalTitle', 'Tabela de Preços:')} {selectedClient.name}</h3>
                                 <p className="text-xs text-slate-500 font-bold uppercase truncate" title={t('dentists.priceTableModalSubtitle', 'Personalize os descontos para este cliente')}>{t('dentists.priceTableModalSubtitle', 'Personalize os descontos para este cliente')}</p>
                             </div>
-                            <button onClick={() => setSelectedClient(null)} className="p-2 hover:bg-slate-200 rounded-full transition-colors shrink-0"><X size={24}/></button>
+                            <div className="flex items-center gap-2 shrink-0">
+                                <button
+                                    type="button"
+                                    onClick={() => handleCopyInviteLink(selectedClient)}
+                                    className="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                                    title="Copiar link exclusivo de cadastro/requisição online para este cliente"
+                                >
+                                    <Share2 size={14} /> Convite Online
+                                </button>
+                                <button onClick={() => setSelectedClient(null)} className="p-2 hover:bg-slate-200 rounded-full transition-colors cursor-pointer"><X size={24}/></button>
+                            </div>
                         </div>
 
                             <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-8">

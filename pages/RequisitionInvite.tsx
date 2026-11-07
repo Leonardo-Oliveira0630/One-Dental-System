@@ -253,9 +253,12 @@ export const RequisitionInvite = () => {
                 </label>
                 <input
                   type="email"
-                  disabled
+                  required
+                  disabled={!!(dentistEmail && dentistEmail.includes('@'))}
                   value={dentistEmail}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-500"
+                  onChange={(e) => setDentistEmail(e.target.value)}
+                  placeholder="Digite seu e-mail para acesso"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-700 disabled:text-slate-500"
                 />
               </div>
 
@@ -315,13 +318,13 @@ export const RequisitionInvite = () => {
             </form>
           )}
 
-          {error && (error.includes('inválido') || error.includes('origem')) && (
+          {error && (
             <div className="mt-4 text-center">
               <Link
                 to="/login"
                 className="font-bold text-sm text-blue-600 hover:text-blue-500"
               >
-                Voltar para a página de Login
+                Ir para a página de Login
               </Link>
             </div>
           )}

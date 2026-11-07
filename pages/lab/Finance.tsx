@@ -158,57 +158,15 @@ export const Finance = () => {
     const manualEmails = new Set<string>();
     const manualDocs = new Set<string>();
 
-    const uniqueManual = manualDentists.map(d => {
-        if (d.email) manualEmails.add(d.email.toLowerCase().trim());
-        const cleanDoc = (d.cpfCnpj || '').replace(/\D/g, '');
-        if (cleanDoc) manualDocs.add(cleanDoc);
-        return d;
-    });
-
-    const uniqueOnline = allUsers.filter(u => u.role === UserRole.CLIENT).filter(u => {
-        const userEmail = u.email ? u.email.toLowerCase().trim() : '';
-        const userDoc = (u.cpfCnpj || '').replace(/\D/g, '');
-        const isDuplicateEmail = userEmail && manualEmails.has(userEmail);
-        const isDuplicateDoc = userDoc && manualDocs.has(userDoc);
-        const hasSameId = uniqueManual.some(m => m.id === u.id);
-        return !hasSameId && !isDuplicateEmail && !isDuplicateDoc;
-    });
-
-    // Build alias map to unify online users and manual dentists
-    const aliasMap = new Map<string, string>();
-    const emailToId = new Map<string, string>();
-    const docToId = new Map<string, string>();
-
-    manualDentists.forEach(m => {
-        aliasMap.set(m.id, m.id);
-        const email = m.email ? m.email.toLowerCase().trim() : '';
-        if (email) emailToId.set(email, m.id);
-        const doc = (m.cpfCnpj || '').replace(/\D/g, '');
-        if (doc) docToId.set(doc, m.id);
-    });
-
-    allUsers.filter(u => u.role === UserRole.CLIENT).forEach(u => {
-        const email = u.email ? u.email.toLowerCase().trim() : '';
-        const doc = (u.cpfCnpj || '').replace(/\D/g, '');
-        let targetId = u.id;
-        if (email && emailToId.has(email)) {
-            targetId = emailToId.get(email)!;
-        } else if (doc && docToId.has(doc)) {
-            targetId = docToId.get(doc)!;
-        }
-        aliasMap.set(u.id, targetId);
-    });
-
-    const getPrimaryId = (id: string) => aliasMap.get(id) || id;
-
-    const allDents = [...uniqueOnline, ...uniqueManual];
+    const manualIds = new Set(manualDentists.map(m => m.id));
+    const uniqueOnline = allUsers.filter(u => u.role === UserRole.CLIENT && !manualIds.has(u.id));
+    const allDents = [...uniqueOnline, ...manualDentists];
     const map = new Map<string, any>();
 
     allDents.forEach(d => {
-        const primaryId = getPrimaryId(d.id);
-        if (!map.has(primaryId)) {
-            map.set(primaryId, {
-                id: primaryId,
+        if (!map.has(d.id)) {
+            map.set(d.id, {
+                id: d.id,
                 name: d.name,
                 clinicName: d.clinicName || '',
                 phone: (d as any).phone || (d as any).whatsapp || '',
@@ -235,17 +193,18 @@ export const Finance = () => {
         const isCompleted = job.status === JobStatus.COMPLETED || job.status === JobStatus.DELIVERED;
         if (!isOnline && !isCompleted) return;
 
-        const primaryId = getPrimaryId(job.dentistId);
-        let entry = map.get(primaryId);
+        const clientId = job.dentistId;
+        if (!clientId) return;
+        let entry = map.get(clientId);
         if (!entry) {
             entry = {
-                id: primaryId,
+                id: clientId,
                 name: job.dentistName || 'Cliente sem Nome',
                 clinicName: '',
                 phone: '',
                 cpfCnpj: '',
                 email: '',
-                dentistObj: { id: primaryId, name: job.dentistName || 'Cliente' },
+                dentistObj: { id: clientId, name: job.dentistName || 'Cliente' },
                 totalDebitsUpTo: 0,
                 totalCreditsUpTo: 0,
                 balanceUpToEndDate: 0,
@@ -255,7 +214,7 @@ export const Finance = () => {
                 allJobsCount: 0,
                 pendingJobsCount: 0,
             };
-            map.set(primaryId, entry);
+            map.set(clientId, entry);
         }
 
         const jobDate = safeDate((job as any).completedAt || job.deliveredAt || job.createdAt);
@@ -279,17 +238,18 @@ export const Finance = () => {
 
     // Process all payments/credits/manual debits
     dentistPayments.forEach(p => {
-        const primaryId = getPrimaryId(p.dentistId);
-        let entry = map.get(primaryId);
+        const clientId = p.dentistId;
+        if (!clientId) return;
+        let entry = map.get(clientId);
         if (!entry) {
             entry = {
-                id: primaryId,
+                id: clientId,
                 name: p.dentistName || 'Cliente',
                 clinicName: '',
                 phone: '',
                 cpfCnpj: '',
                 email: '',
-                dentistObj: { id: primaryId, name: p.dentistName },
+                dentistObj: { id: clientId, name: p.dentistName },
                 totalDebitsUpTo: 0,
                 totalCreditsUpTo: 0,
                 balanceUpToEndDate: 0,
@@ -299,7 +259,7 @@ export const Finance = () => {
                 allJobsCount: 0,
                 pendingJobsCount: 0,
             };
-            map.set(primaryId, entry);
+            map.set(clientId, entry);
         }
 
         const payDate = safeDate(p.paymentDate || p.createdAt);
@@ -1204,27 +1164,8 @@ export const Finance = () => {
   const chronoHistory = useMemo(() => {
     if (!statementClient) return { history: [], previousBalance: 0, overallBalance: 0 };
     
-    const clientEmail = statementClient.email ? statementClient.email.toLowerCase().trim() : '';
-    const clientDoc = (statementClient.cpfCnpj || '').replace(/\D/g, '');
-    
-    const equivalentIds = new Set<string>([statementClient.id]);
-    allUsers.filter(u => u.role === UserRole.CLIENT).forEach(u => {
-        const uEmail = u.email ? u.email.toLowerCase().trim() : '';
-        const uDoc = (u.cpfCnpj || '').replace(/\D/g, '');
-        if ((clientEmail && uEmail === clientEmail) || (clientDoc && uDoc === clientDoc)) {
-            equivalentIds.add(u.id);
-        }
-    });
-    manualDentists.forEach(m => {
-        const mEmail = m.email ? m.email.toLowerCase().trim() : '';
-        const mDoc = (m.cpfCnpj || '').replace(/\D/g, '');
-        if ((clientEmail && mEmail === clientEmail) || (clientDoc && mDoc === clientDoc)) {
-            equivalentIds.add(m.id);
-        }
-    });
-
-    const clientJobs = (dentistJobs && dentistJobs.length > 0 ? dentistJobs : jobs).filter(j => j.dentistId && equivalentIds.has(j.dentistId) && (j.status === JobStatus.COMPLETED || j.status === JobStatus.DELIVERED));
-    const clientPayments = dentistPayments.filter(p => p.dentistId && equivalentIds.has(p.dentistId));
+    const clientJobs = (dentistJobs && dentistJobs.length > 0 ? dentistJobs : jobs).filter(j => j.dentistId === statementClient.id && (j.status === JobStatus.COMPLETED || j.status === JobStatus.DELIVERED));
+    const clientPayments = dentistPayments.filter(p => p.dentistId === statementClient.id);
     
     const processedPayments: any[] = [];
     const handledGroups = new Set<string>();
@@ -1764,67 +1705,23 @@ export const Finance = () => {
   const dentistSummary = useMemo(() => {
     const map = new Map<string, any>();
     
-    // Build alias map to unify online users and manual dentists
-    const aliasMap = new Map<string, string>();
-    const emailToId = new Map<string, string>();
-    const docToId = new Map<string, string>();
-
-    manualDentists.forEach(m => {
-        aliasMap.set(m.id, m.id);
-        const email = m.email ? m.email.toLowerCase().trim() : '';
-        if (email) emailToId.set(email, m.id);
-        const doc = (m.cpfCnpj || '').replace(/\D/g, '');
-        if (doc) docToId.set(doc, m.id);
-    });
-
-    allUsers.filter(u => u.role === UserRole.CLIENT).forEach(u => {
-        const email = u.email ? u.email.toLowerCase().trim() : '';
-        const doc = (u.cpfCnpj || '').replace(/\D/g, '');
-        let targetId = u.id;
-        if (email && emailToId.has(email)) {
-            targetId = emailToId.get(email)!;
-        } else if (doc && docToId.has(doc)) {
-            targetId = docToId.get(doc)!;
-        }
-        aliasMap.set(u.id, targetId);
-    });
-
-    const getPrimaryId = (id: string) => aliasMap.get(id) || id;
-
-    const manualEmails = new Set<string>();
-    const manualDocs = new Set<string>();
-
-    const uniqueManual = manualDentists.map(d => {
-        if (d.email) manualEmails.add(d.email.toLowerCase().trim());
-        const cleanDoc = (d.cpfCnpj || '').replace(/\D/g, '');
-        if (cleanDoc) manualDocs.add(cleanDoc);
-        return d;
-    });
-
-    const uniqueOnline = allUsers.filter(u => u.role === UserRole.CLIENT).filter(u => {
-        const userEmail = u.email ? u.email.toLowerCase().trim() : '';
-        const userDoc = (u.cpfCnpj || '').replace(/\D/g, '');
-        const isDuplicateEmail = userEmail && manualEmails.has(userEmail);
-        const isDuplicateDoc = userDoc && manualDocs.has(userDoc);
-        const hasSameId = uniqueManual.some(m => m.id === u.id);
-        return !hasSameId && !isDuplicateEmail && !isDuplicateDoc;
-    });
-
-    const allDents = [...uniqueOnline, ...uniqueManual];
+    const manualIds = new Set(manualDentists.map(m => m.id));
+    const uniqueOnline = allUsers.filter(u => u.role === UserRole.CLIENT && !manualIds.has(u.id));
+    const allDents = [...uniqueOnline, ...manualDentists];
     
     allDents.forEach(d => {
-        const primaryId = getPrimaryId(d.id);
-        if (!map.has(primaryId)) {
-            map.set(primaryId, { ...d, id: primaryId, totalPending: 0, history: [], pendingJobs: [] });
+        if (!map.has(d.id)) {
+            map.set(d.id, { ...d, id: d.id, totalPending: 0, history: [], pendingJobs: [] });
         }
     });
 
     jobs.forEach(job => {
-        const primaryId = getPrimaryId(job.dentistId);
-        let entry = map.get(primaryId);
+        const clientId = job.dentistId;
+        if (!clientId) return;
+        let entry = map.get(clientId);
         if (!entry) {
-            entry = { id: primaryId, name: job.dentistName || 'Cliente', totalPending: 0, history: [], pendingJobs: [] };
-            map.set(primaryId, entry);
+            entry = { id: clientId, name: job.dentistName || 'Cliente', totalPending: 0, history: [], pendingJobs: [] };
+            map.set(clientId, entry);
         }
         
         if (
@@ -1839,11 +1736,12 @@ export const Finance = () => {
 
     // Deduct manual payments/credits and ADD manual debits to totalPending for each dentist
     dentistPayments.forEach(p => {
-        const primaryId = getPrimaryId(p.dentistId);
-        let entry = map.get(primaryId);
+        const clientId = p.dentistId;
+        if (!clientId) return;
+        let entry = map.get(clientId);
         if (!entry) {
             entry = { 
-                id: primaryId, 
+                id: clientId, 
                 name: p.dentistName || 'Cliente', 
                 clinicName: '',
                 phone: '',
@@ -1853,7 +1751,7 @@ export const Finance = () => {
                 history: [], 
                 pendingJobs: [] 
             };
-            map.set(primaryId, entry);
+            map.set(clientId, entry);
         }
         if (entry) {
             if (p.type === 'MANUAL_DEBIT') {

@@ -997,40 +997,13 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       const now = new Date();
       const dentists = [...allUsers.filter(u => u.role === UserRole.CLIENT), ...manualDentists];
       
-      // Build alias map to unify online users and manual dentists matching email or CPF/CNPJ
-      const aliasMap = new Map<string, string>();
-      const emailToId = new Map<string, string>();
-      const docToId = new Map<string, string>();
-
-      manualDentists.forEach(m => {
-          aliasMap.set(m.id, m.id);
-          const email = m.email ? m.email.toLowerCase().trim() : '';
-          if (email) emailToId.set(email, m.id);
-          const doc = (m.cpfCnpj || '').replace(/\D/g, '');
-          if (doc) docToId.set(doc, m.id);
-      });
-
-      allUsers.filter(u => u.role === UserRole.CLIENT).forEach(u => {
-          const email = u.email ? u.email.toLowerCase().trim() : '';
-          const doc = (u.cpfCnpj || '').replace(/\D/g, '');
-          let targetId = u.id;
-          if (email && emailToId.has(email)) {
-              targetId = emailToId.get(email)!;
-          } else if (doc && docToId.has(doc)) {
-              targetId = docToId.get(doc)!;
-          }
-          aliasMap.set(u.id, targetId);
-      });
-
-      const getPrimaryId = (id: string) => aliasMap.get(id) || id;
-
-      // Performance: Pre-calculate all balances in a single pass
+      // Pre-calculate all balances in a single pass strictly per client ID
       const balanceMap = new Map<string, number>();
       jobs.forEach(j => {
         if (j.dentistId && (j.paymentStatus === 'PENDING' || !j.paymentStatus) && 
             (j.status === JobStatus.COMPLETED || j.status === JobStatus.DELIVERED) &&
             !j.batchId && !j.asaasPaymentId) {
-          const pid = getPrimaryId(j.dentistId);
+          const pid = j.dentistId;
           balanceMap.set(pid, (balanceMap.get(pid) || 0) + (j.totalValue || 0));
         }
       });
@@ -1038,7 +1011,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       // Deduct manual/received payments from the balance map and add manual debits
       dentistPayments.forEach(p => {
         if (p.dentistId) {
-          const pid = getPrimaryId(p.dentistId);
+          const pid = p.dentistId;
           if (p.type === 'MANUAL_DEBIT') {
             balanceMap.set(pid, (balanceMap.get(pid) || 0) + Number(p.amount || 0));
           } else {

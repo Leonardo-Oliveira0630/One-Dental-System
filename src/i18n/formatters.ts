@@ -25,24 +25,30 @@ export function formatDateTime(date: Date | string | number, lang: SupportedLang
   });
 }
 
-export function formatCurrency(amount: number, currency: string = 'BRL', lang: SupportedLanguage = 'pt-BR'): string {
+export function formatCurrency(amount: any, currency: string = 'BRL', lang: SupportedLanguage = 'pt-BR'): string {
   try {
+    const num = Number(amount);
+    if (isNaN(num)) return 'R$ 0,00';
     return new Intl.NumberFormat(lang, {
       style: 'currency',
       currency: currency || 'BRL',
-    }).format(amount);
+    }).format(num);
   } catch {
-    return `R$ ${amount.toFixed(2)}`;
+    const num = Number(amount);
+    return `R$ ${isNaN(num) ? '0,00' : num.toFixed(2)}`;
   }
 }
 
-export function formatNumber(num: number, lang: SupportedLanguage = 'pt-BR', decimals: number = 2): string {
+export function formatNumber(num: any, lang: SupportedLanguage = 'pt-BR', decimals: number = 2): string {
   try {
+    const n = Number(num);
+    if (isNaN(n)) return (0).toFixed(decimals);
     return new Intl.NumberFormat(lang, {
       minimumFractionDigits: decimals,
       maximumFractionDigits: decimals,
-    }).format(num);
+    }).format(n);
   } catch {
-    return num.toFixed(decimals);
+    const n = Number(num);
+    return isNaN(n) ? (0).toFixed(decimals) : n.toFixed(decimals);
   }
 }

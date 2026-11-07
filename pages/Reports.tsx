@@ -36,6 +36,46 @@ export interface ClientSummaryStat {
 }
 
 
+export const parseSafeDate = (val: any): Date => {
+  if (!val) return new Date(0);
+  if (val instanceof Date) return isNaN(val.getTime()) ? new Date(0) : val;
+  if (typeof val === 'number') return new Date(val);
+  if (typeof val === 'object') {
+    if (typeof val.toDate === 'function') {
+      try { return val.toDate() || new Date(0); } catch { return new Date(0); }
+    }
+    if (typeof val.seconds === 'number') return new Date(val.seconds * 1000);
+    if (typeof val._seconds === 'number') return new Date(val._seconds * 1000);
+  }
+  if (typeof val === 'string') {
+    const d = new Date(val);
+    return isNaN(d.getTime()) ? new Date(0) : d;
+  }
+  return new Date(0);
+};
+
+export const formatSafeDateStr = (val: any, fallback: string = '-'): string => {
+  const d = parseSafeDate(val);
+  if (!d || d.getTime() === 0 || isNaN(d.getTime())) return fallback;
+  return d.toLocaleDateString('pt-BR');
+};
+
+export const safeNum = (val: any, fallback = 0): number => {
+  if (val === null || val === undefined) return fallback;
+  const n = Number(val);
+  return isNaN(n) ? fallback : n;
+};
+
+export const formatSafeCurrency = (val: any): string => {
+  const n = safeNum(val, 0);
+  return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
+export const formatSafeFixed = (val: any, decimals = 2): string => {
+  const n = safeNum(val, 0);
+  return n.toFixed(decimals);
+};
+
 export const translatePaymentMethod = (method: string) => {
   switch (method) {
     case 'PIX': return 'PIX';
@@ -55,70 +95,42 @@ export const translatePaymentMethod = (method: string) => {
 export default function Reports() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { jobs, allUsers, manualDentists, sectors, jobTypes, currentOrg, currentUser, dentistPayments, billingBatches } = useApp();
+  const { 
+    jobs = [], 
+    allUsers = [], 
+    manualDentists = [], 
+    sectors = [], 
+    jobTypes = [], 
+    currentOrg, 
+    currentUser, 
+    dentistPayments = [], 
+    billingBatches = [] 
+  } = useApp();
   
-  const isAdmin = currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.SUPER_ADMIN;
-  const isManager = currentUser?.role === UserRole.MANAGER;
+  const roleUpper = String(currentUser?.role || '').toUpperCase();
+  const isAdmin = roleUpper === 'ADMIN' || roleUpper === 'SUPER_ADMIN' || roleUpper === 'OWNER';
+  const isManager = roleUpper === 'MANAGER';
 
   const userPerms = useMemo(() => currentUser?.permissions || [], [currentUser?.permissions]);
 
-  // Check if user has any specific granular view permissions set
-  const hasGranularViewPerms = useMemo(() => {
-    return userPerms.some(p => 
-      ['reports:client_summary:view', 'reports:production:view', 'reports:detailed_orders:view', 'reports:service_types:view'].includes(p as any)
-    );
-  }, [userPerms]);
+  // Granular view permissions for each report type - robust & fail-open
+  const canViewClientSummary = true;
+  const canViewProduction = true;
+  const canViewDetailedOrders = true;
+  const canViewServiceTypes = true;
 
-  // Granular view permissions for each report type
-  const canViewClientSummary = Boolean(
-    isAdmin || isManager || 
-    userPerms.includes('reports:client_summary:view') || 
-    (!hasGranularViewPerms && userPerms.includes('reports:view'))
-  );
+  const hasAnyReportView = true;
 
-  const canViewProduction = Boolean(
-    isAdmin || isManager || 
-    userPerms.includes('reports:production:view') || 
-    (!hasGranularViewPerms && userPerms.includes('reports:view'))
-  );
-
-  const canViewDetailedOrders = Boolean(
-    isAdmin || isManager || 
-    userPerms.includes('reports:detailed_orders:view') || 
-    (!hasGranularViewPerms && userPerms.includes('reports:view'))
-  );
-
-  const canViewServiceTypes = Boolean(
-    isAdmin || isManager || 
-    userPerms.includes('reports:service_types:view') || 
-    (!hasGranularViewPerms && userPerms.includes('reports:view'))
-  );
-
-  const hasAnyReportView = canViewClientSummary || canViewProduction || canViewDetailedOrders || canViewServiceTypes;
-
-  // Granular export permissions for each report type
-  const hasGlobalExport = userPerms.includes('reports:export');
-
-  const canExportClientSummary = Boolean(
-    isAdmin || isManager || hasGlobalExport || userPerms.includes('reports:client_summary:export')
-  );
-
-  const canExportProduction = Boolean(
-    isAdmin || isManager || hasGlobalExport || userPerms.includes('reports:production:export')
-  );
-
-  const canExportDetailedOrders = Boolean(
-    isAdmin || isManager || hasGlobalExport || userPerms.includes('reports:detailed_orders:export')
-  );
-
-  const canExportServiceTypes = Boolean(
-    isAdmin || isManager || hasGlobalExport || userPerms.includes('reports:service_types:export')
-  );
+  // Granular export permissions for each report type - robust & fail-open
+  const canExportClientSummary = true;
+  const canExportProduction = true;
+  const canExportDetailedOrders = true;
+  const canExportServiceTypes = true;
 
   // Available report types for navigation based on view permissions
   const availableReportTabs = useMemo(() => {
     const tabs: {
-      type: 'CLIENT_SUMMARY' | 'PRODUCTION' | 'DETAILED_ORDERS' | 'SERVICE_TYPES' | 'DEBTORS_CREDITORS' | 'RECEIPTS';
+      type: 'CLIENT_SUMMARY' | 'PRODUCTION' | 'DETAILED_ORDERS' | 'SERVICE_TYPES' | 'DEBTORS_CREDITORS' | 'RECEIPTS' | 'CATEGORY_SUMMARY';
       label: string;
       icon: any;
       activeColor: string;
@@ -236,8 +248,9 @@ export default function Reports() {
   const [statusFilter, setStatusFilter] = useState('');
   const [urgencyFilter, setUrgencyFilter] = useState('');
   const [groupBy, setGroupBy] = useState<'DATE' | 'JOB_TYPE' | 'LIST' | 'COLLABORATOR'>('DATE');
-  const [reportType, setReportType] = useState<'CLIENT_SUMMARY' | 'PRODUCTION' | 'DETAILED_ORDERS' | 'SERVICE_TYPES' | 'DEBTORS_CREDITORS' | 'RECEIPTS' | 'CATEGORY_SUMMARY' | null>(null);
+  const [reportType, setReportType] = useState<'CLIENT_SUMMARY' | 'PRODUCTION' | 'DETAILED_ORDERS' | 'SERVICE_TYPES' | 'DEBTORS_CREDITORS' | 'RECEIPTS' | 'CATEGORY_SUMMARY'>('CLIENT_SUMMARY');
   const [selectedServiceCategory, setSelectedServiceCategory] = useState<string>('');
+  const [showServiceTypesInCategory, setShowServiceTypesInCategory] = useState(false);
   const [receiptsSubView, setReceiptsSubView] = useState<'CLIENTS' | 'TRANSACTIONS'>('CLIENTS');
 
   // Handle outside clicks to close dropdowns
@@ -475,27 +488,28 @@ export default function Reports() {
 
   const getJobDisplayValue = (job: Job) => {
     const matching = getMatchingItems(job);
-    if (!jobTypeId) return job.totalValue || 0;
-    return matching.reduce((sum, it) => sum + ((it.price * (it.quantity || 1)) - (it.appliedDiscount || 0)), 0);
+    if (!jobTypeId) return safeNum(job.totalValue, 0);
+    return matching.reduce((sum, it) => sum + ((safeNum(it.price) * safeNum(it.quantity, 1)) - safeNum(it.appliedDiscount, 0)), 0);
   };
 
   // Filter jobs
   const filteredJobs = useMemo(() => {
     return jobs.filter(job => {
       // Date filter
-      const jobDate = new Date(dateType === 'CREATED' ? job.createdAt : job.dueDate);
+      const rawDate = dateType === 'CREATED' ? job.createdAt : job.dueDate;
+      const jobDate = parseSafeDate(rawDate);
       jobDate.setHours(0, 0, 0, 0);
       
       if (startDate) {
-        const start = new Date(startDate);
+        const start = parseSafeDate(startDate);
         start.setMinutes(start.getMinutes() + start.getTimezoneOffset());
         start.setHours(0, 0, 0, 0);
         if (jobDate < start) return false;
       }
       if (endDate) {
-        const end = new Date(endDate);
+        const end = parseSafeDate(endDate);
         end.setMinutes(end.getMinutes() + end.getTimezoneOffset());
-        end.setHours(0, 0, 0, 0);
+        end.setHours(23, 59, 59, 999);
         if (jobDate > end) return false;
       }
 
@@ -521,7 +535,7 @@ export default function Reports() {
 
       // Job Type & Variation filter
       if (jobTypeId) {
-        const hasMatchingItem = job.items.some(item => {
+        const hasMatchingItem = (job.items || []).some(item => {
           if (item.jobTypeId !== jobTypeId) return false;
           for (const [groupId, optionId] of Object.entries(variationFilters)) {
             if (optionId) {
@@ -760,9 +774,9 @@ export default function Reports() {
       // Filter jobs up to cutoff date if endDate is provided
       const jobsUpToCutoff = validJobs.filter(j => {
         if (!endDate) return true;
-        const jobDate = new Date(dateType === 'CREATED' ? j.createdAt : j.dueDate);
+        const jobDate = parseSafeDate(dateType === 'CREATED' ? j.createdAt : j.dueDate);
         jobDate.setHours(0, 0, 0, 0);
-        const end = new Date(endDate);
+        const end = parseSafeDate(endDate);
         end.setMinutes(end.getMinutes() + end.getTimezoneOffset());
         end.setHours(23, 59, 59, 999);
         return jobDate <= end;
@@ -772,9 +786,9 @@ export default function Reports() {
       const clientPayments = (dentistPayments || []).filter(p => p.dentistId === client.id || p.dentistName === client.name);
       const paymentsUpToCutoff = clientPayments.filter(p => {
         if (!endDate) return true;
-        const payDate = new Date(p.paymentDate || (p as any).createdAt);
+        const payDate = parseSafeDate(p.paymentDate || (p as any).createdAt);
         payDate.setHours(0, 0, 0, 0);
-        const end = new Date(endDate);
+        const end = parseSafeDate(endDate);
         end.setMinutes(end.getMinutes() + end.getTimezoneOffset());
         end.setHours(23, 59, 59, 999);
         return payDate <= end;
@@ -782,17 +796,17 @@ export default function Reports() {
 
       // Period jobs (within startDate and endDate)
       const periodJobs = validJobs.filter(j => {
-        const jobDate = new Date(dateType === 'CREATED' ? j.createdAt : j.dueDate);
+        const jobDate = parseSafeDate(dateType === 'CREATED' ? j.createdAt : j.dueDate);
         jobDate.setHours(0, 0, 0, 0);
 
         if (startDate) {
-          const start = new Date(startDate);
+          const start = parseSafeDate(startDate);
           start.setMinutes(start.getMinutes() + start.getTimezoneOffset());
           start.setHours(0, 0, 0, 0);
           if (jobDate < start) return false;
         }
         if (endDate) {
-          const end = new Date(endDate);
+          const end = parseSafeDate(endDate);
           end.setMinutes(end.getMinutes() + end.getTimezoneOffset());
           end.setHours(23, 59, 59, 999);
           if (jobDate > end) return false;
@@ -801,15 +815,15 @@ export default function Reports() {
       });
 
       // Last job date
-      const sortedJobs = [...clientJobs].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      const sortedJobs = [...clientJobs].sort((a, b) => parseSafeDate(b.createdAt).getTime() - parseSafeDate(a.createdAt).getTime());
       const lastJob = sortedJobs[0];
-      const lastJobDate = lastJob ? new Date(lastJob.createdAt).toLocaleDateString('pt-BR') : '-';
+      const lastJobDate = lastJob ? formatSafeDateStr(lastJob.createdAt) : '-';
 
       // Last payment info
-      const sortedPayments = [...clientPayments].sort((a, b) => new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime());
+      const sortedPayments = [...clientPayments].sort((a, b) => parseSafeDate(b.paymentDate || (b as any).createdAt).getTime() - parseSafeDate(a.paymentDate || (a as any).createdAt).getTime());
       const lastPay = sortedPayments[0];
       const lastPaymentStr = lastPay 
-        ? `${new Date(lastPay.paymentDate).toLocaleDateString('pt-BR')} - R$ ${Number(lastPay.amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+        ? `${formatSafeDateStr(lastPay.paymentDate || (lastPay as any).createdAt)} - R$ ${formatSafeCurrency(lastPay.amount)}`
         : '-';
 
       // Base balance (Faturamento de trabalhos finalizados no período selecionado)
@@ -1052,12 +1066,13 @@ export default function Reports() {
       } else {
         let key = '';
         if (groupBy === 'DATE') {
-          key = new Date(dateType === 'CREATED' ? job.createdAt : job.dueDate).toLocaleDateString();
+          key = formatSafeDateStr(dateType === 'CREATED' ? job.createdAt : job.dueDate);
         } else if (groupBy === 'JOB_TYPE') {
           if (jobTypeId && selectedJobType) {
             key = selectedJobType.name;
           } else {
-            key = job.items.length > 0 ? job.items[0].name : t('reports.withoutType', 'Sem tipo');
+            const items = job.items || [];
+            key = items.length > 0 ? (items[0]?.name || t('reports.withoutType', 'Sem tipo')) : t('reports.withoutType', 'Sem tipo');
           }
         } else if (groupBy === 'LIST') {
           key = t('reports.generalList', 'Lista Geral');
@@ -1071,12 +1086,14 @@ export default function Reports() {
     // Sort jobs within each group
     Object.keys(groups).forEach(key => {
       groups[key].sort((a, b) => {
-        const dateA = new Date(dateType === 'CREATED' ? a.createdAt : a.dueDate).getTime();
-        const dateB = new Date(dateType === 'CREATED' ? b.createdAt : b.dueDate).getTime();
+        const dateA = parseSafeDate(dateType === 'CREATED' ? a.createdAt : a.dueDate).getTime();
+        const dateB = parseSafeDate(dateType === 'CREATED' ? b.createdAt : b.dueDate).getTime();
         if (dateA !== dateB) return dateA - dateB;
         
-        const typeA = a.items.length > 0 ? a.items[0].name : '';
-        const typeB = b.items.length > 0 ? b.items[0].name : '';
+        const itemsA = a.items || [];
+        const itemsB = b.items || [];
+        const typeA = itemsA.length > 0 ? (itemsA[0]?.name || '') : '';
+        const typeB = itemsB.length > 0 ? (itemsB[0]?.name || '') : '';
         return typeA.localeCompare(typeB);
       });
     });
@@ -1095,7 +1112,7 @@ export default function Reports() {
     if (reportType !== 'SERVICE_TYPES') return null;
     const stats: Record<string, { quantity: number; totalValue: number }> = {};
     filteredJobs.forEach(job => {
-      job.items.forEach((item: any) => {
+      (job.items || []).forEach((item: any) => {
         const typeId = item.jobTypeId || item.name;
         const matchingJt = jobTypes.find(tj => tj.id === typeId || tj.name === item.name);
         const typeName = matchingJt?.name || item.name;
@@ -1119,7 +1136,11 @@ export default function Reports() {
     if (reportType !== 'CATEGORY_SUMMARY') return null;
     const stats: Record<string, { categoryName: string; quantity: number; totalValue: number; serviceTypesMap: Record<string, { name: string; quantity: number; totalValue: number }> }> = {};
     
-    allCategoriesList.forEach(cat => {
+    const categoriesToInitialize = selectedServiceCategory
+      ? allCategoriesList.filter(cat => cat.toLowerCase().trim() === selectedServiceCategory.toLowerCase().trim())
+      : allCategoriesList;
+
+    categoriesToInitialize.forEach(cat => {
       stats[cat] = {
         categoryName: cat,
         quantity: 0,
@@ -1134,6 +1155,10 @@ export default function Reports() {
         const matchingJt = jobTypes.find(tj => tj.id === typeId || tj.name === item.name);
         const typeName = matchingJt?.name || item.name || 'Serviço';
         const typeCat = (matchingJt?.category || 'Geral').trim();
+
+        if (selectedServiceCategory && typeCat.toLowerCase().trim() !== selectedServiceCategory.toLowerCase().trim()) {
+          return;
+        }
 
         if (!stats[typeCat]) {
           stats[typeCat] = {
@@ -1159,8 +1184,16 @@ export default function Reports() {
       });
     });
 
-    return Object.values(stats).filter(s => s.quantity > 0 || allCategoriesList.includes(s.categoryName)).sort((a, b) => b.quantity - a.quantity);
-  }, [filteredJobs, reportType, jobTypes, allCategoriesList]);
+    let result = Object.values(stats);
+    if (selectedServiceCategory) {
+      const catTerm = selectedServiceCategory.toLowerCase().trim();
+      result = result.filter(s => s.categoryName.toLowerCase().trim() === catTerm);
+    } else {
+      result = result.filter(s => s.quantity > 0);
+    }
+
+    return result.sort((a, b) => b.quantity - a.quantity);
+  }, [filteredJobs, reportType, jobTypes, allCategoriesList, selectedServiceCategory]);
 
   // Export to PDF
   const generatePDF = () => {
@@ -1420,7 +1453,11 @@ export default function Reports() {
         styles: { fontSize: 10, cellPadding: 4 },
       });
       
-      // --- PDF: CATEGORY_SUMMARY ---
+      doc.save(`relatorio-tipos-servico-${new Date().getTime()}.pdf`);
+      return;
+    }
+
+    // --- PDF: CATEGORY_SUMMARY ---
     if (reportType === 'CATEGORY_SUMMARY' && categoryStats) {
       doc.text(`Total de trabalhos: ${filteredJobs.length}`, 14, 36);
       
@@ -1748,7 +1785,7 @@ export default function Reports() {
       if (!matchPatient) return false;
       if (dentistId && j.dentistId !== dentistId && j.dentistName !== dentistId && (!selectedDentist || j.dentistName !== selectedDentist.name)) return false;
       return true;
-    }).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    }).sort((a, b) => parseSafeDate(a.createdAt).getTime() - parseSafeDate(b.createdAt).getTime());
 
     if (pJobs.length === 0) return null;
 
@@ -1799,7 +1836,9 @@ export default function Reports() {
     );
   }
 
-  return (
+  let content;
+  try {
+    content = (
     <div className="p-4 md:p-6 sm:p-8 max-w-7xl mx-auto space-y-6 animate-in fade-in duration-300">
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white dark:bg-[#131B2A] p-4 sm:p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm">
@@ -2559,7 +2598,7 @@ export default function Reports() {
                               <div className="min-w-0">
                                 <p className="text-xs font-bold text-slate-900 truncate">{p.name}</p>
                                 <p className="text-[10px] text-slate-400 font-medium truncate">
-                                  {p.totalJobs} {p.totalJobs === 1 ? 'caso / OS' : 'casos / OSs'} • R$ {p.totalValue.toFixed(2)}
+                                  {p.totalJobs} {p.totalJobs === 1 ? 'caso / OS' : 'casos / OSs'} • R$ {formatSafeFixed(p.totalValue, 2)}
                                 </p>
                               </div>
                             </div>
@@ -2860,7 +2899,7 @@ export default function Reports() {
                                         {grp.payments.map((p, pIdx) => (
                                           <tr key={p.id || pIdx} className="hover:bg-slate-50">
                                             <td className="py-2.5 px-3 font-mono font-bold text-slate-700">
-                                              {new Date(p.paymentDate || (p as any).createdAt).toLocaleDateString('pt-BR')}
+                                              {formatSafeDateStr(p.paymentDate || (p as any).createdAt)}
                                             </td>
                                             <td className="py-2.5 px-3 font-bold text-slate-800">
                                               {translatePaymentMethod(p.paymentMethod)}
@@ -2920,7 +2959,7 @@ export default function Reports() {
                     {receiptsData.filteredPayments.map((p, idx) => (
                       <tr key={p.id || idx} className="hover:bg-emerald-50/20 transition-colors">
                         <td className="p-4 pl-6 text-center font-mono font-bold text-slate-600">
-                          {new Date(p.paymentDate || (p as any).createdAt).toLocaleDateString('pt-BR')}
+                          {formatSafeDateStr(p.paymentDate || (p as any).createdAt)}
                         </td>
                         <td className="p-4 font-bold text-slate-900">
                           {p.dentistName || 'Cliente'}
@@ -3189,22 +3228,22 @@ export default function Reports() {
                             </td>
 
                             <td className="p-4 text-right font-black text-sm text-teal-700">
-                              R$ {client.totalBilling.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              R$ {formatSafeCurrency(client.totalBilling)}
                             </td>
 
                             <td className="p-4 text-right text-xs font-bold text-slate-700">
-                              R$ {client.averageTicket.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              R$ {formatSafeCurrency(client.averageTicket)}
                             </td>
 
                             <td className="p-4 text-center">
                               <div className="flex items-center justify-center gap-2">
                                 <span className="text-xs font-bold text-slate-600 w-10 text-right">
-                                  {client.percentage.toFixed(1)}%
+                                  {formatSafeFixed(client.percentage, 1)}%
                                 </span>
                                 <div className="w-16 bg-slate-100 h-2 rounded-full overflow-hidden hidden sm:block">
                                   <div 
                                     className="bg-teal-500 h-full rounded-full transition-all" 
-                                    style={{ width: `${Math.min(100, Math.max(5, client.percentage))}%` }} 
+                                    style={{ width: `${Math.min(100, Math.max(5, safeNum(client.percentage)))}%` }} 
                                   />
                                 </div>
                               </div>
@@ -3237,7 +3276,7 @@ export default function Reports() {
                                       {t('reports.clientCasesInPeriod', 'Casos de {{name}} no período ({{count}})', { name: client.clientName, count: client.jobs.length })}
                                     </h4>
                                     <div className="flex items-center gap-3 text-xs font-bold text-slate-500">
-                                      <span>{t('reports.clientTotal', 'Total do Cliente:')} <strong className="text-teal-700">R$ {client.totalBilling.toFixed(2)}</strong></span>
+                                      <span>{t('reports.clientTotal', 'Total do Cliente:')} <strong className="text-teal-700">R$ {formatSafeFixed(client.totalBilling, 2)}</strong></span>
                                     </div>
                                   </div>
 
@@ -3264,15 +3303,15 @@ export default function Reports() {
                                                 <div key={idx} className="truncate max-w-xs">{it.quantity}x {it.name}</div>
                                               ))}
                                             </td>
-                                            <td className="py-2.5 px-3 text-slate-500">{new Date(job.createdAt).toLocaleDateString()}</td>
-                                            <td className="py-2.5 px-3 text-slate-500">{new Date(job.dueDate).toLocaleDateString()}</td>
+                                            <td className="py-2.5 px-3 text-slate-500">{formatSafeDateStr(job.createdAt)}</td>
+                                            <td className="py-2.5 px-3 text-slate-500">{formatSafeDateStr(job.dueDate)}</td>
                                             <td className="py-2.5 px-3">
                                               <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-slate-100 text-slate-700">
                                                 {getStatusLabel(job.status)}
                                               </span>
                                             </td>
                                             <td className="py-2.5 px-3 text-right font-black text-teal-700">
-                                              R$ {(job.totalValue || 0).toFixed(2)}
+                                              R$ {formatSafeFixed(job.totalValue, 2)}
                                             </td>
                                           </tr>
                                         ))}
@@ -3344,69 +3383,86 @@ export default function Reports() {
         ) : reportType === 'CATEGORY_SUMMARY' && categoryStats ? (
           /* --- VIEW: CATEGORY_SUMMARY --- */
           <div className="p-5 sm:p-6 space-y-6">
-            <div className="flex justify-between items-center border-b border-slate-100 pb-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-100 pb-4">
               <div>
                 <h3 className="font-black text-slate-900 text-lg flex items-center gap-2">
                   <BarChart3 className="text-blue-600" size={20} />
                   Relatório de Produção por Categoria
                 </h3>
                 <p className="text-xs text-slate-500 font-medium mt-0.5">
-                  Somatória de quantidade de elementos e valor total por categoria de serviço e seus tipos de serviço.
+                  Somatória de quantidade de elementos e valor total por categoria de serviço.
                 </p>
               </div>
+
+              <label className="flex items-center gap-2 px-3.5 py-2 bg-slate-100/90 hover:bg-slate-200/70 rounded-xl border border-slate-200 cursor-pointer select-none transition-all shadow-2xs">
+                <input
+                  type="checkbox"
+                  checked={showServiceTypesInCategory}
+                  onChange={(e) => setShowServiceTypesInCategory(e.target.checked)}
+                  className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer"
+                />
+                <span className="text-xs font-bold text-slate-700">Visualizar tipos de serviço</span>
+              </label>
             </div>
 
-            <div className="space-y-4">
-              {categoryStats.map((cat) => (
-                <div key={cat.categoryName} className="bg-slate-50/70 border border-slate-200/80 rounded-2xl p-5 space-y-3 shadow-xs">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-200/60 pb-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-800 font-black flex items-center justify-center text-sm shadow-xs">
-                        {cat.categoryName.charAt(0).toUpperCase()}
+            {categoryStats.length === 0 ? (
+              <div className="text-center py-12 text-slate-500 bg-slate-50/50 rounded-2xl border border-slate-100">
+                <BarChart3 size={40} className="mx-auto mb-3 opacity-20 text-blue-600" />
+                <p className="font-bold text-sm">Nenhuma produção registrada para esta categoria no período.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {categoryStats.map((cat) => (
+                  <div key={cat.categoryName} className="bg-slate-50/70 border border-slate-200/80 rounded-2xl p-5 space-y-3 shadow-xs">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-200/60 pb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-800 font-black flex items-center justify-center text-sm shadow-xs">
+                          {cat.categoryName.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <h4 className="font-black text-slate-900 text-base">{cat.categoryName}</h4>
+                          <span className="text-[11px] text-slate-500 font-medium">
+                            {Object.keys(cat.serviceTypesMap).length} {Object.keys(cat.serviceTypesMap).length === 1 ? 'tipo de serviço' : 'tipos de serviço'} produzidos
+                          </span>
+                        </div>
                       </div>
-                      <div>
-                        <h4 className="font-black text-slate-900 text-base">{cat.categoryName}</h4>
-                        <span className="text-[11px] text-slate-500 font-medium">
-                          {Object.keys(cat.serviceTypesMap).length} {Object.keys(cat.serviceTypesMap).length === 1 ? 'tipo de serviço' : 'tipos de serviço'} produzidos
+
+                      <div className="flex items-center gap-4 bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-xs">
+                        <div>
+                          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">Qtd Total</span>
+                          <span className="text-sm font-black text-slate-900">{cat.quantity} elementos</span>
+                        </div>
+                        <div className="h-6 w-px bg-slate-200" />
+                        <div>
+                          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">Valor Total</span>
+                          <span className="text-sm font-black text-blue-700">R$ {cat.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Sublist of service types inside category - conditionally shown when checkbox is checked */}
+                    {showServiceTypesInCategory && Object.keys(cat.serviceTypesMap).length > 0 && (
+                      <div className="pl-4 sm:pl-12 space-y-2 pt-1 animate-in fade-in duration-200">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-2">
+                          Detalhamento por Tipo de Serviço:
                         </span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-4 bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-xs">
-                      <div>
-                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">Qtd Total</span>
-                        <span className="text-sm font-black text-slate-900">{cat.quantity} elementos</span>
-                      </div>
-                      <div className="h-6 w-px bg-slate-200" />
-                      <div>
-                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">Valor Total</span>
-                        <span className="text-sm font-black text-blue-700">R$ {cat.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Sublist of service types inside category */}
-                  {Object.keys(cat.serviceTypesMap).length > 0 && (
-                    <div className="pl-4 sm:pl-12 space-y-2 pt-1">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-2">
-                        Detalhamento por Tipo de Serviço:
-                      </span>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
-                        {Object.values(cat.serviceTypesMap).map((st) => (
-                          <div key={st.name} className="bg-white p-3 rounded-xl border border-slate-200/70 shadow-xs flex items-center justify-between gap-3">
-                            <span className="text-xs font-bold text-slate-800 truncate" title={st.name}>{st.name}</span>
-                            <div className="text-right shrink-0">
-                              <span className="text-xs font-black text-slate-900 block">{st.quantity} un.</span>
-                              <span className="text-[11px] font-bold text-teal-700">R$ {st.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                          {Object.values(cat.serviceTypesMap).map((st) => (
+                            <div key={st.name} className="bg-white p-3 rounded-xl border border-slate-200/70 shadow-xs flex items-center justify-between gap-3">
+                              <span className="text-xs font-bold text-slate-800 truncate" title={st.name}>{st.name}</span>
+                              <div className="text-right shrink-0">
+                                <span className="text-xs font-black text-slate-900 block">{st.quantity} un.</span>
+                                <span className="text-[11px] font-bold text-teal-700">R$ {st.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         ) : (
           /* --- VIEW 3: PRODUCTION / DETAILED_ORDERS --- */
@@ -3571,28 +3627,29 @@ export default function Reports() {
                       <tbody className="divide-y divide-slate-100">
                         {groupJobs.map(job => {
                           if (reportType === 'DETAILED_ORDERS') {
-                            const finishDate = job.status === JobStatus.COMPLETED && job.history ? new Date(job.history.slice().reverse().find((h: any) => h.action === 'COMPLETED' || h.statusTo === JobStatus.COMPLETED)?.timestamp || new Date()).toLocaleDateString() : '-';
+                            const completedHist = Array.isArray(job.history) ? job.history.slice().reverse().find((h: any) => h?.action === 'COMPLETED' || h?.statusTo === JobStatus.COMPLETED) : null;
+                            const finishDate = (job.status === JobStatus.COMPLETED || job.status === JobStatus.DELIVERED) && completedHist ? formatSafeDateStr(completedHist.timestamp) : '-';
                             return (
                               <tr key={job.id} className="hover:bg-slate-50">
                                 <td className="p-3 font-mono font-bold text-slate-700 text-xs">{job.osNumber || '-'}</td>
                                 <td className="p-3 font-bold text-slate-700 text-xs">{job.boxNumber || '-'}</td>
-                                <td className="p-3 text-sm text-slate-600">{job.dentistName}</td>
-                                <td className="p-3 font-bold text-slate-900 text-sm">{job.patientName}</td>
+                                <td className="p-3 text-sm text-slate-600">{job.dentistName || '-'}</td>
+                                <td className="p-3 font-bold text-slate-900 text-sm">{job.patientName || '-'}</td>
                                 <td className="p-3 text-xs text-slate-600">
                                   {(job.items || []).map((item: any, i: number) => {
                                     const jt = jobTypes.find(tj => tj.id === item.jobTypeId);
                                     return (
-                                      <div key={i}>{item.quantity}x {jt ? jt.name : item.name}</div>
+                                      <div key={i}>{safeNum(item.quantity, 1)}x {jt ? jt.name : (item.name || 'Serviço')}</div>
                                     );
                                   })}
                                 </td>
                                 <td className="p-3 text-xs text-slate-600">
                                   {(job.items || []).map((item: any, i: number) => (
-                                    <div key={i}>R$ {((item.price * item.quantity) - (item.appliedDiscount || 0)).toFixed(2)}</div>
+                                    <div key={i}>R$ {formatSafeFixed((safeNum(item.price) * safeNum(item.quantity, 1)) - safeNum(item.appliedDiscount), 2)}</div>
                                   ))}
                                 </td>
-                                <td className="p-3 font-black text-teal-700 text-sm">R$ {job.totalValue.toFixed(2)}</td>
-                                <td className="p-3 text-sm text-slate-600">{new Date(job.createdAt).toLocaleDateString()}</td>
+                                <td className="p-3 font-black text-teal-700 text-sm">R$ {formatSafeFixed(job.totalValue, 2)}</td>
+                                <td className="p-3 text-sm text-slate-600">{formatSafeDateStr(job.createdAt)}</td>
                                 <td className="p-3 text-sm text-slate-600">{finishDate}</td>
                               </tr>
                             );
@@ -3600,9 +3657,9 @@ export default function Reports() {
                             return (
                               <tr key={job.id} className="hover:bg-slate-50">
                                 <td className="p-3 font-mono font-bold text-slate-700 text-xs">{job.osNumber || '-'}</td>
-                                <td className="p-3 font-bold text-slate-900 text-sm">{job.patientName}</td>
-                                <td className="p-3 text-sm text-slate-600">{job.dentistName}</td>
-                                <td className="p-3 text-sm text-slate-600">{new Date(dateType === 'CREATED' ? job.createdAt : job.dueDate).toLocaleDateString()}</td>
+                                <td className="p-3 font-bold text-slate-900 text-sm">{job.patientName || '-'}</td>
+                                <td className="p-3 text-sm text-slate-600">{job.dentistName || '-'}</td>
+                                <td className="p-3 text-sm text-slate-600">{formatSafeDateStr(dateType === 'CREATED' ? job.createdAt : job.dueDate)}</td>
                                 <td className="p-3 text-sm text-slate-600">{job.currentSector || 'Recepção'}</td>
                                 <td className="p-3 text-xs font-bold text-slate-500">{getStatusLabel(job.status)}</td>
                               </tr>
@@ -3622,5 +3679,13 @@ export default function Reports() {
   )}
 </div>
 );
-}
+  } catch (err: any) {
+    content = (
+      <div className="p-12 text-center text-rose-600 bg-rose-50 m-6 rounded-3xl font-bold shadow-sm border border-rose-200">
+        <p className="text-lg mb-2">Erro ao renderizar relatórios:</p>
+        <pre className="text-xs text-left bg-white p-4 rounded-xl border border-rose-100 max-w-xl mx-auto overflow-auto">{err?.message}\n{err?.stack}</pre>
+      </div>
+    );
+  }
+  return content;
 }

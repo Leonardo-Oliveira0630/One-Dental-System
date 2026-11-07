@@ -554,10 +554,6 @@ export const Receipts: React.FC = () => {
         if (signatureDoc) {
             doc.text(`${isRT ? 'CPF:' : ''} ${signatureDoc}`, 150, 170, { align: 'center' });
         }
-        if (isRT) {
-            doc.setFontSize(8);
-            doc.text("Responsável Técnico", 150, 175, { align: 'center' });
-        }
         
         doc.save(`Recibo_${receipt.numero}_${receipt.clienteName}.pdf`);
     };
