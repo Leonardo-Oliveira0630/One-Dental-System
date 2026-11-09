@@ -1369,15 +1369,6 @@ export const Dentists = () => {
                                                         <FileText size={13} className="text-amber-600 shrink-0" />
                                                         <span>Notas</span>
                                                     </button>
-                                                    <button 
-                                                        type="button"
-                                                        onClick={() => handleCopyInviteLink(client)}
-                                                        className="px-2.5 py-1.5 bg-teal-50 hover:bg-teal-100 text-teal-800 font-bold rounded-xl transition-all inline-flex items-center gap-1 text-xs border border-teal-200 cursor-pointer shadow-2xs"
-                                                        title={t('dentists.copyInviteTitle', 'Copiar Link de Convite e Cadastro Online para este Cliente')}
-                                                    >
-                                                        <Share2 size={13} className="text-teal-600 shrink-0" />
-                                                        <span>{t('dentists.inviteBtn', 'Convite')}</span>
-                                                    </button>
                                                     {canViewPrices && (
                                                         <button 
                                                             onClick={() => handleOpenPricing(client)}
@@ -1435,14 +1426,6 @@ export const Dentists = () => {
                                 <p className="text-xs text-slate-500 font-bold uppercase truncate" title={t('dentists.priceTableModalSubtitle', 'Personalize os descontos para este cliente')}>{t('dentists.priceTableModalSubtitle', 'Personalize os descontos para este cliente')}</p>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
-                                <button
-                                    type="button"
-                                    onClick={() => handleCopyInviteLink(selectedClient)}
-                                    className="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
-                                    title="Copiar link exclusivo de cadastro/requisição online para este cliente"
-                                >
-                                    <Share2 size={14} /> Convite Online
-                                </button>
                                 <button onClick={() => setSelectedClient(null)} className="p-2 hover:bg-slate-200 rounded-full transition-colors cursor-pointer"><X size={24}/></button>
                             </div>
                         </div>
