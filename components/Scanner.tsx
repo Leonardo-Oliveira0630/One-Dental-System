@@ -310,7 +310,10 @@ export const GlobalScanner: React.FC = () => {
         id: `att_${Date.now()}`,
         name: `Foto_Scanner_${new Date().toLocaleTimeString()}.jpg`,
         url,
-        uploadedAt: new Date()
+        uploadedAt: new Date(),
+        uploadedBy: currentUser?.id,
+        uploadedByName: currentUser?.name || 'Laboratório',
+        source: 'LAB'
       };
       await updateJob(scannedJob.id, {
         attachments: [...(scannedJob.attachments || []).filter(Boolean), newAttachment]

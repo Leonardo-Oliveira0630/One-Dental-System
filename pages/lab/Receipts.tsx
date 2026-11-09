@@ -21,7 +21,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import { matchesSearchQuery } from '../../utils/stringUtils';
+import { matchesSearchQuery, formatCurrencyBRL, formatNumberBRL, parseBrazilianCurrency } from '../../utils/stringUtils';
 
 export const Receipts: React.FC = () => {
     const { t } = useTranslation();
@@ -499,10 +499,10 @@ export const Receipts: React.FC = () => {
         doc.text("Líquido:", tableX, tableY + 18); // Added more space for liquid value
 
         doc.setFont("helvetica", "bold");
-        doc.text(receipt.valorBruto.toLocaleString('pt-BR', { minimumFractionDigits: 2 }), 190, tableY, { align: 'right' });
-        doc.text(receipt.valorDesconto.toLocaleString('pt-BR', { minimumFractionDigits: 2 }), 190, tableY + 8, { align: 'right' });
+        doc.text(formatNumberBRL(receipt.valorBruto), 190, tableY, { align: 'right' });
+        doc.text(formatNumberBRL(receipt.valorDesconto), 190, tableY + 8, { align: 'right' });
         doc.setFontSize(12);
-        doc.text(`R$ ${receipt.valorLiquido.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 190, tableY + 18, { align: 'right' });
+        doc.text(formatCurrencyBRL(receipt.valorLiquido), 190, tableY + 18, { align: 'right' });
         
         // Recibo body content with safe maxWidth
         const safeMaxWidth = 120; // Reduced to avoid hitting the values table
@@ -963,8 +963,13 @@ export const Receipts: React.FC = () => {
                                         <input 
                                             type="number" 
                                             step="0.01"
-                                            value={formData.valorBruto}
-                                            onChange={e => setFormData({...formData, valorBruto: parseFloat(e.target.value) || 0})}
+                                            value={formData.valorBruto === 0 || formData.valorBruto === undefined ? '' : formData.valorBruto}
+                                            onFocus={e => e.target.select()}
+                                            onChange={e => {
+                                                const val = e.target.value === '' ? 0 : parseFloat(e.target.value);
+                                                setFormData({...formData, valorBruto: isNaN(val) ? 0 : val});
+                                            }}
+                                            placeholder="0,00"
                                             className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none text-sm font-black focus:ring-2 focus:ring-blue-500"
                                         />
                                     </div>
@@ -976,8 +981,13 @@ export const Receipts: React.FC = () => {
                                         <input 
                                             type="number" 
                                             step="0.01"
-                                            value={formData.valorDesconto}
-                                            onChange={e => setFormData({...formData, valorDesconto: parseFloat(e.target.value) || 0})}
+                                            value={formData.valorDesconto === 0 || formData.valorDesconto === undefined ? '' : formData.valorDesconto}
+                                            onFocus={e => e.target.select()}
+                                            onChange={e => {
+                                                const val = e.target.value === '' ? 0 : parseFloat(e.target.value);
+                                                setFormData({...formData, valorDesconto: isNaN(val) ? 0 : val});
+                                            }}
+                                            placeholder="0,00"
                                             className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none text-sm font-black focus:ring-2 focus:ring-blue-500 shadow-inner"
                                         />
                                     </div>
@@ -985,13 +995,13 @@ export const Receipts: React.FC = () => {
                                 <div>
                                     <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">{t('receipts.grossWithDiscount', 'Bruto C/ Desconto')}</label>
                                     <div className="w-full px-4 py-2.5 bg-white/50 border border-slate-200 rounded-xl text-sm font-black text-slate-500 underline decoration-blue-200 underline-offset-4">
-                                        R$ {formData.valorBrutoComDesconto?.toFixed(2)}
+                                        {formatCurrencyBRL(formData.valorBrutoComDesconto)}
                                     </div>
                                 </div>
                                 <div>
                                     <label className="block text-[10px] font-black text-slate-600 uppercase mb-1.5 ml-1">{t('receipts.netValue', 'Valor Líquido')}</label>
                                     <div className="w-full px-4 py-2.5 bg-blue-600 border border-blue-700 rounded-xl text-lg font-black text-white shadow-lg shadow-blue-600/20">
-                                        R$ {formData.valorLiquido?.toFixed(2)}
+                                        {formatCurrencyBRL(formData.valorLiquido)}
                                     </div>
                                 </div>
                             </div>
@@ -1080,7 +1090,7 @@ export const Receipts: React.FC = () => {
                                 <div className="flex items-center justify-between pt-4 border-t border-slate-50">
                                     <div className="flex flex-col">
                                         <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{t('receipts.netValue', 'Valor Líquido')}</span>
-                                        <span className="text-lg font-black text-blue-600 leading-none">R$ {receipt.valorLiquido.toFixed(2)}</span>
+                                        <span className="text-lg font-black text-blue-600 leading-none">{formatCurrencyBRL(receipt.valorLiquido)}</span>
                                     </div>
                                     <button 
                                         onClick={() => generatePDF(receipt)}

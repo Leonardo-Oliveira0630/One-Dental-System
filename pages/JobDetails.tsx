@@ -11,7 +11,7 @@ import {
   FileText, DollarSign, CheckCircle, AlertTriangle, AlertCircle,
   Printer, Box, Layers, ListChecks, Bell, Edit, Save, X, Plus, Trash2, Settings,
   LogIn, LogOut, Flag, CheckSquare, File as FileIcon, Download, Loader2, CreditCard, ExternalLink, Copy, Check, Star, UploadCloud, ChevronDown, CheckCircle2, Truck, Navigation, RotateCcw, MessageCircle, MessageSquare, Lock, Crown, FileCode, FileSpreadsheet, FileWarning, XCircle, ArrowLeftCircle, ScanBarcode, Briefcase, Search, ArrowRightCircle, RefreshCw, Edit3, Package, Smartphone, Sliders,
-  Eye, Edit2, LayoutGrid, List as ListIcon, Image as ImageLucide, Pin, StickyNote
+  Eye, Edit2, LayoutGrid, List as ListIcon, Image as ImageLucide, Pin, StickyNote, Sun, Sunset, Globe
 } from 'lucide-react';
 import { CreateAlertModal } from '../components/AlertSystem';
 import { ChatSystem } from '../components/ChatSystem';
@@ -223,6 +223,47 @@ export const JobDetails = () => {
     const dateStr = d.toLocaleDateString('pt-BR');
     const timeStr = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     return `${dateStr} às ${timeStr}`;
+  };
+
+  const getAttachmentUploaderInfo = (att: any) => {
+    const explicitSource = (att?.source || '').toUpperCase();
+    const uploadedByName = (att?.uploadedByName || '').trim();
+
+    if (explicitSource === 'WEB' || uploadedByName.toLowerCase() === 'web') {
+      return { isWeb: true, name: 'Web' };
+    }
+
+    if (explicitSource === 'LAB' && uploadedByName) {
+      return { isWeb: false, name: uploadedByName };
+    }
+
+    if (uploadedByName && uploadedByName.toLowerCase() !== 'web' && uploadedByName.toLowerCase() !== 'sistema') {
+      return { isWeb: false, name: uploadedByName };
+    }
+
+    // Check if the case was imported from an online order or online requisition
+    const isOnlineCase = Boolean(
+      job?.origin === 'ONLINE_ORDER' ||
+      job?.origin === 'ONLINE_REQUISITION' ||
+      (job as any)?.onlineOrderId ||
+      (job as any)?.onlineRequisitionId ||
+      job?.requisitionId ||
+      (job as any)?.isOnline
+    );
+
+    // If case is online and the attachment has no lab collaborator, it originated from Web
+    if (isOnlineCase && !att?.uploadedBy && !att?.uploadedByName) {
+      return { isWeb: true, name: 'Web' };
+    }
+
+    // If uploaded in lab without explicit name, check history or default to job creator / collaborator
+    const historyUpload = (job?.history || []).find((h: any) => 
+      h.action?.toLowerCase().includes('arquivo') || 
+      h.action?.toLowerCase().includes('anexo')
+    );
+    const labName = historyUpload?.userName || job?.history?.[0]?.userName || 'Laboratório';
+
+    return { isWeb: false, name: labName };
   };
   const [expandedItemIdx, setExpandedItemIdx] = useState<number | null>(null);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
@@ -573,7 +614,11 @@ export const JobDetails = () => {
         notes: req.notes || '',
         origin: 'ONLINE_REQUISITION',
         requisitionId: req.id,
-        attachments: req.attachments || []
+        attachments: (req.attachments || []).map((a: any) => ({
+          ...a,
+          source: 'WEB',
+          uploadedByName: 'Web'
+        }))
       }
     });
   };
@@ -1269,7 +1314,10 @@ export const JobDetails = () => {
                 id: Math.random().toString(36).substr(2, 9),
                 name: file.name,
                 url: url,
-                uploadedAt: new Date()
+                uploadedAt: new Date(),
+                uploadedBy: currentUser?.id,
+                uploadedByName: currentUser?.name || 'Laboratório',
+                source: currentUser?.role === UserRole.CLIENT ? 'WEB' : 'LAB'
             });
         }
 
@@ -5456,12 +5504,12 @@ export const JobDetails = () => {
                                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Turno do Roteiro</p>
                                                 <p className="font-extrabold text-slate-800 text-sm md:text-base truncate mt-0.5">
                                                     {routeInfo.shift === 'MORNING' ? (
-                                                        <span className="inline-flex items-center gap-1 text-amber-600">
+                                                        <span className="inline-flex items-center gap-1 text-blue-600 font-black">
                                                             ☀️ Rota da Manhã
                                                         </span>
                                                     ) : (
-                                                        <span className="inline-flex items-center gap-1 text-indigo-600">
-                                                            🌙 Rota da Tarde
+                                                        <span className="inline-flex items-center gap-1 text-orange-600 font-black">
+                                                            🌅 Rota da Tarde
                                                         </span>
                                                     )}
                                                 </p>
@@ -6862,10 +6910,19 @@ export const JobDetails = () => {
                                                                     className="w-full h-full object-contain group-hover/img:scale-105 transition-transform duration-300"
                                                                     referrerPolicy="no-referrer"
                                                                 />
-                                                                <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-sm text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-md flex items-center gap-1">
+                                                                 <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-sm text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-md flex items-center gap-1">
                                                                     <ImageLucide size={10} className="text-violet-400" />
                                                                     {ext.toUpperCase()}
                                                                 </div>
+                                                                {(() => {
+                                                                    const uploader = getAttachmentUploaderInfo(att);
+                                                                    return (
+                                                                        <div className={`absolute top-2 right-2 backdrop-blur-md text-[9px] font-black uppercase px-2 py-0.5 rounded-md flex items-center gap-1 shadow-sm ${uploader.isWeb ? 'bg-emerald-900/80 text-emerald-200 border border-emerald-500/40' : 'bg-blue-900/80 text-blue-200 border border-blue-500/40'}`}>
+                                                                            {uploader.isWeb ? <Globe size={10} /> : <User size={10} />}
+                                                                            <span>{uploader.name}</span>
+                                                                        </div>
+                                                                    );
+                                                                })()}
                                                                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center gap-2 text-white font-black text-xs uppercase tracking-wider">
                                                                     <Eye size={18} /> Clique para ampliar
                                                                 </div>
@@ -6877,6 +6934,15 @@ export const JobDetails = () => {
                                                                 <span className="absolute top-2 left-2 bg-blue-500/20 border border-blue-400/30 text-blue-300 text-[9px] font-black uppercase px-2 py-0.5 rounded-full flex items-center gap-1">
                                                                     <Box size={10} /> 3D STL
                                                                 </span>
+                                                                {(() => {
+                                                                    const uploader = getAttachmentUploaderInfo(att);
+                                                                    return (
+                                                                        <span className={`absolute top-2 right-2 backdrop-blur-md text-[9px] font-black uppercase px-2 py-0.5 rounded-md flex items-center gap-1 ${uploader.isWeb ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/30' : 'bg-blue-500/20 text-blue-300 border border-blue-400/30'}`}>
+                                                                            {uploader.isWeb ? <Globe size={10} /> : <User size={10} />}
+                                                                            <span>{uploader.name}</span>
+                                                                        </span>
+                                                                    );
+                                                                })()}
                                                                 <Box size={32} className="text-blue-400 animate-pulse mb-1.5" />
                                                                 <span className="text-xs font-black text-slate-100 uppercase truncate max-w-[90%] text-center px-2">
                                                                     {att.name}
@@ -6906,11 +6972,29 @@ export const JobDetails = () => {
                                                                     <h4 className="text-xs font-black text-slate-800 truncate uppercase tracking-tight" title={att.name}>
                                                                         {att.name}
                                                                     </h4>
-                                                                    <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-400 font-bold">
-                                                                        <span className="flex items-center gap-1">
+                                                                    <div className="flex flex-wrap items-center gap-2 mt-1 text-[10px] font-bold">
+                                                                        <span className="flex items-center gap-1 text-slate-400">
                                                                             <Clock size={11} className="text-slate-400 shrink-0" />
                                                                             Importado em {formatAttachmentDateTime(att.uploadedAt)}
                                                                         </span>
+                                                                        <span className="text-slate-300">•</span>
+                                                                        {(() => {
+                                                                            const uploader = getAttachmentUploaderInfo(att);
+                                                                            if (uploader.isWeb) {
+                                                                                return (
+                                                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                                                        <Globe size={11} className="text-emerald-600 shrink-0" />
+                                                                                        Web
+                                                                                    </span>
+                                                                                );
+                                                                            }
+                                                                            return (
+                                                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200" title={`Importado por: ${uploader.name}`}>
+                                                                                    <User size={11} className="text-blue-600 shrink-0" />
+                                                                                    {uploader.name}
+                                                                                </span>
+                                                                            );
+                                                                        })()}
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -7423,12 +7507,49 @@ export const JobDetails = () => {
                       </div>
                       <div>
                           <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Turno da Rota</label>
-                          <select value={routeShift} onChange={e => setRouteShift(e.target.value as any)} className="w-full px-4 py-2 border rounded-xl bg-slate-50 font-black text-xs text-slate-800">
-                              <option value="MORNING" disabled={routeDate === todayStr && isPast12PM}>
-                                  Manhã {routeDate === todayStr && isPast12PM ? '(Indisponível após 12h)' : ''}
-                              </option>
-                              <option value="AFTERNOON">Tarde</option>
-                          </select>
+                          <div className="grid grid-cols-2 gap-2 mb-2">
+                              <button
+                                  type="button"
+                                  disabled={routeDate === todayStr && isPast12PM}
+                                  onClick={() => {
+                                      setRouteShift('MORNING');
+                                      const matched = openRoutesForShift.find(r => r.shift === 'MORNING' && r.driverName.trim().toLowerCase() === routeDriver.trim().toLowerCase());
+                                      if (matched) setSelectedRouteId(matched.id);
+                                      else if (selectedRouteId) {
+                                          const cur = openRoutesForShift.find(r => r.id === selectedRouteId);
+                                          if (cur && cur.shift !== 'MORNING') setSelectedRouteId('');
+                                      }
+                                  }}
+                                  className={`py-2.5 px-3 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all border ${
+                                      routeShift === 'MORNING'
+                                          ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-200 ring-2 ring-blue-400/20'
+                                          : 'bg-blue-50/70 text-blue-700 border-blue-200 hover:bg-blue-100 disabled:opacity-40 disabled:hover:bg-blue-50/70'
+                                  }`}
+                              >
+                                  <Sun size={14} className={routeShift === 'MORNING' ? 'text-white' : 'text-blue-600'} /> 
+                                  <span>Manhã {routeDate === todayStr && isPast12PM ? '(Indisponível)' : ''}</span>
+                              </button>
+                              <button
+                                  type="button"
+                                  onClick={() => {
+                                      setRouteShift('AFTERNOON');
+                                      const matched = openRoutesForShift.find(r => r.shift === 'AFTERNOON' && r.driverName.trim().toLowerCase() === routeDriver.trim().toLowerCase());
+                                      if (matched) setSelectedRouteId(matched.id);
+                                      else if (selectedRouteId) {
+                                          const cur = openRoutesForShift.find(r => r.id === selectedRouteId);
+                                          if (cur && cur.shift !== 'AFTERNOON') setSelectedRouteId('');
+                                      }
+                                  }}
+                                  className={`py-2.5 px-3 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all border ${
+                                      routeShift === 'AFTERNOON'
+                                          ? 'bg-orange-500 text-white border-orange-500 shadow-md shadow-orange-200 ring-2 ring-orange-400/20'
+                                          : 'bg-orange-50/70 text-orange-700 border-orange-200 hover:bg-orange-100'
+                                  }`}
+                              >
+                                  <Sunset size={14} className={routeShift === 'AFTERNOON' ? 'text-white' : 'text-orange-600'} /> 
+                                  <span>Tarde</span>
+                              </button>
+                          </div>
                           {routeDate === todayStr && isPast12PM && (
                               <p className="text-[10px] font-bold text-amber-600 mt-1 flex items-center gap-1">
                                   <Clock size={12} /> Após as 12:00, somente rotas do turno da TARDE podem ser selecionadas para hoje.
@@ -7437,35 +7558,60 @@ export const JobDetails = () => {
                       </div>
                       {/* OPEN ROUTES FOR THIS DATE */}
                       {openRoutesForShift.length > 0 && (
-                          <div className="p-3 bg-blue-50 border border-blue-200 rounded-2xl">
-                              <p className="text-xs font-black text-blue-900 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                                  <Truck size={14} className="text-blue-600" /> Rotas Abertas nesta Data:
+                          <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl">
+                              <p className="text-xs font-black text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                                  <Truck size={14} className="text-indigo-600" /> Rotas Abertas nesta Data:
                               </p>
-                              <div className="space-y-1.5 max-h-[160px] overflow-y-auto pr-1">
-                                  {openRoutesForShift.map(r => (
-                                      <button
-                                          key={r.id}
-                                          type="button"
-                                          onClick={() => {
-                                              setSelectedRouteId(r.id);
-                                              setRouteDriver(r.driverName);
-                                              setRouteShift(r.shift);
-                                          }}
-                                          className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-between ${
-                                              selectedRouteId === r.id
-                                                  ? 'bg-blue-600 text-white shadow-sm'
-                                                  : 'bg-white text-slate-800 hover:bg-blue-100/50 border border-blue-100'
-                                          }`}
-                                      >
-                                          <div className="flex items-center gap-2">
-                                              <User size={14} />
-                                              <span>{r.driverName} ({r.shift === 'MORNING' ? 'Manhã' : 'Tarde'})</span>
-                                          </div>
-                                          <span className="text-[10px] font-black uppercase opacity-90">
-                                              {selectedRouteId === r.id ? 'Selecionada' : 'Usar esta rota'}
-                                          </span>
-                                      </button>
-                                  ))}
+                              <div className="space-y-1.5 max-h-[170px] overflow-y-auto pr-1">
+                                  {openRoutesForShift.map(r => {
+                                      const isMorning = r.shift === 'MORNING';
+                                      const isSelected = selectedRouteId === r.id;
+                                      return (
+                                          <button
+                                              key={r.id}
+                                              type="button"
+                                              onClick={() => {
+                                                  setSelectedRouteId(r.id);
+                                                  setRouteDriver(r.driverName);
+                                                  setRouteShift(r.shift);
+                                              }}
+                                              className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-between border ${
+                                                  isMorning
+                                                      ? (isSelected
+                                                          ? 'bg-blue-600 text-white border-blue-600 shadow-sm shadow-blue-200'
+                                                          : 'bg-blue-50/70 text-slate-800 hover:bg-blue-100/70 border-blue-200')
+                                                      : (isSelected
+                                                          ? 'bg-orange-500 text-white border-orange-500 shadow-sm shadow-orange-200'
+                                                          : 'bg-orange-50/70 text-slate-800 hover:bg-orange-100/70 border-orange-200')
+                                              }`}
+                                          >
+                                              <div className="flex items-center gap-2.5">
+                                                  {isMorning ? (
+                                                      <Sun size={15} className={isSelected ? 'text-white' : 'text-blue-600'} />
+                                                  ) : (
+                                                      <Sunset size={15} className={isSelected ? 'text-white' : 'text-orange-600'} />
+                                                  )}
+                                                  <div className="flex flex-col">
+                                                      <span className="font-extrabold">{r.driverName}</span>
+                                                      <span className={`text-[10px] font-black uppercase ${
+                                                          isSelected
+                                                              ? 'text-white/90'
+                                                              : (isMorning ? 'text-blue-600' : 'text-orange-600')
+                                                      }`}>
+                                                          {isMorning ? 'Rota da Manhã' : 'Rota da Tarde'}
+                                                      </span>
+                                                  </div>
+                                              </div>
+                                              <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md ${
+                                                  isSelected
+                                                      ? 'bg-white/20 text-white'
+                                                      : (isMorning ? 'bg-blue-100 text-blue-800' : 'bg-orange-100 text-orange-800')
+                                              }`}>
+                                                  {isSelected ? '✓ Selecionada' : 'Usar esta rota'}
+                                              </span>
+                                          </button>
+                                      );
+                                  })}
                               </div>
                           </div>
                       )}

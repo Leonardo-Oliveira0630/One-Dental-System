@@ -783,7 +783,7 @@ export default function Reports() {
       });
 
       // Filter payments up to cutoff date if endDate is provided
-      const clientPayments = (dentistPayments || []).filter(p => p.dentistId === client.id || p.dentistName === client.name);
+      const clientPayments = (dentistPayments || []).filter(p => p.dentistId === client.id);
       const paymentsUpToCutoff = clientPayments.filter(p => {
         if (!endDate) return true;
         const payDate = parseSafeDate(p.paymentDate || (p as any).createdAt);

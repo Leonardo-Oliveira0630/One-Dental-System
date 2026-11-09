@@ -155,6 +155,16 @@ export const RoutePlanner = () => {
         });
     }, [routes, selectedDate, selectedShift]);
 
+    // Drivers who already have a route in this shift on this date
+    const assignedDriversInShift = useMemo(() => {
+        return new Set(shiftRoutes.map(r => r.driverName.trim().toLowerCase()));
+    }, [shiftRoutes]);
+
+    // Active couriers available for this shift on this date (only those without a route in this shift)
+    const availableCouriersForShift = useMemo(() => {
+        return activeCouriers.filter(c => !assignedDriversInShift.has(c.name.trim().toLowerCase()));
+    }, [activeCouriers, assignedDriversInShift]);
+
     // Active selected route or fallback to open route
     const activeRoute = useMemo(() => {
         if (selectedRouteId) {
@@ -184,7 +194,7 @@ export const RoutePlanner = () => {
     const handleCreateRoute = async (driverName: string) => {
         if (!currentOrg || !driverName || (!canCreate && !canEdit)) return;
 
-        // Constraint: Single route per shift when 1 or fewer active couriers
+        // Constraint 1: Single route per shift when 1 or fewer active couriers
         if (activeCouriers.length <= 1 && shiftRoutes.length > 0) {
             const existing = shiftRoutes[0];
             setSelectedRouteId(existing.id);
@@ -192,7 +202,14 @@ export const RoutePlanner = () => {
             setShowStartRouteModal(false);
             setManualCourierName('');
             setSelectedCourierId('');
-            alert(`O laboratório possui apenas 1 motoboy ativo. A rota do turno já existente (${existing.driverName}) foi selecionada.`);
+            alert(`O laboratório possui apenas 1 motoboy cadastrado. Já existe uma rota neste turno (${selectedShift === 'MORNING' ? 'Manhã' : 'Tarde'}) e não é permitido criar outra.`);
+            return;
+        }
+
+        // Constraint 2: Only couriers without a route in this shift on this date can be added
+        const isAlreadyAssigned = shiftRoutes.some(r => r.driverName.trim().toLowerCase() === driverName.trim().toLowerCase());
+        if (isAlreadyAssigned) {
+            alert(`O motoboy "${driverName}" já possui uma rota criada neste turno (${selectedShift === 'MORNING' ? 'Manhã' : 'Tarde'}).`);
             return;
         }
 
@@ -236,6 +253,17 @@ export const RoutePlanner = () => {
             return true;
         });
     }, [routes, activeRoute?.id]);
+
+    // Available couriers for quick create and move route
+    const availableCouriersForMove = useMemo(() => {
+        const targetRoutes = routes.filter(r => {
+            const rDateStr = normalizeRouteDate(r.date);
+            return rDateStr === moveRouteDate && r.shift === moveRouteShift;
+        });
+        const targetAssigned = new Set(targetRoutes.map(r => r.driverName.trim().toLowerCase()));
+        if (activeCouriers.length <= 1 && targetRoutes.length > 0) return [];
+        return activeCouriers.filter(c => !targetAssigned.has(c.name.trim().toLowerCase()));
+    }, [routes, moveRouteDate, moveRouteShift, activeCouriers]);
 
     const handleDeleteRoute = async (routeId: string) => {
         if (!currentOrg || !canDelete) return;
@@ -290,6 +318,21 @@ export const RoutePlanner = () => {
 
         if (dateStr === today && shift === 'MORNING' && isAfter12PM()) {
             alert("Após as 12:00, somente rotas do turno da TARDE podem ser selecionadas para hoje.");
+            return;
+        }
+
+        const targetRoutes = routes.filter(r => {
+            const rDateStr = normalizeRouteDate(r.date);
+            return rDateStr === dateStr && r.shift === shift;
+        });
+
+        if (activeCouriers.length <= 1 && targetRoutes.length > 0) {
+            alert(`O laboratório possui apenas 1 motoboy cadastrado e a rota deste turno (${shift === 'MORNING' ? 'Manhã' : 'Tarde'}) já foi criada.`);
+            return;
+        }
+
+        if (targetRoutes.some(r => r.driverName.trim().toLowerCase() === driverName.toLowerCase())) {
+            alert(`O motoboy "${driverName}" já possui uma rota criada neste turno (${shift === 'MORNING' ? 'Manhã' : 'Tarde'}).`);
             return;
         }
 
@@ -570,7 +613,7 @@ export const RoutePlanner = () => {
                                     );
                                 })}
                             </div>
-                            {canCreate && (
+                            {canCreate && activeCouriers.length > 1 && availableCouriersForShift.length > 0 && (
                                 <button
                                     id="add-extra-route-btn"
                                     onClick={() => setShowStartRouteModal(true)}
@@ -1026,9 +1069,13 @@ export const RoutePlanner = () => {
                         <div className="space-y-4">
                             <div>
                                 <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">{t("routes.selectRegisteredCourier", "Selecione o Motoboy Cadastrado")}</label>
-                                {activeCouriers.length > 0 ? (
+                                {activeCouriers.length === 0 ? (
+                                    <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 p-3 rounded-xl font-bold" id="no-active-couriers-warning">
+                                        {t('routes.noActiveCouriersWarning', '⚠️ Nenhum motoboy ativo cadastrado. Cadastre um entregador no painel lateral à direita ou digite um nome abaixo para uso esporádico.')}
+                                    </p>
+                                ) : availableCouriersForShift.length > 0 ? (
                                     <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1" id="active-couriers-select-list">
-                                        {activeCouriers.map(c => (
+                                        {availableCouriersForShift.map(c => (
                                             <button 
                                                 key={c.id}
                                                 id={`courier-select-btn-${c.id}`}
@@ -1045,44 +1092,57 @@ export const RoutePlanner = () => {
                                         ))}
                                     </div>
                                 ) : (
-                                    <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 p-3 rounded-xl font-bold" id="no-active-couriers-warning">
-                                        {t('routes.noActiveCouriersWarning', '⚠️ Nenhum motoboy ativo cadastrado. Cadastre um entregador no painel lateral à direita ou digite um nome abaixo para uso esporádico.')}
-                                    </p>
+                                    <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-center space-y-1" id="no-available-couriers-warning">
+                                        <p className="text-xs font-black text-amber-800 uppercase">
+                                            {activeCouriers.length <= 1 
+                                                ? "O laboratório possui apenas 1 motoboy cadastrado e a rota deste turno já foi criada."
+                                                : `Todos os motoboys cadastrados (${activeCouriers.length}) já possuem rota neste turno.`}
+                                        </p>
+                                        <p className="text-[11px] text-amber-700 font-medium">
+                                            {activeCouriers.length <= 1
+                                                ? "Não é permitido criar mais de uma rota para o mesmo turno e motoboy."
+                                                : "Caso precise de outra rota, cadastre um novo motoboy ou libere um existente."}
+                                        </p>
+                                    </div>
                                 )}
                             </div>
 
-                            <div className="relative flex py-2 items-center">
-                                <div className="flex-grow border-t border-slate-200"></div>
-                                <span className="flex-shrink mx-4 text-xs font-black text-slate-400 uppercase tracking-wider">{t('common.or', 'OU')}</span>
-                                <div className="flex-grow border-t border-slate-200"></div>
-                            </div>
+                            {activeCouriers.length <= 1 && shiftRoutes.length > 0 ? null : (
+                                <>
+                                    <div className="relative flex py-2 items-center">
+                                        <div className="flex-grow border-t border-slate-200"></div>
+                                        <span className="flex-shrink mx-4 text-xs font-black text-slate-400 uppercase tracking-wider">{t('common.or', 'OU')}</span>
+                                        <div className="flex-grow border-t border-slate-200"></div>
+                                    </div>
 
-                            <div>
-                                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">{t("routes.sporadicCourierName", "Nome do Entregador Esporádico")}</label>
-                                <div className="flex gap-2">
-                                    <input 
-                                        id="manual-courier-name-input"
-                                        type="text" 
-                                        placeholder={t('routes.sporadicCourierPlaceholder', 'Ex: Carlos Temporário')}
-                                        value={manualCourierName}
-                                        onChange={e => {
-                                            setManualCourierName(e.target.value);
-                                            setSelectedCourierId('');
-                                        }}
-                                        className="flex-1 text-xs font-bold px-4 py-3 bg-slate-50 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
-                                    />
-                                    <button 
-                                        id="submit-manual-driver-btn"
-                                        onClick={() => {
-                                            if (manualCourierName.trim()) handleCreateRoute(manualCourierName.trim());
-                                        }}
-                                        disabled={!manualCourierName.trim()}
-                                        className="px-4 bg-slate-900 text-white font-black text-xs rounded-xl hover:bg-slate-800 tracking-wider disabled:opacity-40 uppercase"
-                                    >
-                                        {t('routes.startBtn', 'INICIAR')}
-                                    </button>
-                                </div>
-                            </div>
+                                    <div>
+                                        <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">{t("routes.sporadicCourierName", "Nome do Entregador Esporádico")}</label>
+                                        <div className="flex gap-2">
+                                            <input 
+                                                id="manual-courier-name-input"
+                                                type="text" 
+                                                placeholder={t('routes.sporadicCourierPlaceholder', 'Ex: Carlos Temporário')}
+                                                value={manualCourierName}
+                                                onChange={e => {
+                                                    setManualCourierName(e.target.value);
+                                                    setSelectedCourierId('');
+                                                }}
+                                                className="flex-1 text-xs font-bold px-4 py-3 bg-slate-50 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                                            />
+                                            <button 
+                                                id="submit-manual-driver-btn"
+                                                onClick={() => {
+                                                    if (manualCourierName.trim()) handleCreateRoute(manualCourierName.trim());
+                                                }}
+                                                disabled={!manualCourierName.trim()}
+                                                className="px-4 bg-slate-900 text-white font-black text-xs rounded-xl hover:bg-slate-800 tracking-wider disabled:opacity-40 uppercase"
+                                            >
+                                                {t('routes.startBtn', 'INICIAR')}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -1282,17 +1342,25 @@ export const RoutePlanner = () => {
                                         </div>
                                         <div>
                                             <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Motoboy / Entregador</label>
-                                            {couriers && couriers.filter(c => c.active).length > 0 ? (
-                                                <select 
-                                                    value={moveRouteCourier} 
-                                                    onChange={e => setMoveRouteCourier(e.target.value)} 
-                                                    className="w-full text-xs font-bold px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
-                                                >
-                                                    <option value="">-- Selecione o Motoboy --</option>
-                                                    {couriers.filter(c => c.active).map(c => (
-                                                        <option key={c.id} value={c.name}>{c.name} {c.vehicle ? `(${c.vehicle})` : ''}</option>
-                                                    ))}
-                                                </select>
+                                            {activeCouriers.length > 0 ? (
+                                                availableCouriersForMove.length > 0 ? (
+                                                    <select 
+                                                        value={moveRouteCourier} 
+                                                        onChange={e => setMoveRouteCourier(e.target.value)} 
+                                                        className="w-full text-xs font-bold px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
+                                                    >
+                                                        <option value="">-- Selecione o Motoboy --</option>
+                                                        {availableCouriersForMove.map(c => (
+                                                            <option key={c.id} value={c.name}>{c.name} {c.vehicle ? `(${c.vehicle})` : ''}</option>
+                                                        ))}
+                                                    </select>
+                                                ) : (
+                                                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-[11px] font-bold">
+                                                        {activeCouriers.length <= 1 
+                                                            ? "O laboratório possui apenas 1 motoboy cadastrado e a rota deste turno já foi criada."
+                                                            : `Todos os motoboys cadastrados (${activeCouriers.length}) já possuem rota aberta nesta data e turno.`}
+                                                    </div>
+                                                )
                                             ) : (
                                                 <input 
                                                     type="text" 
@@ -1306,7 +1374,7 @@ export const RoutePlanner = () => {
                                         <button 
                                             type="button" 
                                             onClick={handleQuickCreateAndMove}
-                                            disabled={!moveRouteCourier.trim() || isMovingItem}
+                                            disabled={!moveRouteCourier.trim() || isMovingItem || (activeCouriers.length > 0 && availableCouriersForMove.length === 0)}
                                             className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-xl shadow-md uppercase tracking-wider flex items-center justify-center gap-2 disabled:opacity-40 transition-all"
                                         >
                                             {isMovingItem ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}

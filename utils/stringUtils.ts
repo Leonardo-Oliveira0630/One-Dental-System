@@ -693,3 +693,28 @@ export function formatCurrencyInputMask(value: string): string {
   const num = parseInt(digits, 10) / 100;
   return num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
+
+/**
+ * Formata um valor numérico ou string como moeda brasileira (ex: 512567.6 -> "R$ 512.567,60")
+ * Garantindo o ponto nas milhares e vírgula nos centavos.
+ */
+export function formatCurrencyBRL(value: number | string | null | undefined): string {
+  if (value === null || value === undefined) return 'R$ 0,00';
+  const num = typeof value === 'number' ? value : parseBrazilianCurrency(value);
+  if (isNaN(num)) return 'R$ 0,00';
+  if (num < 0) {
+    return `-R$ ${Math.abs(num).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
+  return `R$ ${num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+/**
+ * Formata apenas o número no padrão brasileiro com ponto de milhar e vírgula de centavo (ex: 512567.6 -> "512.567,60")
+ */
+export function formatNumberBRL(value: number | string | null | undefined, decimals: number = 2): string {
+  if (value === null || value === undefined) return (0).toFixed(decimals).replace('.', ',');
+  const num = typeof value === 'number' ? value : parseBrazilianCurrency(value);
+  if (isNaN(num)) return (0).toFixed(decimals).replace('.', ',');
+  return num.toLocaleString('pt-BR', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+}
+

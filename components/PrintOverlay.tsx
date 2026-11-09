@@ -766,7 +766,6 @@ export const PrintOverlay = () => {
                   </div>
                   <div className="text-right">
                       <p className="font-black text-sm uppercase">{labName}</p>
-                      <p className="text-[10px] uppercase">Gerado: {new Date().toLocaleString()}</p>
                   </div>
                </div>
 
@@ -775,7 +774,7 @@ export const PrintOverlay = () => {
                       <thead>
                          <tr className="border-b border-black text-left text-[10px] uppercase">
                             <th className="w-8 py-1">Ord.</th>
-                            <th className="py-1">Cliente / Endereço</th>
+                            <th className="w-[45%] max-w-[90mm] py-1">Cliente / Endereço</th>
                             <th className="py-1">Serviços / Observações</th>
                             <th className="w-24 py-1 text-center">Assinatura</th>
                          </tr>
@@ -788,48 +787,70 @@ export const PrintOverlay = () => {
                                if (!groups.has(item.dentistId)) groups.set(item.dentistId, []);
                                groups.get(item.dentistId)!.push(item);
                             });
-                            return Array.from(groups.values()).map((group, idx) => (
+                            return Array.from(groups.values()).map((group, idx) => {
+                               const deliveries = group.filter(it => it.type === 'DELIVERY');
+                               const pickups = group.filter(it => it.type !== 'DELIVERY');
+                               const subGroups = [
+                                   { type: 'DELIVERY', label: 'ENTREGA', items: deliveries },
+                                   { type: 'PICKUP', label: 'COLETA', items: pickups }
+                               ].filter(sg => sg.items.length > 0);
+
+                               return (
                                <tr key={idx} className="border-b border-gray-300">
                                   <td className="py-2 align-top">
                                      <div className="w-5 h-5 bg-black text-white rounded-full flex items-center justify-center font-bold text-xs">
                                         {idx + 1}
                                      </div>
                                   </td>
-                                  <td className="py-2 pr-2 align-top">
-                                     <h3 className="font-bold text-[10pt] uppercase leading-tight">{group[0].dentistName}</h3>
-                                     <p className="text-[9px] font-bold text-gray-600 leading-tight mb-1 uppercase">{group[0].clinicName || 'Consultório'}</p>
-                                     <p className="text-[9px] leading-tight flex items-start gap-0.5 uppercase"><MapPin size={10} className="shrink-0 mt-0.5"/> {group[0].address}</p>
+                                  <td className="py-2 pr-3 align-top w-[45%] max-w-[90mm] break-words">
+                                     <h3 className="font-bold text-[9pt] uppercase leading-tight">{group[0].dentistName}</h3>
+                                     <p className="text-[8.5px] font-bold text-gray-600 leading-tight mb-0.5 uppercase">{group[0].clinicName || 'Consultório'}</p>
+                                     <p className="text-[8.5px] leading-snug flex items-start gap-0.5 uppercase break-words max-w-[90mm]">
+                                        <MapPin size={10} className="shrink-0 mt-0.5"/> 
+                                        <span>{group[0].address}</span>
+                                     </p>
                                   </td>
                                   <td className="py-2 pr-2 align-top text-[9px]">
-                                     {group.map((item, i) => {
-                                         const job = item.jobId ? jobs.find(j => j.id === item.jobId) : null;
-                                         const osNumber = job?.osNumber || (item.jobId ? item.jobId.substring(0, 8) : null);
-
-                                         return (
-                                             <div key={i} className="mb-1 border border-gray-200 rounded p-1 bg-gray-50">
-                                                 <div className="font-bold uppercase mb-0.5 flex items-center justify-between">
-                                                     <span className="flex items-center gap-1.5 flex-wrap">
-                                                         <span>{item.type === 'DELIVERY' ? 'ENTREGA' : 'COLETA'}</span>
-                                                         {item.patientName && <span> - {item.patientName}</span>}
-                                                         {osNumber && (
-                                                             <span className="text-[8.5px] font-black text-black bg-white px-1.5 py-0.5 rounded border border-gray-300">
-                                                                 OS: {osNumber}
-                                                             </span>
-                                                         )}
-                                                     </span>
-                                                 </div>
-                                                 {item.observations && <div className="text-[8px] text-gray-800 font-bold uppercase leading-tight">OBS: {item.observations}</div>}
+                                     {subGroups.map((sg, sgIdx) => (
+                                         <div key={sg.type} className={sgIdx > 0 ? "mt-2 pt-1 border-t border-gray-100" : ""}>
+                                             <div className="font-black text-[9px] uppercase tracking-wider text-black mb-0.5">
+                                                 {sg.label}
                                              </div>
-                                         );
-                                     })}
+                                             <div className="space-y-0.5">
+                                                 {sg.items.map((item, i) => {
+                                                     const job = item.jobId ? jobs.find(j => j.id === item.jobId) : null;
+                                                     const osNumber = job?.osNumber || (item.jobId ? item.jobId.substring(0, 8) : null);
+
+                                                     return (
+                                                         <div key={i} className="leading-tight py-0.5">
+                                                             <div className="font-bold uppercase text-[9px] text-slate-900 flex items-center gap-1.5 flex-wrap">
+                                                                 <span>• {item.patientName || 'Paciente não informado'}</span>
+                                                                 {osNumber && (
+                                                                     <span className="text-[8px] font-black text-black bg-gray-100 px-1 py-0.2 rounded border border-gray-300">
+                                                                         OS: {osNumber}
+                                                                     </span>
+                                                                 )}
+                                                             </div>
+                                                             {item.observations && (
+                                                                 <div className="text-[7.5px] text-gray-600 font-semibold uppercase leading-tight pl-2">
+                                                                     OBS: {item.observations}
+                                                                 </div>
+                                                             )}
+                                                         </div>
+                                                     );
+                                                 })}
+                                             </div>
+                                         </div>
+                                     ))}
                                   </td>
-                                  <td className="py-2 align-bottom pb-4">
+                                  <td className="py-2 align-bottom pb-4 w-24">
                                      <div className="w-full border-t border-black pt-0.5">
-                                         <p className="text-[7px] text-center uppercase font-bold text-gray-500">Recebedor / Assinatura</p>
+                                         <p className="text-[7px] text-center uppercase font-bold text-gray-500">Recebedor</p>
                                      </div>
                                   </td>
                                </tr>
-                            ));
+                               );
+                            });
                          })()}
                       </tbody>
                    </table>

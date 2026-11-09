@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import i18n from '../src/i18n';
 import { useApp } from '../context/AppContext';
 import { JobStatus, UserRole, UrgencyLevel, Job, PermissionKey } from '../types';
-import { Search, Filter, FileDown, Eye, Clock, AlertCircle, Printer, X, ChevronRight, MapPin, User, SlidersHorizontal, RefreshCcw, Ban, Building, QrCode, Copy, Check, Globe, HardDrive, CheckCircle2, Truck, Loader2, Box, RotateCcw, Calendar, MoreHorizontal, PlusCircle, Camera } from 'lucide-react';
+import { Search, Filter, FileDown, Eye, Clock, AlertCircle, Printer, X, ChevronRight, MapPin, User, SlidersHorizontal, RefreshCcw, Ban, Building, QrCode, Copy, Check, Globe, HardDrive, CheckCircle2, Truck, Loader2, Box, RotateCcw, Calendar, MoreHorizontal, PlusCircle, Camera, Sun, Sunset } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getContrastColor } from '../services/mockData';
 import { MultiSelect } from '../components/MultiSelect';
@@ -1531,12 +1531,33 @@ const handleUpdateStatus = async (jobId: string, status: JobStatus) => {
                       </div>
                       <div>
                           <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">{t('orders.shift', 'Turno')}</label>
-                          <select value={routeShift} onChange={e => setRouteShift(e.target.value as any)} className="w-full px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-slate-100 bg-slate-50 dark:bg-[#0B0F17]">
-                              <option value="MORNING" disabled={routeDate === todayStr && isPast12PM}>
-                                  {t('orders.morning', 'Manhã')} {routeDate === todayStr && isPast12PM ? '(Indisponível após 12h)' : ''}
-                              </option>
-                              <option value="AFTERNOON">{t('orders.afternoon', 'Tarde')}</option>
-                          </select>
+                          <div className="grid grid-cols-2 gap-2 mb-2">
+                              <button
+                                  type="button"
+                                  disabled={routeDate === todayStr && isPast12PM}
+                                  onClick={() => setRouteShift('MORNING')}
+                                  className={`py-2.5 px-3 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all border ${
+                                      routeShift === 'MORNING'
+                                          ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-200 ring-2 ring-blue-400/20'
+                                          : 'bg-blue-50/70 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300 border-blue-200 dark:border-blue-900/40 hover:bg-blue-100 disabled:opacity-40'
+                                  }`}
+                              >
+                                  <Sun size={14} className={routeShift === 'MORNING' ? 'text-white' : 'text-blue-600 dark:text-blue-400'} />
+                                  <span>{t('orders.morning', 'Manhã')} {routeDate === todayStr && isPast12PM ? '(Indisponível)' : ''}</span>
+                              </button>
+                              <button
+                                  type="button"
+                                  onClick={() => setRouteShift('AFTERNOON')}
+                                  className={`py-2.5 px-3 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all border ${
+                                      routeShift === 'AFTERNOON'
+                                          ? 'bg-orange-500 text-white border-orange-500 shadow-md shadow-orange-200 ring-2 ring-orange-400/20'
+                                          : 'bg-orange-50/70 text-orange-700 dark:bg-orange-950/30 dark:text-orange-300 border-orange-200 dark:border-orange-900/40 hover:bg-orange-100'
+                                  }`}
+                              >
+                                  <Sunset size={14} className={routeShift === 'AFTERNOON' ? 'text-white' : 'text-orange-600 dark:text-orange-400'} />
+                                  <span>{t('orders.afternoon', 'Tarde')}</span>
+                              </button>
+                          </div>
                           {routeDate === todayStr && isPast12PM && (
                               <p className="text-[10px] font-bold text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1">
                                   <Clock size={12} /> Após as 12:00, somente rotas do turno da TARDE podem ser selecionadas para hoje.
@@ -1545,34 +1566,56 @@ const handleUpdateStatus = async (jobId: string, status: JobStatus) => {
                       </div>
                       {/* OPEN ROUTES FOR THIS DATE & SHIFT */}
                       {openRoutesForShift.length > 0 && (
-                          <div className="p-3 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/50 rounded-2xl">
-                              <p className="text-xs font-black text-blue-900 dark:text-blue-200 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                                  <Truck size={14} className="text-blue-600 dark:text-blue-400" /> Rotas Abertas neste Turno:
+                          <div className={`p-3 rounded-2xl border ${
+                              routeShift === 'MORNING'
+                                  ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-900/50'
+                                  : 'bg-orange-50 dark:bg-orange-950/40 border-orange-200 dark:border-orange-900/50'
+                          }`}>
+                              <p className={`text-xs font-black uppercase tracking-wider mb-2 flex items-center gap-1.5 ${
+                                  routeShift === 'MORNING' ? 'text-blue-900 dark:text-blue-200' : 'text-orange-900 dark:text-orange-200'
+                              }`}>
+                                  <Truck size={14} className={routeShift === 'MORNING' ? 'text-blue-600 dark:text-blue-400' : 'text-orange-600 dark:text-orange-400'} /> Rotas Abertas neste Turno:
                               </p>
                               <div className="space-y-1.5">
-                                  {openRoutesForShift.map(r => (
-                                      <button
-                                          key={r.id}
-                                          type="button"
-                                          onClick={() => {
-                                              setSelectedRouteId(r.id);
-                                              setRouteDriver(r.driverName);
-                                          }}
-                                          className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-between ${
-                                              selectedRouteId === r.id
-                                                  ? 'bg-blue-600 text-white shadow-sm'
-                                                  : 'bg-white dark:bg-[#0B0F17] text-slate-800 dark:text-slate-200 hover:bg-blue-100/50 border border-blue-100 dark:border-blue-900/30'
-                                          }`}
-                                      >
-                                          <div className="flex items-center gap-2">
-                                              <User size={14} />
-                                              <span>{r.driverName}</span>
-                                          </div>
-                                          <span className="text-[10px] font-black uppercase opacity-90">
-                                              {selectedRouteId === r.id ? 'Selecionada' : 'Usar esta rota'}
-                                          </span>
-                                      </button>
-                                  ))}
+                                  {openRoutesForShift.map(r => {
+                                      const isMorning = routeShift === 'MORNING';
+                                      const isSelected = selectedRouteId === r.id;
+                                      return (
+                                          <button
+                                              key={r.id}
+                                              type="button"
+                                              onClick={() => {
+                                                  setSelectedRouteId(r.id);
+                                                  setRouteDriver(r.driverName);
+                                              }}
+                                              className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-between border ${
+                                                  isMorning
+                                                      ? (isSelected
+                                                          ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                                                          : 'bg-white dark:bg-[#0B0F17] text-slate-800 dark:text-slate-200 hover:bg-blue-100/50 border-blue-100 dark:border-blue-900/30')
+                                                      : (isSelected
+                                                          ? 'bg-orange-500 text-white border-orange-500 shadow-sm'
+                                                          : 'bg-white dark:bg-[#0B0F17] text-slate-800 dark:text-slate-200 hover:bg-orange-100/50 border-orange-100 dark:border-orange-900/30')
+                                              }`}
+                                          >
+                                              <div className="flex items-center gap-2">
+                                                  {isMorning ? (
+                                                      <Sun size={14} className={isSelected ? 'text-white' : 'text-blue-600 dark:text-blue-400'} />
+                                                  ) : (
+                                                      <Sunset size={14} className={isSelected ? 'text-white' : 'text-orange-600 dark:text-orange-400'} />
+                                                  )}
+                                                  <span>{r.driverName}</span>
+                                              </div>
+                                              <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md ${
+                                                  isSelected
+                                                      ? 'bg-white/20 text-white'
+                                                      : (isMorning ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300' : 'bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300')
+                                              }`}>
+                                                  {isSelected ? '✓ Selecionada' : 'Usar esta rota'}
+                                              </span>
+                                          </button>
+                                      );
+                                  })}
                               </div>
                           </div>
                       )}

@@ -1238,7 +1238,11 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
             dentistUserId: computedDentistUserId,
             items: finalItems, 
             products: finalProducts,
-            attachments: location.state?.attachments || [],
+            attachments: (location.state?.attachments || []).map((a: any) => ({
+                ...a,
+                source: finalOrigin === 'ONLINE_ORDER' || finalOrigin === 'ONLINE_REQUISITION' ? 'WEB' : (a.source || (currentUser?.role === UserRole.CLIENT ? 'WEB' : 'LAB')),
+                uploadedByName: finalOrigin === 'ONLINE_ORDER' || finalOrigin === 'ONLINE_REQUISITION' ? 'Web' : (a.uploadedByName || currentUser?.name || 'Laboratório')
+            })),
             history: [{ id: Math.random().toString(), timestamp: new Date(), action: historyAction, userId: currentUser.id, userName: currentUser.name, sector: initialSector }], 
             sectorMovements: [{
                 id: Math.random().toString(),

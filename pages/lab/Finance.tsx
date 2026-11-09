@@ -8,7 +8,7 @@ import { DollarSign, TrendingUp, TrendingDown, Search, Calendar, Plus, Printer, 
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { SendDebtsEmailModal } from '../../components/SendDebtsEmailModal';
-import { filterAndSortClients, parseBrazilianCurrency, formatCurrencyInputMask } from '../../utils/stringUtils';
+import { filterAndSortClients, parseBrazilianCurrency, formatCurrencyInputMask, formatCurrencyBRL, formatNumberBRL } from '../../utils/stringUtils';
 
 const translatePaymentMethod = (method: string, t?: (key: string, def?: string) => string) => {
     switch (method) {
@@ -700,31 +700,31 @@ export const Finance = () => {
       const headers = ['Item / Descrição', 'Valor (R$)', '% da Receita Bruta'];
       const rows = [
         ['1. RECEITA OPERACIONAL BRUTA', '', '100.0%'],
-        ['  1.1 Faturamento Produção Laboratorial (OSs)', dreData.labProductionGross.toFixed(2), dreData.grossRevenue > 0 ? `${((dreData.labProductionGross / dreData.grossRevenue) * 100).toFixed(1)}%` : '0%'],
-        ['  1.2 Pedidos Loja Online', dreData.storeGross.toFixed(2), dreData.grossRevenue > 0 ? `${((dreData.storeGross / dreData.grossRevenue) * 100).toFixed(1)}%` : '0%'],
-        ['  1.3 Débitos Manuais / Outros Serviços', dreData.manualDebits.toFixed(2), dreData.grossRevenue > 0 ? `${((dreData.manualDebits / dreData.grossRevenue) * 100).toFixed(1)}%` : '0%'],
-        ['(=) TOTAL DA RECEITA BRUTA', dreData.grossRevenue.toFixed(2), '100.0%'],
+        ['  1.1 Faturamento Produção Laboratorial (OSs)', formatNumberBRL(dreData.labProductionGross), dreData.grossRevenue > 0 ? `${((dreData.labProductionGross / dreData.grossRevenue) * 100).toFixed(1)}%` : '0%'],
+        ['  1.2 Pedidos Loja Online', formatNumberBRL(dreData.storeGross), dreData.grossRevenue > 0 ? `${((dreData.storeGross / dreData.grossRevenue) * 100).toFixed(1)}%` : '0%'],
+        ['  1.3 Débitos Manuais / Outros Serviços', formatNumberBRL(dreData.manualDebits), dreData.grossRevenue > 0 ? `${((dreData.manualDebits / dreData.grossRevenue) * 100).toFixed(1)}%` : '0%'],
+        ['(=) TOTAL DA RECEITA BRUTA', formatNumberBRL(dreData.grossRevenue), '100.0%'],
         ['', '', ''],
         ['2. DEDUÇÕES DA RECEITA BRUTA', '', ''],
-        ['  2.1 Descontos Comerciais & Cortesias', dreData.discountsGiven.toFixed(2), dreData.grossRevenue > 0 ? `${((dreData.discountsGiven / dreData.grossRevenue) * 100).toFixed(1)}%` : '0%'],
-        ['(=) RECEITA OPERACIONAL LÍQUIDA', dreData.netRevenue.toFixed(2), dreData.grossRevenue > 0 ? `${((dreData.netRevenue / dreData.grossRevenue) * 100).toFixed(1)}%` : '0%'],
+        ['  2.1 Descontos Comerciais & Cortesias', formatNumberBRL(dreData.discountsGiven), dreData.grossRevenue > 0 ? `${((dreData.discountsGiven / dreData.grossRevenue) * 100).toFixed(1)}%` : '0%'],
+        ['(=) RECEITA OPERACIONAL LÍQUIDA', formatNumberBRL(dreData.netRevenue), dreData.grossRevenue > 0 ? `${((dreData.netRevenue / dreData.grossRevenue) * 100).toFixed(1)}%` : '0%'],
         ['', '', ''],
         ['3. CUSTOS & DESPESAS OPERACIONAIS', '', ''],
         ...Object.entries(dreData.expensesByCategory).map(([cat, val]) => [
           `  Despesa: ${cat}`,
-          val.toFixed(2),
+          formatNumberBRL(val),
           dreData.netRevenue > 0 ? `${((val / dreData.netRevenue) * 100).toFixed(1)}%` : '0%'
         ]),
-        ['(=) TOTAL DE DESPESAS OPERACIONAIS', dreData.totalExpenses.toFixed(2), dreData.netRevenue > 0 ? `${((dreData.totalExpenses / dreData.netRevenue) * 100).toFixed(1)}%` : '0%'],
+        ['(=) TOTAL DE DESPESAS OPERACIONAIS', formatNumberBRL(dreData.totalExpenses), dreData.netRevenue > 0 ? `${((dreData.totalExpenses / dreData.netRevenue) * 100).toFixed(1)}%` : '0%'],
         ['', '', ''],
         ['4. RESULTADO OPERACIONAL LÍQUIDO', '', ''],
-        ['(=) LUCRO / PREJUÍZO LÍQUIDO DO PERÍODO', dreData.netOperatingProfit.toFixed(2), dreData.netRevenue > 0 ? `${dreData.profitMargin.toFixed(1)}%` : '0%'],
+        ['(=) LUCRO / PREJUÍZO LÍQUIDO DO PERÍODO', formatNumberBRL(dreData.netOperatingProfit), dreData.netRevenue > 0 ? `${dreData.profitMargin.toFixed(1)}%` : '0%'],
         ['', '', ''],
         ['5. CONCILIAÇÃO DE CAIXA REALIZADO', '', ''],
-        ['  Entradas Efetivamente Recebidas em Caixa', dreData.cashInflows.toFixed(2), ''],
-        ['  Saídas Efetivamente Pagas em Despesas', dreData.cashOutflows.toFixed(2), ''],
-        ['(=) SALDO LÍQUIDO DE CAIXA REALIZADO', dreData.cashBalance.toFixed(2), ''],
-        ['  Faturamento Pendente a Receber (Em Aberto/Gaveta)', dreData.pendingToReceive.toFixed(2), '']
+        ['  Entradas Efetivamente Recebidas em Caixa', formatNumberBRL(dreData.cashInflows), ''],
+        ['  Saídas Efetivamente Pagas em Despesas', formatNumberBRL(dreData.cashOutflows), ''],
+        ['(=) SALDO LÍQUIDO DE CAIXA REALIZADO', formatNumberBRL(dreData.cashBalance), ''],
+        ['  Faturamento Pendente a Receber (Em Aberto/Gaveta)', formatNumberBRL(dreData.pendingToReceive), '']
       ];
 
       const csvContent = [
@@ -751,9 +751,9 @@ export const Finance = () => {
         (d.cpfCnpj || '').replace(/;/g, ','),
         (d.phone || '').replace(/;/g, ','),
         d.pendingJobsCount,
-        d.periodDebits.toFixed(2),
-        d.periodCredits.toFixed(2),
-        d.balanceUpToEndDate.toFixed(2)
+        formatNumberBRL(d.periodDebits),
+        formatNumberBRL(d.periodCredits),
+        formatNumberBRL(d.balanceUpToEndDate)
       ]);
 
       const csvContent = [
@@ -780,7 +780,7 @@ export const Finance = () => {
       m.category,
       m.dentistName,
       m.paymentMethod || '---',
-      m.amount.toFixed(2),
+      formatNumberBRL(m.amount),
       m.status === 'PAID' ? 'Pago' : 'Pendente'
     ]);
 
@@ -832,27 +832,27 @@ export const Finance = () => {
       
       doc.setFontSize(9);
       doc.setFont("helvetica", "normal");
-      doc.text(`Faturamento Bruto: R$ ${dreData.grossRevenue.toFixed(2)}`, 14, 60);
-      doc.text(`Receita Líquida: R$ ${dreData.netRevenue.toFixed(2)}`, 14, 66);
-      doc.text(`Despesas Operacionais: R$ ${dreData.totalExpenses.toFixed(2)}`, 14, 72);
-      doc.text(`Resultado Líquido: R$ ${dreData.netOperatingProfit.toFixed(2)} (${dreData.profitMargin.toFixed(1)}%)`, 110, 60);
-      doc.text(`Saldo de Caixa Realizado: R$ ${dreData.cashBalance.toFixed(2)}`, 110, 66);
-      doc.text(`A Receber do Período: R$ ${dreData.pendingToReceive.toFixed(2)}`, 110, 72);
+      doc.text(`Faturamento Bruto: ${formatCurrencyBRL(dreData.grossRevenue)}`, 14, 60);
+      doc.text(`Receita Líquida: ${formatCurrencyBRL(dreData.netRevenue)}`, 14, 66);
+      doc.text(`Despesas Operacionais: ${formatCurrencyBRL(dreData.totalExpenses)}`, 14, 72);
+      doc.text(`Resultado Líquido: ${formatCurrencyBRL(dreData.netOperatingProfit)} (${dreData.profitMargin.toFixed(1)}%)`, 110, 60);
+      doc.text(`Saldo de Caixa Realizado: ${formatCurrencyBRL(dreData.cashBalance)}`, 110, 66);
+      doc.text(`A Receber do Período: ${formatCurrencyBRL(dreData.pendingToReceive)}`, 110, 72);
 
       const dreTableRows = [
-        ['1. RECEITA OPERACIONAL BRUTA', `R$ ${dreData.grossRevenue.toFixed(2)}`, '100.0%'],
-        ['   • Serviços Laboratoriais (OSs)', `R$ ${dreData.labProductionGross.toFixed(2)}`, dreData.grossRevenue > 0 ? `${((dreData.labProductionGross / dreData.grossRevenue) * 100).toFixed(1)}%` : '0%'],
-        ['   • Loja Online / Pedidos', `R$ ${dreData.storeGross.toFixed(2)}`, dreData.grossRevenue > 0 ? `${((dreData.storeGross / dreData.grossRevenue) * 100).toFixed(1)}%` : '0%'],
-        ['   • Débitos Manuais', `R$ ${dreData.manualDebits.toFixed(2)}`, dreData.grossRevenue > 0 ? `${((dreData.manualDebits / dreData.grossRevenue) * 100).toFixed(1)}%` : '0%'],
-        ['2. DEDUÇÕES DA RECEITA', `R$ ${dreData.discountsGiven.toFixed(2)}`, dreData.grossRevenue > 0 ? `${((dreData.discountsGiven / dreData.grossRevenue) * 100).toFixed(1)}%` : '0%'],
-        ['3. RECEITA OPERACIONAL LÍQUIDA', `R$ ${dreData.netRevenue.toFixed(2)}`, '100.0%'],
-        ['4. CUSTOS E DESPESAS OPERACIONAIS', `R$ ${dreData.totalExpenses.toFixed(2)}`, dreData.netRevenue > 0 ? `${((dreData.totalExpenses / dreData.netRevenue) * 100).toFixed(1)}%` : '0%'],
+        ['1. RECEITA OPERACIONAL BRUTA', formatCurrencyBRL(dreData.grossRevenue), '100.0%'],
+        ['   • Serviços Laboratoriais (OSs)', formatCurrencyBRL(dreData.labProductionGross), dreData.grossRevenue > 0 ? `${((dreData.labProductionGross / dreData.grossRevenue) * 100).toFixed(1)}%` : '0%'],
+        ['   • Loja Online / Pedidos', formatCurrencyBRL(dreData.storeGross), dreData.grossRevenue > 0 ? `${((dreData.storeGross / dreData.grossRevenue) * 100).toFixed(1)}%` : '0%'],
+        ['   • Débitos Manuais', formatCurrencyBRL(dreData.manualDebits), dreData.grossRevenue > 0 ? `${((dreData.manualDebits / dreData.grossRevenue) * 100).toFixed(1)}%` : '0%'],
+        ['2. DEDUÇÕES DA RECEITA', formatCurrencyBRL(dreData.discountsGiven), dreData.grossRevenue > 0 ? `${((dreData.discountsGiven / dreData.grossRevenue) * 100).toFixed(1)}%` : '0%'],
+        ['3. RECEITA OPERACIONAL LÍQUIDA', formatCurrencyBRL(dreData.netRevenue), '100.0%'],
+        ['4. CUSTOS E DESPESAS OPERACIONAIS', formatCurrencyBRL(dreData.totalExpenses), dreData.netRevenue > 0 ? `${((dreData.totalExpenses / dreData.netRevenue) * 100).toFixed(1)}%` : '0%'],
         ...Object.entries(dreData.expensesByCategory).map(([cat, val]) => [
           `   • Despesa: ${cat}`,
-          `R$ ${val.toFixed(2)}`,
+          formatCurrencyBRL(val),
           dreData.netRevenue > 0 ? `${((val / dreData.netRevenue) * 100).toFixed(1)}%` : '0%'
         ]),
-        ['5. RESULTADO LÍQUIDO DO EXERCÍCIO', `R$ ${dreData.netOperatingProfit.toFixed(2)}`, `${dreData.profitMargin.toFixed(1)}%`]
+        ['5. RESULTADO LÍQUIDO DO EXERCÍCIO', formatCurrencyBRL(dreData.netOperatingProfit), `${dreData.profitMargin.toFixed(1)}%`]
       ];
 
       autoTable(doc, {
@@ -896,11 +896,11 @@ export const Finance = () => {
       doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
       doc.text(`Total de Clientes em Débito: ${reportDebtStats.totalClientsWithDebt}`, 14, 60);
-      doc.text(`Saldo Total Devedor: R$ ${reportDebtStats.totalDebtAmount.toFixed(2)}`, 14, 66);
+      doc.text(`Saldo Total Devedor: ${formatCurrencyBRL(reportDebtStats.totalDebtAmount)}`, 14, 66);
       doc.text(`Total de OSs Pendentes: ${reportDebtStats.totalPendingJobs}`, 14, 72);
       
-      doc.text(`Média por Devedor: R$ ${reportDebtStats.avgDebt.toFixed(2)}`, 110, 60);
-      const maxClientStr = reportDebtStats.maxDebtClient ? `${reportDebtStats.maxDebtClient.name} (R$ ${reportDebtStats.maxDebtClient.balanceUpToEndDate.toFixed(2)})` : '---';
+      doc.text(`Média por Devedor: ${formatCurrencyBRL(reportDebtStats.avgDebt)}`, 110, 60);
+      const maxClientStr = reportDebtStats.maxDebtClient ? `${reportDebtStats.maxDebtClient.name} (${formatCurrencyBRL(reportDebtStats.maxDebtClient.balanceUpToEndDate)})` : '---';
       doc.text(`Maior Débito Individual: ${maxClientStr}`, 110, 66);
       
       // Table of client debts
@@ -908,9 +908,9 @@ export const Finance = () => {
         d.name,
         d.clinicName || d.phone || '---',
         `${d.pendingJobsCount} OS(s)`,
-        `R$ ${d.periodDebits.toFixed(2)}`,
-        `R$ ${d.periodCredits.toFixed(2)}`,
-        `R$ ${d.balanceUpToEndDate.toFixed(2)}`
+        formatCurrencyBRL(d.periodDebits),
+        formatCurrencyBRL(d.periodCredits),
+        formatCurrencyBRL(d.balanceUpToEndDate)
       ]);
       
       autoTable(doc, {
@@ -955,12 +955,12 @@ export const Finance = () => {
     
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
-    doc.text(`Total Faturado (Débitos): R$ ${reportStats.totalDebitsBilled.toFixed(2)}`, 14, 60);
-    doc.text(`Receita Realizada (Entradas): R$ ${reportStats.totalInflows.toFixed(2)}`, 14, 66);
-    doc.text(`Despesas Realizadas (Saídas): R$ ${reportStats.totalOutflows.toFixed(2)}`, 14, 72);
+    doc.text(`Total Faturado (Débitos): ${formatCurrencyBRL(reportStats.totalDebitsBilled)}`, 14, 60);
+    doc.text(`Receita Realizada (Entradas): ${formatCurrencyBRL(reportStats.totalInflows)}`, 14, 66);
+    doc.text(`Despesas Realizadas (Saídas): ${formatCurrencyBRL(reportStats.totalOutflows)}`, 14, 72);
     
-    doc.text(`Saldo Líquido Caixa: R$ ${reportStats.netBalance.toFixed(2)}`, 110, 60);
-    doc.text(`Recebimentos Pendentes: R$ ${reportStats.pendingInflows.toFixed(2)}`, 110, 66);
+    doc.text(`Saldo Líquido Caixa: ${formatCurrencyBRL(reportStats.netBalance)}`, 110, 60);
+    doc.text(`Recebimentos Pendentes: ${formatCurrencyBRL(reportStats.pendingInflows)}`, 110, 66);
     doc.text(`Qtd. de Movimentações: ${reportMovements.length}`, 110, 72);
     
     // Table of movements
@@ -970,7 +970,7 @@ export const Finance = () => {
       m.type === 'RECEBIMENTO' ? 'Recebimento' : m.type === 'DEBITO' ? 'Débito' : 'Despesa',
       m.category,
       m.dentistName || '---',
-      `R$ ${m.amount.toFixed(2)}`,
+      formatCurrencyBRL(m.amount),
       m.status === 'PAID' ? 'Pago' : 'Pendente'
     ]);
     
@@ -1032,8 +1032,8 @@ export const Finance = () => {
     
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
-    doc.text(`Total Vendas Pagas: R$ ${paidSum.toFixed(2)}`, 14, 60);
-    doc.text(`Total Vendas Pendentes: R$ ${pendingSum.toFixed(2)}`, 14, 66);
+    doc.text(`Total Vendas Pagas: ${formatCurrencyBRL(paidSum)}`, 14, 60);
+    doc.text(`Total Vendas Pendentes: ${formatCurrencyBRL(pendingSum)}`, 14, 66);
     doc.text(`Quantidade de Pedidos: ${periodJobs.length}`, 14, 72);
     
     // Table of sales
@@ -1042,7 +1042,7 @@ export const Finance = () => {
       j.dentistName || '---',
       j.patientName || '---',
       new Date(j.createdAt).toLocaleDateString('pt-BR'),
-      `R$ ${(j.totalValue || 0).toFixed(2)}`,
+      formatCurrencyBRL(j.totalValue || 0),
       (j.paymentStatus === 'PAID' || j.paymentStatus === 'VOUCHER') ? 'Pago' : 'Pendente'
     ]);
     
@@ -1389,12 +1389,12 @@ export const Finance = () => {
         { content: '', styles: { lineWidth: { bottom: 0.1 } as any, lineColor: [220,220,220] } },
         { content: 'Saldo anterior', styles: { fontStyle: 'normal', lineWidth: { bottom: 0.1 } as any, lineColor: [220,220,220] } },
         { content: '', styles: { lineWidth: { bottom: 0.1 } as any, lineColor: [220,220,220] } },
-        { content: `R$ ${chronoHistory.previousBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, styles: { halign: 'left', fontStyle: 'normal', lineWidth: { bottom: 0.1 } as any, lineColor: [220,220,220] } }
+        { content: formatCurrencyBRL(chronoHistory.previousBalance), styles: { halign: 'left', fontStyle: 'normal', lineWidth: { bottom: 0.1 } as any, lineColor: [220,220,220] } }
     ]);
 
     chronoHistory.history.forEach((item) => {
         const isDebit = item.type === 'DEBIT';
-        const amountStr = isDebit ? `R$ -${item.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}` : `R$ ${item.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+        const amountStr = isDebit ? `- ${formatCurrencyBRL(item.amount)}` : formatCurrencyBRL(item.amount);
         const textColor = isDebit ? [239, 68, 68] : [34, 197, 94]; 
         
         const hasItems = 'job' in item && item.job && item.job.items && item.job.items.length > 0;
@@ -1413,7 +1413,7 @@ export const Finance = () => {
             { content: new Date(item.date).toLocaleDateString('pt-BR'), styles: { lineWidth: { bottom: hasSubDetails ? 0 : 0.1 } as any, lineColor: [220,220,220] } },
             { content: description, styles: { lineWidth: { bottom: hasSubDetails ? 0 : 0.1 } as any, lineColor: [220,220,220] } },
             { content: amountStr, styles: { textColor: textColor, lineWidth: { bottom: hasSubDetails ? 0 : 0.1 } as any, lineColor: [220,220,220] } },
-            { content: `R$ ${item.balanceAfter.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, styles: { halign: 'left', lineWidth: { bottom: hasSubDetails ? 0 : 0.1 } as any, lineColor: [220,220,220] } }
+            { content: formatCurrencyBRL(item.balanceAfter), styles: { halign: 'left', lineWidth: { bottom: hasSubDetails ? 0 : 0.1 } as any, lineColor: [220,220,220] } }
         ]);
         
         const totalSubCount = (hasItems && item.job?.items ? item.job.items.length : 0) + (hasProducts && item.job?.products ? item.job.products.length : 0);
@@ -1426,7 +1426,7 @@ export const Finance = () => {
                 tableBody.push([
                     { content: '', styles: { lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220,220,220] } },
                     { content: `${subItem.quantity}      ${subItem.name.toUpperCase()}`, styles: { textColor: [100,100,100], fontSize: 8, lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220,220,220] } },
-                    { content: `R$ ${(subItem.price * subItem.quantity).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`, styles: { textColor: [100,100,100], fontSize: 8, lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220,220,220] } },
+                    { content: formatCurrencyBRL(subItem.price * subItem.quantity), styles: { textColor: [100,100,100], fontSize: 8, lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220,220,220] } },
                     { content: '', styles: { lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220,220,220] } }
                 ]);
             });
@@ -1439,7 +1439,7 @@ export const Finance = () => {
                 tableBody.push([
                     { content: '', styles: { lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220,220,220] } },
                     { content: `${prod.quantity || 1}      [IMPLANTE/PRODUTO] ${(prod.name || '').toUpperCase()}`, styles: { textColor: [180, 83, 9], fontSize: 8, fontStyle: 'bold', lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220,220,220] } },
-                    { content: `R$ ${((prod.unitPrice || 0) * (prod.quantity || 1)).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`, styles: { textColor: [180, 83, 9], fontSize: 8, fontStyle: 'bold', lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220,220,220] } },
+                    { content: formatCurrencyBRL((prod.unitPrice || 0) * (prod.quantity || 1)), styles: { textColor: [180, 83, 9], fontSize: 8, fontStyle: 'bold', lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220,220,220] } },
                     { content: '', styles: { lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220,220,220] } }
                 ]);
             });
@@ -1479,7 +1479,7 @@ export const Finance = () => {
 
     doc.text("Saldo anterior", summaryX, cY);
     doc.setTextColor(239, 68, 68);
-    doc.text(`R$ ${chronoHistory.previousBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, valX, cY, { align: 'right' });
+    doc.text(formatCurrencyBRL(chronoHistory.previousBalance), valX, cY, { align: 'right' });
     
     cY += 8;
     doc.setDrawColor(230, 230, 230);
@@ -1488,7 +1488,7 @@ export const Finance = () => {
     doc.setTextColor(0, 0, 0);
     doc.text("Total de serviços", summaryX, cY);
     doc.setTextColor(239, 68, 68);
-    doc.text(`R$ -${totalServices.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, valX, cY, { align: 'right' });
+    doc.text(`- ${formatCurrencyBRL(totalServices)}`, valX, cY, { align: 'right' });
 
     cY += 8;
     doc.line(summaryX, cY - 4, valX, cY - 4);
@@ -1496,7 +1496,7 @@ export const Finance = () => {
     doc.setTextColor(0, 0, 0);
     doc.text("Total de pagamentos", summaryX, cY);
     doc.setTextColor(34, 197, 94);
-    doc.text(`R$ ${totalPayments.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, valX, cY, { align: 'right' });
+    doc.text(formatCurrencyBRL(totalPayments), valX, cY, { align: 'right' });
 
     cY += 15;
     doc.line(summaryX, cY - 10, valX, cY - 10);
@@ -1506,7 +1506,7 @@ export const Finance = () => {
     doc.text("Saldo atual no período", summaryX, cY);
     const balanceColor = currentBalance < 0 ? [239, 68, 68] : [34, 197, 94];
     doc.setTextColor(balanceColor[0], balanceColor[1], balanceColor[2] as number);
-    doc.text(`R$ ${currentBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, valX, cY, { align: 'right' });
+    doc.text(formatCurrencyBRL(currentBalance), valX, cY, { align: 'right' });
 
     doc.save(`Extrato_${statementClient.name.replace(/\s+/g, '_')}_${startDateStr.replace(/\//g,'-')}_a_${endDateStr.replace(/\//g,'-')}.pdf`);
   };
@@ -1574,14 +1574,14 @@ export const Finance = () => {
           tableBody.push([
               new Date(p.paymentDate).toLocaleDateString('pt-BR'),
               p.notes || 'Recebimento de valores',
-              `R$ ${p.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`
+              formatCurrencyBRL(p.amount)
           ]);
       });
 
       tableBody.push([
           { content: 'TOTAL', styles: { fontStyle: 'bold', halign: 'right' } },
           '',
-          { content: `R$ ${totalPaid.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`, styles: { fontStyle: 'bold' } }
+          { content: formatCurrencyBRL(totalPaid), styles: { fontStyle: 'bold' } }
       ]);
 
       autoTable(doc, {
@@ -1792,7 +1792,7 @@ export const Finance = () => {
           alert("Você não possui saldo disponível para saque.");
           return;
       }
-      if (!window.confirm(`Deseja transferir R$ ${currentOrg.financialSettings.balance.toFixed(2)} para sua conta bancária cadastrada no Asaas?`)) return;
+      if (!window.confirm(`Deseja transferir ${formatCurrencyBRL(currentOrg.financialSettings.balance)} para sua conta bancária cadastrada no Asaas?`)) return;
       
       setIsWithdrawing(true);
       try {
@@ -1859,11 +1859,11 @@ export const Finance = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm">
             <p className="text-xs font-bold text-slate-400 uppercase mb-1">Receita Realizada (Paga)</p>
-            <h3 className="text-2xl font-black text-green-600">R$ {paidSum.toFixed(2)}</h3>
+            <h3 className="text-2xl font-black text-green-600">{formatCurrencyBRL(paidSum)}</h3>
           </div>
           <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm">
             <p className="text-xs font-bold text-slate-400 uppercase mb-1">Receita Pendente</p>
-            <h3 className="text-2xl font-black text-orange-600">R$ {pendingSum.toFixed(2)}</h3>
+            <h3 className="text-2xl font-black text-orange-600">{formatCurrencyBRL(pendingSum)}</h3>
           </div>
           <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm">
             <p className="text-xs font-bold text-slate-400 uppercase mb-1">Total de Pedidos no Período</p>
@@ -1927,7 +1927,7 @@ export const Finance = () => {
                       <td className="px-6 py-4">{job.dentistName}</td>
                       <td className="px-6 py-4">{job.patientName}</td>
                       <td className="px-6 py-4 text-slate-500">{new Date(job.createdAt).toLocaleDateString('pt-BR')}</td>
-                      <td className="px-6 py-4 text-slate-900">R$ {(job.totalValue || 0).toFixed(2)}</td>
+                      <td className="px-6 py-4 text-slate-900">{formatCurrencyBRL(job.totalValue || 0)}</td>
                       <td className="px-6 py-4">
                         <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-black uppercase ${
                           job.status === 'COMPLETED' || job.status === 'DELIVERED' 
@@ -1975,9 +1975,9 @@ export const Finance = () => {
                       <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div> Conta Digital Ativa (Split ProTrack)
                   </div>
                   <h2 className="text-sm font-bold text-slate-400 uppercase">{t('finance.summary.netBalance', 'Saldo Disponível para Saque')}</h2>
-                  <p className="text-4xl font-black text-white mt-1">R$ {(currentOrg.financialSettings.balance || 0).toFixed(2)}</p>
+                  <p className="text-4xl font-black text-white mt-1">{formatCurrencyBRL(currentOrg.financialSettings.balance || 0)}</p>
                   <p className="text-xs text-slate-400 mt-2 font-medium flex items-center justify-center md:justify-start gap-2">
-                      <Clock size={12} /> {t('finance.summary.overdue', 'Lançamentos a liberar')}: <strong>R$ {(currentOrg.financialSettings.pendingBalance || 0).toFixed(2)}</strong>
+                      <Clock size={12} /> {t('finance.summary.overdue', 'Lançamentos a liberar')}: <strong>{formatCurrencyBRL(currentOrg.financialSettings.pendingBalance || 0)}</strong>
                   </p>
               </div>
               <div className="flex flex-col gap-2 w-full md:w-auto relative z-10">
@@ -2013,19 +2013,19 @@ export const Finance = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm">
                       <p className="text-xs font-bold text-slate-400 uppercase mb-1">{t('finance.summary.received', 'Receita Realizada (Paga)')}</p>
-                      <h3 className="text-2xl font-black text-green-600">R$ {stats.paidRevenue.toFixed(2)}</h3>
+                      <h3 className="text-2xl font-black text-green-600">{formatCurrencyBRL(stats.paidRevenue)}</h3>
                   </div>
                   <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm">
                       <p className="text-xs font-bold text-slate-400 uppercase mb-1">{t('finance.summary.overdue', 'Faturado Pendente (Boletos)')}</p>
-                      <h3 className="text-2xl font-black text-orange-600">R$ {stats.inBatchesPending.toFixed(2)}</h3>
+                      <h3 className="text-2xl font-black text-orange-600">{formatCurrencyBRL(stats.inBatchesPending)}</h3>
                   </div>
                   <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm">
                       <p className="text-xs font-bold text-slate-400 uppercase mb-1">{t('finance.summary.toReceive', 'A Faturar (Concluídos)')}</p>
-                      <h3 className="text-2xl font-black text-blue-600">R$ {stats.pendingRevenue.toFixed(2)}</h3>
+                      <h3 className="text-2xl font-black text-blue-600">{formatCurrencyBRL(stats.pendingRevenue)}</h3>
                   </div>
                    <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm">
                       <p className="text-xs font-bold text-slate-400 uppercase mb-1">{t('finance.summary.totalExpenses', 'Total Despesas Pagas')}</p>
-                      <h3 className="text-2xl font-black text-red-500">R$ {stats.totalExpenses.toFixed(2)}</h3>
+                      <h3 className="text-2xl font-black text-red-500">{formatCurrencyBRL(stats.totalExpenses)}</h3>
                   </div>
               </div>
           </div>
@@ -2092,7 +2092,7 @@ export const Finance = () => {
                                               {/* Débito na Gaveta */}
                                               <td className="py-3.5 px-4 whitespace-nowrap">
                                                   <div className="space-y-0.5">
-                                                      <p className="text-base font-black text-red-600">R$ {d.totalPending.toFixed(2)}</p>
+                                                      <p className="text-base font-black text-red-600">{formatCurrencyBRL(d.totalPending)}</p>
                                                       <p className="text-[10px] font-bold text-slate-400 uppercase">
                                                           {pendingJobsCount} {pendingJobsCount === 1 ? 'trabalho' : 'trabalhos'} a faturar
                                                       </p>
@@ -2103,7 +2103,7 @@ export const Finance = () => {
                                               <td className="py-3.5 px-4 whitespace-nowrap">
                                                   <div className="inline-flex flex-col">
                                                       <span className="font-bold text-blue-600 text-xs">{gBatches.length} {gBatches.length === 1 ? 'boleto' : 'boletos'}</span>
-                                                      <span className="text-[11px] text-slate-500 font-medium">R$ {gBatches.reduce((sum, b) => sum + b.totalAmount, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                                      <span className="text-[11px] text-slate-500 font-medium">{formatCurrencyBRL(gBatches.reduce((sum, b) => sum + b.totalAmount, 0))}</span>
                                                   </div>
                                               </td>
 
@@ -2113,7 +2113,7 @@ export const Finance = () => {
                                                       <span className={`font-bold text-xs ${eBatches.length > 0 ? 'text-red-600' : 'text-slate-500'}`}>
                                                           {eBatches.length} {eBatches.length === 1 ? 'boleto' : 'boletos'}
                                                       </span>
-                                                      <span className="text-[11px] text-slate-500 font-medium">R$ {eBatches.reduce((sum, b) => sum + b.totalAmount, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                                      <span className="text-[11px] text-slate-500 font-medium">{formatCurrencyBRL(eBatches.reduce((sum, b) => sum + b.totalAmount, 0))}</span>
                                                   </div>
                                               </td>
 
@@ -2121,7 +2121,7 @@ export const Finance = () => {
                                               <td className="py-3.5 px-4 whitespace-nowrap">
                                                   <div className="inline-flex flex-col">
                                                       <span className="font-bold text-green-600 text-xs">{pBatches.length} {pBatches.length === 1 ? 'boleto' : 'boletos'}</span>
-                                                      <span className="text-[11px] text-slate-500 font-medium">R$ {pBatches.reduce((sum, b) => sum + b.totalAmount, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                                      <span className="text-[11px] text-slate-500 font-medium">{formatCurrencyBRL(pBatches.reduce((sum, b) => sum + b.totalAmount, 0))}</span>
                                                   </div>
                                               </td>
 
@@ -2175,7 +2175,7 @@ export const Finance = () => {
                                     <td className="p-4 font-mono font-bold text-slate-500 uppercase">{batch.id.substring(0, 8)}...</td>
                                     <td className="p-4 font-bold text-slate-800">{batch.dentistName}</td>
                                     <td className="p-4 text-slate-600 font-medium">{new Date(batch.dueDate).toLocaleDateString()}</td>
-                                    <td className="p-4 font-black text-slate-800">R$ {batch.totalAmount.toFixed(2)}</td>
+                                    <td className="p-4 font-black text-slate-800">{formatCurrencyBRL(batch.totalAmount)}</td>
                                     <td className="p-4">
                                         <span className={`px-2 py-1 rounded-full text-[10px] font-black ${
                                             batch.status === 'PAID' ? 'bg-green-100 text-green-700' : 
@@ -2236,7 +2236,7 @@ export const Finance = () => {
                                   <td className="p-4 text-sm font-medium text-slate-600">{new Date(exp.date).toLocaleDateString()}</td>
                                   <td className="p-4 font-bold text-slate-800">{exp.description}</td>
                                   <td className="p-4"><span className="text-[10px] font-black bg-slate-100 px-2 py-1 rounded text-slate-500">{exp.category}</span></td>
-                                  <td className="p-4 font-black text-red-600">R$ {exp.amount.toFixed(2)}</td>
+                                  <td className="p-4 font-black text-red-600">{formatCurrencyBRL(exp.amount)}</td>
                                   <td className="p-4"><span className={`px-2 py-1 rounded-full text-[10px] font-black ${exp.status === 'PAID' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>{exp.status === 'PAID' ? 'PAGA' : 'PENDENTE'}</span></td>
                                   <td className="p-4 text-right">
                                       <button onClick={() => api.apiDeleteExpense(currentOrg!.id, exp.id)} className="p-2 text-slate-300 hover:text-red-500 rounded-lg"><Trash2 size={18}/></button>
@@ -2380,17 +2380,17 @@ export const Finance = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                       <div className="bg-white p-5 rounded-2xl border border-blue-100 shadow-sm bg-gradient-to-br from-white to-blue-50/30">
                           <p className="text-[10px] font-black text-blue-600 uppercase mb-1">Receita Bruta Faturada</p>
-                          <h4 className="text-xl font-black text-slate-800">R$ {dreData.grossRevenue.toFixed(2)}</h4>
+                          <h4 className="text-xl font-black text-slate-800">{formatCurrencyBRL(dreData.grossRevenue)}</h4>
                           <span className="text-[10px] text-slate-400 font-bold block mt-1">{dreData.labJobsCount + dreData.storeOrdersCount} OSs faturadas / loja</span>
                       </div>
                       <div className="bg-white p-5 rounded-2xl border border-emerald-100 shadow-sm bg-gradient-to-br from-white to-emerald-50/20">
                           <p className="text-[10px] font-black text-emerald-700 uppercase mb-1">Receita Líquida</p>
-                          <h4 className="text-xl font-black text-emerald-600">R$ {dreData.netRevenue.toFixed(2)}</h4>
-                          <span className="text-[10px] text-slate-400 font-bold block mt-1">Desc: R$ {dreData.discountsGiven.toFixed(2)}</span>
+                          <h4 className="text-xl font-black text-emerald-600">{formatCurrencyBRL(dreData.netRevenue)}</h4>
+                          <span className="text-[10px] text-slate-400 font-bold block mt-1">Desc: {formatCurrencyBRL(dreData.discountsGiven)}</span>
                       </div>
                       <div className="bg-white p-5 rounded-2xl border border-rose-100 shadow-sm bg-gradient-to-br from-white to-rose-50/30">
                           <p className="text-[10px] font-black text-rose-500 uppercase mb-1">Despesas Operacionais</p>
-                          <h4 className="text-xl font-black text-rose-600">R$ {dreData.totalExpenses.toFixed(2)}</h4>
+                          <h4 className="text-xl font-black text-rose-600">{formatCurrencyBRL(dreData.totalExpenses)}</h4>
                           <span className="text-[10px] text-slate-400 font-bold block mt-1">{dreData.periodExpensesCount} lançamento(s)</span>
                       </div>
                       <div className={`p-5 rounded-2xl border shadow-sm ${dreData.netOperatingProfit >= 0 ? 'bg-emerald-50/50 border-emerald-200' : 'bg-rose-50/50 border-rose-200'}`}>
@@ -2398,16 +2398,16 @@ export const Finance = () => {
                               {dreData.netOperatingProfit >= 0 ? 'Lucro Líquido' : 'Prejuízo Líquido'}
                           </p>
                           <h4 className={`text-xl font-black ${dreData.netOperatingProfit >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
-                              R$ {dreData.netOperatingProfit.toFixed(2)}
+                              {formatCurrencyBRL(dreData.netOperatingProfit)}
                           </h4>
                           <span className="text-[10px] font-black block mt-1 opacity-80">Margem: {dreData.profitMargin.toFixed(1)}%</span>
                       </div>
                       <div className="bg-white p-5 rounded-2xl border border-indigo-100 shadow-sm bg-gradient-to-br from-white to-indigo-50/30">
                           <p className="text-[10px] font-black text-indigo-700 uppercase mb-1">Saldo Caixa Realizado</p>
                           <h4 className={`text-xl font-black ${dreData.cashBalance >= 0 ? 'text-slate-800' : 'text-rose-600'}`}>
-                              R$ {dreData.cashBalance.toFixed(2)}
+                              {formatCurrencyBRL(dreData.cashBalance)}
                           </h4>
-                          <span className="text-[10px] text-slate-400 font-bold block mt-1">A faturar (produção): R$ {dreData.inProgressGrossForecast.toFixed(2)}</span>
+                          <span className="text-[10px] text-slate-400 font-bold block mt-1">A faturar (produção): {formatCurrencyBRL(dreData.inProgressGrossForecast)}</span>
                       </div>
                   </div>
               ) : reportType === 'DEBITOS' ? (
@@ -2419,7 +2419,7 @@ export const Finance = () => {
                       </div>
                       <div className="bg-white p-5 rounded-2xl border border-rose-200 shadow-sm bg-gradient-to-br from-white to-rose-50/40">
                           <p className="text-[10px] font-black text-rose-500 uppercase mb-1">Saldo Total Devedor</p>
-                          <h4 className="text-xl font-black text-rose-600">R$ {reportDebtStats.totalDebtAmount.toFixed(2)}</h4>
+                          <h4 className="text-xl font-black text-rose-600">{formatCurrencyBRL(reportDebtStats.totalDebtAmount)}</h4>
                           <span className="text-[10px] text-rose-500/70 font-bold block mt-1">Débito total consolidado</span>
                       </div>
                       <div className="bg-white p-5 rounded-2xl border border-amber-200 shadow-sm bg-gradient-to-br from-white to-amber-50/40">
@@ -2429,7 +2429,7 @@ export const Finance = () => {
                       </div>
                       <div className="bg-white p-5 rounded-2xl border border-violet-200 shadow-sm bg-gradient-to-br from-white to-violet-50/40">
                           <p className="text-[10px] font-black text-violet-700 uppercase mb-1">Média por Devedor</p>
-                          <h4 className="text-xl font-black text-violet-700">R$ {reportDebtStats.avgDebt.toFixed(2)}</h4>
+                          <h4 className="text-xl font-black text-violet-700">{formatCurrencyBRL(reportDebtStats.avgDebt)}</h4>
                           <span className="text-[10px] text-violet-600/70 font-bold block mt-1">Ticket médio em débito</span>
                       </div>
                       <div className="bg-white p-5 rounded-2xl border border-orange-200 shadow-sm bg-gradient-to-br from-white to-orange-50/30">
@@ -2437,7 +2437,7 @@ export const Finance = () => {
                           <h4 className="text-sm font-black text-slate-800 truncate" title={reportDebtStats.maxDebtClient ? reportDebtStats.maxDebtClient.name : '---'}>
                               {reportDebtStats.maxDebtClient ? (
                                   <>
-                                      <span className="text-orange-600 block text-base font-black">R$ {reportDebtStats.maxDebtClient.balanceUpToEndDate.toFixed(2)}</span>
+                                      <span className="text-orange-600 block text-base font-black">{formatCurrencyBRL(reportDebtStats.maxDebtClient.balanceUpToEndDate)}</span>
                                       <span className="text-xs text-slate-500 font-bold truncate block">{reportDebtStats.maxDebtClient.name}</span>
                                   </>
                               ) : (
@@ -2452,29 +2452,29 @@ export const Finance = () => {
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                           <div className="bg-white p-5 rounded-2xl border border-emerald-200 shadow-sm bg-gradient-to-br from-white to-emerald-50/40">
                               <p className="text-[10px] font-black text-emerald-700 uppercase mb-1">Recebimentos Realizados</p>
-                              <h4 className="text-xl font-black text-emerald-600">R$ {reportStats.totalInflows.toFixed(2)}</h4>
+                              <h4 className="text-xl font-black text-emerald-600">{formatCurrencyBRL(reportStats.totalInflows)}</h4>
                               <span className="text-[10px] text-emerald-600/80 font-bold block mt-1">Entradas quitadas no período</span>
                           </div>
                           <div className="bg-white p-5 rounded-2xl border border-rose-200 shadow-sm bg-gradient-to-br from-white to-rose-50/40">
                               <p className="text-[10px] font-black text-rose-700 uppercase mb-1">Despesas Pagas</p>
-                              <h4 className="text-xl font-black text-rose-600">R$ {reportStats.totalOutflows.toFixed(2)}</h4>
+                              <h4 className="text-xl font-black text-rose-600">{formatCurrencyBRL(reportStats.totalOutflows)}</h4>
                               <span className="text-[10px] text-rose-600/80 font-bold block mt-1">Saídas operacionais quitadas</span>
                           </div>
                           <div className={`p-5 rounded-2xl border shadow-sm ${reportStats.netBalance >= 0 ? 'bg-gradient-to-br from-white to-blue-50/50 border-blue-200' : 'bg-gradient-to-br from-white to-rose-50/50 border-rose-200'}`}>
                               <p className={`text-[10px] font-black uppercase mb-1 ${reportStats.netBalance >= 0 ? 'text-blue-700' : 'text-rose-700'}`}>Saldo Líquido Realizado</p>
                               <h4 className={`text-xl font-black ${reportStats.netBalance >= 0 ? 'text-blue-700' : 'text-rose-600'}`}>
-                                  R$ {reportStats.netBalance.toFixed(2)}
+                                  {formatCurrencyBRL(reportStats.netBalance)}
                               </h4>
                               <span className="text-[10px] font-bold block mt-1 opacity-80 text-slate-500">Recebimentos menos despesas</span>
                           </div>
                           <div className="bg-white p-5 rounded-2xl border border-violet-200 shadow-sm bg-gradient-to-br from-white to-violet-50/40">
                               <p className="text-[10px] font-black text-violet-700 uppercase mb-1">Faturamento Concluído</p>
-                              <h4 className="text-xl font-black text-violet-700">R$ {reportStats.totalCompletedBilled.toFixed(2)}</h4>
+                              <h4 className="text-xl font-black text-violet-700">{formatCurrencyBRL(reportStats.totalCompletedBilled)}</h4>
                               <span className="text-[10px] text-violet-600/80 font-bold block mt-1">{reportStats.completedJobsCount} trabalhos concluídos / loja</span>
                           </div>
                           <div className="bg-white p-5 rounded-2xl border border-amber-200 shadow-sm bg-gradient-to-br from-white to-amber-50/50">
                               <p className="text-[10px] font-black text-amber-800 uppercase mb-1">A Faturar (Em Produção)</p>
-                              <h4 className="text-xl font-black text-amber-700">R$ {reportStats.pendingToInvoiceValue.toFixed(2)}</h4>
+                              <h4 className="text-xl font-black text-amber-700">{formatCurrencyBRL(reportStats.pendingToInvoiceValue)}</h4>
                               <span className="text-[10px] text-amber-700/80 font-bold block mt-1">{reportStats.pendingToInvoiceCount} OSs aguardando conclusão</span>
                           </div>
                       </div>
@@ -2483,12 +2483,12 @@ export const Finance = () => {
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                           <div className="bg-white p-5 rounded-2xl border border-orange-200 shadow-sm bg-gradient-to-br from-white to-orange-50/40">
                               <p className="text-[10px] font-black text-orange-700 uppercase mb-1">Cobranças Pendentes (Gaveta)</p>
-                              <h4 className="text-xl font-black text-orange-600">R$ {reportStats.pendingInflows.toFixed(2)}</h4>
+                              <h4 className="text-xl font-black text-orange-600">{formatCurrencyBRL(reportStats.pendingInflows)}</h4>
                               <span className="text-[10px] text-orange-600/80 font-bold block mt-1">Casos concluídos não quitados</span>
                           </div>
                           <div className="bg-white p-5 rounded-2xl border border-red-200 shadow-sm bg-gradient-to-br from-white to-red-50/40">
                               <p className="text-[10px] font-black text-red-700 uppercase mb-1">Despesas Pendentes</p>
-                              <h4 className="text-xl font-black text-red-600">R$ {reportStats.pendingOutflows.toFixed(2)}</h4>
+                              <h4 className="text-xl font-black text-red-600">{formatCurrencyBRL(reportStats.pendingOutflows)}</h4>
                               <span className="text-[10px] text-red-600/80 font-bold block mt-1">Contas a pagar em aberto</span>
                           </div>
                           <div className="bg-white p-5 rounded-2xl border border-cyan-200 shadow-sm bg-gradient-to-br from-white to-cyan-50/40">
@@ -2503,7 +2503,7 @@ export const Finance = () => {
                           </div>
                           <div className="bg-white p-5 rounded-2xl border border-teal-200 shadow-sm bg-gradient-to-br from-white to-teal-50/40">
                               <p className="text-[10px] font-black text-teal-700 uppercase mb-1">Ticket Médio (Faturado)</p>
-                              <h4 className="text-xl font-black text-teal-700">R$ {reportStats.averageCompletedTicket.toFixed(2)}</h4>
+                              <h4 className="text-xl font-black text-teal-700">{formatCurrencyBRL(reportStats.averageCompletedTicket)}</h4>
                               <span className="text-[10px] text-teal-600/80 font-bold block mt-1">Média por trabalho faturado</span>
                           </div>
                       </div>
@@ -2543,7 +2543,7 @@ export const Finance = () => {
                                           <span className="w-2 h-2 rounded-full bg-blue-600"></span> 1. RECEITA OPERACIONAL BRUTA
                                       </td>
                                       <td className="py-3.5 px-6 text-right text-blue-700 font-black text-sm">
-                                          R$ {dreData.grossRevenue.toFixed(2)}
+                                          {formatCurrencyBRL(dreData.grossRevenue)}
                                       </td>
                                       <td className="py-3.5 px-6 text-right font-bold text-slate-500">100.0%</td>
                                   </tr>
@@ -2551,7 +2551,7 @@ export const Finance = () => {
                                       <td className="py-2.5 px-8 pl-10">
                                           • Faturamento Produção Laboratorial (OSs Internas) ({dreData.labJobsCount} casos)
                                       </td>
-                                      <td className="py-2.5 px-6 text-right font-bold">R$ {dreData.labProductionGross.toFixed(2)}</td>
+                                      <td className="py-2.5 px-6 text-right font-bold">{formatCurrencyBRL(dreData.labProductionGross)}</td>
                                       <td className="py-2.5 px-6 text-right text-slate-400">
                                           {dreData.grossRevenue > 0 ? `${((dreData.labProductionGross / dreData.grossRevenue) * 100).toFixed(1)}%` : '0%'}
                                       </td>
@@ -2560,7 +2560,7 @@ export const Finance = () => {
                                       <td className="py-2.5 px-8 pl-10">
                                           • Pedidos Loja Online ({dreData.storeOrdersCount} pedidos)
                                       </td>
-                                      <td className="py-2.5 px-6 text-right font-bold">R$ {dreData.storeGross.toFixed(2)}</td>
+                                      <td className="py-2.5 px-6 text-right font-bold">{formatCurrencyBRL(dreData.storeGross)}</td>
                                       <td className="py-2.5 px-6 text-right text-slate-400">
                                           {dreData.grossRevenue > 0 ? `${((dreData.storeGross / dreData.grossRevenue) * 100).toFixed(1)}%` : '0%'}
                                       </td>
@@ -2569,7 +2569,7 @@ export const Finance = () => {
                                       <td className="py-2.5 px-8 pl-10">
                                           • Débitos Manuais / Outros Lançamentos
                                       </td>
-                                      <td className="py-2.5 px-6 text-right font-bold">R$ {dreData.manualDebits.toFixed(2)}</td>
+                                      <td className="py-2.5 px-6 text-right font-bold">{formatCurrencyBRL(dreData.manualDebits)}</td>
                                       <td className="py-2.5 px-6 text-right text-slate-400">
                                           {dreData.grossRevenue > 0 ? `${((dreData.manualDebits / dreData.grossRevenue) * 100).toFixed(1)}%` : '0%'}
                                       </td>
@@ -2581,7 +2581,7 @@ export const Finance = () => {
                                           <span className="w-2 h-2 rounded-full bg-amber-500"></span> 2. DEDUÇÕES DA RECEITA BRUTA
                                       </td>
                                       <td className="py-3 px-6 text-right text-amber-700 font-black">
-                                          - R$ {dreData.discountsGiven.toFixed(2)}
+                                          - {formatCurrencyBRL(dreData.discountsGiven)}
                                       </td>
                                       <td className="py-3 px-6 text-right font-bold text-slate-500">
                                           {dreData.grossRevenue > 0 ? `${((dreData.discountsGiven / dreData.grossRevenue) * 100).toFixed(1)}%` : '0%'}
@@ -2589,7 +2589,7 @@ export const Finance = () => {
                                   </tr>
                                   <tr className="hover:bg-slate-50 text-slate-700">
                                       <td className="py-2 px-8 pl-10">• Descontos Comerciais, Promoções & Cortesias</td>
-                                      <td className="py-2 px-6 text-right font-bold">- R$ {dreData.discountsGiven.toFixed(2)}</td>
+                                      <td className="py-2 px-6 text-right font-bold">- {formatCurrencyBRL(dreData.discountsGiven)}</td>
                                       <td className="py-2 px-6 text-right text-slate-400">
                                           {dreData.grossRevenue > 0 ? `${((dreData.discountsGiven / dreData.grossRevenue) * 100).toFixed(1)}%` : '0%'}
                                       </td>
@@ -2601,7 +2601,7 @@ export const Finance = () => {
                                           (=) RECEITA OPERACIONAL LÍQUIDA
                                       </td>
                                       <td className="py-3.5 px-6 text-right font-black text-sm text-emerald-700">
-                                          R$ {dreData.netRevenue.toFixed(2)}
+                                          {formatCurrencyBRL(dreData.netRevenue)}
                                       </td>
                                       <td className="py-3.5 px-6 text-right font-black text-emerald-800">
                                           {dreData.grossRevenue > 0 ? `${((dreData.netRevenue / dreData.grossRevenue) * 100).toFixed(1)}%` : '100%'}
@@ -2614,7 +2614,7 @@ export const Finance = () => {
                                           <span className="w-2 h-2 rounded-full bg-rose-500"></span> 3. CUSTOS & DESPESAS OPERACIONAIS
                                       </td>
                                       <td className="py-3 px-6 text-right text-rose-700 font-black">
-                                          - R$ {dreData.totalExpenses.toFixed(2)}
+                                          - {formatCurrencyBRL(dreData.totalExpenses)}
                                       </td>
                                       <td className="py-3 px-6 text-right font-bold text-slate-500">
                                           {dreData.netRevenue > 0 ? `${((dreData.totalExpenses / dreData.netRevenue) * 100).toFixed(1)}%` : '0%'}
@@ -2628,7 +2628,7 @@ export const Finance = () => {
                                       Object.entries(dreData.expensesByCategory).map(([cat, amount]) => (
                                           <tr key={cat} className="hover:bg-slate-50 text-slate-700">
                                               <td className="py-2 px-8 pl-10">• Despesa: {cat}</td>
-                                              <td className="py-2 px-6 text-right font-bold text-rose-600">- R$ {amount.toFixed(2)}</td>
+                                              <td className="py-2 px-6 text-right font-bold text-rose-600">- {formatCurrencyBRL(amount)}</td>
                                               <td className="py-2 px-6 text-right text-slate-400">
                                                   {dreData.netRevenue > 0 ? `${((amount / dreData.netRevenue) * 100).toFixed(1)}%` : '0%'}
                                               </td>
@@ -2646,7 +2646,7 @@ export const Finance = () => {
                                           (=) RESULTADO OPERACIONAL LÍQUIDO ({dreData.netOperatingProfit >= 0 ? 'LUCRO' : 'PREJUÍZO'})
                                       </td>
                                       <td className={`py-4 px-6 text-right font-black text-base ${dreData.netOperatingProfit >= 0 ? 'text-emerald-800' : 'text-rose-800'}`}>
-                                          R$ {dreData.netOperatingProfit.toFixed(2)}
+                                          {formatCurrencyBRL(dreData.netOperatingProfit)}
                                       </td>
                                       <td className="py-4 px-6 text-right font-black">
                                           {dreData.profitMargin.toFixed(1)}% Margem
@@ -2661,24 +2661,24 @@ export const Finance = () => {
                                   </tr>
                                   <tr className="hover:bg-slate-50 text-slate-700">
                                       <td className="py-2.5 px-8 pl-10">(+) Entradas Efetivamente Recebidas em Caixa (Pagamentos / Asaas)</td>
-                                      <td className="py-2.5 px-6 text-right font-bold text-emerald-600">R$ {dreData.cashInflows.toFixed(2)}</td>
+                                      <td className="py-2.5 px-6 text-right font-bold text-emerald-600">{formatCurrencyBRL(dreData.cashInflows)}</td>
                                       <td className="py-2.5 px-6 text-right text-slate-400">---</td>
                                   </tr>
                                   <tr className="hover:bg-slate-50 text-slate-700">
                                       <td className="py-2.5 px-8 pl-10">(-) Saídas Efetivamente Pagas em Despesas</td>
-                                      <td className="py-2.5 px-6 text-right font-bold text-rose-600">- R$ {dreData.cashOutflows.toFixed(2)}</td>
+                                      <td className="py-2.5 px-6 text-right font-bold text-rose-600">- {formatCurrencyBRL(dreData.cashOutflows)}</td>
                                       <td className="py-2.5 px-6 text-right text-slate-400">---</td>
                                   </tr>
                                   <tr className="bg-slate-50 font-black text-slate-800 border-t border-slate-200">
                                       <td className="py-3 px-8 pl-10">(=) SALDO LÍQUIDO DE CAIXA REALIZADO</td>
                                       <td className={`py-3 px-6 text-right font-black ${dreData.cashBalance >= 0 ? 'text-blue-700' : 'text-rose-700'}`}>
-                                          R$ {dreData.cashBalance.toFixed(2)}
+                                          {formatCurrencyBRL(dreData.cashBalance)}
                                       </td>
                                       <td className="py-3 px-6 text-right text-slate-400">---</td>
                                   </tr>
                                   <tr className="hover:bg-slate-50 text-slate-600">
                                       <td className="py-2.5 px-8 pl-10">(+) Faturamento Pendente a Receber (Em Aberto / Gaveta)</td>
-                                      <td className="py-2.5 px-6 text-right font-bold text-amber-600">R$ {dreData.pendingToReceive.toFixed(2)}</td>
+                                      <td className="py-2.5 px-6 text-right font-bold text-amber-600">{formatCurrencyBRL(dreData.pendingToReceive)}</td>
                                       <td className="py-2.5 px-6 text-right text-slate-400">---</td>
                                   </tr>
                               </tbody>
@@ -2749,19 +2749,19 @@ export const Finance = () => {
                                                   </span>
                                               </td>
                                               <td className="p-4 text-xs font-bold text-slate-700 text-right">
-                                                  R$ {d.periodDebits.toFixed(2)}
+                                                  {formatCurrencyBRL(d.periodDebits)}
                                               </td>
                                               <td className="p-4 text-xs font-bold text-emerald-600 text-right">
-                                                  R$ {d.periodCredits.toFixed(2)}
+                                                  {formatCurrencyBRL(d.periodCredits)}
                                               </td>
                                               <td className="p-4 text-right">
                                                   {d.balanceUpToEndDate > 0 ? (
                                                       <span className="text-sm font-black text-rose-600 bg-rose-50 px-2.5 py-1 rounded-xl">
-                                                          R$ {d.balanceUpToEndDate.toFixed(2)}
+                                                          {formatCurrencyBRL(d.balanceUpToEndDate)}
                                                       </span>
                                                   ) : d.balanceUpToEndDate < 0 ? (
                                                       <span className="text-sm font-black text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-xl">
-                                                          R$ {Math.abs(d.balanceUpToEndDate).toFixed(2)} (Crédito)
+                                                          {formatCurrencyBRL(Math.abs(d.balanceUpToEndDate))} (Crédito)
                                                       </span>
                                                   ) : (
                                                       <span className="text-sm font-black text-slate-600 bg-slate-100 px-2.5 py-1 rounded-xl">
@@ -2865,7 +2865,7 @@ export const Finance = () => {
                                                           ? 'text-orange-600' 
                                                           : 'text-red-600'
                                               }`}>
-                                                  {m.type === 'RECEBIMENTO' ? '+' : '-'} R$ {m.amount.toFixed(2)}
+                                                  {m.type === 'RECEBIMENTO' ? '+' : '-'} {formatCurrencyBRL(m.amount)}
                                               </td>
                                               <td className="p-4 text-center">
                                                   <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${
@@ -2881,7 +2881,7 @@ export const Finance = () => {
                                                           onClick={async (e) => {
                                                               e.stopPropagation();
                                                               const label = m.type === 'DEBITO' ? 'este débito manual' : 'este recebimento/crédito';
-                                                              if (window.confirm(`Deseja realmente excluir ${label} (${m.description} - R$ ${m.amount.toFixed(2)})?`)) {
+                                                              if (window.confirm(`Deseja realmente excluir ${label} (${m.description} - ${formatCurrencyBRL(m.amount)})?`)) {
                                                                   try {
                                                                       await deleteDentistPayment(m.refId);
                                                                       alert("Lançamento excluído com sucesso!");
@@ -2902,7 +2902,7 @@ export const Finance = () => {
                                                           type="button"
                                                           onClick={async (e) => {
                                                               e.stopPropagation();
-                                                              if (window.confirm(`Deseja realmente excluir esta despesa (${m.description} - R$ ${m.amount.toFixed(2)})?`)) {
+                                                              if (window.confirm(`Deseja realmente excluir esta despesa (${m.description} - ${formatCurrencyBRL(m.amount)})?`)) {
                                                                   if (currentOrg) {
                                                                       try {
                                                                           await api.apiDeleteExpense(currentOrg.id, m.refId);
@@ -3037,7 +3037,7 @@ export const Finance = () => {
                                 <div className="min-w-0">
                                     <h3 className="text-lg sm:text-2xl font-black text-slate-800 tracking-tight truncate">{statementClient.name}</h3>
                                     <div className="flex flex-wrap items-center gap-2 mt-0.5">
-                                        <span className="text-[9px] sm:text-[10px] font-black text-blue-600 uppercase tracking-widest bg-blue-50 px-2 py-0.5 rounded-lg">Financeiro Unificado</span>
+                                        <span className="text-[9px] sm:text-[10px] font-mono font-bold text-slate-500 uppercase tracking-wider bg-slate-100 px-2 py-0.5 rounded-lg">ID: {statementClient.id ? statementClient.id.slice(-8).toUpperCase() : '---'}</span>
                                         <span className="text-xs text-slate-400 font-bold truncate">• {statementClient.clinicName || 'Consultório'}</span>
                                     </div>
                                 </div>
@@ -3148,7 +3148,7 @@ export const Finance = () => {
                                                         <td className="px-4 sm:px-6 py-3 sm:py-4 text-xs text-slate-500 uppercase tracking-widest">Saldo Anterior Carregado</td>
                                                         <td className="px-4 sm:px-6 py-3 sm:py-4 text-right text-xs">-</td>
                                                         <td className={`px-4 sm:px-6 py-3 sm:py-4 text-right text-xs font-black ${chronoHistory.previousBalance < 0 ? 'text-red-500' : 'text-green-600'}`}>
-                                                            R$ {chronoHistory.previousBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                            {formatCurrencyBRL(chronoHistory.previousBalance)}
                                                         </td>
                                                         <td className="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs text-slate-300">-</td>
                                                     </tr>
@@ -3177,13 +3177,13 @@ export const Finance = () => {
                                                                                 {item.job.items?.map((it:any, iIdx:number) => (
                                                                                     <div key={`item-${iIdx}`} className="flex items-center gap-4 text-[9px] font-bold text-slate-400 uppercase">
                                                                                         <span>{it.quantity} x {it.name}</span>
-                                                                                        <span className="text-slate-300">R$ {it.price.toFixed(2)}</span>
+                                                                                        <span className="text-slate-300">{formatCurrencyBRL(it.price)}</span>
                                                                                     </div>
                                                                                 ))}
                                                                                 {item.job.products?.map((prod:any, pIdx:number) => (
                                                                                     <div key={`prod-${pIdx}`} className="flex items-center gap-4 text-[9px] font-extrabold text-amber-600 uppercase">
                                                                                         <span>{prod.quantity || 1} x [IMPLANTE/PRODUTO] {prod.name}</span>
-                                                                                        <span className="text-amber-500">R$ {((prod.unitPrice || 0) * (prod.quantity || 1)).toFixed(2)}</span>
+                                                                                        <span className="text-amber-500">{formatCurrencyBRL((prod.unitPrice || 0) * (prod.quantity || 1))}</span>
                                                                                     </div>
                                                                                 ))}
                                                                             </div>
@@ -3191,10 +3191,10 @@ export const Finance = () => {
                                                                     </div>
                                                                 </td>
                                                                 <td className={`px-4 sm:px-6 py-3 sm:py-4 text-xs font-black text-right ${item.type === 'DEBIT' ? 'text-red-600' : 'text-green-600'}`}>
-                                                                    {item.type === 'DEBIT' ? '-' : '+'} R$ {item.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                                    {item.type === 'DEBIT' ? '-' : '+'} {formatCurrencyBRL(item.amount)}
                                                                 </td>
                                                                 <td className={`px-4 sm:px-6 py-3 sm:py-4 text-xs font-black text-right ${item.balanceAfter < 0 ? 'text-red-500' : 'text-green-600'}`}>
-                                                                    R$ {item.balanceAfter.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                                    {formatCurrencyBRL(item.balanceAfter)}
                                                                 </td>
                                                                 <td className="px-4 sm:px-6 py-3 sm:py-4 text-center">
                                                                     {(item as any).payment ? (
@@ -3482,7 +3482,7 @@ export const Finance = () => {
                                                 <div className="md:col-span-1">
                                                     <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest italic">Total Líquido</label>
                                                     <div className="w-full px-4 py-2.5 bg-slate-200 border border-slate-300 rounded-xl font-black text-slate-800 h-[46px] flex items-center">
-                                                        R$ {(paymentAmount + paymentInterest - paymentDiscount - paymentFees).toFixed(2)}
+                                                        {formatCurrencyBRL(paymentAmount + paymentInterest - paymentDiscount - paymentFees)}
                                                     </div>
                                                 </div>
                                                 <div className="md:col-span-full">
@@ -3504,12 +3504,12 @@ export const Finance = () => {
                                                                 Demonstrativo do Parcelamento no Cartão de Crédito ({paymentCardInstallments}x)
                                                             </div>
                                                             <span className="bg-blue-600 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase">
-                                                                {paymentCardInstallments}x de R$ {((paymentAmount + paymentInterest - paymentDiscount - paymentFees) / paymentCardInstallments).toFixed(2)}
+                                                                {paymentCardInstallments}x de {formatCurrencyBRL((paymentAmount + paymentInterest - paymentDiscount - paymentFees) / paymentCardInstallments)}
                                                             </span>
                                                         </div>
 
                                                         <p className="text-[11px] text-blue-800 font-medium mb-3 leading-relaxed">
-                                                            Ao confirmar este recebimento, as <strong>{paymentCardInstallments} parcelas</strong> serão lançadas individualmente mês a mês na aba <strong>Recebimentos</strong>. No <strong>Extrato</strong> do cliente, o valor total de <strong>R$ {(paymentAmount + paymentInterest - paymentDiscount - paymentFees).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</strong> abaterá a dívida na data do pagamento.
+                                                            Ao confirmar este recebimento, as <strong>{paymentCardInstallments} parcelas</strong> serão lançadas individualmente mês a mês na aba <strong>Recebimentos</strong>. No <strong>Extrato</strong> do cliente, o valor total de <strong>{formatCurrencyBRL(paymentAmount + paymentInterest - paymentDiscount - paymentFees)}</strong> abaterá a dívida na data do pagamento.
                                                         </p>
 
                                                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
@@ -3528,7 +3528,7 @@ export const Finance = () => {
                                                                             <span className="text-[10px] text-slate-400 font-bold">{instD.toLocaleDateString("pt-BR")}</span>
                                                                         </div>
                                                                         <span className="font-black text-blue-700 font-mono">
-                                                                            R$ {instVal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                                                                            {formatCurrencyBRL(instVal)}
                                                                         </span>
                                                                     </div>
                                                                 );
@@ -3601,7 +3601,7 @@ export const Finance = () => {
                                                     onClick={handleSavePayment}
                                                     className="px-8 py-2 bg-green-600 text-white text-xs font-black uppercase rounded-xl hover:bg-green-700 transition-all disabled:opacity-50 flex items-center gap-2"
                                                 >
-                                                    {isSaving ? <Loader2 className="animate-spin" size={14}/> : <Save size={14} />} Confirmar Recebimento (R$ {(paymentAmount + paymentInterest - paymentDiscount - paymentFees).toFixed(2)})
+                                                    {isSaving ? <Loader2 className="animate-spin" size={14}/> : <Save size={14} />} Confirmar Recebimento ({formatCurrencyBRL(paymentAmount + paymentInterest - paymentDiscount - paymentFees)})
                                                 </button>
                                             </div>
                                         </div>
@@ -3681,7 +3681,7 @@ export const Finance = () => {
                                                                     )}
                                                                 </td>
                                                                 <td className={`px-4 sm:px-6 py-3 sm:py-4 text-xs font-black text-right ${p.type === 'MANUAL_DEBIT' ? 'text-orange-600' : 'text-green-600'}`}>
-                                                                    {p.type === 'MANUAL_DEBIT' ? '-' : '+'} R$ {p.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                                    {p.type === 'MANUAL_DEBIT' ? '-' : '+'} {formatCurrencyBRL(p.amount)}
                                                                 </td>
                                                                 <td className="px-4 sm:px-6 py-3 sm:py-4 text-center">
                                                                     <button
@@ -3689,7 +3689,7 @@ export const Finance = () => {
                                                                         onClick={async (e) => {
                                                                             e.stopPropagation();
                                                                             const label = p.type === 'MANUAL_DEBIT' ? 'este débito manual' : p.type === 'MANUAL_CREDIT' ? 'este crédito manual' : 'este recebimento';
-                                                                            if (window.confirm(`Deseja realmente excluir ${label} no valor de R$ ${p.amount.toFixed(2)}?`)) {
+                                                                            if (window.confirm(`Deseja realmente excluir ${label} no valor de ${formatCurrencyBRL(p.amount)}?`)) {
                                                                                 try {
                                                                                     await deleteDentistPayment(p.id);
                                                                                     alert("Lançamento excluído com sucesso!");
@@ -3754,7 +3754,7 @@ export const Finance = () => {
                                                                     </span>
                                                                 </td>
                                                                 <td className="px-4 sm:px-6 py-3 sm:py-4 text-xs font-black text-right text-slate-800">
-                                                                    R$ {b.totalAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                                    {formatCurrencyBRL(b.totalAmount)}
                                                                 </td>
                                                                 <td className="px-4 sm:px-6 py-3 sm:py-4 text-center">
                                                                     <div className="flex items-center justify-center gap-2">
@@ -3796,7 +3796,7 @@ export const Finance = () => {
                                                 {overallBal < 0 ? 'Saldo Devedor Total' : overallBal > 0 ? 'Saldo de Crédito Total' : 'Saldo Total'}
                                             </span>
                                             <span className={`text-lg sm:text-xl font-black ${overallBal < 0 ? 'text-red-600' : overallBal > 0 ? 'text-emerald-600' : 'text-slate-600'}`}>
-                                                R$ {Math.abs(overallBal).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                {formatCurrencyBRL(Math.abs(overallBal))}
                                                 {overallBal > 0 ? ' (A favor)' : ''}
                                             </span>
                                         </div>
@@ -3860,8 +3860,8 @@ export const Finance = () => {
                           <span className="block text-[10px] text-slate-400 font-bold mt-1 font-mono">
                               {(() => {
                                   const overallBal = chronoHistory.overallBalance ?? 0;
-                                  if (overallBal < 0) return `Saldo devedor atual do cliente: R$ ${Math.abs(overallBal).toFixed(2)}`;
-                                  if (overallBal > 0) return `Cliente possui crédito a favor de: R$ ${overallBal.toFixed(2)}`;
+                                  if (overallBal < 0) return `Saldo devedor atual do cliente: ${formatCurrencyBRL(Math.abs(overallBal))}`;
+                                  if (overallBal > 0) return `Cliente possui crédito a favor de: ${formatCurrencyBRL(overallBal)}`;
                                   return 'Cliente não possui saldo devedor.';
                               })()}
                           </span>
@@ -4144,7 +4144,7 @@ export const Finance = () => {
                                   <div className="md:col-span-1">
                                       <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 tracking-widest italic">Total Líquido</label>
                                       <div className="w-full px-4 py-2.5 bg-slate-100 border border-slate-200 rounded-xl font-black text-slate-800 text-xs h-[38px] flex items-center">
-                                          R$ {(editDetailAmount + editDetailInterest - editDetailDiscount - editDetailFees).toFixed(2)}
+                                          {formatCurrencyBRL(editDetailAmount + editDetailInterest - editDetailDiscount - editDetailFees)}
                                       </div>
                                   </div>
                               </div>
@@ -4277,19 +4277,19 @@ export const Finance = () => {
                               <div className="grid grid-cols-2 md:grid-cols-3 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
                                   <div>
                                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Valor Recebido</p>
-                                      <p className="text-sm font-black text-slate-800">R$ {selectedPaymentForDetail.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                                      <p className="text-sm font-black text-slate-800">{formatCurrencyBRL(selectedPaymentForDetail.amount)}</p>
                                   </div>
                                   <div>
                                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest text-red-500">Juros/Mora (+)</p>
-                                      <p className="text-sm font-black text-red-600">R$ {(selectedPaymentForDetail.interest || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                                      <p className="text-sm font-black text-red-600">{formatCurrencyBRL(selectedPaymentForDetail.interest || 0)}</p>
                                   </div>
                                   <div>
                                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest text-green-600">Desconto (-)</p>
-                                      <p className="text-sm font-black text-green-600">R$ {(selectedPaymentForDetail.discount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                                      <p className="text-sm font-black text-green-600">{formatCurrencyBRL(selectedPaymentForDetail.discount || 0)}</p>
                                   </div>
                                   <div>
                                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest text-orange-600">Taxas (-)</p>
-                                      <p className="text-sm font-black text-orange-600">R$ {(selectedPaymentForDetail.fees || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                                      <p className="text-sm font-black text-orange-600">{formatCurrencyBRL(selectedPaymentForDetail.fees || 0)}</p>
                                   </div>
                                   <div>
                                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Forma de Pagamento</p>
@@ -4474,7 +4474,7 @@ export const Finance = () => {
                                       onClick={async () => {
                                           if (!selectedPaymentForDetail) return;
                                           const label = selectedPaymentForDetail.type === 'MANUAL_DEBIT' ? 'este débito manual' : selectedPaymentForDetail.type === 'MANUAL_CREDIT' ? 'este crédito manual' : 'este recebimento';
-                                          if (!window.confirm(`Deseja realmente excluir ${label} no valor de R$ ${selectedPaymentForDetail.amount.toFixed(2)}?`)) return;
+                                          if (!window.confirm(`Deseja realmente excluir ${label} no valor de ${formatCurrencyBRL(selectedPaymentForDetail.amount)}?`)) return;
                                           setIsSaving(true);
                                           try {
                                               await deleteDentistPayment(selectedPaymentForDetail.id);

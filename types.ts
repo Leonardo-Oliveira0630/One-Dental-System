@@ -559,6 +559,7 @@ export interface Attachment {
   comment?: string;
   uploadedBy?: string;
   uploadedByName?: string;
+  source?: 'WEB' | 'LAB' | string;
 }
 
 export interface BoxColor {

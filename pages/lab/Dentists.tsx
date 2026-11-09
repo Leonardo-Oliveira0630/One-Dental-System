@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { getDentistJobs, subscribeDentistJobs } from '../../services/firebaseService';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { matchesSearchQuery, filterAndSortClients, parseBrazilianCurrency, formatCurrencyInputMask } from '../../utils/stringUtils';
+import { matchesSearchQuery, filterAndSortClients, parseBrazilianCurrency, formatCurrencyInputMask, formatCurrencyBRL, formatNumberBRL } from '../../utils/stringUtils';
 import { usePageFilterCache } from '../../utils/pageCache';
 
 const translatePaymentMethod = (method: string) => {
@@ -226,13 +226,9 @@ export const Dentists = () => {
         // 2. Adiciona os Dentistas Online (Web)
         allUsers.filter(u => u.role === UserRole.CLIENT).forEach(u => {
             const hasSameId = clientMap.has(u.id);
-            const userEmail = u.email ? u.email.toLowerCase().trim() : '';
-            const userDoc = (u.cpfCnpj || '').replace(/\D/g, '');
-            
-            const isDuplicateEmail = userEmail && manualEmails.has(userEmail);
-            const isDuplicateDoc = userDoc && manualDocs.has(userDoc);
+            const isLinkedToManual = Array.from(clientMap.values()).some(m => (m as any).userId === u.id);
 
-            if (!hasSameId && !isDuplicateEmail && !isDuplicateDoc) {
+            if (!hasSameId && !isLinkedToManual) {
                 clientMap.set(u.id, {
                     ...u,
                     clinicName: u.clinicName || 'Cliente Web',
@@ -725,12 +721,12 @@ export const Dentists = () => {
             { content: '', styles: { lineWidth: { bottom: 0.1 } as any, lineColor: [220,220,220] } },
             { content: t('dentists.previousBalance', 'Saldo anterior'), styles: { fontStyle: 'normal', lineWidth: { bottom: 0.1 } as any, lineColor: [220,220,220] } },
             { content: '', styles: { lineWidth: { bottom: 0.1 } as any, lineColor: [220,220,220] } },
-            { content: `R$ ${chronoHistory.previousBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, styles: { halign: 'left', fontStyle: 'normal', lineWidth: { bottom: 0.1 } as any, lineColor: [220,220,220] } }
+            { content: formatCurrencyBRL(chronoHistory.previousBalance), styles: { halign: 'left', fontStyle: 'normal', lineWidth: { bottom: 0.1 } as any, lineColor: [220,220,220] } }
         ]);
 
         chronoHistory.history.forEach((item: any) => {
             const isDebit = item.type === 'DEBIT';
-            const amountStr = isDebit ? `R$ -${item.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}` : `R$ ${item.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+            const amountStr = isDebit ? `- ${formatCurrencyBRL(item.amount)}` : `+ ${formatCurrencyBRL(item.amount)}`;
             const textColor = isDebit ? [239, 68, 68] : [34, 197, 94]; 
             
             const hasItems = isDebit && item.job && item.job.items && item.job.items.length > 0;
@@ -749,7 +745,7 @@ export const Dentists = () => {
                 { content: new Date(item.date).toLocaleDateString('pt-BR'), styles: { lineWidth: { bottom: hasSubDetails ? 0 : 0.1 } as any, lineColor: [220,220,220] } },
                 { content: description, styles: { lineWidth: { bottom: hasSubDetails ? 0 : 0.1 } as any, lineColor: [220,220,220] } },
                 { content: amountStr, styles: { textColor: textColor, lineWidth: { bottom: hasSubDetails ? 0 : 0.1 } as any, lineColor: [220,220,220] } },
-                { content: `R$ ${item.balanceAfter.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, styles: { halign: 'left', lineWidth: { bottom: hasSubDetails ? 0 : 0.1 } as any, lineColor: [220,220,220] } }
+                { content: formatCurrencyBRL(item.balanceAfter), styles: { halign: 'left', lineWidth: { bottom: hasSubDetails ? 0 : 0.1 } as any, lineColor: [220,220,220] } }
             ]);
             
             const totalSubCount = (hasItems ? item.job.items.length : 0) + (hasProducts ? item.job.products.length : 0);
@@ -762,7 +758,7 @@ export const Dentists = () => {
                     tableBody.push([
                         { content: '', styles: { lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220,220,220] } },
                         { content: `${subItem.quantity}      ${subItem.name.toUpperCase()}`, styles: { textColor: [100,100,100], fontSize: 8, lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220,220,220] } },
-                        { content: `R$ ${(subItem.price * subItem.quantity).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`, styles: { textColor: [100,100,100], fontSize: 8, lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220,220,220] } },
+                        { content: formatCurrencyBRL(subItem.price * subItem.quantity), styles: { textColor: [100,100,100], fontSize: 8, lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220,220,220] } },
                         { content: '', styles: { lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220,220,220] } }
                     ]);
                 });
@@ -775,7 +771,7 @@ export const Dentists = () => {
                     tableBody.push([
                         { content: '', styles: { lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220,220,220] } },
                         { content: `${prod.quantity || 1}      [IMPLANTE/PRODUTO] ${(prod.name || '').toUpperCase()}`, styles: { textColor: [180, 83, 9], fontSize: 8, fontStyle: 'bold', lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220,220,220] } },
-                        { content: `R$ ${((prod.unitPrice || 0) * (prod.quantity || 1)).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`, styles: { textColor: [180, 83, 9], fontSize: 8, fontStyle: 'bold', lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220,220,220] } },
+                        { content: formatCurrencyBRL((prod.unitPrice || 0) * (prod.quantity || 1)), styles: { textColor: [180, 83, 9], fontSize: 8, fontStyle: 'bold', lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220,220,220] } },
                         { content: '', styles: { lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220,220,220] } }
                     ]);
                 });
@@ -815,7 +811,7 @@ export const Dentists = () => {
 
         doc.text(t('dentists.previousBalance', 'Saldo anterior'), summaryX, cY);
         doc.setTextColor(239, 68, 68);
-        doc.text(`R$ ${chronoHistory.previousBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, valX, cY, { align: 'right' });
+        doc.text(formatCurrencyBRL(chronoHistory.previousBalance), valX, cY, { align: 'right' });
         
         cY += 8;
         doc.setDrawColor(230, 230, 230);
@@ -824,7 +820,7 @@ export const Dentists = () => {
         doc.setTextColor(0, 0, 0);
         doc.text(t('dentists.totalServices', 'Total de serviços'), summaryX, cY);
         doc.setTextColor(239, 68, 68);
-        doc.text(`R$ -${totalServices.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, valX, cY, { align: 'right' });
+        doc.text(`- ${formatCurrencyBRL(totalServices)}`, valX, cY, { align: 'right' });
 
         cY += 8;
         doc.line(summaryX, cY - 4, valX, cY - 4);
@@ -840,7 +836,7 @@ export const Dentists = () => {
         doc.setTextColor(0, 0, 0);
         doc.text(t('dentists.totalPayments', 'Total de pagamentos'), summaryX, cY);
         doc.setTextColor(34, 197, 94);
-        doc.text(`R$ ${totalPayments.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, valX, cY, { align: 'right' });
+        doc.text(formatCurrencyBRL(totalPayments), valX, cY, { align: 'right' });
 
         cY += 15;
         doc.line(summaryX, cY - 10, valX, cY - 10);
@@ -850,7 +846,7 @@ export const Dentists = () => {
         doc.text(t('dentists.currentPeriodBalance', 'Saldo atual no período'), summaryX, cY);
         const balanceColor = currentBalance < 0 ? [239, 68, 68] : [34, 197, 94];
         doc.setTextColor(balanceColor[0], balanceColor[1], balanceColor[2] as number);
-        doc.text(`R$ ${currentBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, valX, cY, { align: 'right' });
+        doc.text(formatCurrencyBRL(currentBalance), valX, cY, { align: 'right' });
 
         doc.save(`Extrato_${statementClient.name.replace(/\s+/g, '_')}_${startDateStr.replace(/\//g,'-')}_a_${endDateStr.replace(/\//g,'-')}.pdf`);
     };
@@ -918,14 +914,14 @@ export const Dentists = () => {
             tableBody.push([
                 new Date(p.paymentDate).toLocaleDateString('pt-BR'),
                 p.notes || t('dentists.receiptOfValues', 'Recebimento de valores'),
-                `R$ ${p.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`
+                formatCurrencyBRL(p.amount)
             ]);
         });
 
         tableBody.push([
             { content: t('dentists.total', 'TOTAL'), styles: { fontStyle: 'bold', halign: 'right' } },
             '',
-            { content: `R$ ${totalPaid.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`, styles: { fontStyle: 'bold' } }
+            { content: formatCurrencyBRL(totalPaid), styles: { fontStyle: 'bold' } }
         ]);
 
         autoTable(doc, {
@@ -1017,7 +1013,7 @@ export const Dentists = () => {
             const doc = client.cpfCnpj || '-';
             const tableName = getPriceTableName(client);
             const discount = `${client.globalDiscountPercent || 0}%`;
-            const billingLimit = client.billingLimit ? `R$ ${Number(client.billingLimit).toFixed(2)}` : t('dentists.noLimit', 'Sem Limite');
+            const billingLimit = client.billingLimit ? formatCurrencyBRL(Number(client.billingLimit)) : t('dentists.noLimit', 'Sem Limite');
             const status = getStatusLabel(client);
             const blockReason = client.isBlocked ? getBlockReasonLabel(client.blockReason) : '-';
             const origin = client.isManual ? t('dentists.originInternal', 'Interno (Manual)') : t('dentists.originWeb', 'Portal Web');
@@ -1339,20 +1335,20 @@ export const Dentists = () => {
                                                 <div className="inline-flex items-center gap-2 bg-slate-50/90 px-2.5 py-1 rounded-xl border border-slate-100 text-[11px]">
                                                     <div className="text-center" title="Boletos Gerados">
                                                         <span className="text-slate-400 block text-[8px] uppercase font-bold tracking-wider">{t('dentists.generated', 'Gerados')}</span>
-                                                        <span className="text-blue-600 font-black text-xs">{gBatches.length} <span className="text-[10px] font-bold text-slate-500">(R$ {gBatches.reduce((sum, b) => sum + b.totalAmount, 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 })})</span></span>
+                                                        <span className="text-blue-600 font-black text-xs">{gBatches.length} <span className="text-[10px] font-bold text-slate-500">({formatCurrencyBRL(gBatches.reduce((sum, b) => sum + b.totalAmount, 0))})</span></span>
                                                     </div>
                                                     <span className="text-slate-200 font-light">|</span>
                                                     <div className="text-center" title="Boletos Expirados">
                                                         <span className="text-slate-400 block text-[8px] uppercase font-bold tracking-wider">{t('dentists.expired', 'Expirados')}</span>
                                                         <span className={`font-black text-xs ${eBatches.length > 0 ? 'text-red-600' : 'text-slate-500'}`}>
-                                                            {eBatches.length} <span className="text-[10px] font-bold text-slate-500">(R$ {eBatches.reduce((sum, b) => sum + b.totalAmount, 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 })})</span>
+                                                            {eBatches.length} <span className="text-[10px] font-bold text-slate-500">({formatCurrencyBRL(eBatches.reduce((sum, b) => sum + b.totalAmount, 0))})</span>
                                                         </span>
                                                     </div>
                                                     <span className="text-slate-200 font-light">|</span>
                                                     <div className="text-center" title="Boletos Pagos">
                                                         <span className="text-slate-400 block text-[8px] uppercase font-bold tracking-wider">{t('dentists.paid', 'Pagos')}</span>
                                                         <span className={`font-black text-xs ${pBatches.length > 0 ? 'text-emerald-600' : 'text-slate-500'}`}>
-                                                            {pBatches.length} <span className="text-[10px] font-bold text-slate-500">(R$ {pBatches.reduce((sum, b) => sum + b.totalAmount, 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 })})</span>
+                                                            {pBatches.length} <span className="text-[10px] font-bold text-slate-500">({formatCurrencyBRL(pBatches.reduce((sum, b) => sum + b.totalAmount, 0))})</span>
                                                         </span>
                                                     </div>
                                                 </div>
@@ -2326,7 +2322,7 @@ export const Dentists = () => {
                                     )}
                                 </div>
                                 <p className={`text-base sm:text-2xl font-black ${totals.currentBalance < 0 ? 'text-red-600' : totals.currentBalance > 0 ? 'text-emerald-600' : 'text-slate-700'}`}>
-                                    R$ {Math.abs(totals.currentBalance).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                    {formatCurrencyBRL(Math.abs(totals.currentBalance))}
                                     {totals.currentBalance > 0 ? ' (A favor)' : ''}
                                 </p>
                                 <div className="mt-1.5 sm:mt-2 h-1 w-full bg-slate-100 rounded-full overflow-hidden">
@@ -2340,7 +2336,7 @@ export const Dentists = () => {
                                     <p className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest truncate">{t('dentists.pendingBoletos', 'Boletos Pendentes')}</p>
                                 </div>
                                 <p className="text-base sm:text-2xl font-black text-slate-700">
-                                    R$ {totals.pendingInvoices.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                    {formatCurrencyBRL(totals.pendingInvoices)}
                                 </p>
                                 <div className="mt-1.5 sm:mt-2 h-1 w-full bg-slate-100 rounded-full overflow-hidden">
                                     <div className="h-full bg-slate-200 w-[20%]" />
@@ -2369,7 +2365,7 @@ export const Dentists = () => {
                                         </p>
                                     </div>
                                     <p className="text-base sm:text-2xl font-black text-white">
-                                        R$ {Math.abs(totals.currentBalance).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                        {formatCurrencyBRL(Math.abs(totals.currentBalance))}
                                         {totals.currentBalance > 0 ? ' (A favor)' : ''}
                                     </p>
                                 </div>
@@ -2472,7 +2468,7 @@ export const Dentists = () => {
                                                         <td className="px-4 sm:px-6 py-3 sm:py-4 text-xs text-slate-500 uppercase tracking-widest">{t('dentists.previousBalanceLoaded', 'Saldo Anterior Carregado')}</td>
                                                         <td className="px-4 sm:px-6 py-3 sm:py-4 text-right text-xs">-</td>
                                                         <td className={`px-4 sm:px-6 py-3 sm:py-4 text-right text-xs font-black ${chronoHistory.previousBalance < 0 ? 'text-red-500' : 'text-green-600'}`}>
-                                                            R$ {chronoHistory.previousBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                            {formatCurrencyBRL(chronoHistory.previousBalance)}
                                                         </td>
                                                         <td className="px-4 sm:px-6 py-3 sm:py-4 text-center text-xs text-slate-300">-</td>
                                                     </tr>
@@ -2501,13 +2497,13 @@ export const Dentists = () => {
                                                                                 {(item as any).job.items?.map((it:any, iIdx:number) => (
                                                                                     <div key={`item-${iIdx}`} className="flex items-center gap-4 text-[9px] font-bold text-slate-400 uppercase">
                                                                                         <span>{it.quantity} x {it.name}</span>
-                                                                                        <span className="text-slate-300">R$ {it.price.toFixed(2)}</span>
+                                                                                        <span className="text-slate-300">{formatCurrencyBRL(it.price)}</span>
                                                                                     </div>
                                                                                 ))}
                                                                                 {(item as any).job.products?.map((prod:any, pIdx:number) => (
                                                                                     <div key={`prod-${pIdx}`} className="flex items-center gap-4 text-[9px] font-extrabold text-amber-600 uppercase">
                                                                                         <span>{prod.quantity || 1} x [{t('dentists.implantProduct', 'IMPLANTE/PRODUTO')}] {prod.name}</span>
-                                                                                        <span className="text-amber-500">R$ {((prod.unitPrice || 0) * (prod.quantity || 1)).toFixed(2)}</span>
+                                                                                        <span className="text-amber-500">{formatCurrencyBRL((prod.unitPrice || 0) * (prod.quantity || 1))}</span>
                                                                                 </div>
                                                                             ))}
                                                                         </div>
@@ -2515,10 +2511,10 @@ export const Dentists = () => {
                                                                 </div>
                                                             </td>
                                                             <td className={`px-6 py-4 text-xs font-black text-right ${item.type === 'DEBIT' ? 'text-red-600' : 'text-green-600'}`}>
-                                                                {item.type === 'DEBIT' ? '-' : '+'} R$ {item.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                                {item.type === 'DEBIT' ? '-' : '+'} {formatCurrencyBRL(item.amount)}
                                                             </td>
                                                             <td className={`px-6 py-4 text-xs font-black text-right ${item.balanceAfter < 0 ? 'text-red-500' : 'text-green-600'}`}>
-                                                                R$ {item.balanceAfter.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                                {formatCurrencyBRL(item.balanceAfter)}
                                                             </td>
                                                             <td className="px-4 sm:px-6 py-3 sm:py-4 text-center">
                                                                 {(item as any).payment ? (
@@ -2676,7 +2672,7 @@ export const Dentists = () => {
                                                 <div className="md:col-span-1">
                                                     <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest italic">{t('dentists.netTotal', 'Total Líquido')}</label>
                                                     <div className="w-full px-4 py-2.5 bg-slate-200 border border-slate-300 rounded-xl font-black text-slate-800 h-[46px] flex items-center">
-                                                        R$ {(paymentAmount + paymentInterest - paymentDiscount - paymentFees).toFixed(2)}
+                                                        {formatCurrencyBRL(paymentAmount + paymentInterest - paymentDiscount - paymentFees)}
                                                     </div>
                                                 </div>
                                                 <div className="md:col-span-full">
@@ -2696,7 +2692,7 @@ export const Dentists = () => {
                                                     onClick={handleSavePayment}
                                                     className="px-8 py-2 bg-green-600 text-white text-xs font-black uppercase rounded-xl hover:bg-green-700 transition-all disabled:opacity-50 flex items-center gap-2"
                                                 >
-                                                    {isSaving ? <Loader2 className="animate-spin" size={14}/> : <Save size={14} />} {t('dentists.confirmReceipt', 'Confirmar Recebimento')} (R$ {(paymentAmount + paymentInterest - paymentDiscount - paymentFees).toFixed(2)})
+                                                    {isSaving ? <Loader2 className="animate-spin" size={14}/> : <Save size={14} />} {t('dentists.confirmReceipt', 'Confirmar Recebimento')} ({formatCurrencyBRL(paymentAmount + paymentInterest - paymentDiscount - paymentFees)})
                                                 </button>
                                             </div>
                                         </div>
@@ -2748,7 +2744,7 @@ export const Dentists = () => {
                                                                     {p.notes || '-'}
                                                                 </td>
                                                                 <td className={`px-4 sm:px-6 py-3 sm:py-4 text-xs font-black text-right ${p.type === 'MANUAL_DEBIT' ? 'text-orange-600' : 'text-green-600'}`}>
-                                                                    {p.type === 'MANUAL_DEBIT' ? '-' : '+'} R$ {p.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                                    {p.type === 'MANUAL_DEBIT' ? '-' : '+'} {formatCurrencyBRL(p.amount)}
                                                                 </td>
                                                                 <td className="px-4 sm:px-6 py-3 sm:py-4 text-center">
                                                                     <button
@@ -2756,7 +2752,7 @@ export const Dentists = () => {
                                                                         onClick={async (e) => {
                                                                             e.stopPropagation();
                                                                             const label = p.type === 'MANUAL_DEBIT' ? 'este débito manual' : p.type === 'MANUAL_CREDIT' ? 'este crédito manual' : 'este recebimento';
-                                                                            if (window.confirm(`Deseja realmente excluir ${label} no valor de R$ ${p.amount.toFixed(2)}?`)) {
+                                                                            if (window.confirm(`Deseja realmente excluir ${label} no valor de ${formatCurrencyBRL(p.amount)}?`)) {
                                                                                 try {
                                                                                     await deleteDentistPayment(p.id);
                                                                                     alert("Lançamento excluído com sucesso!");
@@ -2821,7 +2817,7 @@ export const Dentists = () => {
                                                                     </span>
                                                                 </td>
                                                                 <td className="px-4 sm:px-6 py-3 sm:py-4 text-xs font-black text-right text-slate-800">
-                                                                    R$ {b.totalAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                                    {formatCurrencyBRL(b.totalAmount)}
                                                                 </td>
                                                                 <td className="px-4 sm:px-6 py-3 sm:py-4 text-center">
                                                                     <div className="flex items-center justify-center gap-2">
@@ -2860,7 +2856,7 @@ export const Dentists = () => {
                                         {totals.currentBalance < 0 ? t('dentists.totalDebtBalance', 'Saldo Devedor Total') : totals.currentBalance > 0 ? 'Saldo de Crédito Total' : 'Saldo Total'}
                                     </span>
                                     <span className={`text-lg sm:text-xl font-black ${totals.currentBalance < 0 ? 'text-red-600' : totals.currentBalance > 0 ? 'text-emerald-600' : 'text-slate-600'}`}>
-                                        R$ {Math.abs(totals.currentBalance).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                        {formatCurrencyBRL(Math.abs(totals.currentBalance))}
                                         {totals.currentBalance > 0 ? ' (A favor)' : ''}
                                     </span>
                                 </div>
@@ -2921,9 +2917,9 @@ export const Dentists = () => {
                                 />
                                 <span className="block text-[10px] text-slate-400 font-bold mt-1 font-mono">
                                     {totals.currentBalance < 0 
-                                        ? `${t('dentists.currentClientDebt', 'Saldo devedor atual do cliente')}: R$ ${Math.abs(totals.currentBalance).toFixed(2)}` 
+                                        ? `${t('dentists.currentClientDebt', 'Saldo devedor atual do cliente')}: ${formatCurrencyBRL(Math.abs(totals.currentBalance))}` 
                                         : totals.currentBalance > 0 
-                                        ? `Cliente possui crédito a favor de: R$ ${totals.currentBalance.toFixed(2)}` 
+                                        ? `Cliente possui crédito a favor de: ${formatCurrencyBRL(totals.currentBalance)}` 
                                         : 'Cliente não possui saldo devedor.'}
                                 </span>
                             </div>

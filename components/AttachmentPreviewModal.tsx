@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { 
   X, Download, FileText, Image as ImageIcon, Video as VideoIcon, 
   AlertTriangle, ExternalLink, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCcw, Globe,
-  MessageSquare, Edit2, Check, Clock
+  MessageSquare, Edit2, Check, Clock, User
 } from 'lucide-react';
 import { STLViewer } from './STLViewer';
 import { Attachment } from '../types';
@@ -230,6 +230,26 @@ export const AttachmentPreviewModal: React.FC<AttachmentPreviewModalProps> = ({ 
                   })()}
                 </span>
               )}
+              {(() => {
+                const isWeb = (activeFile.source || '').toUpperCase() === 'WEB' || 
+                              (activeFile.uploadedByName || '').toLowerCase() === 'web';
+                const name = activeFile.uploadedByName || (isWeb ? 'Web' : 'Laboratório');
+                
+                if (isWeb) {
+                  return (
+                    <span className="text-[9px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-black px-2 py-0.5 rounded uppercase tracking-wider flex items-center gap-1">
+                      <Globe size={10} />
+                      Web
+                    </span>
+                  );
+                }
+                return (
+                  <span className="text-[9px] bg-blue-500/20 text-blue-300 border border-blue-500/30 font-black px-2 py-0.5 rounded uppercase tracking-wider flex items-center gap-1" title={`Importado por: ${name}`}>
+                    <User size={10} />
+                    {name}
+                  </span>
+                );
+              })()}
             </div>
           </div>
         </div>

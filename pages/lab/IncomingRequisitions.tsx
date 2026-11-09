@@ -150,7 +150,11 @@ export const IncomingRequisitions = () => {
         notes: req.notes || '',
         origin: 'ONLINE_REQUISITION',
         onlineRequisitionId: req.id,
-        attachments: req.attachments || []
+        attachments: (req.attachments || []).map((a: any) => ({
+          ...a,
+          source: 'WEB',
+          uploadedByName: 'Web'
+        }))
       }
     });
   };

@@ -105,7 +105,11 @@ export const IncomingOrders = () => {
         notes: job.notes || '',
         origin: 'ONLINE_ORDER',
         onlineOrderId: job.id,
-        attachments: job.attachments || [],
+        attachments: (job.attachments || []).map((a: any) => ({
+          ...a,
+          source: 'WEB',
+          uploadedByName: 'Web'
+        })),
         paymentStatus: job.paymentStatus || 'PENDING'
       }
     });
