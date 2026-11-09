@@ -804,7 +804,6 @@ export const PrintOverlay = () => {
                                   </td>
                                   <td className="py-2 pr-3 align-top w-[45%] max-w-[90mm] break-words">
                                      <h3 className="font-bold text-[9pt] uppercase leading-tight">{group[0].dentistName}</h3>
-                                     <p className="text-[8.5px] font-bold text-gray-600 leading-tight mb-0.5 uppercase">{group[0].clinicName || 'Consultório'}</p>
                                      <p className="text-[8.5px] leading-snug flex items-start gap-0.5 uppercase break-words max-w-[90mm]">
                                         <MapPin size={10} className="shrink-0 mt-0.5"/> 
                                         <span>{group[0].address}</span>
@@ -820,13 +819,33 @@ export const PrintOverlay = () => {
                                                  {sg.items.map((item, i) => {
                                                      const job = item.jobId ? jobs.find(j => j.id === item.jobId) : null;
                                                      const osNumber = job?.osNumber || (item.jobId ? item.jobId.substring(0, 8) : null);
+                                                     const isPickup = sg.type === 'PICKUP';
+
+                                                     if (isPickup) {
+                                                         return (
+                                                             <div key={i} className="leading-tight py-0.5 flex items-center justify-between gap-1.5">
+                                                                 <div className="font-bold uppercase text-[9px] text-slate-900 truncate">
+                                                                     {item.observations ? `OBS: ${item.observations}` : 'COLETA'}
+                                                                 </div>
+                                                                 {osNumber && (
+                                                                     <span className="text-[8px] font-black text-black bg-gray-100 px-1 py-0.2 rounded border border-gray-300 shrink-0">
+                                                                         OS: {osNumber}
+                                                                     </span>
+                                                                 )}
+                                                             </div>
+                                                         );
+                                                     }
+
+                                                     const rawPatient = item.patientName || 'Paciente não informado';
+                                                     const maxChars = 22;
+                                                     const patientNameDisplay = rawPatient.length > maxChars ? rawPatient.substring(0, maxChars) + '...' : rawPatient;
 
                                                      return (
                                                          <div key={i} className="leading-tight py-0.5">
-                                                             <div className="font-bold uppercase text-[9px] text-slate-900 flex items-center gap-1.5 flex-wrap">
-                                                                 <span>• {item.patientName || 'Paciente não informado'}</span>
+                                                             <div className="font-bold uppercase text-[9px] text-slate-900 flex items-center justify-between gap-1.5">
+                                                                 <span className="truncate">• {patientNameDisplay}</span>
                                                                  {osNumber && (
-                                                                     <span className="text-[8px] font-black text-black bg-gray-100 px-1 py-0.2 rounded border border-gray-300">
+                                                                     <span className="text-[8px] font-black text-black bg-gray-100 px-1 py-0.2 rounded border border-gray-300 shrink-0">
                                                                          OS: {osNumber}
                                                                      </span>
                                                                  )}
