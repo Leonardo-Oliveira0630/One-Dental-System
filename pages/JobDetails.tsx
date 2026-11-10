@@ -6862,7 +6862,18 @@ export const JobDetails = () => {
                             {/* Attachments Cards Grid */}
                             <div className="space-y-4 max-h-[600px] overflow-y-auto pr-1 no-scrollbar">
                                 {(() => {
-                                    const allAtts = job.attachments || [];
+                                    const parseAttTime = (dateVal?: any) => {
+                                        if (!dateVal) return 0;
+                                        const d = dateVal instanceof Date 
+                                          ? dateVal 
+                                          : dateVal?.seconds 
+                                            ? new Date(dateVal.seconds * 1000) 
+                                            : new Date(dateVal);
+                                        return isNaN(d.getTime()) ? 0 : d.getTime();
+                                    };
+                                    const allAtts = [...(job.attachments || [])].sort((a: any, b: any) => {
+                                        return parseAttTime(b.uploadedAt || b.createdAt) - parseAttTime(a.uploadedAt || a.createdAt);
+                                    });
                                     const filtered = allAtts.filter((att: any) => {
                                         const ext = att.name.split('.').pop()?.toLowerCase() || '';
                                         const isImg = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'].includes(ext);

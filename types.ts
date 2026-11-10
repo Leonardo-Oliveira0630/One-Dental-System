@@ -807,6 +807,26 @@ export interface Sector {
   stages?: string[];
 }
 
+export interface ServiceGroupTarget {
+  jobTypeId: string;
+  variationGroupId?: string;
+  optionId?: string;
+  variationGroupName?: string;
+  optionName?: string;
+  optionValue?: string;
+}
+
+export interface ServiceGroup {
+  id: string;
+  organizationId?: string;
+  name: string;
+  description?: string;
+  color?: string;
+  targets?: ServiceGroupTarget[];
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
+}
+
 export interface VariationOption {
   id: string;
   name: string;
@@ -815,6 +835,7 @@ export interface VariationOption {
   isDiscountExempt?: boolean; 
   imageUrl?: string;
   autoQuantity?: number;
+  groupIds?: string[];
 }
 
 export interface VariationGroup {
@@ -854,6 +875,7 @@ export interface JobType {
   promoVariationGroupName?: string;
   ratingAverage?: number;
   ratingCount?: number;
+  groupIds?: string[];
 }
 
 export interface ClinicService {

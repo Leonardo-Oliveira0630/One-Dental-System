@@ -101,6 +101,7 @@ export default function Reports() {
     manualDentists = [], 
     sectors = [], 
     jobTypes = [], 
+    serviceGroups = [],
     currentOrg, 
     currentUser, 
     dentistPayments = [], 
@@ -130,7 +131,7 @@ export default function Reports() {
   // Available report types for navigation based on view permissions
   const availableReportTabs = useMemo(() => {
     const tabs: {
-      type: 'CLIENT_SUMMARY' | 'PRODUCTION' | 'DETAILED_ORDERS' | 'SERVICE_TYPES' | 'DEBTORS_CREDITORS' | 'RECEIPTS' | 'CATEGORY_SUMMARY';
+      type: 'CLIENT_SUMMARY' | 'PRODUCTION' | 'DETAILED_ORDERS' | 'SERVICE_TYPES' | 'DEBTORS_CREDITORS' | 'RECEIPTS' | 'CATEGORY_SUMMARY' | 'GROUP_SUMMARY';
       label: string;
       icon: any;
       activeColor: string;
@@ -201,6 +202,14 @@ export default function Reports() {
         textColor: 'text-blue-600',
         canExport: canExportServiceTypes
       });
+      tabs.push({
+        type: 'GROUP_SUMMARY',
+        label: t('reports.groupSummary', 'Por Grupo'),
+        icon: Layers,
+        activeColor: 'bg-white text-purple-700 shadow-sm border border-slate-200/60',
+        textColor: 'text-purple-600',
+        canExport: canExportServiceTypes
+      });
     }
 
     return tabs;
@@ -248,9 +257,10 @@ export default function Reports() {
   const [statusFilter, setStatusFilter] = useState('');
   const [urgencyFilter, setUrgencyFilter] = useState('');
   const [groupBy, setGroupBy] = useState<'DATE' | 'JOB_TYPE' | 'LIST' | 'COLLABORATOR'>('DATE');
-  const [reportType, setReportType] = useState<'CLIENT_SUMMARY' | 'PRODUCTION' | 'DETAILED_ORDERS' | 'SERVICE_TYPES' | 'DEBTORS_CREDITORS' | 'RECEIPTS' | 'CATEGORY_SUMMARY'>('CLIENT_SUMMARY');
+  const [reportType, setReportType] = useState<'CLIENT_SUMMARY' | 'PRODUCTION' | 'DETAILED_ORDERS' | 'SERVICE_TYPES' | 'DEBTORS_CREDITORS' | 'RECEIPTS' | 'CATEGORY_SUMMARY' | 'GROUP_SUMMARY'>('CLIENT_SUMMARY');
   const [selectedServiceCategory, setSelectedServiceCategory] = useState<string>('');
   const [showServiceTypesInCategory, setShowServiceTypesInCategory] = useState(false);
+  const [showServiceTypesInGroup, setShowServiceTypesInGroup] = useState(false);
   const [receiptsSubView, setReceiptsSubView] = useState<'CLIENTS' | 'TRANSACTIONS'>('CLIENTS');
 
   // Handle outside clicks to close dropdowns
@@ -399,6 +409,7 @@ export default function Reports() {
       case 'DETAILED_ORDERS': return canExportDetailedOrders;
       case 'SERVICE_TYPES': return canExportServiceTypes;
       case 'CATEGORY_SUMMARY': return canExportServiceTypes;
+      case 'GROUP_SUMMARY': return canExportServiceTypes;
       case 'DEBTORS_CREDITORS': return canExportClientSummary;
       case 'RECEIPTS': return canExportClientSummary;
       default: return false;
@@ -1195,6 +1206,137 @@ export default function Reports() {
     return result.sort((a, b) => b.quantity - a.quantity);
   }, [filteredJobs, reportType, jobTypes, allCategoriesList, selectedServiceCategory]);
 
+  const groupStats = useMemo(() => {
+    if (reportType !== 'GROUP_SUMMARY') return null;
+
+    const stats: Record<string, {
+      groupId: string;
+      groupName: string;
+      groupColor?: string;
+      description?: string;
+      quantity: number;
+      totalValue: number;
+      serviceTypesMap: Record<string, { name: string; quantity: number; totalValue: number }>;
+    }> = {};
+
+    (serviceGroups || []).forEach(grp => {
+      stats[grp.id] = {
+        groupId: grp.id,
+        groupName: grp.name,
+        groupColor: grp.color,
+        description: grp.description,
+        quantity: 0,
+        totalValue: 0,
+        serviceTypesMap: {}
+      };
+    });
+
+    filteredJobs.forEach(job => {
+      (job.items || []).forEach((item: any) => {
+        const typeId = item.jobTypeId || item.name;
+        const matchingJt = jobTypes.find(tj => tj.id === typeId || tj.name === item.name);
+        if (!matchingJt) return;
+
+        const qty = safeNum(item.quantity, 1);
+        const val = (safeNum(item.price) * qty) - safeNum(item.appliedDiscount, 0);
+
+        const selectedVariationIds: string[] = item.selectedVariationIds || [];
+        const selectedVariationNames: string[] = [];
+        
+        if (matchingJt.variationGroups && selectedVariationIds.length > 0) {
+          matchingJt.variationGroups.forEach(vg => {
+            vg.options.forEach(opt => {
+              if (selectedVariationIds.includes(opt.id)) {
+                selectedVariationNames.push(opt.name);
+              }
+            });
+          });
+        }
+
+        (serviceGroups || []).forEach(grp => {
+          let matches = false;
+
+          // 1. Check if JobType itself belongs to group
+          if (matchingJt.groupIds?.includes(grp.id)) {
+            matches = true;
+          }
+
+          // 2. Check if any selected variation option belongs to group
+          if (!matches && matchingJt.variationGroups && selectedVariationIds.length > 0) {
+            for (const vg of matchingJt.variationGroups) {
+              for (const opt of vg.options) {
+                if (selectedVariationIds.includes(opt.id) && opt.groupIds?.includes(grp.id)) {
+                  matches = true;
+                  break;
+                }
+              }
+              if (matches) break;
+            }
+          }
+
+          // 3. Check targets defined on group object
+          if (!matches && grp.targets && grp.targets.length > 0) {
+            for (const target of grp.targets) {
+              if (target.jobTypeId === matchingJt.id) {
+                const isTargetingSpecificOption = Boolean(target.optionId || target.optionName || target.optionValue);
+                if (!isTargetingSpecificOption) {
+                  // Targets the whole JobType
+                  matches = true;
+                  break;
+                } else {
+                  // Targets a specific variation option
+                  const matchById = Boolean(target.optionId && selectedVariationIds.includes(target.optionId));
+                  const matchByName = Boolean(
+                    (target.optionName || target.optionValue) &&
+                    selectedVariationNames.some(
+                      name => name.toLowerCase().trim() === (target.optionName || target.optionValue)?.toLowerCase().trim()
+                    )
+                  );
+
+                  if (matchById || matchByName) {
+                    matches = true;
+                    break;
+                  }
+                }
+              }
+            }
+          }
+
+          if (matches) {
+            if (!stats[grp.id]) {
+              stats[grp.id] = {
+                groupId: grp.id,
+                groupName: grp.name,
+                groupColor: grp.color,
+                description: grp.description,
+                quantity: 0,
+                totalValue: 0,
+                serviceTypesMap: {}
+              };
+            }
+
+            const entry = stats[grp.id];
+            entry.quantity += qty;
+            entry.totalValue += val;
+
+            const displaySubName = selectedVariationNames.length > 0
+              ? `${matchingJt.name} (${selectedVariationNames.join(', ')})`
+              : matchingJt.name;
+
+            if (!entry.serviceTypesMap[displaySubName]) {
+              entry.serviceTypesMap[displaySubName] = { name: displaySubName, quantity: 0, totalValue: 0 };
+            }
+            entry.serviceTypesMap[displaySubName].quantity += qty;
+            entry.serviceTypesMap[displaySubName].totalValue += val;
+          }
+        });
+      });
+    });
+
+    const result = Object.values(stats).filter(s => s.quantity > 0);
+    return result.sort((a, b) => b.quantity - a.quantity);
+  }, [filteredJobs, reportType, jobTypes, serviceGroups]);
+
   // Export to PDF
   const generatePDF = () => {
     if (!canExportCurrentReport) {
@@ -1212,6 +1354,8 @@ export default function Reports() {
     if (reportType === 'RECEIPTS') title = `Relatório de Recebimentos - ${orgName}`;
     if (reportType === 'DETAILED_ORDERS') title = t('reports.pdfReportTitleDetailedOrders', 'Relatório Detalhado de Pedidos - {{org}}', { org: orgName });
     if (reportType === 'SERVICE_TYPES') title = t('reports.pdfReportTitleServiceTypes', 'Relatório de Tipos de Serviço - {{org}}', { org: orgName });
+    if (reportType === 'CATEGORY_SUMMARY') title = `Relatório por Categoria - ${orgName}`;
+    if (reportType === 'GROUP_SUMMARY') title = `Relatório por Grupo de Serviço - ${orgName}`;
     doc.text(title, 14, 20);
     
     doc.setFontSize(10);
@@ -1494,6 +1638,43 @@ export default function Reports() {
       return;
     }
 
+    // --- PDF: GROUP_SUMMARY ---
+    if (reportType === 'GROUP_SUMMARY' && groupStats) {
+      doc.text(`Total de trabalhos: ${filteredJobs.length}`, 14, 36);
+      
+      const tableData: any[] = [];
+      groupStats.forEach(grp => {
+        tableData.push([
+          `[GRUPO] ${grp.groupName}`,
+          grp.quantity.toString(),
+          `R$ ${grp.totalValue.toFixed(2)}`
+        ]);
+        Object.values(grp.serviceTypesMap).forEach(st => {
+          tableData.push([
+            `   └─ ${st.name}`,
+            st.quantity.toString(),
+            `R$ ${st.totalValue.toFixed(2)}`
+          ]);
+        });
+      });
+
+      autoTable(doc, {
+        startY: 45,
+        head: [[
+          'Grupo / Tipo de Serviço',
+          'Quantidade Produzida',
+          'Valor Total Produzido'
+        ]],
+        body: tableData,
+        theme: 'grid',
+        headStyles: { fillColor: [124, 58, 237] },
+        styles: { fontSize: 9, cellPadding: 3 },
+      });
+      
+      doc.save(`relatorio-por-grupo-${new Date().getTime()}.pdf`);
+      return;
+    }
+
     let filterText = `Filtros: ${filteredJobs.length} trabalhos encontrados`;
     if (selectedDentist) {
       filterText += `  |  Cliente: ${selectedDentist.name}`;
@@ -1628,6 +1809,29 @@ export default function Reports() {
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Por_Categoria');
       XLSX.writeFile(wb, `relatorio_por_categoria_${currentOrg?.name || 'labprox'}_${new Date().toISOString().split('T')[0]}.xlsx`);
+      return;
+    }
+    if (reportType === 'GROUP_SUMMARY' && groupStats) {
+      const rows: any[] = [];
+      groupStats.forEach(grp => {
+        rows.push({
+          'Grupo / Tipo de Serviço': `[GRUPO] ${grp.groupName}`,
+          'Quantidade Produzida': grp.quantity,
+          'Valor Total Produzido (R$)': Number(grp.totalValue.toFixed(2))
+        });
+        Object.values(grp.serviceTypesMap).forEach(st => {
+          rows.push({
+            'Grupo / Tipo de Serviço': `   └─ ${st.name}`,
+            'Quantidade Produzida': st.quantity,
+            'Valor Total Produzido (R$)': Number(st.totalValue.toFixed(2))
+          });
+        });
+      });
+
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Por_Grupo');
+      XLSX.writeFile(wb, `relatorio_por_grupo_${currentOrg?.name || 'labprox'}_${new Date().toISOString().split('T')[0]}.xlsx`);
       return;
     }
     if (reportType === 'DEBTORS_CREDITORS') {
@@ -2030,6 +2234,26 @@ export default function Reports() {
                 </div>
                 <p className="text-[11px] text-slate-500 font-medium mt-1 leading-snug">
                   Somatória de quantidade de elementos e valor total por categoria de serviço.
+                </p>
+              </button>
+            )}
+
+            {canViewServiceTypes && (
+              <button
+                type="button"
+                onClick={() => setReportType('GROUP_SUMMARY')}
+                className={`w-full text-left p-3.5 rounded-2xl transition-all border cursor-pointer ${
+                  reportType === 'GROUP_SUMMARY'
+                    ? 'bg-purple-50/90 border-purple-300 ring-2 ring-purple-500/20 text-purple-950 shadow-sm'
+                    : 'bg-slate-50/60 hover:bg-slate-100/80 border-slate-200/70 text-slate-800'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-xs uppercase tracking-wide">Por Grupo</span>
+                  {reportType === 'GROUP_SUMMARY' && <span className="text-[10px] font-black uppercase text-purple-700 bg-purple-100 px-2 py-0.5 rounded-md">Ativo</span>}
+                </div>
+                <p className="text-[11px] text-slate-500 font-medium mt-1 leading-snug">
+                  Somatória de quantidade e valor total agrupados por grupo de métricas.
                 </p>
               </button>
             )}
@@ -3448,6 +3672,97 @@ export default function Reports() {
                         </span>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
                           {Object.values(cat.serviceTypesMap).map((st) => (
+                            <div key={st.name} className="bg-white p-3 rounded-xl border border-slate-200/70 shadow-xs flex items-center justify-between gap-3">
+                              <span className="text-xs font-bold text-slate-800 truncate" title={st.name}>{st.name}</span>
+                              <div className="text-right shrink-0">
+                                <span className="text-xs font-black text-slate-900 block">{st.quantity} un.</span>
+                                <span className="text-[11px] font-bold text-teal-700">R$ {st.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : reportType === 'GROUP_SUMMARY' && groupStats ? (
+          /* --- VIEW: GROUP_SUMMARY --- */
+          <div className="p-5 sm:p-6 space-y-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-100 pb-4">
+              <div>
+                <h3 className="font-black text-slate-900 text-lg flex items-center gap-2">
+                  <Layers className="text-purple-600" size={20} />
+                  Relatório de Produção por Grupo
+                </h3>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                  Somatória de quantidade de elementos e valor total por grupo de métricas.
+                </p>
+              </div>
+
+              <label className="flex items-center gap-2 px-3.5 py-2 bg-slate-100/90 hover:bg-slate-200/70 rounded-xl border border-slate-200 cursor-pointer select-none transition-all shadow-2xs">
+                <input
+                  type="checkbox"
+                  checked={showServiceTypesInGroup}
+                  onChange={(e) => setShowServiceTypesInGroup(e.target.checked)}
+                  className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 border-slate-300 cursor-pointer"
+                />
+                <span className="text-xs font-bold text-slate-700">Visualizar tipos de serviço</span>
+              </label>
+            </div>
+
+            {groupStats.length === 0 ? (
+              <div className="text-center py-12 text-slate-500 bg-slate-50/50 rounded-2xl border border-slate-100">
+                <Layers size={40} className="mx-auto mb-3 opacity-20 text-purple-600" />
+                <p className="font-bold text-sm">Nenhum grupo de métricas com produção registrada no período.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {groupStats.map((grp) => (
+                  <div key={grp.groupId} className="bg-slate-50/70 border border-slate-200/80 rounded-2xl p-5 space-y-3 shadow-xs">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-200/60 pb-3">
+                      <div className="flex items-center gap-3">
+                        <div 
+                          className="w-10 h-10 rounded-xl text-white font-black flex items-center justify-center text-sm shadow-xs"
+                          style={{ backgroundColor: grp.groupColor || '#8B5CF6' }}
+                        >
+                          {grp.groupName.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <h4 className="font-black text-slate-900 text-base">{grp.groupName}</h4>
+                          {grp.description ? (
+                            <span className="text-[11px] text-slate-500 font-medium">{grp.description}</span>
+                          ) : (
+                            <span className="text-[11px] text-slate-500 font-medium">
+                              {Object.keys(grp.serviceTypesMap).length} {Object.keys(grp.serviceTypesMap).length === 1 ? 'tipo/variação de serviço' : 'tipos/variações de serviço'}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-4 bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-xs">
+                        <div>
+                          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">Qtd Total</span>
+                          <span className="text-sm font-black text-slate-900">{grp.quantity} elementos</span>
+                        </div>
+                        <div className="h-6 w-px bg-slate-200" />
+                        <div>
+                          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">Valor Total</span>
+                          <span className="text-sm font-black text-purple-700">R$ {grp.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Sublist of service types inside group - conditionally shown when checkbox is checked */}
+                    {showServiceTypesInGroup && Object.keys(grp.serviceTypesMap).length > 0 && (
+                      <div className="pl-4 sm:pl-12 space-y-2 pt-1 animate-in fade-in duration-200">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-2">
+                          Detalhamento por Tipo de Serviço / Variação:
+                        </span>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                          {Object.values(grp.serviceTypesMap).map((st) => (
                             <div key={st.name} className="bg-white p-3 rounded-xl border border-slate-200/70 shadow-xs flex items-center justify-between gap-3">
                               <span className="text-xs font-bold text-slate-800 truncate" title={st.name}>{st.name}</span>
                               <div className="text-right shrink-0">

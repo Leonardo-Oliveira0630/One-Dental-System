@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import i18n from '../src/i18n';
 import { useApp } from '../context/AppContext';
 import { JobStatus, UserRole, UrgencyLevel, Job, PermissionKey } from '../types';
-import { Search, Filter, FileDown, Eye, Clock, AlertCircle, Printer, X, ChevronRight, MapPin, User, SlidersHorizontal, RefreshCcw, Ban, Building, QrCode, Copy, Check, Globe, HardDrive, CheckCircle2, Truck, Loader2, Box, RotateCcw, Calendar, MoreHorizontal, PlusCircle, Camera, Sun, Sunset } from 'lucide-react';
+import { Search, Filter, FileDown, Eye, Clock, AlertCircle, Printer, X, ChevronRight, ChevronDown, MapPin, User, SlidersHorizontal, RefreshCcw, Ban, Building, QrCode, Copy, Check, Globe, HardDrive, CheckCircle2, Truck, Loader2, Box, RotateCcw, Calendar, MoreHorizontal, PlusCircle, Camera, Sun, Sunset } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getContrastColor } from '../services/mockData';
 import { MultiSelect } from '../components/MultiSelect';
@@ -178,11 +178,13 @@ const JobRow = memo(({ isJobOverdue,
     const canFinalize = isLabStaff && hasPerm('jobs:finish') && job.status !== JobStatus.COMPLETED && job.status !== JobStatus.DELIVERED && job.status !== JobStatus.REJECTED;
     const canRoute = isLabStaff && (hasPerm('logistics:view') || hasPerm('jobs:edit')) && job.status === JobStatus.COMPLETED && !job.routeId;
     const canReopen = isLabStaff && hasPerm('jobs:reopen') && (job.status === JobStatus.COMPLETED || job.status === JobStatus.DELIVERED || job.status === JobStatus.RETURNED);
+    const [isExpanded, setIsExpanded] = useState(false);
     const timeInfo = getSectorTimeInfo(job);
     const showAttention = !isClient && timeInfo.isAttention;
 
     return (
-        <tr className={`hover:bg-blue-50/30 dark:hover:bg-blue-950/20 transition-colors ${showAttention ? 'bg-yellow-50/50 dark:bg-yellow-950/20' : ''}`}>
+        <>
+            <tr className={`hover:bg-blue-50/30 dark:hover:bg-blue-950/20 transition-colors ${showAttention ? 'bg-yellow-50/50 dark:bg-yellow-950/20' : ''}`}>
             {/* 1. OS # ou Orçamento # */}
             <td className="p-4 font-mono font-bold text-sm">
                 <div className="flex items-center gap-2">
@@ -338,14 +340,48 @@ const JobRow = memo(({ isJobOverdue,
             )}
             
             <td className="p-4 text-right">
-                <div className="flex justify-end gap-1">
+                <div className="flex justify-end gap-1 items-center">
                     {!isBudgetMode && canFinalize && <button onClick={() => handleFinalizeJob(job)} className="p-2 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-950/40 rounded-lg" title={t('orders.actionFinalize', 'Finalizar')}><CheckCircle2 size={18} /></button>}
                     {!isBudgetMode && canReopen && <button onClick={() => handleReopenJob(job)} className="p-2 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-950/40 rounded-lg" title={t('orders.actionReopen', 'Reabrir')}><RotateCcw size={18} /></button>}
                     {!isBudgetMode && canRoute && <button onClick={() => setRouteModalJob(job)} className="p-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-950/40 rounded-lg cursor-pointer" title={t('orders.scaleForDelivery', 'Escalar p/ Entrega')}><Truck size={18} /></button>}
+                    
+                    <button 
+                        onClick={() => setIsExpanded(!isExpanded)} 
+                        className={`p-2 rounded-lg transition-colors cursor-pointer ${isExpanded ? 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                        title={isExpanded ? "Ocultar serviços" : "Ver tipos de serviço e quantidades"}
+                    >
+                        <ChevronDown size={18} className={`transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+                    </button>
+
                     <button onClick={() => onOpenJob ? onOpenJob(job.id) : navigate(`/jobs/${job.id}`)} className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-950/40 rounded-lg cursor-pointer" title={isBudgetMode ? t('orders.viewBudget', 'Ver Orçamento') : t('common.view', 'Visualizar')}><Eye size={18} /></button>
                 </div>
             </td>
         </tr>
+        {isExpanded && (
+            <tr className="bg-slate-50/90 dark:bg-slate-900/60 border-b border-slate-200/80 animate-in fade-in duration-200">
+                <td colSpan={12} className="px-6 py-3.5">
+                    <div className="flex flex-col space-y-2">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">Tipos de Serviço e Quantidades do Caso:</span>
+                        <div className="flex flex-wrap gap-2">
+                            {job.items && job.items.length > 0 ? (
+                                job.items.map((item: any, i: number) => (
+                                    <div key={i} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-xl shadow-2xs flex items-center gap-2 text-xs">
+                                        <span className="font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded-md">{item.quantity || 1}x</span>
+                                        <span className="font-bold text-slate-800 dark:text-slate-200">{item.name}</span>
+                                        {item.selectedTeeth && item.selectedTeeth.length > 0 && (
+                                            <span className="text-[10px] text-slate-400 font-semibold">(Dentes: {item.selectedTeeth.join(', ')})</span>
+                                        )}
+                                    </div>
+                                ))
+                            ) : (
+                                <span className="text-xs text-slate-400 italic">Nenhum serviço especificado.</span>
+                            )}
+                        </div>
+                    </div>
+                </td>
+            </tr>
+        )}
+    </>
     );
 });
 

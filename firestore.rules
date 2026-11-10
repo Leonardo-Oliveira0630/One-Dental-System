@@ -148,6 +148,14 @@ service cloud.firestore {
         );
       }
 
+      match /serviceGroups/{groupId} {
+        allow read: if true;
+        allow write: if isAuthenticated() && (
+          isSuperAdmin() || 
+          (belongsToOrg(orgId) && isAdmin())
+        );
+      }
+
       match /ratings/{ratingId} {
         allow read: if true;
         allow write: if isAuthenticated() && (

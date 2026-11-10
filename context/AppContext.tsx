@@ -6,7 +6,7 @@ import {
   ClinicPatient, Appointment, Organization, SubscriptionPlan, OrganizationConnection, Coupon, LabCoupon, CommissionRecord, CommissionStatus, ManualDentist, GlobalSettings, DeliveryRoute, RouteItem, BoxColor, ClinicService, ClinicRoom, ClinicDentist, PermissionKey, ALL_SYSTEM_PERMISSIONS, PaymentRecord, PriceTable, BillingBatch, DentistPayment, Courier,
   CardMachine, BankAccount,
   JobStatus, UrgencyLevel, OnlineRequisition, Budget,
-  AppNotification, NotificationPreferences, CommissionGroup, isReviewerUser,
+  AppNotification, NotificationPreferences, CommissionGroup, ServiceGroup, ServiceGroupTarget, isReviewerUser,
   isClinicReviewer, isSupplierReviewer
 } from '../types';
 import { 
@@ -126,6 +126,7 @@ interface AppContextType {
   manualDentists: ManualDentist[];
   priceTables: PriceTable[];
   commissionGroups: CommissionGroup[];
+  serviceGroups: ServiceGroup[];
   billingBatches: BillingBatch[];
   dentistPayments: DentistPayment[];
   cardMachines: CardMachine[];
@@ -265,6 +266,10 @@ interface AppContextType {
   updateCommissionGroup: (id: string, updates: Partial<CommissionGroup>) => Promise<void>;
   deleteCommissionGroup: (id: string) => Promise<void>;
 
+  addServiceGroup: (group: Partial<ServiceGroup>) => Promise<string | undefined>;
+  updateServiceGroup: (id: string, updates: Partial<ServiceGroup>) => Promise<void>;
+  deleteServiceGroup: (id: string) => Promise<void>;
+
   addJobToRoute: (job: Job, driver: string, shift: 'MORNING' | 'AFTERNOON', date: Date, observations?: string, targetRouteId?: string) => Promise<void>;
   generateBatchBoleto: (dentistId: string, jobIds: string[], dueDate: Date, customAmount?: number) => Promise<any>;
   addDentistPayment: (p: Omit<DentistPayment, 'id' | 'organizationId' | 'createdAt'>) => Promise<void>;
@@ -349,6 +354,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [manualDentists, setManualDentists] = useState<ManualDentist[]>([]);
   const [priceTables, setPriceTables] = useState<PriceTable[]>([]);
   const [commissionGroups, setCommissionGroups] = useState<CommissionGroup[]>([]);
+  const [serviceGroups, setServiceGroups] = useState<ServiceGroup[]>([]);
   const [cardMachines, setCardMachines] = useState<CardMachine[]>([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [inventoryCategories, setInventoryCategories] = useState<import('../types').InventoryCategory[]>([]);
@@ -726,6 +732,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             unsubs.push(api.subscribeLabCoupons(myOrgId, setLabCoupons));
             unsubs.push(api.subscribePriceTables(myOrgId, setPriceTables));
             unsubs.push(api.subscribeCommissionGroups(myOrgId, setCommissionGroups));
+            unsubs.push(api.subscribeServiceGroups(myOrgId, setServiceGroups));
             unsubs.push(api.subscribeCardMachines(myOrgId, setCardMachines));
             unsubs.push(api.subscribeBankAccounts(myOrgId, setBankAccounts));
             unsubs.push(api.subscribeInventoryCategories(myOrgId, setInventoryCategories));
@@ -1816,6 +1823,51 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     }
   };
 
+  const addServiceGroup = async (group: Partial<ServiceGroup>): Promise<string | undefined> => {
+    const orgId = activeDataId;
+    if (!orgId) return;
+    try {
+      const newId = `sg_${Date.now()}`;
+      const newGroup: ServiceGroup = {
+        name: group.name || '',
+        description: group.description,
+        color: group.color || '#3b82f6',
+        targets: group.targets || [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        ...group,
+        id: newId,
+        organizationId: orgId,
+      };
+      await api.apiAddServiceGroup(orgId, newGroup);
+      return newId;
+    } catch (e: any) {
+      handleFirestoreError(e, OperationType.CREATE, `organizations/${orgId}/serviceGroups`);
+    }
+  };
+
+  const updateServiceGroup = async (id: string, updates: Partial<ServiceGroup>) => {
+    const orgId = activeDataId;
+    if (!orgId) return;
+    setServiceGroups(prev => prev.map(g => g.id === id ? { ...g, ...updates, updatedAt: new Date() } : g));
+    try {
+      await api.apiUpdateServiceGroup(orgId, id, updates);
+    } catch (e: any) {
+      handleFirestoreError(e, OperationType.UPDATE, `organizations/${orgId}/serviceGroups/${id}`);
+    }
+  };
+
+  const deleteServiceGroup = async (id: string) => {
+    const orgId = activeDataId;
+    if (!orgId) return;
+    setServiceGroups(prev => prev.filter(g => g.id !== id));
+    try {
+      await api.apiDeleteServiceGroup(orgId, id);
+    } catch (e: any) {
+      handleFirestoreError(e, OperationType.DELETE, `organizations/${orgId}/serviceGroups/${id}`);
+    }
+  };
+
   const switchActiveOrganization = (id: string | null) => {
     if (!id) { setActiveOrganization(null); return; }
     
@@ -2237,6 +2289,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     addBankAccount, updateBankAccount, deleteBankAccount,
     addPriceTable, updatePriceTable, deletePriceTable,
     addCommissionGroup, updateCommissionGroup, deleteCommissionGroup,
+    serviceGroups, addServiceGroup, updateServiceGroup, deleteServiceGroup,
     addJobToRoute, generateBatchBoleto,
     addDentistPayment, updateDentistPayment, deleteDentistPayment, updateBillingBatchStatus,
     addPatientPayment, updatePatientPayment, deletePatientPayment,
@@ -2248,7 +2301,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   }), [
     currentUser, currentOrg, currentPlan, isLoadingAuth, globalSettings,
     allUsers, jobs, budgets, jobTypes, clinicServices, clinicRooms, clinicDentists, sectors, boxColors, alerts, commissions,
-    allOrganizations, allLaboratories, allPlans, coupons, labCoupons, patients, appointments, manualDentists, priceTables, commissionGroups, billingBatches, dentistPayments, activeAlert,
+    allOrganizations, allLaboratories, allPlans, coupons, labCoupons, patients, appointments, manualDentists, priceTables, commissionGroups, serviceGroups, billingBatches, dentistPayments, activeAlert,
     patientPayments, patientBillingBatches,
     cardMachines, bankAccounts, inventoryCategories, inventoryItems,
     allSuppliers, allSupplierProducts, supplierOrders,

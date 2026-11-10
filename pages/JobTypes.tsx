@@ -2,8 +2,8 @@ import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import * as XLSX from 'xlsx';
 import { useApp } from '../context/AppContext';
-import { JobType, VariationGroup, VariationOption } from '../types';
-import { Plus, Edit2, Trash2, X, Save, Layers, Package, Tag, AlertCircle, Folder, ToggleLeft, ToggleRight, List, Type, Image as ImageIcon, UploadCloud, Store, Eye, EyeOff, PercentCircle, Briefcase, Share2, Check, Search, Settings, ChevronDown, ChevronRight, Download, FileCode, Clock, CheckSquare } from 'lucide-react';
+import { JobType, VariationGroup, VariationOption, ServiceGroup, ServiceGroupTarget } from '../types';
+import { Plus, Edit2, Trash2, X, Save, Layers, Package, Tag, AlertCircle, Folder, ToggleLeft, ToggleRight, List, Type, Image as ImageIcon, UploadCloud, Store, Eye, EyeOff, PercentCircle, Briefcase, Share2, Check, Search, Settings, ChevronDown, ChevronRight, Download, FileCode, Clock, CheckSquare, BarChart2 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
 
@@ -171,7 +171,7 @@ const CategoryCombobox = ({
 
 export const JobTypes = () => {
   const { t } = useTranslation();
-  const { jobTypes, addJobType, updateJobType, deleteJobType, uploadFile, sectors, currentUser, currentOrg, currentPlan, priceTables } = useApp();
+  const { jobTypes, addJobType, updateJobType, deleteJobType, uploadFile, sectors, currentUser, currentOrg, currentPlan, priceTables, serviceGroups = [], addServiceGroup, updateServiceGroup, deleteServiceGroup } = useApp();
   
   const isFreeLab = currentOrg?.orgType === 'LAB' && (currentOrg?.planId === 'free_lab' || currentPlan?.id === 'free_lab' || currentPlan?.features?.isLabFreeStoreOnly === true);
 
@@ -180,6 +180,15 @@ export const JobTypes = () => {
   const [activeTab, setActiveTab] = useState<Tab>('BASIC');
 
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // Service Groups (Metrics) Modal State
+  const [isServiceGroupModalOpen, setIsServiceGroupModalOpen] = useState(false);
+  const [editingServiceGroup, setEditingServiceGroup] = useState<ServiceGroup | null>(null);
+  const [groupFormName, setGroupFormName] = useState('');
+  const [groupFormDesc, setGroupFormDesc] = useState('');
+  const [groupFormColor, setGroupFormColor] = useState('#3b82f6');
+  const [groupFormTargets, setGroupFormTargets] = useState<ServiceGroupTarget[]>([]);
+  const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
 
   const exportToPDF = () => {
     const doc = new jsPDF();
@@ -619,6 +628,7 @@ export const JobTypes = () => {
     setImageFile(null);
     setPreviewUrl('');
     setAllowedSectors([]);
+    setSelectedGroupIds([]);
     setFormSectorStages({});
     const initialExpanded: Record<string, boolean> = {};
     sectors.forEach(s => { initialExpanded[s.name] = true; });
@@ -644,6 +654,7 @@ export const JobTypes = () => {
     setBaseCommission(type.baseCommission ?? '');
     setProductionTimeDays(type.productionTimeDays ?? '');
     setVariationGroups(type.variationGroups || []);
+    setSelectedGroupIds(type.groupIds || []);
     setIsVisibleInStore(type.isVisibleInStore !== false); // Default true if undefined
     setIsVisibleInOutsourcing(type.isVisibleInOutsourcing !== false); // Default true if undefined
     setIsVisibleInternally(isFreeLab ? false : (type.isVisibleInternally !== false));
@@ -782,6 +793,7 @@ export const JobTypes = () => {
           baseCommission: baseCommission === '' ? undefined : Number(baseCommission), 
           productionTimeDays: productionTimeDays === '' ? undefined : Math.max(0, Number(productionTimeDays)),
           variationGroups, 
+          groupIds: selectedGroupIds,
           isVisibleInStore, 
           isVisibleInOutsourcing, 
           isVisibleInternally, 
@@ -1007,6 +1019,23 @@ export const JobTypes = () => {
               >
                 <Folder size={14} className="text-emerald-600" />
                 <span>+ Categoria</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingServiceGroup(null);
+                  setGroupFormName('');
+                  setGroupFormDesc('');
+                  setGroupFormColor('#3b82f6');
+                  setGroupFormTargets([]);
+                  setIsServiceGroupModalOpen(true);
+                }}
+                className="px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer shadow-2xs"
+                title="Criar ou gerenciar grupos de serviços para métricas"
+              >
+                <BarChart2 size={14} className="text-blue-600" />
+                <span>+ Grupos (Métricas)</span>
               </button>
             </div>
 
@@ -1606,6 +1635,47 @@ export const JobTypes = () => {
                                         </div>
                                     </div>
                                 </div>
+                             </div>
+
+                             {/* Service Groups (Metrics) Assignment */}
+                             <div className="bg-white p-4 rounded-xl border border-slate-200 mt-6 shadow-sm">
+                                 <h3 className="font-bold text-slate-700 flex items-center gap-2 border-b border-slate-200 pb-2 mb-3">
+                                     <BarChart2 size={18} className="text-blue-500" /> Grupos de Métricas (Relatórios)
+                                 </h3>
+                                 <p className="text-xs text-slate-500 mb-3">
+                                     Vincule este tipo de serviço a grupos de métricas. Todas as variações deste serviço serão contabilizadas nos grupos selecionados.
+                                 </p>
+                                 {serviceGroups.length === 0 ? (
+                                     <p className="text-xs text-slate-400 italic">Nenhum grupo de métricas cadastrado. Clique em "+ Grupos (Métricas)" na barra superior para criar um.</p>
+                                 ) : (
+                                     <div className="flex flex-wrap gap-2">
+                                         {serviceGroups.map(g => {
+                                             const isChecked = selectedGroupIds.includes(g.id);
+                                             return (
+                                                 <button
+                                                     key={g.id}
+                                                     type="button"
+                                                     onClick={() => {
+                                                         if (isChecked) {
+                                                             setSelectedGroupIds(selectedGroupIds.filter(id => id !== g.id));
+                                                         } else {
+                                                             setSelectedGroupIds([...selectedGroupIds, g.id]);
+                                                         }
+                                                     }}
+                                                     className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 border transition-all cursor-pointer ${
+                                                         isChecked 
+                                                             ? 'bg-blue-600 text-white border-blue-600 shadow-xs' 
+                                                             : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                                                     }`}
+                                                 >
+                                                     <span className="w-2.5 h-2.5 rounded-full border border-white/40" style={{ backgroundColor: g.color || '#3b82f6' }} />
+                                                     <span>{g.name}</span>
+                                                     {isChecked && <Check size={12} />}
+                                                 </button>
+                                             );
+                                         })}
+                                     </div>
+                                 )}
                              </div>
 
                              {/* Allowed Sectors */}
@@ -2296,6 +2366,300 @@ export const JobTypes = () => {
                     </button>
                 </div>
             </div>
+        </div>
+      )}
+
+      {/* Service Groups Management Modal */}
+      {isServiceGroupModalOpen && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl max-w-3xl w-full p-6 shadow-2xl border border-slate-100 max-h-[92vh] flex flex-col space-y-4 animate-in zoom-in-95 duration-150">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+                  <BarChart2 size={22} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-800">Grupos de Métricas de Serviços</h3>
+                  <p className="text-xs text-slate-500">Reúna serviços e variações específicas para relatórios e métricas consolidadas</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsServiceGroupModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-2 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto min-h-0 space-y-5 pr-1">
+              {/* Existing Groups Bar / Chips */}
+              <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                    <Layers size={13} className="text-blue-600" /> Grupos Cadastrados ({serviceGroups.length})
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingServiceGroup(null);
+                      setGroupFormName('');
+                      setGroupFormDesc('');
+                      setGroupFormColor('#3b82f6');
+                      setGroupFormTargets([]);
+                    }}
+                    className="text-xs font-bold text-blue-600 hover:text-blue-800 bg-blue-100/70 hover:bg-blue-200/70 px-2.5 py-1 rounded-lg transition-colors cursor-pointer flex items-center gap-1"
+                  >
+                    <Plus size={13} /> Novo Grupo
+                  </button>
+                </div>
+
+                {serviceGroups.length === 0 ? (
+                  <p className="text-xs text-slate-400 italic">Nenhum grupo de métricas cadastrado ainda.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {serviceGroups.map(g => {
+                      const isSelected = editingServiceGroup?.id === g.id;
+                      return (
+                        <div
+                          key={g.id}
+                          className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all ${
+                            isSelected
+                              ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                              : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
+                          }`}
+                        >
+                          <span className="w-2.5 h-2.5 rounded-full border border-white/40 shrink-0" style={{ backgroundColor: g.color || '#3b82f6' }} />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingServiceGroup(g);
+                              setGroupFormName(g.name);
+                              setGroupFormDesc(g.description || '');
+                              setGroupFormColor(g.color || '#3b82f6');
+                              setGroupFormTargets(g.targets || []);
+                            }}
+                            className="hover:underline cursor-pointer"
+                          >
+                            {g.name}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (window.confirm(`Deseja realmente excluir o grupo "${g.name}"?`)) {
+                                deleteServiceGroup(g.id);
+                                if (editingServiceGroup?.id === g.id) {
+                                  setEditingServiceGroup(null);
+                                  setGroupFormName('');
+                                  setGroupFormDesc('');
+                                  setGroupFormTargets([]);
+                                }
+                              }
+                            }}
+                            className={`p-0.5 rounded hover:bg-red-500/20 ${isSelected ? 'text-white' : 'text-slate-400 hover:text-red-500'}`}
+                            title="Excluir grupo"
+                          >
+                            <X size={13} />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Group Editor Form */}
+              <div className="border border-slate-200 rounded-2xl p-4 bg-white space-y-4">
+                <h4 className="text-sm font-bold text-slate-800 border-b border-slate-100 pb-2">
+                  {editingServiceGroup ? `Editando Grupo: "${editingServiceGroup.name}"` : 'Cadastrar Novo Grupo de Métricas'}
+                </h4>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Nome do Grupo *</label>
+                    <input
+                      type="text"
+                      value={groupFormName}
+                      onChange={e => setGroupFormName(e.target.value)}
+                      placeholder="Ex: Zircônia, Protética Metal, Placas..."
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Cor do Grupo</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={groupFormColor}
+                        onChange={e => setGroupFormColor(e.target.value)}
+                        className="w-10 h-9 p-1 rounded-xl border border-slate-200 cursor-pointer"
+                      />
+                      <div className="flex gap-1">
+                        {['#3b82f6', '#10b981', '#8b5cf6', '#ec4899', '#f59e0b', '#6366f1'].map(c => (
+                          <button
+                            key={c}
+                            type="button"
+                            onClick={() => setGroupFormColor(c)}
+                            className="w-5 h-5 rounded-full border border-white shadow-2xs hover:scale-110 transition-transform"
+                            style={{ backgroundColor: c }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Descrição (opcional)</label>
+                  <input
+                    type="text"
+                    value={groupFormDesc}
+                    onChange={e => setGroupFormDesc(e.target.value)}
+                    placeholder="Descrição para identificação no relatório..."
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+                  />
+                </div>
+
+                {/* Targets Selector: Whole JobTypes or Specific Variations */}
+                <div className="space-y-2 pt-2 border-t border-slate-100">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                      Serviços e Variações Inclusas no Grupo ({groupFormTargets.length} regras selecionadas)
+                    </label>
+                    <span className="text-[10px] text-slate-400">Marque o serviço inteiro ou variações específicas</span>
+                  </div>
+
+                  <div className="max-h-64 overflow-y-auto border border-slate-200 rounded-xl divide-y divide-slate-100 bg-slate-50/50 p-2 space-y-2">
+                    {jobTypes.filter(jt => !isPromo(jt)).length === 0 ? (
+                      <p className="text-xs text-slate-400 italic p-2">Nenhum serviço cadastrado no catálogo.</p>
+                    ) : (
+                      jobTypes.filter(jt => !isPromo(jt)).map(jt => {
+                        const isWholeSelected = groupFormTargets.some(t => t.jobTypeId === jt.id && !t.optionId);
+                        const hasVariations = (jt.variationGroups || []).some(g => (g.options || []).length > 0);
+
+                        return (
+                          <div key={jt.id} className="bg-white rounded-xl border border-slate-100 p-2.5 space-y-2">
+                            {/* Whole Job Type Selector */}
+                            <label className="flex items-center gap-2 cursor-pointer font-bold text-xs text-slate-800">
+                              <input
+                                type="checkbox"
+                                checked={isWholeSelected}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    // Add whole job type target
+                                    setGroupFormTargets(prev => [
+                                      ...prev.filter(t => t.jobTypeId !== jt.id || t.optionId),
+                                      { jobTypeId: jt.id }
+                                    ]);
+                                  } else {
+                                    setGroupFormTargets(prev => prev.filter(t => !(t.jobTypeId === jt.id && !t.optionId)));
+                                  }
+                                }}
+                                className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500"
+                              />
+                              <span className="flex-1">{jt.name} <span className="text-[10px] font-semibold text-slate-400">({jt.category || 'Geral'})</span></span>
+                              {isWholeSelected && (
+                                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
+                                  Serviço Completo
+                                </span>
+                              )}
+                            </label>
+
+                            {/* Variations Options List */}
+                            {hasVariations && (
+                              <div className="pl-6 space-y-1.5 border-t border-slate-100 pt-1.5">
+                                {jt.variationGroups?.map(group => (
+                                  <div key={group.id} className="space-y-1">
+                                    <span className="text-[10px] font-bold text-indigo-600 block uppercase tracking-wider">{group.name}:</span>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                                      {(group.options || []).map(opt => {
+                                        const isOptSelected = groupFormTargets.some(t => t.jobTypeId === jt.id && t.optionId === opt.id);
+                                        return (
+                                          <label
+                                            key={opt.id}
+                                            className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs cursor-pointer border transition-colors ${
+                                              isOptSelected
+                                                ? 'bg-blue-50 border-blue-300 font-bold text-blue-800'
+                                                : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                                            }`}
+                                          >
+                                            <input
+                                              type="checkbox"
+                                              checked={isOptSelected}
+                                              onChange={(e) => {
+                                                if (e.target.checked) {
+                                                  setGroupFormTargets(prev => [
+                                                    ...prev,
+                                                    { jobTypeId: jt.id, groupName: group.name, optionId: opt.id, optionName: opt.name }
+                                                  ]);
+                                                } else {
+                                                  setGroupFormTargets(prev => prev.filter(t => !(t.jobTypeId === jt.id && t.optionId === opt.id)));
+                                                }
+                                              }}
+                                              className="w-3.5 h-3.5 rounded text-blue-600 focus:ring-blue-500"
+                                            />
+                                            <span className="truncate">{opt.name}</span>
+                                          </label>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-between border-t border-slate-100 pt-3 shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsServiceGroupModalOpen(false)}
+                className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={!groupFormName.trim()}
+                onClick={async () => {
+                  if (!groupFormName.trim()) return;
+                  if (editingServiceGroup) {
+                    await updateServiceGroup(editingServiceGroup.id, {
+                      name: groupFormName.trim(),
+                      description: groupFormDesc.trim(),
+                      color: groupFormColor,
+                      targets: groupFormTargets
+                    });
+                  } else {
+                    await addServiceGroup({
+                      name: groupFormName.trim(),
+                      description: groupFormDesc.trim(),
+                      color: groupFormColor,
+                      targets: groupFormTargets
+                    });
+                  }
+                  setEditingServiceGroup(null);
+                  setGroupFormName('');
+                  setGroupFormDesc('');
+                  setGroupFormTargets([]);
+                  setIsServiceGroupModalOpen(false);
+                }}
+                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-md transition-all cursor-pointer flex items-center gap-1.5"
+              >
+                <Save size={15} />
+                <span>{editingServiceGroup ? 'Atualizar Grupo' : 'Salvar Grupo'}</span>
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

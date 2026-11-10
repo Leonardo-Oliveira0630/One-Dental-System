@@ -26,7 +26,7 @@ import {
   Appointment, Organization, SubscriptionPlan, OrganizationConnection, 
   Coupon, LabCoupon, CommissionRecord, ManualDentist, Expense, BillingBatch, GlobalSettings, LabRating, DeliveryRoute, RouteItem, BoxColor, ChatMessage, ClinicService, ClinicRoom, ClinicDentist, PatientHistoryRecord, PaymentRecord, PriceTable, DentistPayment, CardMachine, BankAccount,
   Tutorial, Courier, ClinicBudget, ClinicPrescription, ClinicClinicalCard, ClinicAnamnesis, ClinicPatientFinance, ClinicTreatmentPlan, OnlineRequisition, SupplierOrder, CaseApprovalItem, CaseApprovalReply, CaseApprovalFile, Budget,
-  OrderReturnRequest, SupplierChatMessage, SupplierConversation, CommissionGroup, isReviewerUser,
+  OrderReturnRequest, SupplierChatMessage, SupplierConversation, CommissionGroup, ServiceGroup, isReviewerUser,
   isClinicReviewer, isSupplierReviewer
 } from '../types';
 import {
@@ -828,6 +828,17 @@ export const subscribeJobTypes = (orgId: string, cb: (types: JobType[]) => void)
 export const apiAddJobType = (orgId: string, type: JobType) => setDoc(doc(db, `organizations/${orgId}/jobTypes`, type.id), type);
 export const apiUpdateJobType = (orgId: string, id: string, updates: Partial<JobType>) => updateDoc(doc(db, `organizations/${orgId}/jobTypes`, id), updates);
 export const apiDeleteJobType = (id: string, id2: string) => deleteDoc(doc(db, `organizations/${id}/jobTypes`, id2));
+
+// --- SERVICE GROUPS ---
+export const subscribeServiceGroups = (orgId: string, cb: (groups: ServiceGroup[]) => void) => {
+    if (!orgId) return () => {};
+    return onSnapshot(collection(db, `organizations/${orgId}/serviceGroups`), (snap: any) => {
+        cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any } as ServiceGroup)));
+    }, (error: any) => logger.warn(`[Firestore] Erro em subscribeServiceGroups: ${error.code}`));
+};
+export const apiAddServiceGroup = (orgId: string, group: ServiceGroup) => setDoc(doc(db, `organizations/${orgId}/serviceGroups`, group.id), group);
+export const apiUpdateServiceGroup = (orgId: string, id: string, updates: Partial<ServiceGroup>) => updateDoc(doc(db, `organizations/${orgId}/serviceGroups`, id), updates);
+export const apiDeleteServiceGroup = (orgId: string, id: string) => deleteDoc(doc(db, `organizations/${orgId}/serviceGroups`, id));
 
 // --- INVENTORY ---
 export const subscribeInventoryCategories = (orgId: string, cb: (categories: any[]) => void) => {
