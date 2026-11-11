@@ -932,7 +932,7 @@ export default function Reports() {
 
   // Recebimentos (Receipts) Data
   const receiptsData = useMemo(() => {
-    const rawPayments = (dentistPayments || []).filter(p => p.type !== 'MANUAL_DEBIT');
+    const rawPayments = (dentistPayments || []).filter(p => p.type !== 'MANUAL_DEBIT' && p.type !== 'MANUAL_CREDIT');
 
     const filtered = rawPayments.filter(p => {
       // Date filter based on paymentDate

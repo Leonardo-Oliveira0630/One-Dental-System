@@ -819,7 +819,13 @@ export const Dentists = () => {
             totalServices += actualServicesVal;
         });
 
-        const totalPayments = chronoHistory.history.filter(i => i.type !== 'DEBIT').reduce((acc, curr) => acc + curr.amount, 0);
+        const nonDebitItems = chronoHistory.history.filter(i => i.type !== 'DEBIT');
+        const totalManualCredit = nonDebitItems
+            .filter(i => (i.payment as any)?.type === 'MANUAL_CREDIT')
+            .reduce((acc, curr) => acc + curr.amount, 0);
+        const totalPayments = nonDebitItems
+            .filter(i => (i.payment as any)?.type !== 'MANUAL_CREDIT')
+            .reduce((acc, curr) => acc + curr.amount, 0);
         const currentBalance = chronoHistory.history.length > 0 ? chronoHistory.history[chronoHistory.history.length - 1].balanceAfter : chronoHistory.previousBalance;
 
         // Draw Summary Box aligned to right side
@@ -857,6 +863,14 @@ export const Dentists = () => {
         doc.text(t('dentists.totalPayments', 'Total de pagamentos'), summaryX, cY);
         doc.setTextColor(34, 197, 94);
         doc.text(formatCurrencyBRL(totalPayments), valX, cY, { align: 'right' });
+
+        cY += 8;
+        doc.line(summaryX, cY - 4, valX, cY - 4);
+
+        doc.setTextColor(0, 0, 0);
+        doc.text("Crédito manual", summaryX, cY);
+        doc.setTextColor(34, 197, 94);
+        doc.text(formatCurrencyBRL(totalManualCredit), valX, cY, { align: 'right' });
 
         cY += 15;
         doc.line(summaryX, cY - 10, valX, cY - 10);
