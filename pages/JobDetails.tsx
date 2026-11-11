@@ -805,10 +805,13 @@ export const JobDetails = () => {
             }
         });
     } else {
+        const isZeroPrice = action === 'AJUSTE' || action === 'REPETICAO';
         const newItems = job.items.map((item: any) => ({
             ...item,
             id: `item_${Date.now()}_${Math.random().toString(36).substr(2,5)}`,
             nature: action === 'AJUSTE' ? ('ADJUSTMENT' as JobNature) : ('REPETITION' as JobNature),
+            price: isZeroPrice ? 0 : (item.price || 0),
+            basePriceBeforeDiscount: isZeroPrice ? 0 : (item.basePriceBeforeDiscount ?? item.price ?? 0),
             commissionDisabled: true
         }));
         
