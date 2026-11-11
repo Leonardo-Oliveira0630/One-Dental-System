@@ -798,7 +798,27 @@ export const Dentists = () => {
             cY = 25;
         }
 
-        const totalServices = chronoHistory.history.filter(i => i.type === 'DEBIT').reduce((acc, curr) => acc + curr.amount, 0);
+        let totalServices = 0;
+        let totalProducts = 0;
+
+        chronoHistory.history.filter(i => i.type === 'DEBIT').forEach((item: any) => {
+            let jobProductsTotal = 0;
+            if (item.job && item.job.products && Array.isArray(item.job.products) && item.job.products.length > 0) {
+                jobProductsTotal = item.job.products.reduce((acc: number, prod: any) => {
+                    const qty = Number(prod.quantity) || 1;
+                    const price = Number(prod.unitPrice || prod.price || prod.sellPrice) || 0;
+                    return acc + (qty * price);
+                }, 0);
+            }
+
+            const jobTotalAmount = Number(item.amount) || 0;
+            const actualProductsVal = Math.min(jobProductsTotal, jobTotalAmount);
+            const actualServicesVal = Math.max(0, jobTotalAmount - actualProductsVal);
+
+            totalProducts += actualProductsVal;
+            totalServices += actualServicesVal;
+        });
+
         const totalPayments = chronoHistory.history.filter(i => i.type !== 'DEBIT').reduce((acc, curr) => acc + curr.amount, 0);
         const currentBalance = chronoHistory.history.length > 0 ? chronoHistory.history[chronoHistory.history.length - 1].balanceAfter : chronoHistory.previousBalance;
 
@@ -828,7 +848,7 @@ export const Dentists = () => {
         doc.setTextColor(0, 0, 0);
         doc.text(t('dentists.totalProducts', 'Total de produtos'), summaryX, cY);
         doc.setTextColor(239, 68, 68);
-        doc.text(`R$ -0,00`, valX, cY, { align: 'right' });
+        doc.text(`- ${formatCurrencyBRL(totalProducts)}`, valX, cY, { align: 'right' });
 
         cY += 8;
         doc.line(summaryX, cY - 4, valX, cY - 4);

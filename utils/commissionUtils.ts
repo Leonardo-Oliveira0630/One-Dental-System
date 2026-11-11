@@ -73,7 +73,12 @@ export const calculateItemCommission = (
         finalCommission += stageCommissionTotal; // multiplied per-stage above
     }
 
-    if (!includeBaseCommission) {
+    const itemSecStages = sectorName && item.sectorStages && typeof item.sectorStages === 'object' ? (item.sectorStages as any)[sectorName] : undefined;
+    const jtSecStages = sectorName && jobType?.sectorStages && typeof jobType.sectorStages === 'object' ? (jobType.sectorStages as any)[sectorName] : undefined;
+    const hasStagesDefined = (Array.isArray(itemSecStages) && itemSecStages.length > 0) || (Array.isArray(jtSecStages) && jtSecStages.length > 0);
+    const effectiveIncludeBase = hasStagesDefined ? false : includeBaseCommission;
+
+    if (!effectiveIncludeBase) {
         return finalCommission;
     }
 

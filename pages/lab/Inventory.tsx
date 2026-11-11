@@ -6,7 +6,7 @@ import {
     Package, Plus, Trash2, Edit2, Search, X, Layers, Box, Tag, Key, Info, Check, 
     Save, ArrowLeft, ChevronDown, User as UserIcon, Sparkles, Upload, FileText,
     Download, FileSpreadsheet, ArrowUpRight, ArrowDownRight, Calendar, Filter, 
-    RefreshCw, TrendingUp, History, ShoppingBag
+    RefreshCw, TrendingUp, History, ShoppingBag, Eye
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -134,6 +134,7 @@ export const Inventory = () => {
     });
     const [showCatalogSuggestions, setShowCatalogSuggestions] = useState(false);
     const [showSkuSuggestions, setShowSkuSuggestions] = useState(false);
+
     
     // Bulk Import Logic
     const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
@@ -1006,6 +1007,137 @@ export const Inventory = () => {
 
         return list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }, [customMovements, jobs, inventoryItems]);
+
+    // Product Movements & Add/Withdraw Modal State
+    const [selectedItemForMovements, setSelectedItemForMovements] = useState<InventoryItem | null>(null);
+    const [productModalTab, setProductModalTab] = useState<'MOVEMENTS' | 'ADD' | 'WITHDRAW'>('MOVEMENTS');
+
+    const [addQty, setAddQty] = useState<number | string>(1);
+    const [addCost, setAddCost] = useState<number | string>(0);
+    const [savePriceForNext, setSavePriceForNext] = useState<boolean>(true);
+    const [addReason, setAddReason] = useState<string>('Novo estoque');
+    const [addNotes, setAddNotes] = useState<string>('');
+
+    const [withdrawQty, setWithdrawQty] = useState<number | string>(1);
+    const [withdrawReason, setWithdrawReason] = useState<string>('Uso interno');
+    const [withdrawNotes, setWithdrawNotes] = useState<string>('');
+
+    const openProductMovementsModal = (item: InventoryItem) => {
+        setSelectedItemForMovements(item);
+        setProductModalTab('MOVEMENTS');
+        setAddQty(1);
+        setAddCost(item.costPrice || 0);
+        setSavePriceForNext(true);
+        setAddReason('Novo estoque');
+        setAddNotes('');
+        setWithdrawQty(1);
+        setWithdrawReason('Uso interno');
+        setWithdrawNotes('');
+    };
+
+    const handleAddItemStock = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!selectedItemForMovements) return;
+        const qty = Number(addQty) || 0;
+        if (qty <= 0) {
+            alert("Informe uma quantidade válida maior que zero.");
+            return;
+        }
+        const cost = Number(addCost) >= 0 ? Number(addCost) : (selectedItemForMovements.costPrice || 0);
+        const newStock = (selectedItemForMovements.currentStock || 0) + qty;
+
+        const updates: Partial<InventoryItem> = {
+            currentStock: newStock,
+        };
+        if (savePriceForNext) {
+            updates.costPrice = cost;
+        }
+
+        await updateInventoryItem(selectedItemForMovements.id, updates);
+
+        const movement: InventoryMovement = {
+            id: `mov_add_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+            itemId: selectedItemForMovements.id,
+            itemName: selectedItemForMovements.name,
+            itemCode: selectedItemForMovements.code,
+            stockOwnerId: selectedItemForMovements.dentistOwnerId || null,
+            stockOwnerName: getDentistName(selectedItemForMovements.dentistOwnerId),
+            type: 'ENTRY',
+            quantity: qty,
+            totalStockAfter: newStock,
+            date: new Date().toISOString(),
+            unitCostOrPrice: cost,
+            totalValue: cost * qty,
+            reason: `${addReason}${addNotes ? ` - ${addNotes}` : ''}`,
+            createdAt: new Date().toISOString()
+        };
+
+        saveCustomMovements([movement, ...customMovements]);
+        setSelectedItemForMovements(prev => prev ? { ...prev, currentStock: newStock, costPrice: savePriceForNext ? cost : prev.costPrice } : null);
+        setProductModalTab('MOVEMENTS');
+        alert(`Adicionados ${qty} un. ao estoque de "${selectedItemForMovements.name}". Estoque atual: ${newStock}.`);
+    };
+
+    const handleWithdrawItemStock = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!selectedItemForMovements) return;
+        const qty = Number(withdrawQty) || 0;
+        if (qty <= 0) {
+            alert("Informe uma quantidade válida maior que zero.");
+            return;
+        }
+        const currentStock = selectedItemForMovements.currentStock || 0;
+        if (qty > currentStock) {
+            alert(`Quantidade a retirar (${qty}) é maior que o estoque atual (${currentStock}).`);
+            return;
+        }
+
+        const newStock = currentStock - qty;
+        const unitVal = selectedItemForMovements.costPrice || selectedItemForMovements.sellPrice || 0;
+
+        await updateInventoryItem(selectedItemForMovements.id, {
+            currentStock: newStock
+        });
+
+        const movement: InventoryMovement = {
+            id: `mov_withdraw_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+            itemId: selectedItemForMovements.id,
+            itemName: selectedItemForMovements.name,
+            itemCode: selectedItemForMovements.code,
+            stockOwnerId: selectedItemForMovements.dentistOwnerId || null,
+            stockOwnerName: getDentistName(selectedItemForMovements.dentistOwnerId),
+            type: 'EXIT',
+            quantity: qty,
+            totalStockAfter: newStock,
+            date: new Date().toISOString(),
+            unitCostOrPrice: unitVal,
+            totalValue: unitVal * qty,
+            reason: `Retirada: ${withdrawReason}${withdrawNotes ? ` - ${withdrawNotes}` : ''}`,
+            createdAt: new Date().toISOString()
+        };
+
+        saveCustomMovements([movement, ...customMovements]);
+        setSelectedItemForMovements(prev => prev ? { ...prev, currentStock: newStock } : null);
+        setProductModalTab('MOVEMENTS');
+        alert(`Retirados ${qty} un. de "${selectedItemForMovements.name}". Estoque atual: ${newStock}.`);
+    };
+
+    const itemMovements = useMemo(() => {
+        if (!selectedItemForMovements) return [];
+        return unifiedMovements.filter(m => m.itemId === selectedItemForMovements.id);
+    }, [unifiedMovements, selectedItemForMovements]);
+
+    const itemStockBalance = useMemo(() => {
+        if (!selectedItemForMovements) return { qty: 0, costVal: 0, sellVal: 0 };
+        const qty = selectedItemForMovements.currentStock || 0;
+        const cost = selectedItemForMovements.costPrice || 0;
+        const sell = selectedItemForMovements.sellPrice || 0;
+        return {
+            qty,
+            costVal: qty * cost,
+            sellVal: qty * sell
+        };
+    }, [selectedItemForMovements]);
 
     const filteredMovements = useMemo(() => {
         return unifiedMovements.filter(m => {
@@ -1886,7 +2018,8 @@ export const Inventory = () => {
                                                 </td>
                                                 <td className="p-4 text-right">
                                                     <div className="flex justify-end gap-2">
-                                                        {canEdit && <button onClick={() => openItemModal(item)} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"><Edit2 size={18}/></button>}
+                                                        <button onClick={() => openProductMovementsModal(item)} className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors" title="Movimentações e Histórico"><Eye size={18}/></button>
+                                                         {canEdit && <button onClick={() => openItemModal(item)} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"><Edit2 size={18}/></button>}
                                                         {canDelete && <button onClick={() => deleteInventoryItem(item.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={18}/></button>}
                                                     </div>
                                                 </td>
@@ -3235,6 +3368,270 @@ export const Inventory = () => {
                                     APLICAR BAIXA ({selectedReconcileIds.length} ITENS)
                                 </button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Product Movement & Add/Withdraw Modal */}
+            {selectedItemForMovements && (
+                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4 overflow-y-auto">
+                    <div className="bg-white rounded-3xl p-4 sm:p-8 max-w-4xl w-full shadow-2xl relative my-auto max-h-[90vh] flex flex-col">
+                        <button type="button" onClick={() => setSelectedItemForMovements(null)} className="absolute top-4 sm:top-6 right-4 sm:right-6 p-2 bg-slate-100 text-slate-500 hover:text-slate-800 rounded-full transition-colors z-10">
+                            <X size={20}/>
+                        </button>
+                        
+                        {/* Header Info */}
+                        <div className="flex items-start justify-between gap-4 pb-6 border-b border-slate-100 pr-12">
+                            <div>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <h2 className="text-xl sm:text-2xl font-black text-slate-900">{selectedItemForMovements.name}</h2>
+                                    {selectedItemForMovements.code && <span className="font-mono text-xs bg-indigo-50 text-indigo-700 font-bold px-2 py-0.5 rounded">SKU: {selectedItemForMovements.code}</span>}
+                                </div>
+                                <p className="text-xs text-slate-500 mt-1">
+                                    Estoque: <strong className="text-slate-700">{getDentistName(selectedItemForMovements.dentistOwnerId)}</strong> | Categoria: {inventoryCategories.find(c => c.id === selectedItemForMovements.categoryId)?.name || 'Geral'}
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Top Summary Cards */}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 my-6">
+                            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-center">
+                                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Quantidade em Estoque</span>
+                                <span className="text-2xl font-black text-slate-800 mt-1 block">{itemStockBalance.qty} un.</span>
+                            </div>
+                            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-center">
+                                <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider block">Valor Total (Custo)</span>
+                                <span className="text-2xl font-black text-emerald-700 mt-1 block">{itemStockBalance.costVal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                            </div>
+                            <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 text-center">
+                                <span className="text-xs font-bold text-indigo-600 uppercase tracking-wider block">Valor Total (Venda)</span>
+                                <span className="text-2xl font-black text-indigo-700 mt-1 block">{itemStockBalance.sellVal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                            </div>
+                        </div>
+
+                        {/* Modal Action Buttons & Tabs */}
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pb-4 border-b border-slate-200">
+                            <div className="flex gap-2 w-full sm:w-auto">
+                                <button
+                                    type="button"
+                                    onClick={() => setProductModalTab('MOVEMENTS')}
+                                    className={`flex-1 sm:flex-none px-4 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 ${productModalTab === 'MOVEMENTS' ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                                >
+                                    <History size={16} /> Movimentações ({itemMovements.length})
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setProductModalTab('ADD');
+                                        setAddCost(selectedItemForMovements.costPrice || 0);
+                                    }}
+                                    className={`flex-1 sm:flex-none px-4 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 ${productModalTab === 'ADD' ? 'bg-emerald-600 text-white shadow-md' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'}`}
+                                >
+                                    <Plus size={16} /> Adicionar
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setProductModalTab('WITHDRAW')}
+                                    className={`flex-1 sm:flex-none px-4 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 ${productModalTab === 'WITHDRAW' ? 'bg-rose-600 text-white shadow-md' : 'bg-rose-50 text-rose-700 hover:bg-rose-100'}`}
+                                >
+                                    <ArrowDownRight size={16} /> Retirar
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Tab Content */}
+                        <div className="flex-1 overflow-y-auto py-4 min-h-[300px]">
+                            {productModalTab === 'MOVEMENTS' && (
+                                <div className="space-y-3">
+                                    <div className="overflow-x-auto border border-slate-200 rounded-2xl">
+                                        <table className="w-full text-left border-collapse text-xs">
+                                            <thead>
+                                                <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold">
+                                                    <th className="p-3">Tipo / Data</th>
+                                                    <th className="p-3">Qtd</th>
+                                                    <th className="p-3">Motivo / Trabalho / Descrição</th>
+                                                    <th className="p-3 text-right">Valor Total</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100">
+                                                {itemMovements.map(m => {
+                                                    const isEntry = m.type === 'ENTRY';
+                                                    return (
+                                                        <tr key={m.id} className="hover:bg-slate-50/80">
+                                                            <td className="p-3">
+                                                                <div className="flex items-center gap-1.5 font-bold">
+                                                                    {isEntry ? <ArrowUpRight size={14} className="text-emerald-600"/> : <ArrowDownRight size={14} className="text-rose-600"/>}
+                                                                    <span className={isEntry ? 'text-emerald-700' : 'text-rose-700'}>{isEntry ? 'ENTRADA' : 'SAÍDA'}</span>
+                                                                </div>
+                                                                <div className="text-[10px] text-slate-400 mt-0.5">{new Date(m.date).toLocaleString('pt-BR')}</div>
+                                                            </td>
+                                                            <td className="p-3 font-black text-slate-800">
+                                                                <span className={isEntry ? 'text-emerald-600' : 'text-rose-600'}>
+                                                                    {isEntry ? `+${m.quantity}` : `-${m.quantity}`}
+                                                                </span>
+                                                            </td>
+                                                            <td className="p-3">
+                                                                {m.jobOsNumber ? (
+                                                                    <div>
+                                                                        <div className="font-bold text-slate-800">OS #{m.jobOsNumber} - Pac: {m.jobPatientName || 'Não inf.'}</div>
+                                                                        <div className="text-[11px] text-slate-500">Dr(a): {m.jobDentistName || 'Não inf.'}</div>
+                                                                    </div>
+                                                                ) : (
+                                                                    <span className="text-slate-700 font-medium">{m.reason || (isEntry ? 'Entrada manual' : 'Saída manual')}</span>
+                                                                )}
+                                                            </td>
+                                                            <td className="p-3 text-right font-bold text-slate-900">
+                                                                {(m.totalValue || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                                {itemMovements.length === 0 && (
+                                                    <tr>
+                                                        <td colSpan={4} className="p-12 text-center text-slate-400">
+                                                            <History size={32} className="mx-auto mb-2 opacity-50" />
+                                                            <p className="font-medium">Nenhuma movimentação registrada para este produto ainda.</p>
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            )}
+
+                            {productModalTab === 'ADD' && (
+                                <form onSubmit={handleAddItemStock} className="space-y-4 max-w-xl mx-auto bg-slate-50/70 p-6 rounded-2xl border border-slate-200">
+                                    <h3 className="text-base font-black text-slate-800 flex items-center gap-2 mb-4">
+                                        <Plus size={18} className="text-emerald-600" /> Adicionar ao Estoque
+                                    </h3>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Quantidade *</label>
+                                        <input 
+                                            required 
+                                            type="number" 
+                                            min="1" 
+                                            step="1"
+                                            value={addQty} 
+                                            onChange={e => setAddQty(e.target.value)} 
+                                            className="w-full p-3 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-emerald-500 outline-none font-bold" 
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Preço de Custo (R$) *</label>
+                                        <input 
+                                            required 
+                                            type="number" 
+                                            min="0" 
+                                            step="0.01" 
+                                            value={addCost} 
+                                            onChange={e => setAddCost(e.target.value)} 
+                                            className="w-full p-3 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-emerald-500 outline-none font-bold" 
+                                        />
+                                    </div>
+                                    <div className="flex items-center gap-3 py-2">
+                                        <input 
+                                            type="checkbox" 
+                                            id="savePriceToggle"
+                                            checked={savePriceForNext} 
+                                            onChange={e => setSavePriceForNext(e.target.checked)} 
+                                            className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
+                                        />
+                                        <label htmlFor="savePriceToggle" className="text-xs font-bold text-slate-700 cursor-pointer select-none">
+                                            Salvar preço para próxima vez (atualizar custo padrão do produto)
+                                        </label>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Motivo *</label>
+                                        <select 
+                                            required 
+                                            value={addReason} 
+                                            onChange={e => setAddReason(e.target.value)} 
+                                            className="w-full p-3 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-emerald-500 outline-none font-medium"
+                                        >
+                                            <option value="Novo estoque">Novo estoque</option>
+                                            <option value="Retorno">Retorno</option>
+                                            <option value="Transferência">Transferência</option>
+                                            <option value="Ajuste">Ajuste</option>
+                                            <option value="Outros">Outros</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Observações</label>
+                                        <textarea 
+                                            value={addNotes} 
+                                            onChange={e => setAddNotes(e.target.value)} 
+                                            placeholder="Detalhes adicionais sobre esta entrada..."
+                                            className="w-full p-3 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-emerald-500 outline-none h-20 resize-none text-xs" 
+                                        />
+                                    </div>
+                                    <div className="flex justify-end gap-3 pt-2">
+                                        <button type="button" onClick={() => setProductModalTab('MOVEMENTS')} className="px-5 py-3 rounded-xl font-bold text-slate-600 hover:bg-slate-200 transition-colors">Cancelar</button>
+                                        <button type="submit" className="px-6 py-3 bg-emerald-600 text-white font-bold rounded-xl shadow-md hover:bg-emerald-700 flex items-center gap-2">
+                                            <Plus size={18} /> Confirmar Adição
+                                        </button>
+                                    </div>
+                                </form>
+                            )}
+
+                            {productModalTab === 'WITHDRAW' && (
+                                <form onSubmit={handleWithdrawItemStock} className="space-y-4 max-w-xl mx-auto bg-slate-50/70 p-6 rounded-2xl border border-slate-200">
+                                    <h3 className="text-base font-black text-slate-800 flex items-center gap-2 mb-4">
+                                        <ArrowDownRight size={18} className="text-rose-600" /> Retirar do Estoque
+                                    </h3>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Quantidade *</label>
+                                        <input 
+                                            required 
+                                            type="number" 
+                                            min="1" 
+                                            max={selectedItemForMovements.currentStock}
+                                            step="1"
+                                            value={withdrawQty} 
+                                            onChange={e => setWithdrawQty(e.target.value)} 
+                                            className="w-full p-3 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-rose-500 outline-none font-bold" 
+                                        />
+                                        <p className="text-[11px] text-slate-400 mt-1">Estoque disponível atual: {selectedItemForMovements.currentStock} un.</p>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Motivo *</label>
+                                        <select 
+                                            required 
+                                            value={withdrawReason} 
+                                            onChange={e => setWithdrawReason(e.target.value)} 
+                                            className="w-full p-3 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-rose-500 outline-none font-medium"
+                                        >
+                                            <option value="Uso interno">Uso interno</option>
+                                            <option value="Repetição">Repetição</option>
+                                            <option value="Danificado">Danificado</option>
+                                            <option value="Outros">Outros</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Observações</label>
+                                        <textarea 
+                                            value={withdrawNotes} 
+                                            onChange={e => setWithdrawNotes(e.target.value)} 
+                                            placeholder="Detalhes adicionais sobre esta retirada..."
+                                            className="w-full p-3 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-rose-500 outline-none h-20 resize-none text-xs" 
+                                        />
+                                    </div>
+                                    <div className="flex justify-end gap-3 pt-2">
+                                        <button type="button" onClick={() => setProductModalTab('MOVEMENTS')} className="px-5 py-3 rounded-xl font-bold text-slate-600 hover:bg-slate-200 transition-colors">Cancelar</button>
+                                        <button type="submit" className="px-6 py-3 bg-rose-600 text-white font-bold rounded-xl shadow-md hover:bg-rose-700 flex items-center gap-2">
+                                            <ArrowDownRight size={18} /> Confirmar Retirada
+                                        </button>
+                                    </div>
+                                </form>
+                            )}
+                        </div>
+
+                        {/* Footer */}
+                        <div className="pt-4 border-t border-slate-100 flex justify-end">
+                            <button type="button" onClick={() => setSelectedItemForMovements(null)} className="px-6 py-3 bg-slate-800 text-white font-bold rounded-xl hover:bg-slate-900 transition-colors">
+                                Fechar
+                            </button>
                         </div>
                     </div>
                 </div>

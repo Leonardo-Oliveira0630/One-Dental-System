@@ -185,7 +185,10 @@ export const Commissions = () => {
 
               // 2. Verificar produção base executada (quando não há sub-etapas ou quando BASE é explicitamente registrado)
               const baseData = exec.stageTimes?.['BASE'];
-              const isBaseProduction = !!baseData || (stageNames.size === 0 && exec.isBaseChecked !== false);
+              const itemStages = item.sectorStages && typeof item.sectorStages === 'object' ? (item.sectorStages as any)[sec] : undefined;
+              const jtStages = jt?.sectorStages && typeof jt.sectorStages === 'object' ? (jt.sectorStages as any)[sec] : undefined;
+              const hasStagesDefined = (Array.isArray(itemStages) && itemStages.length > 0) || (Array.isArray(jtStages) && jtStages.length > 0);
+              const isBaseProduction = !hasStagesDefined && (!!baseData || (stageNames.size === 0 && exec.isBaseChecked !== false));
               if (isBaseProduction) {
                 const uid = baseData?.exitUserId || baseData?.entryUserId || exec.userId;
                 if (uid) {

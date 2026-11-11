@@ -360,22 +360,31 @@ const JobRow = memo(({ isJobOverdue,
         {isExpanded && (
             <tr className="bg-slate-50/90 dark:bg-slate-900/60 border-b border-slate-200/80 animate-in fade-in duration-200">
                 <td colSpan={12} className="px-6 py-3.5">
-                    <div className="flex flex-col space-y-2">
-                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">Tipos de Serviço e Quantidades do Caso:</span>
-                        <div className="flex flex-wrap gap-2">
-                            {job.items && job.items.length > 0 ? (
-                                job.items.map((item: any, i: number) => (
-                                    <div key={i} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-xl shadow-2xs flex items-center gap-2 text-xs">
-                                        <span className="font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded-md">{item.quantity || 1}x</span>
-                                        <span className="font-bold text-slate-800 dark:text-slate-200">{item.name}</span>
-                                        {item.selectedTeeth && item.selectedTeeth.length > 0 && (
-                                            <span className="text-[10px] text-slate-400 font-semibold">(Dentes: {item.selectedTeeth.join(', ')})</span>
-                                        )}
-                                    </div>
-                                ))
-                            ) : (
-                                <span className="text-xs text-slate-400 italic">Nenhum serviço especificado.</span>
-                            )}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="flex flex-col space-y-2 flex-1">
+                            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">Tipos de Serviço e Quantidades do Caso:</span>
+                            <div className="flex flex-wrap gap-2">
+                                {job.items && job.items.length > 0 ? (
+                                    job.items.map((item: any, i: number) => (
+                                        <div key={i} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-xl shadow-2xs flex items-center gap-2 text-xs">
+                                            <span className="font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded-md">{item.quantity || 1}x</span>
+                                            <span className="font-bold text-slate-800 dark:text-slate-200">{item.name}</span>
+                                            {item.selectedTeeth && item.selectedTeeth.length > 0 && (
+                                                <span className="text-[10px] text-slate-400 font-semibold">(Dentes: {item.selectedTeeth.join(', ')})</span>
+                                            )}
+                                        </div>
+                                    ))
+                                ) : (
+                                    <span className="text-xs text-slate-400 italic">Nenhum serviço especificado.</span>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col items-start md:items-end justify-center shrink-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-2.5 rounded-xl shadow-2xs">
+                            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">Valor Total do Caso</span>
+                            <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">
+                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(job.totalValue || 0)}
+                            </span>
                         </div>
                     </div>
                 </td>
