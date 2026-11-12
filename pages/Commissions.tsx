@@ -55,6 +55,10 @@ export const Commissions = () => {
   const { t } = useTranslation();
   const { commissions, currentUser, updateCommissionStatus, deleteCommissionRecord, allUsers, jobs, activeOrganization, jobTypes, commissionGroups, addCommissionRecord, updateCommissionRecord } = useApp();
   const [filterUser, setFilterUser] = useState('');
+  
+  const formatCurrency = (val: number) => {
+    return (val || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -955,7 +959,7 @@ export const Commissions = () => {
         formatServicesForPdf(c),
         c.quantity,
         c.sector,
-        `R$ ${c.amount.toFixed(2)}`
+        `R$ ${formatCurrency(c.amount)}`
       ]);
 
       autoTable(doc, {
@@ -983,9 +987,9 @@ export const Commissions = () => {
           finalY = 20;
       }
       doc.setFontSize(10);
-      doc.text(`${t('commissions.totalPending', 'Total Pendente:')} R$ ${stats.pending.toFixed(2)}`, 14, finalY);
-      doc.text(`${t('commissions.totalPaid', 'Total Pago:')} R$ ${stats.paid.toFixed(2)}`, 14, finalY + 5);
-      doc.text(`${t('commissions.totalGeneral', 'Total Geral:')} R$ ${stats.total.toFixed(2)}`, 14, finalY + 10);
+      doc.text(`${t('commissions.totalPending', 'Total Pendente:')} R$ ${formatCurrency(stats.pending)}`, 14, finalY);
+      doc.text(`${t('commissions.totalPaid', 'Total Pago:')} R$ ${formatCurrency(stats.paid)}`, 14, finalY + 5);
+      doc.text(`${t('commissions.totalGeneral', 'Total Geral:')} R$ ${formatCurrency(stats.total)}`, 14, finalY + 10);
 
       doc.save(t('commissions.pdfGeneralFilename', "Comissoes_Geral.pdf"));
     } else if (mode === 'BATCH') {
@@ -1020,7 +1024,7 @@ export const Commissions = () => {
           formatServicesForPdf(c),
           c.quantity,
           c.sector,
-          `R$ ${c.amount.toFixed(2)}`
+          `R$ ${formatCurrency(c.amount)}`
         ]);
 
         autoTable(doc, {
@@ -1046,9 +1050,9 @@ export const Commissions = () => {
             finalY = 20;
         }
         doc.setFontSize(10);
-        doc.text(`${t('commissions.totalPending', 'Total Pendente:')} R$ ${userPending.toFixed(2)}`, 14, finalY);
-        doc.text(`${t('commissions.totalPaid', 'Total Pago:')} R$ ${userPaid.toFixed(2)}`, 14, finalY + 5);
-        doc.text(`${t('commissions.totalGeneral', 'Total Geral:')} R$ ${userTotal.toFixed(2)}`, 14, finalY + 10);
+        doc.text(`${t('commissions.totalPending', 'Total Pendente:')} R$ ${formatCurrency(userPending)}`, 14, finalY);
+        doc.text(`${t('commissions.totalPaid', 'Total Pago:')} R$ ${formatCurrency(userPaid)}`, 14, finalY + 5);
+        doc.text(`${t('commissions.totalGeneral', 'Total Geral:')} R$ ${formatCurrency(userTotal)}`, 14, finalY + 10);
       });
 
       doc.save(t('commissions.pdfBatchFilename', "Comissoes_Por_Funcionario.pdf"));
@@ -1098,15 +1102,15 @@ export const Commissions = () => {
         </div>
         <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-100">
             <p className="text-xs font-bold text-slate-500 mb-1 uppercase">{t('commissions.pendingAmount', 'A Receber')}</p>
-            <h3 className="text-2xl sm:text-3xl font-black text-orange-600">R$ {stats.pending.toFixed(2)}</h3>
+            <h3 className="text-2xl sm:text-3xl font-black text-orange-600">R$ {formatCurrency(stats.pending)}</h3>
         </div>
         <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-100">
             <p className="text-xs font-bold text-slate-500 mb-1 uppercase">{t('commissions.paidAmount', 'Pago (Acumulado)')}</p>
-            <h3 className="text-2xl sm:text-3xl font-black text-green-600">R$ {stats.paid.toFixed(2)}</h3>
+            <h3 className="text-2xl sm:text-3xl font-black text-green-600">R$ {formatCurrency(stats.paid)}</h3>
         </div>
         <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-100">
             <p className="text-xs font-bold text-slate-500 mb-1 uppercase">{t('commissions.totalAmount', 'Total Período')}</p>
-            <h3 className="text-2xl sm:text-3xl font-black text-blue-600">R$ {stats.total.toFixed(2)}</h3>
+            <h3 className="text-2xl sm:text-3xl font-black text-blue-600">R$ {formatCurrency(stats.total)}</h3>
         </div>
       </div>
 
@@ -1236,7 +1240,7 @@ export const Commissions = () => {
                             <td className="p-4">
                                 <span className="bg-slate-100 px-2 py-1 rounded text-[10px] font-bold text-slate-600 uppercase">{rec.sector}</span>
                             </td>
-                            <td className="p-4 text-right font-black text-slate-800 whitespace-nowrap">R$ {rec.amount.toFixed(2)}</td>
+                            <td className="p-4 text-right font-black text-slate-800 whitespace-nowrap">R$ {formatCurrency(rec.amount)}</td>
                             <td className="p-4">
                                 <span className={`px-2 py-1 rounded-full text-[10px] font-bold ${rec.status === CommissionStatus.PAID ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
                                     {rec.status === CommissionStatus.PAID ? t('commissions.statusPaid', 'PAGO') : t('commissions.statusPending', 'PENDENTE')}

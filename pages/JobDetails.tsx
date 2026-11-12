@@ -265,6 +265,9 @@ export const JobDetails = () => {
 
     return { isWeb: false, name: labName };
   };
+  const formatCurrency = (val: number) => {
+    return (val || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
   const [expandedItemIdx, setExpandedItemIdx] = useState<number | null>(null);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [itemEditTeethInput, setItemEditTeethInput] = useState('');
@@ -2809,7 +2812,7 @@ export const JobDetails = () => {
           history: [...(job.history || []).filter(Boolean), {
               id: `hist_item_edit_${Date.now()}`,
               timestamp: new Date(),
-              action: `Item "${item.name}" editado (Qtd: ${parsedQty}, Total: R$ ${(finalPrice * parsedQty).toFixed(2)})`,
+              action: `Item "${item.name}" editado (Qtd: ${parsedQty}, Total: R$ ${formatCurrency((finalPrice * parsedQty))})`,
               userId: currentUser?.id || '',
               userName: currentUser?.name || 'Sistema',
               sector: currentUser?.sector || 'Gestão'
@@ -3785,7 +3788,7 @@ export const JobDetails = () => {
                           {canViewJobPrices && (
                           <div>
                               <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Valor Total (R$)</label>
-                              <input type="number" step="0.01" value={editTotalValue} onChange={e => setEditTotalValue(e.target.value === '' ? '' : parseFloat(e.target.value))} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold" />
+                              <input type="number" step="0.01" value={editTotalValue} onChange={e => setEditTotalValue(e.target.value)} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold" />
                           </div>
                           )}
                           <div>
@@ -3944,7 +3947,7 @@ export const JobDetails = () => {
                                                                                            </div>
                                                                                            <div>
                                                                                                <div className={`text-xs font-bold ${item.jobTypeId === type.id ? 'text-blue-700' : 'text-slate-700'}`}>{type.name}</div>
-                                                                                               <div className="text-[9px] font-bold text-slate-400 uppercase">R$ {type.basePrice.toFixed(2)}</div>
+                                                                                               <div className="text-[9px] font-bold text-slate-400 uppercase">R$ {formatCurrency(type.basePrice)}</div>
                                                                                            </div>
                                                                                        </div>
                                                                                        {item.jobTypeId === type.id && <Check size={13} className="text-blue-600" />}
@@ -4134,10 +4137,10 @@ export const JobDetails = () => {
                                                        {/* Resumo com Preço Final */}
                                                        <div className="flex items-center justify-between bg-blue-100/70 p-2.5 rounded-xl text-xs font-bold text-blue-900 shadow-2xs">
                                                            <span>
-                                                               {item.nature === 'REPETITION' ? `(Repetição: R$ ${(item.price || 0).toFixed(2)})` : item.nature === 'ADJUSTMENT' ? `(Ajuste: R$ ${(item.price || 0).toFixed(2)})` : isItemSurcharge ? `Preço com Acrésc.: R$ ${(item.price || 0).toFixed(2)}/un.` : `Preço com Desc: R$ ${(item.price || 0).toFixed(2)}/un.`}
+                                                               {item.nature === 'REPETITION' ? `(Repetição: R$ ${formatCurrency((item.price || 0))})` : item.nature === 'ADJUSTMENT' ? `(Ajuste: R$ ${formatCurrency((item.price || 0))})` : isItemSurcharge ? `Preço com Acrésc.: R$ ${formatCurrency((item.price || 0))}/un.` : `Preço com Desc: R$ ${formatCurrency((item.price || 0))}/un.`}
                                                            </span>
                                                            <span className="font-black text-sm">
-                                                               Total: R$ ${((item.price || 0) * (Number(item.quantity) || 1)).toFixed(2)}
+                                                               Total: R$ ${formatCurrency(((item.price || 0) * (Number(item.quantity) || 1)))}
                                                            </span>
                                                        </div>
 
@@ -4325,21 +4328,21 @@ export const JobDetails = () => {
                                               <div className="text-xs font-bold text-slate-700 truncate">{getNaturePrefix(item.nature)}{formatItemNameWithVariations(item, jobTypes)}</div>
                                               <div className="flex items-center gap-2 mt-1 flex-wrap text-[10px]">
                                                   <span className="font-black text-slate-500 uppercase tracking-wider">
-                                                      {item.nature === 'REPETITION' ? `REPETIÇÃO (R$ ${(item.price || 0).toFixed(2)})` : item.nature === 'ADJUSTMENT' ? `AJUSTE (R$ ${(item.price || 0).toFixed(2)})` : `R$ ${(item.basePriceBeforeDiscount !== undefined ? item.basePriceBeforeDiscount : item.price).toFixed(2)}/un.`}
+                                                      {item.nature === 'REPETITION' ? `REPETIÇÃO (R$ ${formatCurrency((item.price || 0))})` : item.nature === 'ADJUSTMENT' ? `AJUSTE (R$ ${formatCurrency((item.price || 0))})` : `R$ ${(item.basePriceBeforeDiscount !== undefined ? item.basePriceBeforeDiscount : item.price)}/un.`}
                                                   </span>
                                                    {item.nature === 'NORMAL' && (
                                                        (item.priceAdjustmentType === 'SURCHARGE' || (Boolean(item.appliedSurcharge) && Number(item.appliedSurcharge) > 0) || (Boolean(item.appliedSurchargeFixed) && Number(item.appliedSurchargeFixed) > 0)) ? (
                                                            <span className="bg-amber-100 text-amber-800 font-black px-1.5 py-0.5 rounded text-[9px] border border-amber-200">
-                                                               {item.appliedSurchargeFixed && Number(item.appliedSurchargeFixed) > 0 ? `+R$ ${Number(item.appliedSurchargeFixed).toFixed(2)} acrésc.` : `+${item.appliedSurcharge}% acrésc.`}
+                                                               {item.appliedSurchargeFixed && Number(item.appliedSurchargeFixed) > 0 ? `+R$ ${formatCurrency(Number(item.appliedSurchargeFixed))} acrésc.` : `+${item.appliedSurcharge}% acrésc.`}
                                                            </span>
                                                        ) : ((item.appliedDiscount && Number(item.appliedDiscount) > 0) || (item.appliedDiscountFixed && Number(item.appliedDiscountFixed) > 0)) ? (
                                                            <span className="bg-emerald-100 text-emerald-800 font-black px-1.5 py-0.5 rounded text-[9px]">
-                                                               {item.appliedDiscountFixed && Number(item.appliedDiscountFixed) > 0 ? `-R$ ${Number(item.appliedDiscountFixed).toFixed(2)} desc` : `-${item.appliedDiscount}% desc`}
+                                                               {item.appliedDiscountFixed && Number(item.appliedDiscountFixed) > 0 ? `-R$ ${formatCurrency(Number(item.appliedDiscountFixed))} desc` : `-${item.appliedDiscount}% desc`}
                                                            </span>
                                                        ) : null
                                                    )}
                                                   <span className="font-black text-slate-800">
-                                                      Total: R$ {((item.price || 0) * (Number(item.quantity) || 1)).toFixed(2)}
+                                                      Total: R$ {formatCurrency(((item.price || 0) * (Number(item.quantity) || 1)))}
                                                   </span>
                                               </div>
                                           </div>
@@ -4377,7 +4380,7 @@ export const JobDetails = () => {
                                               </div>
                                           </div>
                                           <div className="text-right mt-1 font-black text-slate-700 text-xs">
-                                              Total: R$ {(prod.unitPrice * prod.quantity).toFixed(2)}
+                                              Total: R$ {formatCurrency((prod.unitPrice * prod.quantity))}
                                           </div>
                                       </div>
                                   ))}
@@ -4496,7 +4499,7 @@ export const JobDetails = () => {
                                                                             </div>
                                                                             <div>
                                                                                 <div className={`text-xs font-bold ${newItemTypeId === type.id ? 'text-blue-700' : 'text-slate-700'}`}>{type.name}</div>
-                                                                                <div className="text-[9px] font-bold text-slate-400 uppercase">R$ {type.basePrice.toFixed(2)}</div>
+                                                                                <div className="text-[9px] font-bold text-slate-400 uppercase">R$ {formatCurrency(type.basePrice)}</div>
                                                                             </div>
                                                                         </div>
                                                                         {newItemTypeId === type.id && <Check size={13} className="text-blue-600" />}
@@ -4550,7 +4553,7 @@ export const JobDetails = () => {
                                                     min="0" 
                                                     step="0.01" 
                                                     value={newItemCustomPrice !== '' ? newItemCustomPrice : (newItemCalculatedBasePrice || '')} 
-                                                    placeholder={newItemCalculatedBasePrice.toFixed(2)}
+                                                    placeholder={formatCurrency(newItemCalculatedBasePrice)}
                                                     onChange={e => setNewItemCustomPrice(e.target.value === '' ? '' : parseFloat(e.target.value) || 0)} 
                                                     className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold focus:border-blue-500 outline-none" 
                                                 />
@@ -4614,10 +4617,10 @@ export const JobDetails = () => {
                                         {/* Resumo do Preço com Desconto */}
                                         <div className="flex items-center justify-between bg-emerald-50/70 border border-emerald-100 p-2.5 rounded-xl text-xs font-bold text-emerald-900 shadow-2xs">
                                             <span>
-                                                {newItemNature === 'REPETITION' ? `(Repetição: R$ ${newItemEffectiveUnitPrice.toFixed(2)})` : newItemNature === 'ADJUSTMENT' ? `(Ajuste: R$ ${newItemEffectiveUnitPrice.toFixed(2)})` : newItemAdjustmentMode === 'SURCHARGE' ? `Preço com Acrésc.: R$ ${newItemEffectiveUnitPrice.toFixed(2)}/un.` : `Preço com Desc: R$ ${newItemEffectiveUnitPrice.toFixed(2)}/un.`}
+                                                {newItemNature === 'REPETITION' ? `(Repetição: R$ ${formatCurrency(newItemEffectiveUnitPrice)})` : newItemNature === 'ADJUSTMENT' ? `(Ajuste: R$ ${formatCurrency(newItemEffectiveUnitPrice)})` : newItemAdjustmentMode === 'SURCHARGE' ? `Preço com Acrésc.: R$ ${formatCurrency(newItemEffectiveUnitPrice)}/un.` : `Preço com Desc: R$ ${formatCurrency(newItemEffectiveUnitPrice)}/un.`}
                                             </span>
                                             <span className="font-black text-sm text-emerald-950">
-                                                Total: R$ ${(newItemEffectiveUnitPrice * (Number(newItemQty) || 1)).toFixed(2)}
+                                                Total: R$ ${formatCurrency((newItemEffectiveUnitPrice * (Number(newItemQty) || 1)))}
                                             </span>
                                         </div>
 
@@ -4909,7 +4912,7 @@ export const JobDetails = () => {
                                                                       </div>
                                                                   </div>
                                                                   <div className="text-right shrink-0">
-                                                                      <span className="text-xs font-black text-slate-700">R$ {Number(item.sellPrice || 0).toFixed(2)}</span>
+                                                                      <span className="text-xs font-black text-slate-700">R$ {formatCurrency(Number(item.sellPrice || 0))}</span>
                                                                       {isSelected && <Check size={13} className="text-blue-600 ml-auto mt-0.5" />}
                                                                   </div>
                                                               </button>
@@ -5405,7 +5408,7 @@ export const JobDetails = () => {
                             <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest truncate">Orçamento</p>
                             <div className="flex items-center gap-2 flex-wrap">
                                 {canViewJobPrices ? (
-                                    <span className="font-black text-lg text-slate-800">R$ {job.totalValue.toFixed(2)}</span>
+                                    <span className="font-black text-lg text-slate-800">R$ {formatCurrency(job.totalValue)}</span>
                                 ) : (
                                     <span className="font-black text-lg text-slate-400 tracking-widest">••••••</span>
                                 )}
@@ -5745,7 +5748,7 @@ export const JobDetails = () => {
                                             {item.isInternalStep ? (
                                                 <p className="font-black text-indigo-500 text-[10px] uppercase">NÃO FATURADO</p>
                                             ) : canViewJobPrices ? (
-                                                <p className="font-black text-slate-600 text-sm md:text-base">R$ {(item.price * item.quantity).toFixed(2)}</p>
+                                                <p className="font-black text-slate-600 text-sm md:text-base">R$ {formatCurrency((item.price * item.quantity))}</p>
                                             ) : (
                                                 <p className="font-black text-slate-400 text-sm md:text-base tracking-widest">••••••</p>
                                             )}
@@ -5902,7 +5905,7 @@ export const JobDetails = () => {
                                                                     type="number" min={0} step={0.01}
                                                                     className="w-full text-sm font-bold border border-slate-300 p-2.5 pl-8 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                                                                     value={itemEditForm.price}
-                                                                    onChange={(e) => setItemEditForm({...itemEditForm, price: e.target.value === '' ? '' : e.target.value, appliedPriceTable: 'Personalizado'})}
+                                                                    onChange={(e) => setItemEditForm({...itemEditForm, price: e.target.value, appliedPriceTable: 'Personalizado'})}
                                                                 />
                                                             </div>
                                                         </div>
@@ -6013,12 +6016,12 @@ export const JobDetails = () => {
                                                                         const sPerc = itemEditForm.discountType === 'PERCENTAGE' ? (parseFloat(String(itemEditForm.appliedSurcharge)) || 0) : 0;
                                                                         const sFix = itemEditForm.discountType === 'FIXED' ? (parseFloat(String(itemEditForm.appliedSurchargeFixed)) || 0) : 0;
                                                                         const unitFinal = sFix > 0 ? (base + sFix) : (base * (1 + sPerc / 100));
-                                                                        return `${naturePrefix}Preço com Acrésc.: R$ ${unitFinal.toFixed(2)}`;
+                                                                        return `${naturePrefix}Preço com Acrésc.: R$ ${formatCurrency(unitFinal)}`;
                                                                     } else {
                                                                         const dPerc = itemEditForm.discountType === 'PERCENTAGE' ? (parseFloat(String(itemEditForm.appliedDiscount)) || 0) : 0;
                                                                         const dFix = itemEditForm.discountType === 'FIXED' ? (parseFloat(String(itemEditForm.appliedDiscountFixed)) || 0) : 0;
                                                                         const unitFinal = Math.max(0, (base * (1 - dPerc / 100)) - dFix);
-                                                                        return `${naturePrefix}Preço Final Unit.: R$ ${unitFinal.toFixed(2)}`;
+                                                                        return `${naturePrefix}Preço Final Unit.: R$ ${formatCurrency(unitFinal)}`;
                                                                     }
                                                                 })()}
                                                             </span>
@@ -6038,7 +6041,7 @@ export const JobDetails = () => {
                                                                         unitFinal = Math.max(0, (base * (1 - dPerc / 100)) - dFix);
                                                                     }
                                                                     const q = Number(itemEditForm.quantity) || (itemEditForm.selectedTeeth.length > 0 ? itemEditForm.selectedTeeth.length : 1);
-                                                                    return (unitFinal * q).toFixed(2);
+                                                                    return formatCurrency(unitFinal * q);
                                                                 })()}
                                                             </span>
                                                         </div>
@@ -6155,7 +6158,7 @@ export const JobDetails = () => {
                                                             <div>
                                                                 <p className="text-[9px] font-black text-slate-400 uppercase">Valor Unitário</p>
                                                                 <p className="text-sm font-bold text-slate-700">
-                                                                    {canViewJobPrices ? `R$ ${(item.basePriceBeforeDiscount ?? item.price).toFixed(2)}` : '••••••'}
+                                                                    {canViewJobPrices ? `R$ ${formatCurrency((item.basePriceBeforeDiscount ?? item.price))}` : '••••••'}
                                                                 </p>
                                                             </div>
                                                             <div>
@@ -6168,12 +6171,12 @@ export const JobDetails = () => {
                                                                     ) : (item.priceAdjustmentType === 'SURCHARGE' || (Boolean(item.appliedSurcharge) && Number(item.appliedSurcharge) > 0) || (Boolean(item.appliedSurchargeFixed) && Number(item.appliedSurchargeFixed) > 0)) ? (
                                                                         <span className="text-amber-700 font-bold">
                                                                             {item.appliedSurcharge ? `+${Number(item.appliedSurcharge).toFixed(1)}% ` : ''}
-                                                                            {item.appliedSurchargeFixed ? `(+R$ ${Number(item.appliedSurchargeFixed).toFixed(2)})` : ''}
+                                                                            {item.appliedSurchargeFixed ? `(+R$ ${formatCurrency(Number(item.appliedSurchargeFixed))})` : ''}
                                                                         </span>
                                                                     ) : item.appliedDiscount || item.appliedDiscountFixed ? (
                                                                         <span className="text-emerald-700 font-bold">
                                                                             {item.appliedDiscount ? `-${Number(item.appliedDiscount).toFixed(1)}% ` : ''}
-                                                                            {item.appliedDiscountFixed ? `(-R$ ${Number(item.appliedDiscountFixed).toFixed(2)})` : ''}
+                                                                            {item.appliedDiscountFixed ? `(-R$ ${formatCurrency(Number(item.appliedDiscountFixed))})` : ''}
                                                                         </span>
                                                                     ) : 'Nenhum'}
                                                                 </p>
@@ -6187,7 +6190,7 @@ export const JobDetails = () => {
                                                                 {item.isInternalStep ? (
                                                                     <p className="text-[10px] font-black text-indigo-500 mt-1 uppercase">Não Faturado</p>
                                                                 ) : canViewJobPrices ? (
-                                                                    <p className="text-sm font-bold text-slate-700">R$ {(item.price * item.quantity).toFixed(2)}</p>
+                                                                    <p className="text-sm font-bold text-slate-700">R$ {formatCurrency((item.price * item.quantity))}</p>
                                                                 ) : (
                                                                     <p className="text-sm font-bold text-slate-400">••••••</p>
                                                                 )}
@@ -6302,7 +6305,7 @@ export const JobDetails = () => {
                                             </div>
                                             <div className="flex items-center gap-3">
                                                 {canViewJobPrices ? (
-                                                    <span className="font-black text-slate-700 text-sm">R$ {(prod.unitPrice * prod.quantity).toFixed(2)}</span>
+                                                    <span className="font-black text-slate-700 text-sm">R$ {formatCurrency((prod.unitPrice * prod.quantity))}</span>
                                                 ) : (
                                                     <span className="font-bold text-slate-400 text-sm tracking-wider">••••••</span>
                                                 )}
@@ -6316,7 +6319,7 @@ export const JobDetails = () => {
                         <div className="mt-6 pt-6 border-t border-slate-200 text-right shrink-0">
                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-2">Valor Total da OS</span>
                             {canViewJobPrices ? (
-                                <div className="text-2xl md:text-3xl font-black text-slate-900 leading-none mt-1">R$ {job.totalValue.toFixed(2)}</div>
+                                <div className="text-2xl md:text-3xl font-black text-slate-900 leading-none mt-1">R$ {formatCurrency(job.totalValue)}</div>
                             ) : (
                                 <div className="text-2xl md:text-3xl font-black text-slate-400 leading-none mt-1 tracking-widest">••••••</div>
                             )}
