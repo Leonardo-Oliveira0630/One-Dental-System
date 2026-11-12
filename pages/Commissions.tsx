@@ -188,7 +188,7 @@ export const Commissions = () => {
               const itemStages = item.sectorStages && typeof item.sectorStages === 'object' ? (item.sectorStages as any)[sec] : undefined;
               const jtStages = jt?.sectorStages && typeof jt.sectorStages === 'object' ? (jt.sectorStages as any)[sec] : undefined;
               const hasStagesDefined = (Array.isArray(itemStages) && itemStages.length > 0) || (Array.isArray(jtStages) && jtStages.length > 0);
-              const isBaseProduction = !hasStagesDefined && (!!baseData || (stageNames.size === 0 && exec.isBaseChecked !== false));
+              const isBaseProduction = !hasStagesDefined && stageNames.size === 0 && (!!baseData || exec.isBaseChecked !== false);
               if (isBaseProduction) {
                 const uid = baseData?.exitUserId || baseData?.entryUserId || exec.userId;
                 if (uid) {
@@ -437,38 +437,69 @@ export const Commissions = () => {
 
   const [isDeduplicating, setIsDeduplicating] = useState(false);
 
-  // Rastrear lançamentos duplicados no banco de dados para alerta e limpeza
+
+
+  // Rastrear lançamentos duplicados e obsoletos no banco de dados para alerta e limpeza
   const duplicatePendingRecords = useMemo(() => {
     const seen = new Map<string, string[]>();
+    const obsoleteIds: string[] = [];
+
     commissions.forEach(c => {
       if (c.status === CommissionStatus.PENDING && c.jobId && c.userId) {
+        const job = jobs.find(j => j.id === c.jobId);
         const normStage = (c.stageName || 'Produção Base').trim();
         const normItem = (c.itemId || c.sector || 'geral').trim();
+
+        if (normStage === 'Produção Base' || !c.stageName) {
+          const srvName = c.itemName || job?.items?.find((i: any) => i.id === c.itemId)?.name || 'Serviço';
+          const targetItem = job?.items?.find((i: any) => i.id === c.itemId || i.name === srvName);
+          const secName = c.sector || 'Geral';
+          const itemStages = targetItem?.sectorStages?.[secName];
+          const jtStages = jobTypes.find(t => t.id === targetItem?.jobTypeId)?.sectorStages?.[secName];
+          const hasStagesDefined = (Array.isArray(itemStages) && itemStages.length > 0) || (Array.isArray(jtStages) && jtStages.length > 0);
+
+          const userExec = (job?.itemExecutions || []).find((e: any) => (e.itemId === c.itemId || !e.itemId) && (e.sector === c.sector || !c.sector) && (e.userId === c.userId || (e.stageTimes && Object.values(e.stageTimes).some((st: any) => st?.exitUserId === c.userId || st?.entryUserId === c.userId))));
+          const userExecutedStages = userExec?.executedStages || [];
+
+          const hasOtherStageComm = commissions.some(other => 
+            other.jobId === c.jobId && 
+            other.userId === c.userId && 
+            other.stageName && 
+            other.stageName !== 'Produção Base'
+          );
+
+          if (hasStagesDefined || userExecutedStages.length > 0 || hasOtherStageComm || (c.amount || 0) === 0) {
+            obsoleteIds.push(c.id);
+            return;
+          }
+        }
+
         const key = `${c.jobId}_${c.userId}_${normItem}_${normStage}`;
         const list = seen.get(key) || [];
         list.push(c.id);
         seen.set(key, list);
       }
     });
+
     const dupIds: string[] = [];
     seen.forEach(ids => {
       if (ids.length > 1) {
-        // Mantém o primeiro, marca as demais cópias como duplicatas
         dupIds.push(...ids.slice(1));
       }
     });
-    return dupIds;
-  }, [commissions]);
+
+    return Array.from(new Set([...dupIds, ...obsoleteIds]));
+  }, [commissions, jobs, jobTypes]);
 
   const handleDeduplicateCommissions = async () => {
     if (duplicatePendingRecords.length === 0) {
-      alert("Nenhuma duplicidade encontrada no banco de dados.");
+      alert("Nenhuma duplicidade ou lançamento obsoleto encontrado no banco de dados.");
       return;
     }
     const confirmed = window.confirm(
-      `Deseja realmente remover ${duplicatePendingRecords.length} lançamentos de comissão duplicados do banco de dados?\n\n` +
-      `• Os lançamentos legítimos originais serão mantidos intactos.\n` +
-      `• Apenas as cópias duplicadas serão excluídas com segurança.`
+      `Deseja realmente remover ${duplicatePendingRecords.length} lançamentos de comissão obsoletos/duplicados do banco de dados?\n\n` +
+      `• Os lançamentos de etapas legítimos serão mantidos intactos.\n` +
+      `• Linhas obsoletas de 'Produção Base' e duplicatas serão excluídas do banco de dados.`
     );
     if (!confirmed) return;
 
@@ -479,10 +510,10 @@ export const Commissions = () => {
         await deleteCommissionRecord(id);
         deletedCount++;
       }
-      alert(`Limpeza de duplicidades realizada com sucesso!\n\n${deletedCount} registros duplicados foram excluídos.`);
+      alert(`Limpeza realizada com sucesso!\n\n${deletedCount} registros obsoletos/duplicados foram excluídos.`);
     } catch (err: any) {
       console.error(err);
-      alert(`Erro ao limpar duplicidades: ${err.message || 'Erro desconhecido'}`);
+      alert(`Erro ao limpar registros: ${err.message || 'Erro desconhecido'}`);
     } finally {
       setIsDeduplicating(false);
     }
@@ -603,6 +634,23 @@ export const Commissions = () => {
       if (comm.itemId || comm.stageName) {
         const srvName = comm.itemName || job?.items?.find((i: any) => i.id === comm.itemId)?.name || 'Serviço';
         const stgName = comm.stageName || 'Produção Base';
+
+        // Desconsiderar "Produção Base" se o tipo de serviço possui etapas ou se o colaborador executou etapas específicas
+        if (stgName === 'Produção Base' || !comm.stageName) {
+          const targetItem = job?.items?.find((i: any) => i.id === comm.itemId || i.name === srvName);
+          const secName = comm.sector || 'Geral';
+          const itemStages = targetItem?.sectorStages?.[secName];
+          const jtStages = jobTypes.find(t => t.id === targetItem?.jobTypeId)?.sectorStages?.[secName];
+          const hasStagesDefined = (Array.isArray(itemStages) && itemStages.length > 0) || (Array.isArray(jtStages) && jtStages.length > 0);
+
+          const userExec = (job?.itemExecutions || []).find((e: any) => (e.itemId === comm.itemId || !e.itemId) && (e.sector === comm.sector || !comm.sector) && (e.userId === comm.userId || (e.stageTimes && Object.values(e.stageTimes).some((st: any) => st?.exitUserId === comm.userId || st?.entryUserId === comm.userId))));
+          const userExecutedStages = userExec?.executedStages || [];
+
+          if (hasStagesDefined || userExecutedStages.length > 0 || (comm.amount || 0) === 0) {
+            continue;
+          }
+        }
+
         const stgText = stgName !== 'Produção Base' ? `Etapa: ${stgName}` : 'Produção Base';
         const serviceTypesFormatted = `${srvName} (${stgText})`;
 
@@ -693,7 +741,11 @@ export const Commissions = () => {
             });
           }
 
-          const isBaseForUser = (exec.isBaseChecked !== false) &&
+          const itemStages = item.sectorStages && typeof item.sectorStages === 'object' ? (item.sectorStages as any)[sec] : undefined;
+          const jtStages = jt?.sectorStages && typeof jt.sectorStages === 'object' ? (jt.sectorStages as any)[sec] : undefined;
+          const hasStagesDefined = (Array.isArray(itemStages) && itemStages.length > 0) || (Array.isArray(jtStages) && jtStages.length > 0);
+
+          const isBaseForUser = !hasStagesDefined && stagesForUser.length === 0 && (exec.isBaseChecked !== false) &&
             (!exec.stageTimes?.['BASE']?.exitUserId || exec.stageTimes?.['BASE']?.exitUserId === comm.userId || exec.userId === comm.userId);
 
           if (stagesForUser.length > 0) {
