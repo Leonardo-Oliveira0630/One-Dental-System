@@ -4552,9 +4552,9 @@ export const JobDetails = () => {
                                                     type="number" 
                                                     min="0" 
                                                     step="0.01" 
-                                                    value={newItemCustomPrice !== '' ? newItemCustomPrice : (newItemCalculatedBasePrice || '')} 
+                                                    value={newItemCustomPrice} 
                                                     placeholder={formatCurrency(newItemCalculatedBasePrice)}
-                                                    onChange={e => setNewItemCustomPrice(e.target.value === '' ? '' : parseFloat(e.target.value) || 0)} 
+                                                    onChange={e => setNewItemCustomPrice(e.target.value)} 
                                                     className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold focus:border-blue-500 outline-none" 
                                                 />
                                             </div>

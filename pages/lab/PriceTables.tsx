@@ -31,7 +31,7 @@ export const PriceTables = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingTable, setEditingTable] = useState<PriceTable | null>(null);
     const [tableName, setTableName] = useState('');
-    const [prices, setPrices] = useState<Record<string, { basePrice: number, variations: Record<string, number> }>>({});
+    const [prices, setPrices] = useState<Record<string, { basePrice: number | string, variations: Record<string, number | string> }>>({});
     const [searchTerm, setSearchTerm] = useState('');
 
     const sortedAndFilteredJobTypes = useMemo(() => {
@@ -89,10 +89,24 @@ export const PriceTables = () => {
         if (!tableName.trim()) return alert(t('prices.nameRequiredAlert', "Dê um nome para a tabela"));
         
         try {
+            const sanitizedPrices: Record<string, any> = {};
+            Object.entries(prices).forEach(([jtId, data]: [string, any]) => {
+                const sanitizedVars: Record<string, number> = {};
+                if (data.variations) {
+                    Object.entries(data.variations).forEach(([optId, vVal]) => {
+                        sanitizedVars[optId] = vVal === '' || vVal === undefined || isNaN(Number(vVal)) ? 0 : Number(vVal);
+                    });
+                }
+                sanitizedPrices[jtId] = {
+                    basePrice: data.basePrice === '' || data.basePrice === undefined || isNaN(Number(data.basePrice)) ? 0 : Number(data.basePrice),
+                    variations: sanitizedVars
+                };
+            });
+
             if (editingTable) {
-                await updatePriceTable(editingTable.id, { name: tableName, prices: prices as any });
+                await updatePriceTable(editingTable.id, { name: tableName, prices: sanitizedPrices });
             } else {
-                await addPriceTable({ name: tableName, prices: prices as any });
+                await addPriceTable({ name: tableName, prices: sanitizedPrices });
             }
             setIsModalOpen(false);
         } catch (error) {
@@ -239,7 +253,7 @@ export const PriceTables = () => {
                                                             value={tablePrice.basePrice}
                                                             onChange={e => setPrices(prev => ({
                                                                 ...prev,
-                                                                [jt.id]: { ...tablePrice, basePrice: parseFloat(e.target.value) || 0 }
+                                                                [jt.id]: { ...tablePrice, basePrice: e.target.value }
                                                             }))}
                                                             className="w-32 px-4 py-2 bg-white border border-slate-200 rounded-xl font-black text-right outline-none focus:ring-2 focus:ring-blue-500"
                                                         />
@@ -264,7 +278,7 @@ export const PriceTables = () => {
                                                                                         value={tablePrice.variations[opt.id] ?? opt.priceModifier}
                                                                                         onChange={e => setPrices(prev => {
                                                                                             const newVariations = { ...tablePrice.variations };
-                                                                                            newVariations[opt.id] = parseFloat(e.target.value) || 0;
+                                                                                            newVariations[opt.id] = e.target.value;
                                                                                             return {
                                                                                                 ...prev,
                                                                                                 [jt.id]: { ...tablePrice, variations: newVariations }
