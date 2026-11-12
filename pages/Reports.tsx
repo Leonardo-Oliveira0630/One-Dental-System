@@ -48,6 +48,10 @@ export const parseSafeDate = (val: any): Date => {
     if (typeof val._seconds === 'number') return new Date(val._seconds * 1000);
   }
   if (typeof val === 'string') {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
+      const [y, m, d] = val.split('-').map(Number);
+      return new Date(y, m - 1, d);
+    }
     const d = new Date(val);
     return isNaN(d.getTime()) ? new Date(0) : d;
   }
@@ -1360,14 +1364,19 @@ export default function Reports() {
     
     doc.setFontSize(10);
     doc.setTextColor(100);
+    const isReceipts = reportType === 'RECEIPTS';
+    const dateTypeLabel = isReceipts 
+      ? 'Data do Pagamento' 
+      : (dateType === 'CREATED' ? t('reports.entryDateCreation', 'Data de Entrada') : t('reports.dueDateExpiration', 'Data de Entrega'));
+
     const dateRangeStr = startDate || endDate 
       ? t('reports.pdfPeriod', 'Período: {{start}} até {{end}} ({{type}})', {
-          start: startDate ? new Date(startDate).toLocaleDateString() : '-',
-          end: endDate ? new Date(endDate).toLocaleDateString() : '-',
-          type: dateType === 'CREATED' ? t('reports.entryDateCreation', 'Data de Entrada') : t('reports.dueDateExpiration', 'Data de Entrega')
+          start: startDate ? formatSafeDateStr(startDate) : '-',
+          end: endDate ? formatSafeDateStr(endDate) : '-',
+          type: dateTypeLabel
         })
       : t('reports.pdfAllHistory', 'Período: Todo o histórico ({{type}})', {
-          type: dateType === 'CREATED' ? t('reports.entryDateCreation', 'Data de Entrada') : t('reports.dueDateExpiration', 'Data de Entrega')
+          type: dateTypeLabel
         });
     doc.text(t('reports.pdfGeneratedAt', 'Gerado em: {{date}}', { date: new Date().toLocaleString() }) + `  |  ${dateRangeStr}`, 14, 27);
     
