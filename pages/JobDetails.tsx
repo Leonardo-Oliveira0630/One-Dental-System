@@ -949,7 +949,7 @@ export const JobDetails = () => {
   const canDelete = isAdmin || isManager || (job?.isBudget ? hasPerm('budgets:delete') : hasPerm('jobs:delete'));
   const canManageCommissions = isAdmin || isManager || hasPerm('commissions:edit');
   const canReturn = isAdmin || isManager || hasPerm('jobs:return');
-  const canRegisterReturn = isLabStaff && canReturn && (isFinished || job?.status === JobStatus.RETURNED) && !job?.isBudget;
+  const canRegisterReturn = isLabStaff && canReturn && !job?.isBudget;
   const canFinish = isAdmin || isManager || hasPerm('jobs:finish');
   const canAlert = isAdmin || isManager || hasPerm('jobs:alert');
   const canPrint = isAdmin || isManager || hasPerm('jobs:print');
