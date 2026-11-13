@@ -6744,7 +6744,7 @@ export const JobDetails = () => {
                                 className="hidden"
                                 onChange={(e) => {
                                     if (e.target.files && e.target.files[0]) {
-                                        setSelectedFiles(prev => [...prev, e.target.files![0]]);
+                                        setPendingCapturedMedia(e.target.files[0]);
                                         e.target.value = '';
                                     }
                                 }}
@@ -7867,20 +7867,78 @@ export const JobDetails = () => {
            />
        )}
 
-       {isWebcamOpen && (
-         <WebcamModal 
-           title={`Foto do Caso #${job?.jobOrder || job?.id || ''}`}
-           onClose={() => setIsWebcamOpen(false)}
-           onCapture={(file) => {
-             setSelectedFiles(prev => [...prev, file]);
-             setIsWebcamOpen(false);
-           }}
-         />
+              {isWebcamOpen && (
+          <WebcamModal 
+            title={`Foto do Caso #${job?.jobOrder || job?.id || ''}`}
+            onClose={() => setIsWebcamOpen(false)}
+            onCapture={(file) => {
+              setPendingCapturedMedia(file);
+              setIsWebcamOpen(false);
+            }}
+          />
+        )}
+
+        {pendingCapturedMedia && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-slate-900 rounded-[32px] p-6 w-full max-w-lg shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col items-center">
+              <div className="flex justify-between items-center w-full mb-4">
+                <h3 className="text-base font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-2">
+                  <CameraIcon size={20} className="text-blue-600" />
+                  Conferir Captura de Mídia
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setPendingCapturedMedia(null)}
+                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="w-full max-h-[60vh] bg-black rounded-2xl overflow-hidden flex items-center justify-center mb-6 border border-slate-200 dark:border-slate-800">
+                {pendingCapturedMedia.type.startsWith('video/') || pendingCapturedMedia.name.endsWith('.mp4') || pendingCapturedMedia.name.endsWith('.webm') ? (
+                  <video 
+                    src={URL.createObjectURL(pendingCapturedMedia)} 
+                    controls 
+                    autoPlay 
+                    className="w-full max-h-[50vh] object-contain"
+                  />
+                ) : (
+                  <img 
+                    src={URL.createObjectURL(pendingCapturedMedia)} 
+                    alt="Captura" 
+                    className="w-full max-h-[50vh] object-contain"
+                  />
+                )}
+              </div>
+
+              <div className="flex items-center gap-3 w-full">
+                <button
+                  type="button"
+                  onClick={() => setPendingCapturedMedia(null)}
+                  disabled={isUploadingFiles}
+                  className="flex-1 py-3 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-2xl font-black text-xs uppercase tracking-wider transition-all cursor-pointer disabled:opacity-50"
+                >
+                  Descartar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleConfirmCapturedMedia(pendingCapturedMedia)}
+                  disabled={isUploadingFiles}
+                  className="flex-1 py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+                >
+                  {isUploadingFiles ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+                  {isUploadingFiles ? 'Salvando...' : 'Confirmar Envio'}
+                </button>
+              </div>
+              {uploadProgressMsg && <p className="text-[10px] text-slate-500 mt-2 font-bold animate-pulse">{uploadProgressMsg}</p>}
+            </div>
+          </div>
         )}
       </div>
     </div>
 
-       {showReopenCompleteModal && (
+    {showReopenCompleteModal && (
          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in" id="reopenCompleteModal">
            <div className="bg-white rounded-[32px] p-6 w-full max-w-md shadow-2xl border border-slate-100 animate-in zoom-in duration-200">
              <div className="flex justify-between items-center mb-4">
