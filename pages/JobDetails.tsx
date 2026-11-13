@@ -636,13 +636,52 @@ export const JobDetails = () => {
   const [isUploadingFiles, setIsUploadingFiles] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadProgressMsg, setUploadProgressMsg] = useState('');
+  const [pendingCapturedMedia, setPendingCapturedMedia] = useState<File | null>(null);
+
+  const handleConfirmCapturedMedia = async (file: File) => {
+    if (!job) return;
+    setIsUploadingFiles(true);
+    setUploadProgressMsg('Processando captura...');
+    try {
+        const processed = await smartCompress(file);
+        setUploadProgressMsg('Enviando captura...');
+        const url = await uploadFile(processed);
+        const newAttachment = {
+            id: Math.random().toString(36).substr(2, 9),
+            name: file.name,
+            url: url,
+            uploadedAt: new Date(),
+            uploadedBy: currentUser?.id,
+            uploadedByName: currentUser?.name || 'Laboratório',
+            source: currentUser?.role === 'CLIENT' ? 'WEB' : 'LAB'
+        };
+        const updatedAttachments = [...(job.attachments || []).filter(Boolean), newAttachment];
+        await updateJob(job.id, { 
+            attachments: updatedAttachments,
+            history: [...(job.history || []).filter(Boolean), {
+                id: `hist_files_${Date.now()}`,
+                timestamp: new Date(),
+                action: 'Anexado novo arquivo de câmera/vídeo ao caso',
+                userId: currentUser?.id || 'sys',
+                userName: currentUser?.name || 'Sistema'
+            }]
+        });
+        setPendingCapturedMedia(null);
+    } catch (err: any) {
+        console.error(err);
+        alert('Erro ao enviar captura: ' + (err.message || 'Erro desconhecido'));
+    } finally {
+        setIsUploadingFiles(false);
+        setUploadProgressMsg('');
+    }
+  };
   const [isWebcamOpen, setIsWebcamOpen] = useState(false);
   const nativeCameraInputRef = useRef<HTMLInputElement>(null);
 
   const handleTakePhotoClick = async () => {
     await capturePhotoWithNativePreference(
       (file) => {
-        setSelectedFiles(prev => [...prev, file]);
+        setPendingCapturedMedia(file);
       },
       () => {
         setIsWebcamOpen(true);

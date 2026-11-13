@@ -513,7 +513,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                    <button 
                      type="button"
                      onClick={() => window.dispatchEvent(new CustomEvent('open-scanner'))}
-                     className="p-2 rounded-lg text-slate-600 hover:text-blue-600 active:bg-slate-100 transition-colors"
+                     className="p-2 rounded-lg text-slate-600 hover:text-blue-600 active:bg-slate-100 transition-colors hidden md:flex lg:hidden"
                      title={t('navigation.scanner', 'Escanear Código com Câmera')}
                    >
                      <Camera size={20} />

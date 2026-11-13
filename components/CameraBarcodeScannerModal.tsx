@@ -430,7 +430,7 @@ export const CameraBarcodeScannerModal: React.FC<CameraBarcodeScannerModalProps>
       <div className="relative flex-1 flex items-center justify-center overflow-hidden bg-black">
         {/* Loading Spinner */}
         {isLoading && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center z-10 text-white space-y-3">
+          <div className="absolute inset-0 flex flex-col items-center justify-center z-20 text-white space-y-3 bg-black">
             <Loader2 size={36} className="animate-spin text-blue-500" />
             <p className="text-xs font-bold uppercase tracking-wider text-slate-300">Iniciando câmera...</p>
           </div>
@@ -444,9 +444,10 @@ export const CameraBarcodeScannerModal: React.FC<CameraBarcodeScannerModalProps>
           muted
           style={{
             transform: zoomLevel > 1 && maxHardwareZoom <= 1 ? `scale(${zoomLevel})` : undefined,
-            transition: 'transform 0.2s ease-out'
+            transition: 'transform 0.2s ease-out',
+            opacity: isLoading ? 0 : 1
           }}
-          className="absolute inset-0 w-full h-full object-cover"
+          className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300"
         />
 
         {/* Reticle / Viewfinder Frame */}
