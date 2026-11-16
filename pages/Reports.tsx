@@ -3966,10 +3966,20 @@ export default function Reports() {
                                       <div key={i}>{safeNum(item.quantity, 1)}x {jt ? jt.name : (item.name || 'Serviço')}</div>
                                     );
                                   })}
+                                  {(job.products || []).map((prod: any, i: number) => (
+                                    <div key={`prod_${i}`} className="text-amber-700 font-medium mt-0.5">
+                                      {safeNum(prod.quantity, 1)}x {prod.name} <span className="text-[9px] bg-amber-100 text-amber-800 px-1.5 py-0.2 rounded font-bold uppercase">Produto</span>
+                                    </div>
+                                  ))}
                                 </td>
                                 <td className="p-3 text-xs text-slate-600">
                                   {(job.items || []).map((item: any, i: number) => (
                                     <div key={i}>R$ {formatSafeFixed((safeNum(item.price) * safeNum(item.quantity, 1)) - safeNum(item.appliedDiscount), 2)}</div>
+                                  ))}
+                                  {(job.products || []).map((prod: any, i: number) => (
+                                    <div key={`prod_val_${i}`} className="text-amber-700 font-medium mt-0.5">
+                                      R$ {formatSafeFixed(safeNum(prod.unitPrice) * safeNum(prod.quantity, 1), 2)}
+                                    </div>
                                   ))}
                                 </td>
                                 <td className="p-3 font-black text-teal-700 text-sm">R$ {formatSafeFixed(job.totalValue, 2)}</td>
