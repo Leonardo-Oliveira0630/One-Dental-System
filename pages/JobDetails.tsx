@@ -11,7 +11,7 @@ import {
   FileText, DollarSign, CheckCircle, AlertTriangle, AlertCircle,
   Printer, Box, Layers, ListChecks, Bell, Edit, Save, X, Plus, Trash2, Settings,
   LogIn, LogOut, Flag, CheckSquare, File as FileIcon, Download, Loader2, CreditCard, ExternalLink, Copy, Check, Star, UploadCloud, ChevronDown, CheckCircle2, Truck, Navigation, RotateCcw, MessageCircle, MessageSquare, Lock, Crown, FileCode, FileSpreadsheet, FileWarning, XCircle, ArrowLeftCircle, ScanBarcode, Briefcase, Search, ArrowRightCircle, RefreshCw, Edit3, Package, Smartphone, Sliders,
-  Eye, Edit2, LayoutGrid, List as ListIcon, Image as ImageLucide, Pin, StickyNote, Sun, Sunset, Globe
+  Eye, Edit2, LayoutGrid, List as ListIcon, Image as ImageLucide, Pin, StickyNote, Sun, Sunset, Globe, ArrowRight
 } from 'lucide-react';
 import { CreateAlertModal } from '../components/AlertSystem';
 import { ChatSystem } from '../components/ChatSystem';
@@ -31,6 +31,16 @@ import { LabServiceReviewModal } from '../components/LabServiceReviewModal';
 import { WebcamModal } from '../components/WebcamModal';
 import { capturePhotoWithNativePreference, isMobileDevice } from '../utils/cameraUtils';
 import { filterAndSortClients, filterAndSortProducts, matchesSearchQuery, normalizeText } from '../utils/stringUtils';
+import {
+  buildCaseEditHistoryEntries,
+  buildLegacyCreatedFallback,
+  buildSingleItemEditHistory,
+  createNotesHistory,
+  createMediaHistory,
+  createStatusChangeHistory,
+  formatHistoryServiceName,
+  getHistoryCategoryFilterGroup
+} from '../utils/jobHistoryUtils';
 
 const { doc, onSnapshot, deleteField, collection, getDocs } = firestorePkg as any;
 import { getTodayDateStr, normalizeRouteDate, isAfter12PM, createMiddayDate } from '../utils/dateHelpers';
@@ -211,6 +221,8 @@ export const JobDetails = () => {
   const [commentDraftText, setCommentDraftText] = useState('');
   const [isSavingComment, setIsSavingComment] = useState(false);
   const [attachmentViewFilter, setAttachmentViewFilter] = useState<'ALL' | 'IMAGE' | 'STL' | 'DOC'>('ALL');
+  const [historyUserFilter, setHistoryUserFilter] = useState<string>('ALL');
+  const [historyTypeFilter, setHistoryTypeFilter] = useState<string>('ALL');
 
   const formatAttachmentDateTime = (dateVal?: any) => {
     if (!dateVal) return '';
@@ -499,14 +511,14 @@ export const JobDetails = () => {
             status: targetStatus,
             completedAt: finalDate,
             isReopened: false,
-            history: [...(job.history || []).filter(Boolean), {
-                id: `hist_fin_${Date.now()}`,
-                timestamp: new Date(),
-                action: actionLabel,
+            history: [...(job.history || []).filter(Boolean), createStatusChangeHistory({
                 userId: currentUser.id,
                 userName: currentUser.name,
-                sector: 'Expedição'
-            }]
+                sector: 'Expedição',
+                oldStatus: job.status,
+                newStatus: targetStatus,
+                extraNote: actionLabel
+            })]
         });
     } catch (err) {
         console.error(err);
@@ -545,14 +557,14 @@ export const JobDetails = () => {
           status: rejectionTargetStatus || JobStatus.REJECTED,
           rejectionReason: rejectionReasonText.trim(),
           rejectedAt: new Date(),
-          history: [...(job.history || []).filter(Boolean), {
-            id: `hist_stat_${Date.now()}`,
-            timestamp: new Date(),
-            action: `Trabalho Recusado/Cancelado. Motivo: ${rejectionReasonText.trim()}`,
+          history: [...(job.history || []).filter(Boolean), createStatusChangeHistory({
             userId: currentUser.id,
             userName: currentUser.name,
-            sector: currentUser.sector || 'Geral'
-          }]
+            sector: currentUser.sector || 'Geral',
+            oldStatus: job.status,
+            newStatus: rejectionTargetStatus || JobStatus.REJECTED,
+            reason: rejectionReasonText.trim()
+          })]
         });
         alert("Trabalho recusado/cancelado com sucesso.");
         setShowRejectionModal(false);
@@ -658,13 +670,17 @@ export const JobDetails = () => {
         const updatedAttachments = [...(job.attachments || []).filter(Boolean), newAttachment];
         await updateJob(job.id, { 
             attachments: updatedAttachments,
-            history: [...(job.history || []).filter(Boolean), {
-                id: `hist_files_${Date.now()}`,
-                timestamp: new Date(),
-                action: 'Anexado novo arquivo de câmera/vídeo ao caso',
+            history: [...(job.history || []).filter(Boolean), createMediaHistory({
                 userId: currentUser?.id || 'sys',
-                userName: currentUser?.name || 'Sistema'
-            }]
+                userName: currentUser?.name || 'Sistema',
+                sector: currentUser?.sector || 'Laboratório',
+                actionType: 'ADDED',
+                files: [{
+                    name: file.name,
+                    size: file.size,
+                    source: currentUser?.role === 'CLIENT' ? 'WEB' : 'LAB'
+                }]
+            })]
         });
         setPendingCapturedMedia(null);
     } catch (err: any) {
@@ -916,13 +932,14 @@ export const JobDetails = () => {
 
       await updateJob(job.id, {
         notes: updatedNotes,
-        history: [...(job.history || []).filter(Boolean), {
-          id: `hist_comment_${Date.now()}`,
-          timestamp: new Date(),
-          action: `Comentário/Nota adicionado ao caso: "${commentText}"`,
+        history: [...(job.history || []).filter(Boolean), createNotesHistory({
           userId: currentUser?.id || 'sys',
-          userName: author
-        }]
+          userName: author,
+          sector: currentUser?.sector || 'Gestão',
+          noteType: 'OBSERVATION',
+          oldText: '',
+          newText: commentText
+        })]
       });
       setNewCommentInput('');
     } catch (err) {
@@ -1369,13 +1386,17 @@ export const JobDetails = () => {
         const updatedAttachments = [...(job.attachments || []).filter(Boolean), ...newAttachments];
         await updateJob(job.id, { 
             attachments: updatedAttachments,
-            history: [...(job.history || []).filter(Boolean), {
-                id: `hist_files_${Date.now()}`,
-                timestamp: new Date(),
-                action: `Anexados ${newAttachments.length} novos arquivos ao caso`,
+            history: [...(job.history || []).filter(Boolean), createMediaHistory({
                 userId: currentUser?.id || 'sys',
-                userName: currentUser?.name || 'Sistema'
-            }]
+                userName: currentUser?.name || 'Sistema',
+                sector: currentUser?.sector || 'Laboratório',
+                actionType: 'ADDED',
+                files: selectedFiles.map(f => ({
+                    name: f.name,
+                    size: f.size,
+                    source: currentUser?.role === UserRole.CLIENT ? 'WEB' : 'LAB'
+                }))
+            })]
         });
 
         setSelectedFiles([]);
@@ -1393,15 +1414,17 @@ export const JobDetails = () => {
     if (!confirm("Tem certeza que deseja excluir este arquivo?")) return;
     
     try {
+        const targetAtt = (job.attachments || []).find((a: any) => a.id === attId);
         const updatedAttachments = job.attachments?.filter((a: any) => a.id !== attId) || [];
         
-        const newHistory = [...(job.history || []).filter(Boolean), {
-            id: `hist_delatt_${Date.now()}`,
-            timestamp: new Date(),
-            action: 'Arquivo removido',
+        const newHistory = [...(job.history || []).filter(Boolean), createMediaHistory({
             userId: currentUser.id,
-            userName: currentUser.name
-        }];
+            userName: currentUser.name,
+            sector: currentUser.sector || 'Laboratório',
+            actionType: 'REMOVED',
+            fileName: targetAtt?.name || 'anexo',
+            oldComment: targetAtt?.comment
+        })];
 
         await updateJob(job.id, {
             attachments: updatedAttachments,
@@ -1418,6 +1441,7 @@ export const JobDetails = () => {
     if (!job) return;
     setIsSavingComment(true);
     try {
+      const targetAtt = (job.attachments || []).find((a: Attachment) => a.id === attId);
       const updatedAttachments = (job.attachments || []).map((att: Attachment) => {
         if (att.id === attId) {
           return {
@@ -1429,13 +1453,15 @@ export const JobDetails = () => {
       });
       await updateJob(job.id, { 
         attachments: updatedAttachments,
-        history: [...(job.history || []).filter(Boolean), {
-          id: `hist_comment_${Date.now()}`,
-          timestamp: new Date(),
-          action: `Comentário atualizado em anexo do caso`,
+        history: [...(job.history || []).filter(Boolean), createMediaHistory({
           userId: currentUser?.id || 'sys',
-          userName: currentUser?.name || 'Sistema'
-        }]
+          userName: currentUser?.name || 'Sistema',
+          sector: currentUser?.sector || 'Laboratório',
+          actionType: 'COMMENT',
+          fileName: targetAtt?.name || 'anexo',
+          oldComment: targetAtt?.comment || '',
+          newComment
+        })]
       });
       setEditingCommentAttId(null);
       setCommentDraftText('');
@@ -1720,25 +1746,72 @@ export const JobDetails = () => {
         const dateParts = editDueDate.split('-');
         const adjustedDate = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]));
         
-        const changes: string[] = [];
-        if (editPatientName !== job.patientName) changes.push(`- Paciente: ${job.patientName} -> ${editPatientName}`);
-        if (editOsNumber !== job.osNumber) changes.push(`- OS: ${job.osNumber} -> ${editOsNumber}`);
-        if (editBoxNumber !== job.boxNumber) changes.push(`- Caixa: ${job.boxNumber} -> ${editBoxNumber}`);
-        
         const selectedBoxColor = boxColors.find(c => c.id === editBoxColorId);
-        if (selectedBoxColor?.id !== job.boxColor?.id) {
-            changes.push(`- Cor da Caixa: ${job.boxColor?.name || 'Sem cor'} -> ${selectedBoxColor?.name || 'Sem cor'}`);
-        }
-        
-        const oldDate = job.dueDate ? new Date(job.dueDate).toISOString().split("T")[0] : "";
-        if (editDueDate !== oldDate) changes.push(`- Vencimento: ${oldDate} -> ${editDueDate}`);
-        
-        if (editUrgency !== job.urgency) changes.push(`- Urgência: ${job.urgency} -> ${editUrgency}`);
-        if (editDentistName !== job.dentistName) changes.push(`- Dentista: ${job.dentistName} -> ${editDentistName}`);
+        const normalizedEditItems = editItems.map(i => {
+            const oldItem = job.items.find((orig: any) => orig.id === i.id);
+            const oldQty = oldItem ? (Number(oldItem.quantity) || 1) : 1;
+            const newQty = Number(i.quantity) || 1;
+            let nextSecQuantities: Record<string, number> | undefined = undefined;
+            if (i.sectorQuantities) {
+                nextSecQuantities = {};
+                Object.entries(i.sectorQuantities).forEach(([sec, q]) => {
+                    nextSecQuantities![sec] = (Number(q) === oldQty || Number(q) === 1) ? newQty : Number(q);
+                });
+            }
+            let nextStageQuantities = i.stageQuantities;
+            if (nextStageQuantities && oldQty !== newQty) {
+                const updatedSQ: Record<string, Record<string, number>> = {};
+                Object.entries(nextStageQuantities).forEach(([sec, stgs]) => {
+                    updatedSQ[sec] = {};
+                    Object.entries(stgs as Record<string, number>).forEach(([stg, q]) => {
+                        updatedSQ[sec][stg] = (Number(q) === 1 || Number(q) === oldQty) ? newQty : q;
+                    });
+                });
+                nextStageQuantities = updatedSQ;
+            }
+            return {
+                ...i, 
+                quantity: newQty,
+                price: Number(i.price) || 0,
+                basePriceBeforeDiscount: i.basePriceBeforeDiscount !== undefined ? (Number(i.basePriceBeforeDiscount) || 0) : (Number(i.price) || 0),
+                appliedDiscount: Number(i.appliedDiscount) || 0,
+                appliedDiscountFixed: Number(i.appliedDiscountFixed) || 0,
+                sectorQuantities: nextSecQuantities,
+                stageQuantities: nextStageQuantities
+            };
+        });
 
-        const actionText = changes.length > 0 
-            ? `EDIÇÃO DE FICHA:\n${changes.join('\n')}` 
-            : 'Ficha editada manualmente';
+        const normalizedEditProducts = editProducts.map(p => ({
+            ...p,
+            quantity: Number(p.quantity) || 1,
+            basePriceBeforeDiscount: Number(p.basePriceBeforeDiscount) || p.unitPrice,
+            appliedDiscount: Number(p.appliedDiscount) || 0,
+            addedAt: p.addedAt || new Date().toISOString()
+        }));
+
+        const editHistoryEntries = buildCaseEditHistoryEntries({
+            oldJob: job,
+            userId: currentUser.id,
+            userName: currentUser.name,
+            sector: currentUser.sector || 'Gestão',
+            newValues: {
+                patientName: editPatientName,
+                osNumber: editOsNumber,
+                dentistName: editDentistName,
+                subDentistName: editSubDentistName || undefined,
+                boxNumber: editBoxNumber,
+                boxColorName: selectedBoxColor?.name,
+                dueDateStr: editDueDate,
+                dueTime: editDueTime,
+                urgency: editUrgency,
+                notes: editNotes,
+                receivedMaterials: editReceivedMaterials,
+                receivedMaterialQuantities: editReceivedMaterialQuantities,
+                items: normalizedEditItems,
+                products: normalizedEditProducts
+            },
+            jobTypes
+        });
 
         await updateJob(job.id, {
             patientName: editPatientName,
@@ -1754,49 +1827,10 @@ export const JobDetails = () => {
             notes: editNotes,
             receivedMaterials: editReceivedMaterials,
             receivedMaterialQuantities: editReceivedMaterialQuantities,
-            items: editItems.map(i => {
-                const oldItem = job.items.find((orig: any) => orig.id === i.id);
-                const oldQty = oldItem ? (Number(oldItem.quantity) || 1) : 1;
-                const newQty = Number(i.quantity) || 1;
-                let nextSecQuantities: Record<string, number> | undefined = undefined;
-                if (i.sectorQuantities) {
-                    nextSecQuantities = {};
-                    Object.entries(i.sectorQuantities).forEach(([sec, q]) => {
-                        nextSecQuantities![sec] = (Number(q) === oldQty || Number(q) === 1) ? newQty : Number(q);
-                    });
-                }
-                let nextStageQuantities = i.stageQuantities;
-                if (nextStageQuantities && oldQty !== newQty) {
-                    const updatedSQ: Record<string, Record<string, number>> = {};
-                    Object.entries(nextStageQuantities).forEach(([sec, stgs]) => {
-                        updatedSQ[sec] = {};
-                        Object.entries(stgs as Record<string, number>).forEach(([stg, q]) => {
-                            updatedSQ[sec][stg] = (Number(q) === 1 || Number(q) === oldQty) ? newQty : q;
-                        });
-                    });
-                    nextStageQuantities = updatedSQ;
-                }
-                return {
-                    ...i, 
-                    quantity: newQty,
-                    price: Number(i.price) || 0,
-                    basePriceBeforeDiscount: i.basePriceBeforeDiscount !== undefined ? (Number(i.basePriceBeforeDiscount) || 0) : (Number(i.price) || 0),
-                    appliedDiscount: Number(i.appliedDiscount) || 0,
-                    appliedDiscountFixed: Number(i.appliedDiscountFixed) || 0,
-                    sectorQuantities: nextSecQuantities,
-                    stageQuantities: nextStageQuantities
-                };
-            }),
-            products: editProducts.map(p => ({ ...p, quantity: Number(p.quantity) || 1, basePriceBeforeDiscount: Number(p.basePriceBeforeDiscount) || p.unitPrice, appliedDiscount: Number(p.appliedDiscount) || 0, addedAt: p.addedAt || new Date().toISOString() })),
+            items: normalizedEditItems,
+            products: normalizedEditProducts,
             totalValue: Number(editTotalValue) || 0,
-            history: [...(job.history || []).filter(Boolean), {
-                id: `hist_edit_${Date.now()}`,
-                timestamp: new Date(),
-                action: actionText,
-                userId: currentUser.id,
-                userName: currentUser.name,
-                sector: 'Gestão'
-            }]
+            history: [...(job.history || []).filter(Boolean), ...editHistoryEntries]
         });
 
         // Synchronize inventory stock for added/modified/removed products
@@ -1862,14 +1896,14 @@ export const JobDetails = () => {
             status: JobStatus.COMPLETED,
             completedAt: new Date(),
             isReopened: false,
-            history: [...(job.history || []).filter(Boolean), {
-                id: `hist_fin_${Date.now()}`,
-                timestamp: new Date(),
-                action: `Trabalho Finalizado e Conferido`,
+            history: [...(job.history || []).filter(Boolean), createStatusChangeHistory({
                 userId: currentUser.id,
                 userName: currentUser.name,
-                sector: 'Expedição'
-            }]
+                sector: 'Expedição',
+                oldStatus: job.status,
+                newStatus: JobStatus.COMPLETED,
+                extraNote: 'Trabalho Finalizado e Conferido'
+            })]
         });
     } finally { setIsUpdatingStatus(false); }
   };
@@ -1884,14 +1918,14 @@ export const JobDetails = () => {
             status: JobStatus.IN_PROGRESS,
             isReopened: true,
             originalCompletedAt: job.originalCompletedAt || parseSafeDate(prevCompletedAt) || new Date(),
-            history: [...(job.history || []).filter(Boolean), {
-                id: `hist_reopen_${Date.now()}`,
-                timestamp: new Date(),
-                action: `Trabalho REABERTO`,
+            history: [...(job.history || []).filter(Boolean), createStatusChangeHistory({
                 userId: currentUser.id,
                 userName: currentUser.name,
-                sector: currentUser.sector || 'Gestão'
-            }]
+                sector: currentUser.sector || 'Gestão',
+                oldStatus: job.status,
+                newStatus: JobStatus.IN_PROGRESS,
+                extraNote: 'Trabalho Reaberto'
+            })]
         });
     } finally { setIsUpdatingStatus(false); }
   };
@@ -1944,15 +1978,15 @@ export const JobDetails = () => {
             timestamp: new Date().toISOString()
         };
 
-        const newHistory = [...(job.history || []).filter(Boolean), {
-            id: `hist_cancel_del_${Date.now()}`,
-            timestamp: new Date(),
-            action: `Entrega Cancelada / Não Entregue`,
-            observations: `Motivo: ${cancelDeliveryReason.trim()}`,
+        const newHistory = [...(job.history || []).filter(Boolean), createStatusChangeHistory({
             userId: currentUser?.id || '',
             userName: currentUser?.name || 'Usuário',
-            sector: 'Logística'
-        }];
+            sector: 'Logística',
+            oldStatus: job.status,
+            newStatus: JobStatus.COMPLETED,
+            reason: cancelDeliveryReason.trim(),
+            extraNote: 'Entrega Cancelada / Não Entregue'
+        })];
 
         await updateJob(job.id, {
             status: JobStatus.COMPLETED,
@@ -2002,14 +2036,13 @@ export const JobDetails = () => {
     try {
         const payload: any = {
             status: newStatus,
-            history: [...(job.history || []).filter(Boolean), {
-                id: `hist_stat_${Date.now()}`,
-                timestamp: new Date(),
-                action: `Status alterado: ${newStatus}`,
+            history: [...(job.history || []).filter(Boolean), createStatusChangeHistory({
                 userId: currentUser.id,
                 userName: currentUser.name,
-                sector: currentUser.sector || 'Geral'
-            }]
+                sector: currentUser.sector || 'Geral',
+                oldStatus: job.status,
+                newStatus
+            })]
         };
         if (newStatus === JobStatus.COMPLETED || newStatus === JobStatus.DELIVERED) {
             payload.completedAt = new Date();
@@ -2060,6 +2093,42 @@ export const JobDetails = () => {
   };
 
   const sortedHistory = [...(job.history || []).filter(Boolean)].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+  const historyActors = Array.from(
+    new Set(sortedHistory.map(h => (h.userName || '').trim()).filter(Boolean))
+  ).sort((a, b) => a.localeCompare(b));
+
+  const filteredHistory = sortedHistory.filter(h => {
+    if (historyUserFilter !== 'ALL' && (h.userName || '').trim() !== historyUserFilter) return false;
+    if (historyTypeFilter !== 'ALL' && getHistoryCategoryFilterGroup(h) !== historyTypeFilter) return false;
+    return true;
+  });
+
+  const groupedHistory: { dateLabel: string; entries: typeof filteredHistory }[] = [];
+  filteredHistory.forEach(entry => {
+    const parsedTs = parseDateSafely(entry.timestamp) || new Date(entry.timestamp);
+    const dateLabel = parsedTs && !isNaN(parsedTs.getTime())
+      ? parsedTs.toLocaleDateString('pt-BR')
+      : 'Data não informada';
+    const lastGroup = groupedHistory[groupedHistory.length - 1];
+    if (lastGroup && lastGroup.dateLabel === dateLabel) {
+      lastGroup.entries.push(entry);
+    } else {
+      groupedHistory.push({ dateLabel, entries: [entry] });
+    }
+  });
+
+  const formatHistoryLongDateTime = (ts: any) => {
+    const d = parseDateSafely(ts) || new Date(ts);
+    if (!d || isNaN(d.getTime())) return '-';
+    const day = String(d.getDate()).padStart(2, '0');
+    const monthNamesPt = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+    const month = monthNamesPt[d.getMonth()] || '';
+    const year = d.getFullYear();
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    return `${day} de ${month} de ${year} às ${hh}:${mm}`;
+  };
   
   const getSectorTimeInfo = (job: Job) => {
     if (!job.sectorEntryTime) return { hours: 0, isAttention: false, label: '---' };
@@ -2085,14 +2154,13 @@ export const JobDetails = () => {
       try {
           await updateJob(job.id, {
               status: JobStatus.CANCELED,
-              history: [...(job.history || []).filter(Boolean), {
-                  id: `hist_cancel_${Date.now()}`,
-                  timestamp: new Date(),
-                  action: 'Trabalho CANCELADO',
+              history: [...(job.history || []).filter(Boolean), createStatusChangeHistory({
                   userId: currentUser?.id || '',
                   userName: currentUser?.name || 'Sistema',
-                  sector: currentUser?.sector || 'Gestão'
-              }]
+                  sector: currentUser?.sector || 'Gestão',
+                  oldStatus: job.status,
+                  newStatus: JobStatus.CANCELED
+              })]
           });
       } finally { setIsUpdatingStatus(false); }
   };
@@ -2103,14 +2171,13 @@ export const JobDetails = () => {
       try {
           await updateJob(job.id, {
               status: JobStatus.RETURNED,
-              history: [...(job.history || []).filter(Boolean), {
-                  id: `hist_return_${Date.now()}`,
-                  timestamp: new Date(),
-                  action: 'Trabalho DEVOLVIDO',
+              history: [...(job.history || []).filter(Boolean), createStatusChangeHistory({
                   userId: currentUser?.id || '',
                   userName: currentUser?.name || 'Sistema',
-                  sector: currentUser?.sector || 'Gestão'
-              }]
+                  sector: currentUser?.sector || 'Gestão',
+                  oldStatus: job.status,
+                  newStatus: JobStatus.RETURNED
+              })]
           });
       } finally { setIsUpdatingStatus(false); }
   };
@@ -2296,14 +2363,12 @@ export const JobDetails = () => {
           const oldEntry = editingExecution.originalMovement?.entryTime ? new Date(editingExecution.originalMovement.entryTime).toLocaleString() : 'N/A';
           const oldExit = editingExecution.originalExecution?.timestamp ? new Date(editingExecution.originalExecution.timestamp).toLocaleString() : 'N/A';
 
-          const historyAction = `ALTERAÇÃO DE PRODUÇÃO: Item "${editingExecution.item.name}" (${editingExecution.sector})\n` +
-                                `- DE: ${oldUserName} | Ent: ${oldEntry} | Sai: ${oldExit}\n` +
-                                `- PARA: ${userName} | Ent: ${entryTimeStr} | Sai: ${exitTimeStr}`;
-
           const newJobStatus = (entryDate && (job.status === JobStatus.PENDING || job.status === JobStatus.WAITING_APPROVAL)) 
               ? JobStatus.IN_PROGRESS 
               : job.status;
 
+          const stageLabel = editingExecution.stageName ? ` · ${editingExecution.stageName}` : '';
+          const fullExecItemName = formatHistoryServiceName(editingExecution.item, jobTypes);
           await updateJob(job.id, {
               status: newJobStatus,
               currentSector: editingExecution.sector,
@@ -2312,10 +2377,20 @@ export const JobDetails = () => {
               history: [...(job.history || []).filter(Boolean), {
                   id: `hist_exec_edit_${Date.now()}`,
                   timestamp: new Date(),
-                  action: historyAction,
+                  action: 'alterou o registro de produção',
+                  targetName: `${fullExecItemName} (${editingExecution.sector}${stageLabel})`,
                   userId: currentUser?.id || '',
                   userName: currentUser?.name || 'Sistema',
-                  sector: currentUser?.sector || 'Gestão'
+                  sector: currentUser?.sector || 'Gestão',
+                  category: 'PRODUCTION',
+                  details: [
+                      { label: 'Serviço / Item', value: fullExecItemName },
+                      { label: 'Setor', value: editingExecution.sector },
+                      ...(editingExecution.stageName ? [{ label: 'Etapa', value: editingExecution.stageName }] : []),
+                      { label: 'Responsável', oldValue: oldUserName, newValue: userName, isDiff: oldUserName !== userName },
+                      { label: 'Entrada', oldValue: oldEntry, newValue: entryTimeStr, isDiff: oldEntry !== entryTimeStr },
+                      { label: 'Saída', oldValue: oldExit, newValue: exitTimeStr, isDiff: oldExit !== exitTimeStr }
+                  ]
               }]
           });
 
@@ -2385,20 +2460,27 @@ export const JobDetails = () => {
           const newMovements = (job.sectorMovements || []).filter((m: any) => m.sector !== sector);
           const deletedUserName = executionToDelete ? executionToDelete.userName : '-';
           
-          const exitTime = executionToDelete?.timestamp ? new Date(executionToDelete.timestamp).toLocaleString() : 'N/A';
-          const historyAction = `EXCLUSÃO DE PRODUÇÃO: Item "${item.name}" no setor "${sector}".\n` +
-                                `- Registro de: ${deletedUserName} finalizado em ${exitTime}`;
+          const exitTime = executionToDelete?.timestamp ? new Date(executionToDelete.timestamp).toLocaleString('pt-BR') : 'N/A';
 
+          const fullDelItemName = formatHistoryServiceName(item, jobTypes);
           await updateJob(job.id, {
               itemExecutions: newExecutions,
               sectorMovements: newMovements,
               history: [...(job.history || []).filter(Boolean), {
                   id: `hist_exec_del_${Date.now()}`,
                   timestamp: new Date(),
-                  action: historyAction,
+                  action: 'excluiu o registro de produção',
+                  targetName: `${fullDelItemName} (${sector})`,
                   userId: currentUser?.id || '',
                   userName: currentUser?.name || 'Sistema',
-                  sector: currentUser?.sector || 'Gestão'
+                  sector: currentUser?.sector || 'Gestão',
+                  category: 'PRODUCTION',
+                  details: [
+                      { label: 'Serviço / Item', value: fullDelItemName },
+                      { label: 'Setor', value: sector },
+                      { label: 'Colaborador anterior', value: deletedUserName },
+                      { label: 'Finalizado em', value: exitTime }
+                  ]
               }]
           });
 
@@ -2651,17 +2733,23 @@ export const JobDetails = () => {
               newMovements = newMovements.filter(m => m.sector !== sector || (m.entryTime && !m.exitTime));
           }
 
-          const historyAction = `LIMPEZA DE ETAPA: Etapa "${displayName}" no item "${item.name}" foi limpa pelo gestor.\n` +
-                                `- Entrada e saída resetadas.\n` +
-                                `- Comissão desconsiderada para ${affectedUserName}.`;
-
+          const fullClearItemName = formatHistoryServiceName(item, jobTypes);
           const newHistory = [...(job.history || []).filter(Boolean), {
               id: `hist_exec_clear_${Date.now()}`,
               timestamp: new Date(),
-              action: historyAction,
+              action: 'limpou a etapa de produção',
+              targetName: `${fullClearItemName} · ${displayName}`,
               userId: currentUser?.id || '',
               userName: currentUser?.name || 'Sistema',
-              sector: currentUser?.sector || 'Gestão'
+              sector: currentUser?.sector || 'Gestão',
+              category: 'PRODUCTION',
+              details: [
+                  { label: 'Serviço / Item', value: fullClearItemName },
+                  { label: 'Setor', value: sector },
+                  { label: 'Etapa limpa', value: displayName },
+                  { label: 'Colaborador afetado', value: affectedUserName },
+                  { label: 'Efeito', value: 'Entrada/saída resetadas e comissão desconsiderada' }
+              ]
           }];
 
           await updateJob(job.id, {
@@ -2848,14 +2936,27 @@ export const JobDetails = () => {
       await updateJob(job.id, { 
           items: updatedItems,
           totalValue: newTotalValue,
-          history: [...(job.history || []).filter(Boolean), {
-              id: `hist_item_edit_${Date.now()}`,
-              timestamp: new Date(),
-              action: `Item "${item.name}" editado (Qtd: ${parsedQty}, Total: R$ ${formatCurrency((finalPrice * parsedQty))})`,
+          history: [...(job.history || []).filter(Boolean), buildSingleItemEditHistory({
+              oldItem: item,
+              newItem: {
+                  quantity: parsedQty,
+                  nature: itemEditForm.nature || 'NORMAL',
+                  price: finalPrice,
+                  basePriceBeforeDiscount: newBasePrice,
+                  priceAdjustmentType: itemEditForm.priceAdjustmentType || 'DISCOUNT',
+                  appliedDiscount,
+                  appliedDiscountFixed,
+                  appliedSurcharge,
+                  appliedSurchargeFixed,
+                  selectedTeeth: itemEditForm.selectedTeeth.length > 0 ? itemEditForm.selectedTeeth : undefined,
+                  color: itemEditForm.color || undefined,
+                  selectedVariationIds: itemEditForm.selectedVariationIds
+              },
               userId: currentUser?.id || '',
               userName: currentUser?.name || 'Sistema',
-              sector: currentUser?.sector || 'Gestão'
-          }]
+              sector: currentUser?.sector || 'Gestão',
+              jobTypes
+          })]
       });
 
       await recalculateAllCommissions(updatedItems, job.itemExecutions || []);
@@ -3018,13 +3119,14 @@ export const JobDetails = () => {
                       try {
                         await updateJob(job.id, { 
                           notes: freeLabNotesText,
-                          history: [...(job.history || []).filter(Boolean), {
-                            id: `hist_freelab_notes_${Date.now()}`,
-                            timestamp: new Date(),
-                            action: `Observação do caso editada`,
+                          history: [...(job.history || []).filter(Boolean), createNotesHistory({
                             userId: currentUser?.id || 'sys',
-                            userName: currentUser?.name || 'Sistema'
-                          }]
+                            userName: currentUser?.name || 'Sistema',
+                            sector: currentUser?.sector || 'Gestão',
+                            noteType: 'OBSERVATION',
+                            oldText: job.notes || '',
+                            newText: freeLabNotesText
+                          })]
                         });
                         setFreeLabEditingNotes(false);
                       } catch (err) {
@@ -3129,13 +3231,14 @@ export const JobDetails = () => {
                       try {
                         await updateJob(job.id, { 
                           caseNotes: caseNotesText,
-                          history: [...(job.history || []).filter(Boolean), {
-                            id: `hist_case_notes_${Date.now()}`,
-                            timestamp: new Date(),
-                            action: `Nota do caso atualizada`,
+                          history: [...(job.history || []).filter(Boolean), createNotesHistory({
                             userId: currentUser?.id || 'sys',
-                            userName: currentUser?.name || 'Sistema'
-                          }]
+                            userName: currentUser?.name || 'Sistema',
+                            sector: currentUser?.sector || 'Gestão',
+                            noteType: 'CASE_NOTE',
+                            oldText: job.caseNotes || '',
+                            newText: caseNotesText
+                          })]
                         });
                         setEditingCaseNotes(false);
                       } catch (err) {
@@ -6424,13 +6527,14 @@ export const JobDetails = () => {
                                                 try {
                                                     await updateJob(job.id, { 
                                                         caseNotes: caseNotesText,
-                                                        history: [...(job.history || []).filter(Boolean), {
-                                                            id: `hist_case_notes_${Date.now()}`,
-                                                            timestamp: new Date(),
-                                                            action: `Notas do caso atualizadas`,
+                                                        history: [...(job.history || []).filter(Boolean), createNotesHistory({
                                                             userId: currentUser?.id || 'sys',
-                                                            userName: currentUser?.name || 'Sistema'
-                                                        }]
+                                                            userName: currentUser?.name || 'Sistema',
+                                                            sector: currentUser?.sector || 'Gestão',
+                                                            noteType: 'CASE_NOTE',
+                                                            oldText: job.caseNotes || '',
+                                                            newText: caseNotesText
+                                                        })]
                                                     });
                                                     setEditingCaseNotes(false);
                                                 } catch (err) {
@@ -7185,29 +7289,199 @@ export const JobDetails = () => {
 
         {activeTab === 'HISTORY' && (
             revealJobStatus ? (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-4 sm:p-8 animate-in fade-in duration-300 w-full overflow-hidden pb-8">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8 animate-in fade-in duration-300 w-full overflow-hidden pb-8">
                     <div className="lg:col-span-2 min-w-0">
-                        <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-5 md:p-4 sm:p-8">
-                            <h3 className="text-base md:text-lg font-black text-slate-800 mb-8 flex items-center gap-2 uppercase tracking-tighter"><ListChecks size={20} className="text-blue-500 shrink-0" /> Linha do Tempo</h3>
-                            <div className="space-y-8 relative before:absolute before:left-[17px] before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-50">
-                                {sortedHistory.map((h, idx) => (
-                                    <div key={idx} className="flex gap-4 md:gap-4 sm:p-6 relative min-w-0">
-                                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 z-10 border-4 border-white shadow-sm ${idx === 0 ? 'bg-blue-600 text-white shadow-blue-100' : 'bg-slate-100 text-slate-300'}`}>
-                                            {h.action.toLowerCase().includes('concluído') ? <Check size={16} className="shrink-0" /> : idx === 0 ? <Clock size={16} className="shrink-0" /> : <div className="w-2 h-2 bg-slate-300 rounded-full shrink-0" />}
-                                        </div>
-                                        <div className="flex-1 pb-8 border-b border-slate-50 last:border-0 last:pb-0 min-w-0">
-                                            <div className="flex flex-col sm:flex-row justify-between items-start gap-1.5 md:gap-4 mb-2">
-                                                <p className={`font-black text-xs md:text-sm uppercase tracking-tight leading-tight ${idx === 0 ? 'text-blue-600' : 'text-slate-700'}`}>{h.action}</p>
-                                                <span className="text-[8px] md:text-[9px] font-black text-slate-400 uppercase bg-slate-100 px-2 py-0.5 rounded shrink-0 whitespace-nowrap">{new Date(h.timestamp).toLocaleDateString()} {new Date(h.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                                            </div>
-                                            <div className="flex flex-wrap items-center gap-3">
-                                                <div className="flex items-center gap-1.5 text-[10px] md:text-xs text-slate-400 font-bold uppercase truncate"><User size={12} className="shrink-0" /> {h.userName}</div>
-                                                {h.sector && <div className="flex items-center gap-1.5 text-[8px] md:text-[9px] font-black text-blue-500 uppercase tracking-widest bg-blue-50 px-2 py-0.5 rounded shrink-0">{h.sector}</div>}
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
+                        <div className="bg-white rounded-3xl border border-slate-200/80 shadow-sm p-5 sm:p-8">
+                            <div className="flex flex-wrap items-center justify-between gap-3 pb-5 mb-6 border-b border-slate-100">
+                                <div className="flex flex-wrap items-center gap-2.5">
+                                    <select
+                                        value={historyUserFilter}
+                                        onChange={(e) => setHistoryUserFilter(e.target.value)}
+                                        aria-label="Filtrar histórico por usuário"
+                                        className="text-xs font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer"
+                                    >
+                                        <option value="ALL">Alterado por: Todos</option>
+                                        {historyActors.map((actor) => (
+                                            <option key={actor} value={actor}>{actor}</option>
+                                        ))}
+                                    </select>
+
+                                    <select
+                                        value={historyTypeFilter}
+                                        onChange={(e) => setHistoryTypeFilter(e.target.value)}
+                                        aria-label="Filtrar histórico por tipo"
+                                        className="text-xs font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer"
+                                    >
+                                        <option value="ALL">Tipo: Todos</option>
+                                        <option value="CREATED">Criação do caso</option>
+                                        <option value="SERVICES">Serviços e produtos</option>
+                                        <option value="EDITED">Edição da ficha</option>
+                                        <option value="MOVEMENT">Movimentação e produção</option>
+                                        <option value="NOTES">Notas e observações</option>
+                                        <option value="MEDIA">Arquivos e mídias</option>
+                                        <option value="STATUS">Alterações de status</option>
+                                    </select>
+
+                                    {(historyUserFilter !== 'ALL' || historyTypeFilter !== 'ALL') && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setHistoryUserFilter('ALL');
+                                                setHistoryTypeFilter('ALL');
+                                            }}
+                                            className="text-xs font-semibold text-blue-600 hover:text-blue-700 px-2 py-1.5 transition-colors cursor-pointer"
+                                        >
+                                            Limpar filtros
+                                        </button>
+                                    )}
+                                </div>
+                                <span className="text-xs font-medium text-slate-400 tabular-nums">
+                                    {filteredHistory.length} {filteredHistory.length === 1 ? 'registro' : 'registros'}
+                                </span>
                             </div>
+
+                            {groupedHistory.length === 0 ? (
+                                <div className="py-14 text-center">
+                                    <ListChecks size={36} className="mx-auto text-slate-200 mb-3" />
+                                    <p className="text-sm font-semibold text-slate-500">Nenhum evento encontrado no histórico.</p>
+                                    {(historyUserFilter !== 'ALL' || historyTypeFilter !== 'ALL') && (
+                                        <p className="text-xs text-slate-400 mt-1">Tente remover os filtros aplicados para visualizar todos os registros.</p>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="space-y-6">
+                                    {groupedHistory.map((group) => (
+                                        <div key={group.dateLabel}>
+                                            <div className="flex items-center gap-3 mb-6">
+                                                <div className="flex-1 h-px bg-slate-200" />
+                                                <span className="text-[11px] font-semibold text-slate-400 tracking-wide tabular-nums">{group.dateLabel}</span>
+                                                <div className="flex-1 h-px bg-slate-200" />
+                                            </div>
+
+                                            <div className="space-y-0">
+                                                {group.entries.map((h, entryIdx) => {
+                                                    const actorInitial = (h.userName || 'S').trim().charAt(0).toUpperCase();
+                                                    const hasRawDetails = Array.isArray(h.details) && h.details.length > 0;
+                                                    const hasRawSections = Array.isArray(h.sections) && h.sections.length > 0;
+                                                    const legacyFallback =
+                                                        !hasRawDetails && !hasRawSections && getHistoryCategoryFilterGroup(h) === 'CREATED'
+                                                            ? buildLegacyCreatedFallback(
+                                                                job,
+                                                                h,
+                                                                jobTypes,
+                                                                sortedHistory.some(x => x.id !== h.id && ['EDITED', 'SERVICES', 'NOTES'].includes(getHistoryCategoryFilterGroup(x)))
+                                                              )
+                                                            : null;
+                                                    const effectiveDetails = hasRawDetails ? h.details! : (legacyFallback?.details || []);
+                                                    const effectiveSections = hasRawSections ? h.sections! : (legacyFallback?.sections || []);
+                                                    const hasDetails = effectiveDetails.length > 0;
+                                                    const useTwoCols = hasDetails && effectiveDetails.length > 6;
+                                                    const isLastInGroup = entryIdx === group.entries.length - 1;
+
+                                                    return (
+                                                        <div key={h.id || `${group.dateLabel}_${entryIdx}`} className={`relative pl-11 ${isLastInGroup ? 'pb-1' : 'pb-7'}`}>
+                                                            {!isLastInGroup && (
+                                                                <div className="absolute left-[15px] top-8 bottom-0 w-px bg-slate-200" />
+                                                            )}
+                                                            <div className="absolute left-0 top-0 w-8 h-8 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center ring-4 ring-white shadow-2xs select-none">
+                                                                {actorInitial}
+                                                            </div>
+
+                                                            <div className="min-w-0">
+                                                                <div className="flex flex-wrap items-center gap-1.5 text-xs font-medium text-slate-500 tabular-nums">
+                                                                    <Clock size={12} className="text-slate-400 shrink-0" />
+                                                                    <span>{formatHistoryLongDateTime(h.timestamp)}</span>
+                                                                    {h.sector && (
+                                                                        <>
+                                                                            <span className="text-slate-300">·</span>
+                                                                            <span className="text-slate-500">{h.sector}</span>
+                                                                        </>
+                                                                    )}
+                                                                </div>
+
+                                                                <p className="text-xs sm:text-sm text-slate-700 mt-1 leading-snug whitespace-pre-line break-words">
+                                                                    <span className="font-semibold text-blue-600 uppercase">{h.userName || 'Sistema'}</span>{' '}
+                                                                    <span className="text-slate-700">{h.action}</span>
+                                                                    {h.targetName && (
+                                                                        <>
+                                                                            {' '}
+                                                                            <span className="font-semibold text-blue-600 break-words">{h.targetName}</span>
+                                                                        </>
+                                                                    )}
+                                                                </p>
+
+                                                                {h.summaryText && (
+                                                                    <div className="mt-2.5 text-xs text-slate-700 whitespace-pre-wrap leading-relaxed bg-slate-50/80 border border-slate-200/70 rounded-xl p-3 break-words">
+                                                                        {h.summaryText}
+                                                                    </div>
+                                                                )}
+
+                                                                {h.diffBlock && (
+                                                                    <div className="mt-3 grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-3 items-start bg-slate-50/80 border border-slate-200/70 rounded-xl p-3.5 text-xs">
+                                                                        <div className="min-w-0">
+                                                                            <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Anterior</div>
+                                                                            <p className="text-slate-500 whitespace-pre-wrap leading-relaxed break-words">{h.diffBlock.oldText}</p>
+                                                                        </div>
+                                                                        <div className="hidden md:flex items-center justify-center pt-5 text-slate-400">
+                                                                            <ArrowRight size={14} />
+                                                                        </div>
+                                                                        <div className="min-w-0 border-t md:border-t-0 pt-2.5 md:pt-0 border-slate-200/70">
+                                                                            <div className="text-[10px] font-semibold uppercase tracking-wider text-blue-600 mb-1">Atualizado</div>
+                                                                            <p className="text-slate-800 font-medium whitespace-pre-wrap leading-relaxed break-words">{h.diffBlock.newText}</p>
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+
+                                                                {hasDetails && (
+                                                                    <div className={useTwoCols ? 'mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2.5' : 'mt-3 space-y-2.5'}>
+                                                                        {effectiveDetails.map((d, dIdx) => (
+                                                                            <div key={dIdx} className={`min-w-0 ${d.label === 'Tipos de serviço' || d.label === 'Produtos adicionais' || d.label === 'Observações' ? 'sm:col-span-2' : ''}`}>
+                                                                                <div className="text-[11px] font-medium text-slate-400">{d.label}</div>
+                                                                                {d.isDiff ? (
+                                                                                    <div className="flex flex-wrap items-center gap-1.5 text-xs mt-0.5 tabular-nums">
+                                                                                        <span className="text-slate-400 line-through break-words">{d.oldValue}</span>
+                                                                                        <ArrowRight size={12} className="text-slate-400 shrink-0" />
+                                                                                        <span className="font-semibold text-slate-800 break-words">{d.newValue}</span>
+                                                                                    </div>
+                                                                                ) : (
+                                                                                    <div className="text-xs font-medium text-slate-700 mt-0.5 whitespace-pre-wrap break-words tabular-nums">
+                                                                                        {d.value}
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+
+                                                                {effectiveSections.length > 0 && (
+                                                                    <div className="mt-3.5 pt-3 border-t border-slate-200/70 space-y-2.5">
+                                                                        {effectiveSections.map((sec, sIdx) => (
+                                                                            <div key={sIdx} className="bg-slate-50/70 border border-slate-200/70 rounded-xl p-3">
+                                                                                <div className="flex flex-wrap items-baseline justify-between gap-2 mb-2">
+                                                                                    <span className="text-xs font-semibold text-blue-700 break-words">{sec.title}</span>
+                                                                                    {sec.subtitle && <span className="text-[11px] font-medium text-slate-400">{sec.subtitle}</span>}
+                                                                                </div>
+                                                                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2">
+                                                                                    {sec.fields.map((f, fIdx) => (
+                                                                                        <div key={fIdx} className={`min-w-0 ${f.label === 'Serviço / Item' || f.label === 'Produto / Item' ? 'col-span-2 sm:col-span-3' : ''}`}>
+                                                                                            <div className="text-[11px] font-medium text-slate-400">{f.label}</div>
+                                                                                            <div className="text-xs font-medium text-slate-700 break-words tabular-nums">{f.value}</div>
+                                                                                        </div>
+                                                                                    ))}
+                                                                                </div>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </div>
                     <div className="lg:col-span-1 space-y-4 md:space-y-6 min-w-0">
@@ -7216,7 +7490,7 @@ export const JobDetails = () => {
                             <h4 className={`font-black text-[10px] md:text-xs mb-2 flex items-center gap-2 uppercase tracking-widest ${timeInfo.isAttention ? 'text-amber-200' : 'text-indigo-300'}`}><MapPin size={16} className="shrink-0" /> Estágio Atual</h4>
                             <p className="text-2xl md:text-3xl font-black uppercase tracking-tighter leading-tight break-words">{job.currentSector || 'Triagem'}</p>
                             <div className="mt-4 flex flex-col gap-1">
-                                <div className={`flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.2em] ${timeInfo.isAttention ? 'text-amber-100' : 'text-indigo-400'} shrink-0`}>
+                                <div className={`flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.2em] ${timeInfo.isAttention ? 'text-amber-100' : 'text-indigo-400'} shrink-0 tabular-nums`}>
                                     <Clock size={14} /> Permanência: {timeInfo.label}
                                 </div>
                                 {timeInfo.isAttention && (

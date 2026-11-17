@@ -11,6 +11,7 @@ import { calculateItemCommission } from '../utils/commissionUtils';
 import { CameraDevice, getAvailableCameras, getSmartCameraSelection } from '../utils/cameraUtils';
 import { getNfcUidFormats, findMatchingNfcBox } from '../services/nfcServices';
 import { CameraBarcodeScannerModal } from './CameraBarcodeScannerModal';
+import { createSectorMovementHistory, formatHistoryServiceName } from '../utils/jobHistoryUtils';
 
 // Importação segura do Capacitor
 const playNativeHaptic = async (isSuccess: boolean) => {
@@ -644,14 +645,18 @@ export const GlobalScanner: React.FC = () => {
         
         newExecutions[executionIndex] = exec;
 
-        const newHistory = [...(currentJob.history || []).filter(Boolean), {
-            id: Math.random().toString(),
-            timestamp: new Date(),
-            action: `${actionText} - ${targetName} no setor ${sector}`,
+        const movementHistoryEntry = createSectorMovementHistory({
             userId: user.id,
             userName: user.name,
-            sector: sector
-        }];
+            sector,
+            movementType: isEntering ? 'ENTRY' : 'EXIT',
+            itemName: formatHistoryServiceName(item, jobTypesRef.current),
+            stageName: stageName || undefined,
+            quantity: Number(item.quantity) || 1,
+            method: 'Scanner / Código de Barras'
+        });
+
+        const newHistory = [...(currentJob.history || []).filter(Boolean), movementHistoryEntry];
 
         let newSectorMovements = [...(currentJob.sectorMovements || []).filter(Boolean)];
         let openMovementIndex = newSectorMovements.findIndex(m => m.sector === sector && !m.exitTime);

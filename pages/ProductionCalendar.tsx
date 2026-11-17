@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getContrastColor } from '../services/mockData';
+import { createStatusChangeHistory } from '../utils/jobHistoryUtils';
 
 type CalendarFilter = 'ALL' | 'DELAYED' | 'URGENT' | 'POST';
 
@@ -108,14 +109,14 @@ export const ProductionCalendar = () => {
     updateJob(selectedJob.id, { 
         status: JobStatus.COMPLETED,
         completedAt: new Date(),
-        history: [...(selectedJob.history || []).filter(Boolean), {
-            id: `hist_fin_${Date.now()}`,
-            timestamp: new Date(),
-            action: t('calendar.historyFinalizedCalendar', 'Trabalho Finalizado via Calendário'),
+        history: [...(selectedJob.history || []).filter(Boolean), createStatusChangeHistory({
             userId: currentUser?.id || 'sys',
             userName: currentUser?.name || 'Sistema',
-            sector: 'Expedição'
-        }]
+            sector: 'Expedição',
+            oldStatus: selectedJob.status,
+            newStatus: JobStatus.COMPLETED,
+            extraNote: 'Trabalho Finalizado via Calendário de Produção'
+        })]
     });
     setSelectedJob(null);
   };

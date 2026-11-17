@@ -8,6 +8,7 @@ import { Attachment, JobStatus, UrgencyLevel } from '../../types';
 import * as api from '../../services/firebaseService';
 import { smartCompress } from '../../services/compressionService';
 import { StoreTopMenu } from '../../components/StoreTopMenu';
+import { createCaseCreatedHistory } from '../../utils/jobHistoryUtils';
 
 interface CartProps {
   onBackToStore?: () => void;
@@ -364,6 +365,47 @@ export const Cart = ({ onBackToStore }: CartProps = {}) => {
         }
 
         setCompressionStatus(t('store.finalizingPayment', 'Finalizando pagamento...'));
+        const mappedCartItems = cart.map(c => {
+            const vars = getVariationDetails(c);
+            const hasVars = vars && vars !== t('store.defaultConfig', 'Configuração padrão');
+            return { 
+                id: `item_${c.cartItemId}`, 
+                jobTypeId: c.jobType.id, 
+                name: hasVars ? `${c.jobType.name} - ${vars}` : c.jobType.name, 
+                quantity: c.quantity, 
+                price: c.unitPrice, 
+                selectedVariationIds: c.selectedVariationIds || [], 
+                selectedTeeth: c.selectedTeeth || [],
+                variationValues: c.variationValues,
+                originalJobTypeId: c.jobType.originalJobTypeId,
+                promotionQuantity: c.jobType.promotionQuantity,
+                isPromo: isPromo(c.jobType),
+                isVoucherCombo: c.jobType.isVoucherCombo === true,
+                applyToAllVariations: c.jobType.applyToAllVariations !== false,
+                promoVariationOptionId: c.jobType.promoVariationOptionId || '',
+                promoVariationOptionIds: c.jobType.promoVariationOptionIds || [],
+                promoVariationOptionName: c.jobType.promoVariationOptionName || '',
+                promoVariationGroupName: c.jobType.promoVariationGroupName || '',
+                sectorStages: c.jobType.sectorStages ? JSON.parse(JSON.stringify(c.jobType.sectorStages)) : undefined,
+                stageQuantities: c.jobType.stageQuantities ? JSON.parse(JSON.stringify(c.jobType.stageQuantities)) : undefined
+            };
+        });
+
+        const cartCreatedHistory = createCaseCreatedHistory({
+            userId: currentUser.id,
+            userName: currentUser.name,
+            sector: 'Loja Virtual',
+            osNumber: 'Pedido Web',
+            patientName: patientName || 'Compra de Pacote/Voucher',
+            dentistName: currentUser.name,
+            dueDate: date ? new Date(date) : new Date(),
+            origin: 'ONLINE_ORDER',
+            items: mappedCartItems as any,
+            totalValue: finalTotal,
+            notes,
+            jobTypes: cart.map(c => c.jobType)
+        });
+
         const jobData = {
             organizationId: activeOrganization.id, 
             patientName: patientName || 'Compra de Pacote/Voucher', 
@@ -372,32 +414,8 @@ export const Cart = ({ onBackToStore }: CartProps = {}) => {
             urgency: UrgencyLevel.NORMAL,
             status: JobStatus.WAITING_APPROVAL,
             origin: 'ONLINE_ORDER',
-            items: cart.map(c => {
-                const vars = getVariationDetails(c);
-                const hasVars = vars && vars !== t('store.defaultConfig', 'Configuração padrão');
-                return { 
-                    id: `item_${c.cartItemId}`, 
-                    jobTypeId: c.jobType.id, 
-                    name: hasVars ? `${c.jobType.name} - ${vars}` : c.jobType.name, 
-                    quantity: c.quantity, 
-                    price: c.unitPrice, 
-                    selectedVariationIds: c.selectedVariationIds || [], 
-                    selectedTeeth: c.selectedTeeth || [],
-                    variationValues: c.variationValues,
-                    originalJobTypeId: c.jobType.originalJobTypeId,
-                    promotionQuantity: c.jobType.promotionQuantity,
-                    isPromo: isPromo(c.jobType),
-                    isVoucherCombo: c.jobType.isVoucherCombo === true,
-                    applyToAllVariations: c.jobType.applyToAllVariations !== false,
-                    promoVariationOptionId: c.jobType.promoVariationOptionId || '',
-                    promoVariationOptionIds: c.jobType.promoVariationOptionIds || [],
-                    promoVariationOptionName: c.jobType.promoVariationOptionName || '',
-                    promoVariationGroupName: c.jobType.promoVariationGroupName || '',
-                    sectorStages: c.jobType.sectorStages ? JSON.parse(JSON.stringify(c.jobType.sectorStages)) : undefined,
-                    stageQuantities: c.jobType.stageQuantities ? JSON.parse(JSON.stringify(c.jobType.stageQuantities)) : undefined
-                };
-            }),
-            history: [{ id: `hist_${Date.now()}`, timestamp: new Date(), action: 'Criado via Loja Virtual', userId: currentUser.id, userName: currentUser.name }],
+            items: mappedCartItems,
+            history: [cartCreatedHistory],
             attachments: uploadedAttachments, 
             createdAt: new Date(), 
             sentAt: new Date(),

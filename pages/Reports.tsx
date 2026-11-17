@@ -1707,14 +1707,22 @@ export default function Reports() {
           let entryDate = new Date(job.createdAt).toLocaleDateString();
           let finishDate = job.status === JobStatus.COMPLETED && job.history ? new Date(job.history.slice().reverse().find((h: any) => h.action === 'COMPLETED' || h.statusTo === JobStatus.COMPLETED)?.timestamp || new Date()).toLocaleDateString() : '-';
           
-          let itemsText = (job.items || []).map(item => {
+          let serviceItemsText = (job.items || []).map(item => {
             const jt = jobTypes.find(t => t.id === item.jobTypeId);
             return `${item.quantity}x ${jt ? jt.name : item.name}`;
-          }).join('\n');
+          });
+          let productItemsText = (job.products || []).map(prod => {
+            return `${prod.quantity}x ${prod.name} (Produto)`;
+          });
+          let itemsText = [...serviceItemsText, ...productItemsText].join('\n');
           
-          let pricesText = (job.items || []).map(item => {
+          let servicePricesText = (job.items || []).map(item => {
             return `R$ ${((item.price * item.quantity) - (item.appliedDiscount || 0)).toFixed(2)}`;
-          }).join('\n');
+          });
+          let productPricesText = (job.products || []).map(prod => {
+            return `R$ ${(prod.unitPrice * prod.quantity).toFixed(2)}`;
+          });
+          let pricesText = [...servicePricesText, ...productPricesText].join('\n');
 
           tableData.push([
             job.osNumber || '-',

@@ -12,6 +12,7 @@ import { Plus, Trash2, Save, User as UserIcon, Box, FileText, CheckCircle, Searc
 import { filterAndSortClients, filterAndSortProducts, matchesSearchQuery, normalizeText } from '../utils/stringUtils';
 
 import * as api from '../services/firebaseService';
+import { createCaseCreatedHistory } from '../utils/jobHistoryUtils';
 
 type EntryType = 'NEW' | 'CONTINUATION';
 
@@ -1181,13 +1182,6 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
     const requisitionId = location.state?.onlineRequisitionId;
     const onlineOrderId = location.state?.onlineOrderId;
 
-    let historyAction = `Caso registrado manualmente via ${initialSector}`;
-    if (finalOrigin === 'ONLINE_REQUISITION' && requisitionId) {
-        historyAction = `Requisição online aceita e cadastrada como Ordem de Serviço por ${currentUser.name} via ${initialSector}`;
-    } else if (finalOrigin === 'ONLINE_ORDER' && onlineOrderId) {
-        historyAction = `Pedido web aprovado e oficializado na produção interna por ${currentUser.name} via ${initialSector}`;
-    }
-
     const computedDentistUserId = (finalOrigin === 'ONLINE_REQUISITION' && location.state?.dentistId)
         ? location.state.dentistId
         : (selectedDentistObj ? (
@@ -1201,6 +1195,29 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
     if (clientFixedNotes && !finalJobNotes.includes(clientFixedNotes)) {
         finalJobNotes = finalJobNotes.trim() ? `${clientFixedNotes}\n\n${finalJobNotes.trim()}` : clientFixedNotes;
     }
+
+    const createdHistoryEntry = createCaseCreatedHistory({
+        userId: currentUser.id,
+        userName: currentUser.name,
+        sector: initialSector,
+        osNumber: finalOsNumber,
+        patientName: patientName.trim().toUpperCase(),
+        dentistName: dentistName.trim().toUpperCase(),
+        subDentistName: subDentistName.trim() || undefined,
+        dueDate: new Date(dueDate),
+        boxNumber,
+        boxColorName: boxColor?.name,
+        urgency,
+        entryType,
+        origin: finalOrigin,
+        items: finalItems,
+        products: finalProducts,
+        totalValue,
+        notes: finalJobNotes,
+        jobTypes,
+        receivedMaterials,
+        receivedMaterialQuantities: materialQuantities
+    });
 
     setIsSubmitting(true);
     try {
@@ -1243,7 +1260,7 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                 source: finalOrigin === 'ONLINE_ORDER' || finalOrigin === 'ONLINE_REQUISITION' ? 'WEB' : (a.source || (currentUser?.role === UserRole.CLIENT ? 'WEB' : 'LAB')),
                 uploadedByName: finalOrigin === 'ONLINE_ORDER' || finalOrigin === 'ONLINE_REQUISITION' ? 'Web' : (a.uploadedByName || currentUser?.name || 'Laboratório')
             })),
-            history: [{ id: Math.random().toString(), timestamp: new Date(), action: historyAction, userId: currentUser.id, userName: currentUser.name, sector: initialSector }], 
+            history: [createdHistoryEntry], 
             sectorMovements: [{
                 id: Math.random().toString(),
                 sector: initialSector,
@@ -1271,6 +1288,29 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
             const existingHistory = existingJobRef?.history || [];
             const existingMovements = existingJobRef?.sectorMovements || [];
 
+            const onlineOrderHistoryEntry = createCaseCreatedHistory({
+                userId: currentUser.id,
+                userName: currentUser.name,
+                sector: initialSector,
+                osNumber: finalOsNumber,
+                patientName: patientName.trim().toUpperCase(),
+                dentistName: dentistName.trim().toUpperCase(),
+                subDentistName: subDentistName.trim() || undefined,
+                dueDate: new Date(dueDate),
+                boxNumber,
+                boxColorName: boxColor?.name,
+                urgency,
+                entryType,
+                origin: finalOrigin,
+                items: finalItems,
+                products: finalProducts,
+                totalValue,
+                notes: finalJobNotes,
+                jobTypes,
+                receivedMaterials,
+                receivedMaterialQuantities: materialQuantities
+            });
+
             await updateJob(onlineOrderId, {
                 osNumber: finalOsNumber,
                 patientName: patientName.trim().toUpperCase(),
@@ -1279,9 +1319,9 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                 subDentistName: subDentistName.trim() || undefined,
                 status: JobStatus.PENDING,
                 urgency,
-                items: addedItems,
-                products: addedProducts,
-                notes,
+                items: finalItems,
+                products: finalProducts,
+                notes: finalJobNotes,
                 receivedMaterials,
                 receivedMaterialQuantities: materialQuantities,
                 dueDate: new Date(dueDate),
@@ -1296,14 +1336,7 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                     entryUserId: currentUser.id,
                     entryUserName: currentUser.name
                 }],
-                history: [...(existingHistory || []).filter(Boolean), {
-                    id: Math.random().toString(),
-                    timestamp: new Date(),
-                    action: historyAction,
-                    userId: currentUser.id,
-                    userName: currentUser.name,
-                    sector: initialSector
-                }]
+                history: [...(existingHistory || []).filter(Boolean), onlineOrderHistoryEntry]
             });
 
             // Deduct stock for each added product

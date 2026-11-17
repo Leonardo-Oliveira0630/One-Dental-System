@@ -13,6 +13,7 @@ import { usePageFilterCache, cachedNormalizeText } from '../utils/pageCache';
 import { matchesSearchQuery, calculateJobSearchScore } from '../utils/stringUtils';
 
 import { StoreTopMenu } from '../components/StoreTopMenu';
+import { createStatusChangeHistory } from '../utils/jobHistoryUtils';
 
 export const parseSafeTimestamp = (val: any): number => {
   if (!val) return 0;
@@ -957,14 +958,14 @@ const handleUpdateStatus = async (jobId: string, status: JobStatus) => {
       await updateJob(job.id, {
           status: JobStatus.COMPLETED,
           completedAt: new Date(),
-          history: [...(job.history || []).filter(Boolean), {
-              id: `hist_fin_${Date.now()}`,
-              timestamp: new Date(),
-              action: 'Trabalho Finalizado e Conferido',
+          history: [...(job.history || []).filter(Boolean), createStatusChangeHistory({
               userId: currentUser?.id || 'sys',
               userName: currentUser?.name || 'Sistema',
-              sector: 'Expedição'
-          }]
+              sector: 'Expedição',
+              oldStatus: job.status,
+              newStatus: JobStatus.COMPLETED,
+              extraNote: 'Trabalho Finalizado e Conferido via lista'
+          })]
       });
   }
 
@@ -972,14 +973,14 @@ const handleUpdateStatus = async (jobId: string, status: JobStatus) => {
       if (!window.confirm(t('orders.confirmReopenJob', { name: job.patientName, defaultValue: `Deseja reabrir o caso de ${job.patientName}?` }))) return;
       await updateJob(job.id, {
           status: JobStatus.IN_PROGRESS,
-          history: [...(job.history || []).filter(Boolean), {
-              id: `hist_reopen_${Date.now()}`,
-              timestamp: new Date(),
-              action: 'Trabalho REABERTO via lista rápida',
+          history: [...(job.history || []).filter(Boolean), createStatusChangeHistory({
               userId: currentUser?.id || 'sys',
               userName: currentUser?.name || 'Sistema',
-              sector: currentUser?.sector || 'Gestão'
-          }]
+              sector: currentUser?.sector || 'Gestão',
+              oldStatus: job.status,
+              newStatus: JobStatus.IN_PROGRESS,
+              extraNote: 'Trabalho REABERTO via lista rápida'
+          })]
       });
   }
 

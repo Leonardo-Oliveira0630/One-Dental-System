@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { Job, JobStatus, UserRole } from '../types';
 import { calculateItemCommission } from '../utils/commissionUtils';
+import { createSectorMovementHistory, formatHistoryServiceName } from '../utils/jobHistoryUtils';
 
 export const JobSearch = () => {
   const { jobs, jobTypes, currentUser, updateJob, addCommissionRecord, commissions, commissionGroups, allUsers } = useApp();
@@ -222,14 +223,17 @@ export const JobSearch = () => {
         status: newStatus,
         sectorMovements: newSectorMovements,
         itemExecutions: newExecutions,
-        history: [...(job.history || []).filter(Boolean), {
-          id: Math.random().toString(),
-          timestamp: new Date(),
-          action: action,
-          userId: currentUser.id,
-          userName: currentUser.name,
-          sector: sector
-        }]
+        history: [
+          ...(job.history || []).filter(Boolean),
+          createSectorMovementHistory({
+            userId: currentUser.id,
+            userName: currentUser.name,
+            sector,
+            movementType: actionType,
+            itemName: (job.items || []).map(i => formatHistoryServiceName(i, jobTypes)).filter(Boolean).join(', ') || undefined,
+            method: 'Busca Rápida'
+          })
+        ]
       });
       setQuery('');
       setIsOpen(false);

@@ -594,6 +594,38 @@ export interface JobItem {
   isInternalStep?: boolean;
 }
 
+export type JobHistoryCategory =
+  | 'CREATED'
+  | 'EDITED'
+  | 'SERVICE_ADDED'
+  | 'SERVICE_EDITED'
+  | 'SERVICE_REMOVED'
+  | 'PRODUCT_ADDED'
+  | 'PRODUCT_EDITED'
+  | 'PRODUCT_REMOVED'
+  | 'SECTOR_MOVEMENT'
+  | 'PRODUCTION'
+  | 'MEDIA_ADDED'
+  | 'MEDIA_REMOVED'
+  | 'MEDIA_COMMENT'
+  | 'NOTES_ADDED'
+  | 'NOTES_EDITED'
+  | 'STATUS_CHANGED';
+
+export interface JobHistoryFieldDetail {
+  label: string;
+  value?: string;
+  oldValue?: string;
+  newValue?: string;
+  isDiff?: boolean;
+}
+
+export interface JobHistorySection {
+  title: string;
+  subtitle?: string;
+  fields: JobHistoryFieldDetail[];
+}
+
 export interface JobHistory {
   id: string;
   timestamp: Date;
@@ -601,6 +633,15 @@ export interface JobHistory {
   userId: string;
   userName: string;
   sector?: string;
+  category?: JobHistoryCategory;
+  targetName?: string;
+  summaryText?: string;
+  details?: JobHistoryFieldDetail[];
+  sections?: JobHistorySection[];
+  diffBlock?: {
+    oldText: string;
+    newText: string;
+  };
 }
 
 export interface LabRating {
