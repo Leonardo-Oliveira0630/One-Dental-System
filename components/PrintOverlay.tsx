@@ -820,30 +820,32 @@ export const PrintOverlay = () => {
                                                      const job = item.jobId ? jobs.find(j => j.id === item.jobId) : null;
                                                      const osNumber = job?.osNumber || (item.jobId ? item.jobId.substring(0, 8) : null);
                                                      const isPickup = sg.type === 'PICKUP';
+                                                     const rawPatient = item.patientName || job?.patientName || null;
 
                                                      if (isPickup) {
                                                          return (
-                                                             <div key={i} className="leading-tight py-0.5 flex items-center justify-between gap-1.5">
-                                                                 <div className="font-bold uppercase text-[9px] text-slate-900 truncate">
-                                                                     {item.observations ? `OBS: ${item.observations}` : 'COLETA'}
+                                                             <div key={i} className="leading-tight py-0.5">
+                                                                 <div className="font-bold uppercase text-[9px] text-slate-900 flex items-center justify-between gap-1.5">
+                                                                     <span>{rawPatient ? `• ${rawPatient}` : '• PACIENTE NÃO INFORMADO'}</span>
+                                                                     {osNumber && (
+                                                                         <span className="text-[8px] font-black text-black bg-gray-100 px-1 py-0.2 rounded border border-gray-300 shrink-0">
+                                                                             OS: {osNumber}
+                                                                         </span>
+                                                                     )}
                                                                  </div>
-                                                                 {osNumber && (
-                                                                     <span className="text-[8px] font-black text-black bg-gray-100 px-1 py-0.2 rounded border border-gray-300 shrink-0">
-                                                                         OS: {osNumber}
-                                                                     </span>
+                                                                 {item.observations && (
+                                                                     <div className="text-[7.5px] text-gray-600 font-semibold uppercase leading-tight pl-2">
+                                                                         OBS: {item.observations}
+                                                                     </div>
                                                                  )}
                                                              </div>
                                                          );
                                                      }
 
-                                                     const rawPatient = item.patientName || 'Paciente não informado';
-                                                     const maxChars = 22;
-                                                     const patientNameDisplay = rawPatient.length > maxChars ? rawPatient.substring(0, maxChars) + '...' : rawPatient;
-
                                                      return (
                                                          <div key={i} className="leading-tight py-0.5">
                                                              <div className="font-bold uppercase text-[9px] text-slate-900 flex items-center justify-between gap-1.5">
-                                                                 <span className="truncate">• {patientNameDisplay}</span>
+                                                                 <span className="truncate">{rawPatient ? `• ${rawPatient}` : ''}</span>
                                                                  {osNumber && (
                                                                      <span className="text-[8px] font-black text-black bg-gray-100 px-1 py-0.2 rounded border border-gray-300 shrink-0">
                                                                          OS: {osNumber}
