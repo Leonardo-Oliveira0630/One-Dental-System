@@ -2012,6 +2012,20 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       };
       await api.apiAddRouteItem(orgId, routeId, routeItem);
       await api.apiUpdateJob(orgId, job.id, { routeId });
+
+      const userName = currentUser?.name || currentUser?.email || 'Colaborador';
+      const clientName = targetDentist?.name || job.dentistName;
+      const patientName = job.patientName;
+      const osNum = job.osNumber || job.id.slice(-6);
+      const desc = `Colaborador "${userName}" adicionou o caso do cliente "${clientName}" (Paciente: "${patientName}", OS: "${osNum}") à rota`;
+      await api.apiAddRouteHistoryEntry(orgId, routeId, {
+          id: `hist_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+          timestamp: new Date().toISOString(),
+          action: 'ADD_JOB',
+          collaboratorName: userName,
+          description: desc,
+          details: { clientName, patientName, osNumber: osNum }
+      });
   };
 
   const generateBatchBoleto = async (dentistId: string, jobIds: string[], dueDate: Date, customAmount?: number) => {

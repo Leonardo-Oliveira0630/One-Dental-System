@@ -54,6 +54,7 @@ export const RoutePlanner = () => {
     const [moveRouteCourier, setMoveRouteCourier] = useState('');
     const [moveRouteShift, setMoveRouteShift] = useState<'MORNING' | 'AFTERNOON'>('AFTERNOON');
     const [moveRouteDate, setMoveRouteDate] = useState(getTodayDateStr());
+    const [showHistoryModal, setShowHistoryModal] = useState(false);
 
     const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
     const [editingObservationsId, setEditingObservationsId] = useState<string | null>(null);
@@ -287,7 +288,8 @@ export const RoutePlanner = () => {
         
         setIsMovingItem(true);
         try {
-            await api.apiMoveRouteItems(currentOrg.id, activeRoute.id, targetMoveRouteId, configGroupItems);
+            const userName = currentUser?.name || currentUser?.email || 'Colaborador';
+            await api.apiMoveRouteItems(currentOrg.id, activeRoute.id, targetMoveRouteId, configGroupItems, userName);
             setShowMoveModal(false);
             setConfigGroupItems(null);
             setTargetMoveRouteId('');
@@ -349,7 +351,8 @@ export const RoutePlanner = () => {
                 createdAt: new Date()
             });
 
-            await api.apiMoveRouteItems(currentOrg.id, activeRoute.id, newRouteId, configGroupItems);
+            const userName = currentUser?.name || currentUser?.email || 'Colaborador';
+            await api.apiMoveRouteItems(currentOrg.id, activeRoute.id, newRouteId, configGroupItems, userName);
             setShowMoveModal(false);
             setConfigGroupItems(null);
             setIsCreatingMoveRoute(false);
@@ -381,7 +384,7 @@ export const RoutePlanner = () => {
         if (!activeRoute || !currentOrg || (!canCreate && !canEdit)) return;
         const address = formatDentistAddress(dentist);
         
-        let defaultObs = 'Coleta de materiais / moldes';
+        let defaultObs = '';
         if (pickupType === 'DELIVERY') {
             defaultObs = deliverySubtype === 'MATERIALS' ? 'Entrega de materiais / insumos' : 'Entrega de trabalhos finalizados';
         }
@@ -419,6 +422,17 @@ export const RoutePlanner = () => {
         };
 
         await api.apiAddRouteItem(currentOrg.id, activeRoute.id, newItem);
+        const userName = currentUser?.name || currentUser?.email || 'Colaborador';
+        const stopTypeLabel = pickupType === 'PICKUP' ? 'Coleta' : (deliverySubtype === 'MATERIALS' ? 'Entrega de Insumos' : 'Entrega de Trabalhos');
+        const desc = `Colaborador "${userName}" adicionou uma parada avulsa de ${stopTypeLabel} para o cliente "${dentist.name}"`;
+        await api.apiAddRouteHistoryEntry(currentOrg.id, activeRoute.id, {
+            id: `hist_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+            timestamp: new Date().toISOString(),
+            action: 'ADD_AVULSION',
+            collaboratorName: userName,
+            description: desc,
+            details: { clientName: dentist.name, stopType: pickupType }
+        });
         setIsAddingPickup(false);
         setPickupObs('');
         setPickupType('PICKUP');
@@ -427,6 +441,21 @@ export const RoutePlanner = () => {
 
     const handleDeleteItem = async (itemId: string) => {
         if (!activeRoute || !currentOrg || (!canDelete && !canEdit)) return;
+        const itemToDelete = routeItems.find(i => i.id === itemId);
+        if (itemToDelete) {
+            const userName = currentUser?.name || currentUser?.email || 'Colaborador';
+            const clientName = itemToDelete.dentistName;
+            const patientName = itemToDelete.patientName || '---';
+            const desc = `Colaborador "${userName}" removeu o caso/parada do cliente "${clientName}" (Paciente: "${patientName}") da rota`;
+            await api.apiAddRouteHistoryEntry(currentOrg.id, activeRoute.id, {
+                id: `hist_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+                timestamp: new Date().toISOString(),
+                action: 'DELETE',
+                collaboratorName: userName,
+                description: desc,
+                details: { clientName, patientName, stopType: itemToDelete.type }
+            });
+        }
         await api.apiDeleteRouteItem(currentOrg.id, activeRoute.id, itemId);
     };
 
@@ -653,6 +682,21 @@ export const RoutePlanner = () => {
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2">
+                                    <button
+                                        id="route-history-btn"
+                                        onClick={() => setShowHistoryModal(true)}
+                                        className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs rounded-full flex items-center gap-1.5 uppercase tracking-wider transition-all shrink-0 shadow-sm"
+                                        title="Histórico de Ações da Rota"
+                                    >
+                                        <Clock size={14} className="text-slate-500" />
+                                        <span className="hidden sm:inline">Histórico</span>
+                                        {activeRoute.history && activeRoute.history.length > 0 && (
+                                            <span className="w-4 h-4 rounded-full bg-blue-600 text-white text-[9px] font-black flex items-center justify-center">
+                                                {activeRoute.history.length}
+                                            </span>
+                                        )}
+                                    </button>
+
                                     {(canCreate || canEdit) && (
                                         <button 
                                             id="header-add-pickup-btn"
@@ -1464,6 +1508,80 @@ export const RoutePlanner = () => {
                                     </button>
                                 </div>
                             )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* HISTORICO MODAL */}
+            {showHistoryModal && activeRoute && (
+                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden border border-slate-100">
+                        <div className="p-6 bg-slate-900 text-white flex justify-between items-center">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2.5 bg-blue-600/30 text-blue-400 rounded-xl"><Clock size={20}/></div>
+                                <div>
+                                    <h3 className="text-lg font-black tracking-tight">Histórico de Ações da Rota</h3>
+                                    <p className="text-xs text-slate-400 font-medium">Motoboy: {activeRoute.driverName} • Turno: {activeRoute.shift === 'MORNING' ? 'Manhã' : 'Tarde'}</p>
+                                </div>
+                            </div>
+                            <button onClick={() => setShowHistoryModal(false)} className="text-slate-400 hover:text-white p-2 rounded-full hover:bg-white/10 transition-colors">
+                                <X size={20}/>
+                            </button>
+                        </div>
+                        
+                        <div className="p-6 overflow-y-auto space-y-4 flex-1 bg-slate-50/50">
+                            {!activeRoute.history || activeRoute.history.length === 0 ? (
+                                <div className="text-center py-16 text-slate-400">
+                                    <Clock size={40} className="mx-auto mb-3 text-slate-300 animate-pulse" />
+                                    <p className="font-extrabold text-slate-600 text-base">Nenhum registro no histórico desta rota ainda.</p>
+                                    <p className="text-xs text-slate-400 mt-1">Ações como adição de casos, paradas avulsas, exclusões ou movimentações aparecerão aqui em tempo real.</p>
+                                </div>
+                            ) : (
+                                activeRoute.history.map((entry: any, i: number) => {
+                                    const dateFormatted = entry.timestamp ? new Date(entry.timestamp).toLocaleString('pt-BR') : '---';
+                                    const badgeColor = 
+                                        entry.action === 'ADD_JOB' ? 'bg-blue-100 text-blue-800 border-blue-200' :
+                                        entry.action === 'ADD_AVULSION' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' :
+                                        entry.action === 'MOVE_IN' ? 'bg-purple-100 text-purple-800 border-purple-200' :
+                                        entry.action === 'MOVE_OUT' ? 'bg-amber-100 text-amber-800 border-amber-200' : 'bg-rose-100 text-rose-800 border-rose-200';
+                                    
+                                    const actionLabel = 
+                                        entry.action === 'ADD_JOB' ? 'Caso Adicionado' :
+                                        entry.action === 'ADD_AVULSION' ? 'Parada Avulsa' :
+                                        entry.action === 'MOVE_IN' ? 'Recebido de Outra Rota' :
+                                        entry.action === 'MOVE_OUT' ? 'Movido p/ Outra Rota' : 'Removido/Excluído';
+
+                                    return (
+                                        <div key={entry.id || i} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-2">
+                                            <div className="flex justify-between items-start gap-2">
+                                                <span className={`text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wider border ${badgeColor}`}>
+                                                    {actionLabel}
+                                                </span>
+                                                <span className="text-[11px] font-bold text-slate-400 font-mono flex items-center gap-1">
+                                                    <Clock size={12} /> {dateFormatted}
+                                                </span>
+                                            </div>
+                                            <p className="text-sm font-bold text-slate-800 leading-relaxed">
+                                                {entry.description}
+                                            </p>
+                                            <div className="text-xs text-slate-500 font-medium pt-1 border-t border-slate-100 flex items-center gap-2">
+                                                <UserIcon size={12} className="text-slate-400" />
+                                                <span>Colaborador responsável: <strong className="text-slate-700">{entry.collaboratorName}</strong></span>
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
+                        
+                        <div className="p-4 bg-white border-t border-slate-100 flex justify-end">
+                            <button 
+                                onClick={() => setShowHistoryModal(false)}
+                                className="px-6 py-2.5 bg-slate-900 text-white font-black text-xs rounded-xl hover:bg-slate-800 transition-all uppercase tracking-wider"
+                            >
+                                Fechar
+                            </button>
                         </div>
                     </div>
                 </div>

@@ -826,7 +826,7 @@ export const PrintOverlay = () => {
                                                          return (
                                                              <div key={i} className="leading-tight py-0.5">
                                                                  <div className="font-bold uppercase text-[9px] text-slate-900 flex items-center justify-between gap-1.5">
-                                                                     <span>{rawPatient ? `• ${rawPatient}` : '• PACIENTE NÃO INFORMADO'}</span>
+                                                                     {rawPatient && <span>{}</span>}
                                                                      {osNumber && (
                                                                          <span className="text-[8px] font-black text-black bg-gray-100 px-1 py-0.2 rounded border border-gray-300 shrink-0">
                                                                              OS: {osNumber}

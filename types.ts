@@ -274,6 +274,27 @@ export interface ClinicDentist {
   active: boolean;
 }
 
+export interface RouteHistoryEntry {
+  id: string;
+  timestamp: Date | string;
+  action: 'ADD_JOB' | 'ADD_AVULSION' | 'MOVE_OUT' | 'MOVE_IN' | 'DELETE';
+  collaboratorName: string;
+  collaboratorId?: string;
+  description: string;
+  details?: {
+    clientName?: string;
+    patientName?: string;
+    osNumber?: string;
+    stopType?: 'DELIVERY' | 'PICKUP';
+    targetRouteDriver?: string;
+    targetRouteShift?: string;
+    targetRouteDate?: string;
+    sourceRouteDriver?: string;
+    sourceRouteShift?: string;
+    sourceRouteDate?: string;
+  };
+}
+
 export interface DeliveryRoute {
   id: string;
   organizationId: string;
@@ -282,6 +303,7 @@ export interface DeliveryRoute {
   driverName: string;
   status: 'OPEN' | 'IN_TRANSIT' | 'COMPLETED';
   createdAt: Date;
+  history?: RouteHistoryEntry[];
 }
 
 export interface RouteItem {

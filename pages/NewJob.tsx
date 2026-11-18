@@ -221,6 +221,8 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
     }
   }, [boxColors]);
 
+  const editingItemNatureRef = useRef<JobNature | null>(null);
+  const [editingItemOriginal, setEditingItemOriginal] = useState<JobItem | null>(null);
   const [itemNature, setItemNature] = useState<JobNature>('NORMAL');
   const [isInternalStep, setIsInternalStep] = useState(false);
   const [selectedTypeId, setSelectedTypeId] = useState('');
@@ -880,11 +882,25 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
     setSelectedVariations({}); 
     setVariationTextValues({}); 
     setItemSelectedTeeth([]); 
-    setManualPrice(null); 
+    const restoredNature = editingItemNatureRef.current || 'NORMAL';
+    setManualPrice(restoredNature === 'REPETITION' || restoredNature === 'ADJUSTMENT' ? 0 : null); 
     setDiscountValue(0); 
-    setItemNature('NORMAL'); 
+    setItemNature(restoredNature); 
+    editingItemNatureRef.current = null;
     setQuantity(1);
   }, [selectedTypeId]);
+
+  useEffect(() => {
+    if (itemNature === 'REPETITION' || itemNature === 'ADJUSTMENT') {
+        setManualPrice(0);
+        setCommissionDisabled(true);
+    } else {
+        if (manualPrice === 0) {
+            setManualPrice(null);
+        }
+        setCommissionDisabled(false);
+    }
+  }, [itemNature]);
 
   const handleAddProduct = () => {
     if (!selectedProductId) return;
@@ -977,6 +993,19 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
         stageQuantities: Object.keys(initialStageQuantities).length > 0 ? initialStageQuantities : undefined
     };
     setAddedItems([...addedItems, newItem]);
+    setEditingItemOriginal(null);
+    setSelectedTypeId('');
+    setJobTypeSearchQuery('');
+    setIsSearchingJobType(false);
+    setShowJobTypeSuggestions(false);
+    setQuantity(1); setItemColor(''); setSelectedVariations({}); setVariationTextValues({}); setItemSelectedTeeth([]); setManualTeethText(''); setCommissionDisabled(false); setManualPrice(null); setPriceAdjustmentType('DISCOUNT'); setDiscountValue(0); setItemNature('NORMAL'); setIsInternalStep(false);
+  };
+
+  const cancelEditingItem = () => {
+    if (editingItemOriginal) {
+      setAddedItems(prev => [...prev, editingItemOriginal]);
+      setEditingItemOriginal(null);
+    }
     setSelectedTypeId('');
     setJobTypeSearchQuery('');
     setIsSearchingJobType(false);
@@ -986,11 +1015,13 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
 
   const handleEditItem = (item: JobItem) => {
     // Populate form with item details
+    setEditingItemOriginal(item);
+    editingItemNatureRef.current = item.nature || 'NORMAL';
     setSelectedTypeId(item.jobTypeId);
     setQuantity(item.quantity);
     setItemNature(item.nature || 'NORMAL');
     setIsInternalStep(item.isInternalStep || false);
-    setManualPrice(item.basePriceBeforeDiscount || null);
+    setManualPrice(item.basePriceBeforeDiscount !== undefined ? item.basePriceBeforeDiscount : item.price);
     const isSur = item.priceAdjustmentType === 'SURCHARGE' || (Boolean(item.appliedSurcharge) && Number(item.appliedSurcharge) > 0) || (Boolean(item.appliedSurchargeFixed) && Number(item.appliedSurchargeFixed) > 0);
     if (isSur) {
         setPriceAdjustmentType('SURCHARGE');
@@ -1855,9 +1886,16 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                             )}
                         </div>
 
-                        <button type="button" onClick={handleAddItem} disabled={!selectedTypeId} className="w-full py-4 bg-blue-600 text-white font-black rounded-2xl hover:bg-blue-700 active:scale-95 transition-all flex items-center justify-center gap-2 shadow-xl shadow-blue-100 disabled:opacity-50">
-                            <Plus size={20} /> {t('newJob.addToCase', 'ADICIONAR AO CASO')}
-                        </button>
+                        {editingItemOriginal ? (
+                            <div className="flex gap-3">
+                                <button type="button" onClick={cancelEditingItem} className="flex-1 py-4 bg-slate-200 text-slate-700 font-black rounded-2xl hover:bg-slate-300 transition-all uppercase tracking-wider text-xs">Cancelar</button>
+                                <button type="button" onClick={handleAddItem} disabled={!selectedTypeId} className="flex-1 py-4 bg-blue-600 text-white font-black rounded-2xl hover:bg-blue-700 transition-all shadow-xl uppercase tracking-wider text-xs flex items-center justify-center gap-2">Salvar Alterações</button>
+                            </div>
+                        ) : (
+                            <button type="button" onClick={handleAddItem} disabled={!selectedTypeId} className="w-full py-4 bg-blue-600 text-white font-black rounded-2xl hover:bg-blue-700 active:scale-95 transition-all flex items-center justify-center gap-2 shadow-xl shadow-blue-100 disabled:opacity-50">
+                                <Plus size={20} /> {t('newJob.addToCase', 'ADICIONAR AO CASO')}
+                            </button>
+                        )}
                     </div>
 
                     {activeJobType && (

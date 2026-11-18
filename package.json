@@ -9,28 +9,29 @@
     "preview": "vite preview",
     "lint": "tsc --noEmit",
     "check": "tsc",
-    "cap:build": "npm run build && npx cap copy && npx cap sync",
-    "cap:build:ios": "npm run build && node scripts/generate-ios-assets.mjs && npx cap copy ios && npx cap sync ios",
+    "cap:build": "npm run build && node scripts/configure-ios-project.mjs && npx cap copy && npx cap sync",
+    "cap:build:ios": "npm run build && node scripts/configure-ios-project.mjs && node scripts/generate-ios-assets.mjs && npx cap copy ios && npx cap sync ios",
     "cap:add:android": "npx cap add android",
-    "cap:add:ios": "npx cap add ios",
+    "cap:add:ios": "npx cap add ios && node scripts/configure-ios-project.mjs && node scripts/generate-ios-assets.mjs",
     "cap:copy": "npx cap copy",
-    "cap:sync": "npx cap sync",
+    "cap:sync": "node scripts/configure-ios-project.mjs && npx cap sync",
     "cap:sync:android": "npx cap sync android",
-    "cap:sync:ios": "node scripts/generate-ios-assets.mjs && npx cap sync ios",
+    "cap:sync:ios": "node scripts/configure-ios-project.mjs && node scripts/generate-ios-assets.mjs && npx cap sync ios",
+    "cap:migrate:ios": "node scripts/configure-ios-project.mjs",
     "cap:icons:ios": "node scripts/generate-ios-assets.mjs",
     "cap:open:android": "npx cap open android",
     "cap:open:ios": "npx cap open ios",
     "clean": "rm -rf dist && rm -rf android/app/src/main/assets/public/*"
   },
   "dependencies": {
-    "@capacitor/android": "^6.0.0",
-    "@capacitor/camera": "^6.0.0",
-    "@capacitor/core": "^6.0.0",
-    "@capacitor/filesystem": "^6.0.0",
-    "@capacitor/haptics": "^6.0.0",
-    "@capacitor/ios": "^6.0.0",
-    "@capacitor/preferences": "^6.0.0",
-    "@capacitor/status-bar": "^6.0.0",
+    "@capacitor/android": "8.6.2",
+    "@capacitor/camera": "^8.0.0",
+    "@capacitor/core": "8.6.2",
+    "@capacitor/filesystem": "^8.0.0",
+    "@capacitor/haptics": "^8.0.0",
+    "@capacitor/ios": "8.6.2",
+    "@capacitor/preferences": "^8.0.0",
+    "@capacitor/status-bar": "^8.0.0",
     "@capgo/capacitor-nfc": "^8.2.5",
     "@google/genai": "*",
     "@number-flow/react": "^0.6.2",
@@ -70,7 +71,7 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
-    "@capacitor/cli": "^6.0.0",
+    "@capacitor/cli": "8.6.2",
     "@types/file-saver": "^2.0.7",
     "@types/jszip": "^3.1.6",
     "@types/react": "^18.2.66",
@@ -79,8 +80,5 @@
     "@vitejs/plugin-react": "^4.2.1",
     "typescript": "^5.2.2",
     "vite": "^5.2.0"
-  },
-  "overrides": {
-    "@capacitor/core": "^6.0.0"
   }
 }

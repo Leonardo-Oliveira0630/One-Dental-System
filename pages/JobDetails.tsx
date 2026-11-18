@@ -2855,9 +2855,54 @@ export const JobDetails = () => {
       });
   };
 
+  const handleItemEditNatureChange = (newNature: 'NORMAL' | 'REPETITION' | 'ADJUSTMENT', currentItem: JobItem) => {
+      let newPrice = itemEditForm.price;
+      if (newNature === 'REPETITION' || newNature === 'ADJUSTMENT') {
+          newPrice = 0;
+      } else {
+          const type = jobTypes.find(t => t.id === currentItem.jobTypeId);
+          const dentistObj = allUsers.find(u => u.id === job?.dentistId) || manualDentists.find(d => d.id === job?.dentistId);
+          const tablePrice = calculateItemPriceWithDentist(type, itemEditForm.selectedVariationIds || [], dentistObj, priceTables);
+          newPrice = tablePrice;
+      }
+      setItemEditForm({
+          ...itemEditForm,
+          nature: newNature,
+          price: newPrice,
+          commissionDisabled: newNature !== 'NORMAL' ? true : itemEditForm.commissionDisabled
+      });
+  };
+
   const cancelEditingItem = () => {
       setEditingItemId(null);
   };
+
+  useEffect(() => {
+    if (!editingItemId) return;
+    const currentItem = job?.items?.find((i: any) => i.id === editingItemId);
+    if (!currentItem) return;
+
+    if (itemEditForm.nature === 'REPETITION' || itemEditForm.nature === 'ADJUSTMENT') {
+        if (Number(itemEditForm.price) !== 0) {
+            setItemEditForm(prev => ({
+                ...prev,
+                price: 0,
+                commissionDisabled: true
+            }));
+        }
+    } else if (itemEditForm.nature === 'NORMAL') {
+        const type = jobTypes.find(t => t.id === currentItem.jobTypeId);
+        const dentistObj = allUsers.find(u => u.id === job?.dentistId) || manualDentists.find(d => d.id === job?.dentistId);
+        const tablePrice = calculateItemPriceWithDentist(type, itemEditForm.selectedVariationIds || [], dentistObj, priceTables);
+        if (Number(itemEditForm.price) === 0 && tablePrice > 0) {
+            setItemEditForm(prev => ({
+                ...prev,
+                price: tablePrice,
+                commissionDisabled: false
+            }));
+        }
+    }
+  }, [itemEditForm.nature]);
 
   const handleSaveItemEdit = async (item: JobItem) => {
       if (isFinished && !job?.isBudget) {
@@ -7434,7 +7479,7 @@ export const JobDetails = () => {
 
                                                                 {hasDetails && (
                                                                     <div className={useTwoCols ? 'mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2.5' : 'mt-3 space-y-2.5'}>
-                                                                        {effectiveDetails.map((d, dIdx) => (
+                                                                        {effectiveDetails.map((d: any, dIdx: number) => (
                                                                             <div key={dIdx} className={`min-w-0 ${d.label === 'Tipos de serviço' || d.label === 'Produtos adicionais' || d.label === 'Observações' ? 'sm:col-span-2' : ''}`}>
                                                                                 <div className="text-[11px] font-medium text-slate-400">{d.label}</div>
                                                                                 {d.isDiff ? (
@@ -7455,14 +7500,14 @@ export const JobDetails = () => {
 
                                                                 {effectiveSections.length > 0 && (
                                                                     <div className="mt-3.5 pt-3 border-t border-slate-200/70 space-y-2.5">
-                                                                        {effectiveSections.map((sec, sIdx) => (
+                                                                        {effectiveSections.map((sec: any, sIdx: number) => (
                                                                             <div key={sIdx} className="bg-slate-50/70 border border-slate-200/70 rounded-xl p-3">
                                                                                 <div className="flex flex-wrap items-baseline justify-between gap-2 mb-2">
                                                                                     <span className="text-xs font-semibold text-blue-700 break-words">{sec.title}</span>
                                                                                     {sec.subtitle && <span className="text-[11px] font-medium text-slate-400">{sec.subtitle}</span>}
                                                                                 </div>
                                                                                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2">
-                                                                                    {sec.fields.map((f, fIdx) => (
+                                                                                    {sec.fields.map((f: any, fIdx: number) => (
                                                                                         <div key={fIdx} className={`min-w-0 ${f.label === 'Serviço / Item' || f.label === 'Produto / Item' ? 'col-span-2 sm:col-span-3' : ''}`}>
                                                                                             <div className="text-[11px] font-medium text-slate-400">{f.label}</div>
                                                                                             <div className="text-xs font-medium text-slate-700 break-words tabular-nums">{f.value}</div>

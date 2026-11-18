@@ -48,7 +48,7 @@ try {
             if (supported) {
                 messaging = getMessaging(app);
             }
-        });
+        }).catch(() => {});
 
         console.log("✅ ProTrack Eco System: Firebase Initialized for Android/Web");
     }

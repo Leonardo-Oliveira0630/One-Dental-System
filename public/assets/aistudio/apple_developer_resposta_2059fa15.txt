@@ -1,0 +1,33 @@
+Olá, 
+
+os problemas que identificamos anteriormente ainda precisam da sua atenção. 
+
+Se tiver alguma dúvida, estamos aqui para ajudar. Responda a esta mensagem no App Store Connect e nos informe.
+
+Ambiente de avaliação
+ID da submissão: 06b6b00b-bf02-4ecf-a968-2df9f894ed51 
+Data da revisão: 15 de novembro de 2026 
+Dispositivo de revisão: iPad Air de 11 polegadas (M3) 
+Versão revisada: 1.0 (1)
+
+Diretriz 2.1(a) - Desempenho - Completude do Aplicativo
+
+Descrição do Problema
+
+ Não conseguimos analisar o aplicativo porque ele apresentou falha ao ser iniciado. Anexamos registros de falha detalhados para ajudar na solução do problema. 
+
+Detalhes do dispositivo para análise: 
+
+- Tipo de dispositivo: iPad Air de 11 polegadas (M3) 
+- Versão do SO: iPadOS 27.3 
+
+Próximos Passos
+
+ Para corrigir a falha no aplicativo, siga estas etapas: 
+
+1. Simbolize completamente o relatório de falha. Consulte Adicionando Nomes de Símbolos Identificáveis ​​a um Relatório de Falha para obter uma explicação do processo de simbolização. 
+2. Compare o relatório de falha com um padrão comum. Com base no padrão, tome medidas específicas para investigar a falha mais a fundo. Consulte Identificando a Causa de Falhas Comuns . 
+3. Teste o aplicativo em um dispositivo para garantir que ele funcione conforme o esperado. 
+4. Depois de corrigir a falha, crie e envie uma nova versão para análise. 
+
+Observe que os usuários esperam que os aplicativos que baixam funcionem em todos os dispositivos em que estão disponíveis. Por exemplo, os aplicativos que podem ser baixados em iPads devem funcionar conforme o esperado para usuários de iPad. 

@@ -24,7 +24,7 @@ import { db, auth, storage, functions, messaging } from './firebaseConfig';
 import { 
   User, UserRole, PermissionKey, ALL_SYSTEM_PERMISSIONS, Job, JobStatus, UrgencyLevel, JobType, Sector, JobAlert, ClinicPatient, 
   Appointment, Organization, SubscriptionPlan, OrganizationConnection, 
-  Coupon, LabCoupon, CommissionRecord, ManualDentist, Expense, BillingBatch, GlobalSettings, LabRating, DeliveryRoute, RouteItem, BoxColor, ChatMessage, ClinicService, ClinicRoom, ClinicDentist, PatientHistoryRecord, PaymentRecord, PriceTable, DentistPayment, CardMachine, BankAccount,
+  Coupon, LabCoupon, CommissionRecord, ManualDentist, Expense, BillingBatch, GlobalSettings, LabRating, DeliveryRoute, RouteItem, RouteHistoryEntry, BoxColor, ChatMessage, ClinicService, ClinicRoom, ClinicDentist, PatientHistoryRecord, PaymentRecord, PriceTable, DentistPayment, CardMachine, BankAccount,
   Tutorial, Courier, ClinicBudget, ClinicPrescription, ClinicClinicalCard, ClinicAnamnesis, ClinicPatientFinance, ClinicTreatmentPlan, OnlineRequisition, SupplierOrder, CaseApprovalItem, CaseApprovalReply, CaseApprovalFile, Budget,
   OrderReturnRequest, SupplierChatMessage, SupplierConversation, CommissionGroup, ServiceGroup, isReviewerUser,
   isClinicReviewer, isSupplierReviewer
@@ -1919,9 +1919,28 @@ export const apiDeleteRoute = async (orgId: string, routeId: string) => {
   await batch.commit();
 };
 
-export const apiMoveRouteItems = async (orgId: string, sourceRouteId: string, targetRouteId: string, items: RouteItem[]) => {
+export const apiAddRouteHistoryEntry = async (orgId: string, routeId: string, entry: RouteHistoryEntry) => {
+  if (!orgId || !routeId) return;
+  const routeRef = doc(db, `organizations/${orgId}/routes`, routeId);
+  const routeSnap = await getDoc(routeRef);
+  let currentHistory: RouteHistoryEntry[] = [];
+  if (routeSnap.exists()) {
+    currentHistory = routeSnap.data().history || [];
+  }
+  const updatedHistory = [entry, ...currentHistory];
+  await updateDoc(routeRef, { history: updatedHistory });
+};
+
+export const apiMoveRouteItems = async (orgId: string, sourceRouteId: string, targetRouteId: string, items: RouteItem[], userName: string = 'Colaborador') => {
   if (!orgId || !sourceRouteId || !targetRouteId || !items.length) return;
   
+  const sourceRouteRef = doc(db, `organizations/${orgId}/routes`, sourceRouteId);
+  const targetRouteRef = doc(db, `organizations/${orgId}/routes`, targetRouteId);
+  const [sourceSnap, targetSnap] = await Promise.all([getDoc(sourceRouteRef), getDoc(targetRouteRef)]);
+  
+  const sourceRoute = sourceSnap.exists() ? (sourceSnap.data() as DeliveryRoute) : null;
+  const targetRoute = targetSnap.exists() ? (targetSnap.data() as DeliveryRoute) : null;
+
   for (const item of items) {
     const newItem: RouteItem = {
       ...item,
@@ -1932,6 +1951,40 @@ export const apiMoveRouteItems = async (orgId: string, sourceRouteId: string, ta
     await deleteDoc(doc(db, `organizations/${orgId}/routes/${sourceRouteId}/items`, item.id));
     if (item.jobId) {
       await updateDoc(doc(db, `organizations/${orgId}/jobs`, item.jobId), { routeId: targetRouteId });
+    }
+
+    const clientName = item.dentistName || 'Cliente';
+    const patientName = item.patientName || '---';
+    const osNum = item.jobId ? item.jobId.slice(-6) : '---';
+
+    if (sourceRoute) {
+      const targetDriver = targetRoute?.driverName || 'Motoboy';
+      const targetShift = targetRoute?.shift === 'MORNING' ? 'Manhã' : 'Tarde';
+      const targetDateStr = targetRoute?.date ? new Date(targetRoute.date).toLocaleDateString('pt-BR') : '';
+      const desc = `Colaborador "${userName}" moveu o caso/parada do cliente "${clientName}" (Paciente: "${patientName}", OS: "${osNum}") para a rota de ${targetDriver} (${targetShift}, Data: ${targetDateStr})`;
+      await apiAddRouteHistoryEntry(orgId, sourceRouteId, {
+        id: `hist_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        timestamp: new Date().toISOString(),
+        action: 'MOVE_OUT',
+        collaboratorName: userName,
+        description: desc,
+        details: { clientName, patientName, osNumber: osNum, targetRouteDriver: targetDriver, targetRouteShift: targetShift, targetRouteDate: targetDateStr }
+      });
+    }
+
+    if (targetRoute) {
+      const sourceDriver = sourceRoute?.driverName || 'Motoboy';
+      const sourceShift = sourceRoute?.shift === 'MORNING' ? 'Manhã' : 'Tarde';
+      const sourceDateStr = sourceRoute?.date ? new Date(sourceRoute.date).toLocaleDateString('pt-BR') : '';
+      const desc = `Caso/Parada do cliente "${clientName}" (Paciente: "${patientName}", OS: "${osNum}") movido da rota de ${sourceDriver} (${sourceShift}, Data: ${sourceDateStr}) pelo colaborador "${userName}"`;
+      await apiAddRouteHistoryEntry(orgId, targetRouteId, {
+        id: `hist_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        timestamp: new Date().toISOString(),
+        action: 'MOVE_IN',
+        collaboratorName: userName,
+        description: desc,
+        details: { clientName, patientName, osNumber: osNum, sourceRouteDriver: sourceDriver, sourceRouteShift: sourceShift, sourceRouteDate: sourceDateStr }
+      });
     }
   }
 };

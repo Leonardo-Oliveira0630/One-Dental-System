@@ -8,6 +8,11 @@ const splashDir = path.join(rootDir, 'ios/App/App/Assets.xcassets/Splash.imagese
 const svgPath = path.join(rootDir, 'public/logo labprox.svg');
 const templateArchive = path.join(rootDir, 'node_modules/@capacitor/cli/assets/ios-pods-template.tar.gz');
 
+if (!fs.existsSync(path.join(rootDir, 'ios/App/App'))) {
+  console.log('[Labprox iOS] Pasta ios/App/App não encontrada — geração de assets iOS ignorada.');
+  process.exit(0);
+}
+
 fs.mkdirSync(appIconDir, { recursive: true });
 fs.mkdirSync(splashDir, { recursive: true });
 

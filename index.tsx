@@ -3,14 +3,16 @@ import ReactDOM from 'react-dom/client';
 import './src/i18n';
 import App from './App';
 
+import { Capacitor } from '@capacitor/core';
+
 // Redirect clean URL path /store/slug to HashRouter equivalent /#/store/slug
 if (window.location.pathname.startsWith('/store')) {
   const cleanPath = window.location.pathname.substring(6);
   window.location.replace(window.location.origin + '/#/store' + cleanPath + window.location.search);
 }
 
-// Register Service Worker for offline asset & stylesheet caching
-if ('serviceWorker' in navigator) {
+// Register Service Worker for offline asset & stylesheet caching (Web/PWA only, skip native Capacitor WKWebView)
+if (!Capacitor.isNativePlatform() && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').catch((err) => {
       console.warn('SW registration warning:', err);
