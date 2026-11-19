@@ -335,7 +335,34 @@ export const JobDetails = () => {
   };
 
   const handleSaveJobShipping = async () => {
-    if (!job) return;
+    useEffect(() => {
+    if (!editingItemId) return;
+    const currentItem = job?.items?.find((i: any) => i.id === editingItemId);
+    if (!currentItem) return;
+
+    if (itemEditForm.nature === 'REPETITION' || itemEditForm.nature === 'ADJUSTMENT') {
+        if (Number(itemEditForm.price) !== 0) {
+            setItemEditForm(prev => ({
+                ...prev,
+                price: 0,
+                commissionDisabled: true
+            }));
+        }
+    } else if (itemEditForm.nature === 'NORMAL') {
+        const type = jobTypes.find(t => t.id === currentItem.jobTypeId);
+        const dentistObj = allUsers.find(u => u.id === job?.dentistId) || manualDentists.find(d => d.id === job?.dentistId);
+        const tablePrice = calculateItemPriceWithDentist(type, itemEditForm.selectedVariationIds || [], dentistObj, priceTables);
+        if (Number(itemEditForm.price) === 0 && tablePrice > 0) {
+            setItemEditForm(prev => ({
+                ...prev,
+                price: tablePrice,
+                commissionDisabled: false
+            }));
+        }
+    }
+  }, [itemEditForm.nature]);
+
+  if (!job) return;
     setIsUpdatingStatus(true);
     try {
       await updateJob(job.id, {
@@ -2903,32 +2930,7 @@ export const JobDetails = () => {
       setEditingItemId(null);
   };
 
-  useEffect(() => {
-    if (!editingItemId) return;
-    const currentItem = job?.items?.find((i: any) => i.id === editingItemId);
-    if (!currentItem) return;
 
-    if (itemEditForm.nature === 'REPETITION' || itemEditForm.nature === 'ADJUSTMENT') {
-        if (Number(itemEditForm.price) !== 0) {
-            setItemEditForm(prev => ({
-                ...prev,
-                price: 0,
-                commissionDisabled: true
-            }));
-        }
-    } else if (itemEditForm.nature === 'NORMAL') {
-        const type = jobTypes.find(t => t.id === currentItem.jobTypeId);
-        const dentistObj = allUsers.find(u => u.id === job?.dentistId) || manualDentists.find(d => d.id === job?.dentistId);
-        const tablePrice = calculateItemPriceWithDentist(type, itemEditForm.selectedVariationIds || [], dentistObj, priceTables);
-        if (Number(itemEditForm.price) === 0 && tablePrice > 0) {
-            setItemEditForm(prev => ({
-                ...prev,
-                price: tablePrice,
-                commissionDisabled: false
-            }));
-        }
-    }
-  }, [itemEditForm.nature]);
 
   const handleSaveItemEdit = async (item: JobItem) => {
       if (isFinished && !job?.isBudget) {
