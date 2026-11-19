@@ -1614,7 +1614,7 @@ export const JobDetails = () => {
                   }
               }
 
-              const requiresPriceRecalc = Object.keys(updates).some(k => ['jobTypeId', 'selectedVariationIds', 'nature', 'quantity', 'basePriceBeforeDiscount', 'appliedDiscount', 'appliedDiscountFixed', 'priceAdjustmentType', 'appliedSurcharge', 'appliedSurchargeFixed'].includes(k));
+              const requiresPriceRecalc = Object.keys(updates).some(k => ['jobTypeId', 'selectedVariationIds', 'nature', 'quantity', 'basePriceBeforeDiscount', 'appliedDiscount', 'appliedDiscountFixed', 'priceAdjustmentType', 'appliedSurcharge', 'appliedSurchargeFixed', 'discountType', 'surchargeType'].includes(k));
 
               if (requiresPriceRecalc) {
                   const type = jobTypes.find(t => t.id === updated.jobTypeId);
@@ -1629,20 +1629,22 @@ export const JobDetails = () => {
                    const isSur = updated.priceAdjustmentType === 'SURCHARGE' || (Boolean(updated.appliedSurcharge) && Number(updated.appliedSurcharge) > 0) || (Boolean(updated.appliedSurchargeFixed) && Number(updated.appliedSurchargeFixed) > 0);
                    if (isSur) {
                        const pctSur = Number(updated.appliedSurcharge) || 0;
-                       const fixSur = Number(updated.appliedSurchargeFixed) || 0;
-                       if (fixSur > 0) {
-                           updated.price = base + fixSur;
-                       } else {
-                           updated.price = base * (1 + (pctSur / 100));
-                       }
+                        const fixSur = Number(updated.appliedSurchargeFixed) || 0;
+                        const isFixSur = updated.surchargeType === 'FIXED' || fixSur > 0;
+                        if (isFixSur) {
+                            updated.price = base + fixSur;
+                        } else {
+                            updated.price = base * (1 + (pctSur / 100));
+                        }
                    } else {
                        const pctDisc = Number(updated.appliedDiscount) || 0;
-                       const fixDisc = Number(updated.appliedDiscountFixed) || 0;
-                       if (fixDisc > 0) {
-                           updated.price = Math.max(0, base - fixDisc);
-                       } else {
-                           updated.price = Math.max(0, base * (1 - (pctDisc / 100)));
-                       }
+                        const fixDisc = Number(updated.appliedDiscountFixed) || 0;
+                        const isFixDisc = updated.discountType === 'FIXED' || fixDisc > 0;
+                        if (isFixDisc) {
+                            updated.price = Math.max(0, base - fixDisc);
+                        } else {
+                            updated.price = Math.max(0, base * (1 - (pctDisc / 100)));
+                        }
                    }
               }
               itemsTotal += (updated.price * (updated.quantity || 1));
@@ -4008,8 +4010,8 @@ export const JobDetails = () => {
                                        const basePriceVal = item.basePriceBeforeDiscount !== undefined ? item.basePriceBeforeDiscount : (item.price || 0);
                                        const isItemSurcharge = item.priceAdjustmentType === 'SURCHARGE' || (Boolean(item.appliedSurcharge) && Number(item.appliedSurcharge) > 0) || (Boolean(item.appliedSurchargeFixed) && Number(item.appliedSurchargeFixed) > 0);
                                        const isFixedDisc = isItemSurcharge
-                                           ? (Boolean(item.appliedSurchargeFixed) && Number(item.appliedSurchargeFixed) > 0)
-                                           : (Boolean(item.appliedDiscountFixed) && Number(item.appliedDiscountFixed) > 0);
+                                            ? (item.surchargeType === 'FIXED' || (!item.surchargeType && Boolean(item.appliedSurchargeFixed) && Number(item.appliedSurchargeFixed) > 0))
+                                            : (item.discountType === 'FIXED' || (!item.discountType && Boolean(item.appliedDiscountFixed) && Number(item.appliedDiscountFixed) > 0));
                                        const currentDiscVal = isItemSurcharge
                                            ? (isFixedDisc ? item.appliedSurchargeFixed : (item.appliedSurcharge || ''))
                                            : (isFixedDisc ? item.appliedDiscountFixed : (item.appliedDiscount || ''));
