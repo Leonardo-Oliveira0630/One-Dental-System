@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '../../context/AppContext';
-import { JobStatus, UserRole, Expense, Job, TransactionCategory, BillingBatch, DentistPayment } from '../../types';
+import { JobStatus, UserRole, Expense, Job, TransactionCategory, BillingBatch, DentistPayment, PermissionKey } from '../../types';
 import * as api from '../../services/firebaseService';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, Legend } from 'recharts';
 import { DollarSign, TrendingUp, TrendingDown, Search, Calendar, Plus, Printer, FileText, Download, AlertCircle, Wallet, Briefcase, CheckCircle, CreditCard, Loader2, User, Package, Clock, X, Filter, FileCheck, Receipt, Check, Trash2, ShoppingCart, ArrowUpRight, ArrowDownRight, ChevronDown, ChevronLeft, History, ExternalLink, Copy, Tag, AlertTriangle, ShieldCheck, Zap, ArrowUpCircle, ArrowDownCircle, FileSpreadsheet, Building, UserCheck, Save, Banknote, ChevronRight, Mail, Send } from 'lucide-react';
@@ -9,6 +9,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { SendDebtsEmailModal } from '../../components/SendDebtsEmailModal';
 import { filterAndSortClients, parseBrazilianCurrency, formatCurrencyInputMask, formatCurrencyBRL, formatNumberBRL } from '../../utils/stringUtils';
+import { getTodayDateStr, createMiddayDate } from '../../utils/dateHelpers';
 
 const translatePaymentMethod = (method: string, t?: (key: string, def?: string) => string) => {
     switch (method) {
@@ -68,10 +69,24 @@ export const Finance = () => {
   const [dentistJobs, setDentistJobs] = useState<Job[]>([]);
   const [isLoadingStatement, setIsLoadingStatement] = useState(false);
   const [activeSubTab, setActiveSubTab] = useState<'EXTRATO' | 'RECEBIMENTOS' | 'FATURAS'>('EXTRATO');
+  const hasPerm = (perm: PermissionKey) => {
+      if (currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.SUPER_ADMIN) return true;
+      return Boolean(currentUser?.permissions?.includes(perm));
+  };
+  const canSetRetroactiveDate = hasPerm('finance:retroactive_date');
+
+  const resolveEntryDate = (dateStr: string): Date => {
+      if (!canSetRetroactiveDate || !dateStr) return new Date();
+      const todayStr = getTodayDateStr();
+      if (dateStr === todayStr) return new Date();
+      return createMiddayDate(dateStr);
+  };
+
   const [showManualEntryModal, setShowManualEntryModal] = useState(false);
   const [manualEntryType, setManualEntryType] = useState<'MANUAL_DEBIT' | 'MANUAL_CREDIT'>('MANUAL_DEBIT');
   const [manualEntryAmount, setManualEntryAmount] = useState('');
   const [manualEntryNotes, setManualEntryNotes] = useState('');
+  const [manualEntryDate, setManualEntryDate] = useState<string>(() => getTodayDateStr());
   const [isAddingManualEntry, setIsAddingManualEntry] = useState(false);
   const [showAsaasError, setShowAsaasError] = useState(false);
   const [filterStartDate, setFilterStartDate] = useState(() => {
@@ -1069,6 +1084,7 @@ export const Finance = () => {
   const [paymentBankAccountId, setPaymentBankAccountId] = useState<string>('');
   const [paymentType, setPaymentType] = useState<DentistPayment['type']>('PAYMENT');
   const [paymentNotes, setPaymentNotes] = useState('');
+  const [paymentDateStr, setPaymentDateStr] = useState<string>(() => getTodayDateStr());
 
   // Cheque Fields
   const [paymentCheckBank, setPaymentCheckBank] = useState<string>('');
@@ -1257,6 +1273,11 @@ export const Finance = () => {
         return;
     }
 
+    if (canSetRetroactiveDate && manualEntryDate && manualEntryDate > getTodayDateStr()) {
+        alert("A data não pode ser futura. Selecione a data de hoje ou uma data retroativa.");
+        return;
+    }
+
     setIsAddingManualEntry(true);
     try {
         await addDentistPayment({
@@ -1264,7 +1285,7 @@ export const Finance = () => {
             dentistName: statementClient.name,
             amount: amount,
             paymentMethod: 'CASH',
-            paymentDate: new Date(),
+            paymentDate: resolveEntryDate(manualEntryDate),
             type: manualEntryType === 'MANUAL_DEBIT' ? 'MANUAL_DEBIT' : 'MANUAL_CREDIT',
             notes: manualEntryNotes || (manualEntryType === 'MANUAL_DEBIT' ? 'Ajuste a Débito' : 'Ajuste a Crédito')
         } as any);
@@ -1272,6 +1293,7 @@ export const Finance = () => {
         setShowManualEntryModal(false);
         setManualEntryAmount('');
         setManualEntryNotes('');
+        setManualEntryDate(getTodayDateStr());
         alert('Lançamento manual registrado com sucesso!');
     } catch (error) {
         console.error(error);
@@ -1651,10 +1673,14 @@ export const Finance = () => {
 
   const handleSavePayment = async () => {
     if (!statementClient || paymentAmount <= 0) return;
+    if (canSetRetroactiveDate && paymentDateStr && paymentDateStr > getTodayDateStr()) {
+        alert("A data não pode ser futura. Selecione a data de hoje ou uma data retroativa.");
+        return;
+    }
     setIsSaving(true);
     try {
         const netTotal = Math.max(0, paymentAmount + paymentInterest - paymentDiscount - paymentFees);
-        const baseDate = new Date();
+        const baseDate = resolveEntryDate(paymentDateStr);
 
         if (paymentMethod === 'CREDIT_CARD' && paymentCardInstallments > 1) {
             const totalInstallments = paymentCardInstallments;
@@ -1734,6 +1760,7 @@ export const Finance = () => {
         setPaymentCheckNumber('');
         setPaymentCardInstallments(1);
         setPaymentCardAuthorizationCode('');
+        setPaymentDateStr(getTodayDateStr());
         setShowPaymentForm(false);
     } catch (err) {
         console.error(err);
@@ -3142,7 +3169,10 @@ export const Finance = () => {
                                         </div>
                                         <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                                             <button 
-                                                onClick={() => setShowManualEntryModal(true)}
+                                                onClick={() => {
+                                                    setManualEntryDate(getTodayDateStr());
+                                                    setShowManualEntryModal(true);
+                                                }}
                                                 className="flex-1 sm:flex-initial px-3 sm:px-4 py-2.5 sm:py-3 bg-blue-600 text-white text-[10px] font-black uppercase rounded-xl sm:rounded-2xl hover:bg-blue-700 transition-all flex items-center justify-center gap-1.5 shadow-md shadow-blue-500/20 whitespace-nowrap"
                                             >
                                                 <Plus size={15} /> Lançamento
@@ -3313,7 +3343,10 @@ export const Finance = () => {
                                                 Recibo em PDF
                                             </button>
                                             <button 
-                                                onClick={() => setShowPaymentForm(!showPaymentForm)}
+                                                onClick={() => {
+                                                    if (!showPaymentForm) setPaymentDateStr(getTodayDateStr());
+                                                    setShowPaymentForm(!showPaymentForm);
+                                                }}
                                                 className="flex-1 sm:flex-initial px-3 sm:px-4 py-2 bg-green-600 text-white text-[10px] font-black uppercase rounded-xl hover:bg-green-700 transition-all shadow-lg shadow-green-100 flex items-center justify-center gap-1.5 whitespace-nowrap"
                                             >
                                                 {showPaymentForm ? <Trash2 size={14} /> : <Plus size={14} />}
@@ -3521,6 +3554,21 @@ export const Finance = () => {
                                                     </div>
                                                 )}
 
+                                                {canSetRetroactiveDate && (
+                                                    <div className="md:col-span-1">
+                                                        <label className="block text-[10px] font-black text-blue-600 uppercase mb-1 tracking-widest flex items-center gap-1">
+                                                            <Calendar size={11} /> Definir Data
+                                                        </label>
+                                                        <input 
+                                                            type="date"
+                                                            max={getTodayDateStr()}
+                                                            value={paymentDateStr}
+                                                            onChange={e => setPaymentDateStr(e.target.value)}
+                                                            className="w-full px-3 py-2.5 bg-blue-50/50 border border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-700 h-[46px] text-xs"
+                                                        />
+                                                    </div>
+                                                )}
+
                                                 <div className="md:col-span-1">
                                                     <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest italic">Total Líquido</label>
                                                     <div className="w-full px-4 py-2.5 bg-slate-200 border border-slate-300 rounded-xl font-black text-slate-800 h-[46px] flex items-center">
@@ -3560,7 +3608,7 @@ export const Finance = () => {
                                                                 const baseVal = Math.floor((netTot / paymentCardInstallments) * 100) / 100;
                                                                 const rem = Math.round((netTot - (baseVal * paymentCardInstallments)) * 100) / 100;
                                                                 const instVal = idx === 0 ? baseVal + rem : baseVal;
-                                                                const instD = new Date();
+                                                                const instD = new Date(resolveEntryDate(paymentDateStr));
                                                                 instD.setMonth(instD.getMonth() + idx);
 
                                                                 return (
@@ -3864,6 +3912,7 @@ export const Finance = () => {
                                         </button>
                                         <button
                                             onClick={() => {
+                                                setPaymentDateStr(getTodayDateStr());
                                                 setActiveSubTab('RECEBIMENTOS');
                                                 setShowPaymentForm(true);
                                             }}
@@ -4034,6 +4083,24 @@ export const Finance = () => {
                               required
                           />
                       </div>
+
+                      {canSetRetroactiveDate && (
+                          <div>
+                              <label className="block text-xs font-black text-blue-600 mb-1 uppercase tracking-wider flex items-center gap-1.5">
+                                  <Calendar size={13} /> Definir Data
+                              </label>
+                              <input 
+                                  type="date"
+                                  max={getTodayDateStr()}
+                                  value={manualEntryDate}
+                                  onChange={e => setManualEntryDate(e.target.value)}
+                                  className="w-full px-4 py-3 bg-blue-50/40 border border-blue-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-800"
+                              />
+                              <p className="text-[10px] text-slate-400 font-bold mt-1">
+                                  Mantenha a data atual para lançamento em tempo real ou selecione uma data retroativa.
+                              </p>
+                          </div>
+                      )}
 
                       <div>
                           <label className="block text-xs font-black text-slate-500 mb-1 uppercase tracking-wider">Observação (Opcional)</label>

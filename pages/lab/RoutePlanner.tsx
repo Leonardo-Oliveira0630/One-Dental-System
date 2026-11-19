@@ -673,15 +673,8 @@ export const RoutePlanner = () => {
                         </div>
                     ) : (
                         <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden" id="active-route-manager">
-                            <div className="px-4 pb-4 sm:px-6 sm:pb-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl"><UserIcon size={20}/></div>
-                                    <div>
-                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">{t("routes.courierResponsible", "Motoboy Responsável")}</p>
-                                        <p className="font-black text-slate-800 text-lg leading-tight mt-1">{activeRoute.driverName}</p>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-2">
+                            <div className="px-4 pb-4 sm:px-6 sm:pb-6 border-b border-slate-100 flex justify-end items-center bg-slate-50/50">
+                                <div className="flex items-center gap-2 flex-wrap">
                                     <button
                                         id="route-history-btn"
                                         onClick={() => setShowHistoryModal(true)}

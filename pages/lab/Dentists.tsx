@@ -9,6 +9,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { matchesSearchQuery, filterAndSortClients, parseBrazilianCurrency, formatCurrencyInputMask, formatCurrencyBRL, formatNumberBRL } from '../../utils/stringUtils';
 import { usePageFilterCache } from '../../utils/pageCache';
+import { getTodayDateStr, createMiddayDate } from '../../utils/dateHelpers';
 
 const translatePaymentMethod = (method: string) => {
     switch (method) {
@@ -86,6 +87,14 @@ export const Dentists = () => {
 
     const canViewPrices = hasPerm('clients:prices_view') || hasPerm('clients:prices_edit') || hasPerm('prices:view') || hasPerm('catalog:prices_view');
     const canEditPrices = hasPerm('clients:prices_edit');
+    const canSetRetroactiveDate = hasPerm('finance:retroactive_date');
+
+    const resolveEntryDate = (dateStr: string): Date => {
+        if (!canSetRetroactiveDate || !dateStr) return new Date();
+        const todayStr = getTodayDateStr();
+        if (dateStr === todayStr) return new Date();
+        return createMiddayDate(dateStr);
+    };
     
     // Modal State
     const [selectedClient, setSelectedClient] = useState<{ id: string, name: string, isManual: boolean } | null>(null);
@@ -149,6 +158,7 @@ export const Dentists = () => {
     const [manualEntryType, setManualEntryType] = useState<'MANUAL_DEBIT' | 'MANUAL_CREDIT'>('MANUAL_DEBIT');
     const [manualEntryAmount, setManualEntryAmount] = useState('');
     const [manualEntryNotes, setManualEntryNotes] = useState('');
+    const [manualEntryDate, setManualEntryDate] = useState<string>(() => getTodayDateStr());
     const [isAddingManualEntry, setIsAddingManualEntry] = useState(false);
     const [showAsaasError, setShowAsaasError] = useState(false);
     const [statementClient, setStatementClient] = useState<any | null>(null);
@@ -176,7 +186,7 @@ export const Dentists = () => {
     const [paymentBankAccountId, setPaymentBankAccountId] = useState<string>('');
     const [paymentType, setPaymentType] = useState<DentistPayment['type']>('PAYMENT');
     const [paymentNotes, setPaymentNotes] = useState('');
-    const [paymentDateStr, setPaymentDateStr] = useState<string>(() => new Date().toISOString().split('T')[0]);
+    const [paymentDateStr, setPaymentDateStr] = useState<string>(() => getTodayDateStr());
     const [paymentCardInstallments, setPaymentCardInstallments] = useState<number>(1);
     const [paymentCardAuthorizationCode, setPaymentCardAuthorizationCode] = useState<string>('');
     const [paymentCheckBank, setPaymentCheckBank] = useState('');
@@ -376,6 +386,11 @@ export const Dentists = () => {
             return;
         }
 
+        if (canSetRetroactiveDate && manualEntryDate && manualEntryDate > getTodayDateStr()) {
+            alert("A data não pode ser futura. Selecione a data de hoje ou uma data retroativa.");
+            return;
+        }
+
         setIsAddingManualEntry(true);
         try {
             await addDentistPayment({
@@ -383,7 +398,7 @@ export const Dentists = () => {
                 dentistName: statementClient.name,
                 amount: amount,
                 paymentMethod: 'CASH',
-                paymentDate: new Date(),
+                paymentDate: resolveEntryDate(manualEntryDate),
                 type: manualEntryType === 'MANUAL_DEBIT' ? 'MANUAL_DEBIT' : 'MANUAL_CREDIT',
                 notes: manualEntryNotes || (manualEntryType === 'MANUAL_DEBIT' ? t('dentists.manualDebitAdjustment', 'Ajuste a Débito') : t('dentists.manualCreditAdjustment', 'Ajuste a Crédito'))
             } as any);
@@ -391,6 +406,7 @@ export const Dentists = () => {
             setShowManualEntryModal(false);
             setManualEntryAmount('');
             setManualEntryNotes('');
+            setManualEntryDate(getTodayDateStr());
             alert(t('dentists.manualEntrySuccess', 'Lançamento manual registrado com sucesso!'));
         } catch (error) {
             console.error(error);
@@ -402,10 +418,14 @@ export const Dentists = () => {
 
     const handleSavePayment = async () => {
         if (!statementClient || paymentAmount <= 0) return;
+        if (canSetRetroactiveDate && paymentDateStr && paymentDateStr > getTodayDateStr()) {
+            alert("A data não pode ser futura. Selecione a data de hoje ou uma data retroativa.");
+            return;
+        }
         setIsSaving(true);
         try {
             const netTotal = Math.max(0, paymentAmount + paymentInterest - paymentDiscount - paymentFees);
-            const baseDate = paymentDateStr ? new Date(`${paymentDateStr}T12:00:00`) : new Date();
+            const baseDate = resolveEntryDate(paymentDateStr);
 
             if (paymentMethod === 'CREDIT_CARD' && paymentCardInstallments > 1) {
                 const totalInstallments = paymentCardInstallments;
@@ -478,6 +498,7 @@ export const Dentists = () => {
             setPaymentCheckAccount('');
             setPaymentCheckName('');
             setPaymentCheckNumber('');
+            setPaymentDateStr(getTodayDateStr());
             setShowPaymentForm(false);
         } catch (err) {
             console.error(err);
@@ -2451,7 +2472,10 @@ export const Dentists = () => {
                                         </div>
                                         <div className="flex gap-2">
                                             <button 
-                                                onClick={() => setShowManualEntryModal(true)}
+                                                onClick={() => {
+                                                    setManualEntryDate(getTodayDateStr());
+                                                    setShowManualEntryModal(true);
+                                                }}
                                                 className="flex-1 sm:flex-initial px-3 sm:px-4 py-2.5 sm:py-3 bg-blue-600 text-white text-[10px] font-black uppercase rounded-xl hover:bg-blue-700 transition-all flex items-center justify-center gap-1.5 sm:gap-2 shadow-lg shadow-blue-500/30"
                                             >
                                                 <Plus size={14} /> {t('dentists.manualEntry', 'Lançamento')}
@@ -2583,7 +2607,10 @@ export const Dentists = () => {
                                                 {t('dentists.pdfReceipt', 'Recibo em PDF')}
                                             </button>
                                             <button 
-                                                onClick={() => setShowPaymentForm(!showPaymentForm)}
+                                                onClick={() => {
+                                                    if (!showPaymentForm) setPaymentDateStr(getTodayDateStr());
+                                                    setShowPaymentForm(!showPaymentForm);
+                                                }}
                                                 className="px-4 py-2 bg-green-600 text-white text-[10px] font-black uppercase rounded-xl hover:bg-green-700 transition-all shadow-lg shadow-green-100 flex items-center gap-2"
                                             >
                                                 {showPaymentForm ? <MinusCircle size={14} /> : <Plus size={14} />}
@@ -2683,6 +2710,21 @@ export const Dentists = () => {
                                                                 <option key={b.id} value={b.id}>{b.name}</option>
                                                             ))}
                                                         </select>
+                                                    </div>
+                                                )}
+
+                                                {canSetRetroactiveDate && (
+                                                    <div className="md:col-span-1">
+                                                        <label className="block text-[10px] font-black text-blue-600 uppercase mb-1 tracking-widest flex items-center gap-1">
+                                                            <Calendar size={11} /> Definir Data
+                                                        </label>
+                                                        <input 
+                                                            type="date"
+                                                            max={getTodayDateStr()}
+                                                            value={paymentDateStr}
+                                                            onChange={e => setPaymentDateStr(e.target.value)}
+                                                            className="w-full px-3 py-2.5 bg-blue-50/50 border border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-700 h-[46px] text-xs"
+                                                        />
                                                     </div>
                                                 )}
 
@@ -2899,6 +2941,7 @@ export const Dentists = () => {
                                 </button>
                                 <button
                                     onClick={() => {
+                                        setPaymentDateStr(getTodayDateStr());
                                         setActiveSubTab('RECEBIMENTOS');
                                         setShowPaymentForm(true);
                                     }}
@@ -3080,6 +3123,24 @@ export const Dentists = () => {
                                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-black text-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 />
                             </div>
+
+                            {canSetRetroactiveDate && (
+                                <div>
+                                    <label className="block text-xs font-black text-blue-600 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                                        <Calendar size={13} /> Definir Data
+                                    </label>
+                                    <input 
+                                        type="date"
+                                        max={getTodayDateStr()}
+                                        value={manualEntryDate}
+                                        onChange={(e) => setManualEntryDate(e.target.value)}
+                                        className="w-full px-4 py-3 bg-blue-50/40 border border-blue-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    />
+                                    <p className="text-[10px] text-slate-400 font-bold mt-1">
+                                        Mantenha a data atual para lançamento em tempo real ou selecione uma data retroativa.
+                                    </p>
+                                </div>
+                            )}
                             
                             <div>
                                 <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">{t('dentists.notesReasonOptional', 'Observações / Motivo (Opcional)')}</label>

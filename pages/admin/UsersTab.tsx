@@ -66,6 +66,7 @@ const AVAILABLE_PERMISSIONS: { key: PermissionKey, label: string, category: stri
     { key: 'finance:create', label: 'Criar Despesas e Faturas', category: 'Financeiro' },
     { key: 'finance:edit', label: 'Editar Despesas e Faturas', category: 'Financeiro' },
     { key: 'finance:delete', label: 'Excluir Despesas e Faturas', category: 'Financeiro' },
+    { key: 'finance:retroactive_date', label: 'Definir Data Retroativa no Lançamento / Recebimento Manual', category: 'Financeiro' },
     { key: 'receipts:view', label: 'Visualizar Recibos', category: 'Financeiro' },
     { key: 'receipts:create', label: 'Criar Recibos', category: 'Financeiro' },
     { key: 'receipts:edit', label: 'Editar Recibos', category: 'Financeiro' },

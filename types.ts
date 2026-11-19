@@ -391,7 +391,7 @@ export type PermissionKey =
   | 'reports:service_types:view' | 'reports:service_types:export'
   | 'tutorials:view'
   | 'helpdesk:view'
-  | 'finance:view' | 'finance:create' | 'finance:edit' | 'finance:delete'
+  | 'finance:view' | 'finance:create' | 'finance:edit' | 'finance:delete' | 'finance:retroactive_date'
   | 'catalog:view' | 'catalog:create' | 'catalog:edit' | 'catalog:delete' | 'catalog:prices_view'
   | 'prices:view' | 'prices:create' | 'prices:edit' | 'prices:delete'
   | 'clients:view' | 'clients:create' | 'clients:edit' | 'clients:delete' | 'clients:block_manage' | 'clients:statement_view' | 'clients:prices_view' | 'clients:prices_edit'
@@ -433,7 +433,7 @@ export const ALL_SYSTEM_PERMISSIONS: PermissionKey[] = [
   'reports:service_types:view', 'reports:service_types:export',
   'tutorials:view',
   'helpdesk:view',
-  'finance:view', 'finance:create', 'finance:edit', 'finance:delete',
+  'finance:view', 'finance:create', 'finance:edit', 'finance:delete', 'finance:retroactive_date',
   'catalog:view', 'catalog:create', 'catalog:edit', 'catalog:delete', 'catalog:prices_view',
   'prices:view', 'prices:create', 'prices:edit', 'prices:delete',
   'clients:view', 'clients:create', 'clients:edit', 'clients:delete', 'clients:block_manage', 'clients:statement_view', 'clients:prices_view', 'clients:prices_edit',
