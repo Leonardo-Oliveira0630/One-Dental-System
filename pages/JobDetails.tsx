@@ -1875,6 +1875,30 @@ export const JobDetails = () => {
     }
   };
 
+  const handleCloseEditModal = () => {
+      setShowEditModal(false);
+      setEditingModalItemId(null);
+      if (job) {
+          setEditPatientName(job.patientName || '');
+          setEditOsNumber(job.osNumber || '');
+          setEditBoxNumber(job.boxNumber || '');
+          setEditBoxColorId(job.boxColor?.id || '');
+          if (job.dueDate) setEditDueDate(new Date(job.dueDate).toISOString().split("T")[0]);
+          setEditDueTime(job.dueTime || '');
+          setEditTotalValue(job.totalValue || 0);
+          setEditUrgency(job.urgency);
+          setEditNotes(job.notes || '');
+          setEditReceivedMaterials(job.receivedMaterials || []);
+          setEditReceivedMaterialQuantities(job.receivedMaterialQuantities || {});
+          setEditItems(job.items);
+          setEditProducts(job.products || []);
+          setEditDentistId(job.dentistId || '');
+          setEditDentistName(job.dentistName || '');
+          setEditSubDentistName(job.subDentistName || '');
+          setDentistSearchQuery(job.dentistName || '');
+      }
+  };
+
   const handleFinalizeJob = async () => {
     if (!currentUser || isUpdatingStatus) return;
 
@@ -3840,7 +3864,7 @@ export const JobDetails = () => {
               <div className="bg-white rounded-[24px] md:rounded-[32px] shadow-2xl w-full max-w-full md:max-w-[94vw] lg:max-w-[92vw] xl:max-w-[1360px] max-h-[95vh] flex flex-col overflow-hidden animate-in zoom-in duration-200">
                   <div className="p-4 md:p-5 sm:p-6 border-b flex justify-between items-center bg-slate-50 shrink-0">
                       <h3 className="text-lg md:text-xl font-bold text-slate-800 flex items-center gap-2"><Edit className="text-blue-600" /> {t("job.editOrder", "Editar Ordem")}</h3>
-                      <button onClick={() => setShowEditModal(false)} className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"><X size={24}/></button>
+                      <button onClick={handleCloseEditModal} className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"><X size={24}/></button>
                   </div>
                   <div className="flex-1 overflow-y-auto p-4 md:p-5 sm:p-6 space-y-6 no-scrollbar">
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -4023,13 +4047,22 @@ export const JobDetails = () => {
                                                        <div className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
                                                        <h4 className="text-[11px] font-black text-blue-900 uppercase tracking-wider">Editando Serviço</h4>
                                                    </div>
-                                                   <button 
-                                                       type="button" 
-                                                       onClick={() => setEditingModalItemId(null)} 
-                                                       className="text-xs font-bold text-blue-700 bg-blue-100 hover:bg-blue-200 px-2.5 py-1 rounded-lg flex items-center gap-1 transition-colors"
-                                                   >
-                                                       <Check size={14} /> Concluir
-                                                   </button>
+                                                   <div className="flex items-center gap-2">
+                                                        <button 
+                                                            type="button" 
+                                                            onClick={() => setEditingModalItemId(null)} 
+                                                            className="text-xs font-bold text-slate-600 bg-white hover:bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-lg flex items-center gap-1 transition-colors"
+                                                        >
+                                                            <X size={14} /> Cancelar
+                                                        </button>
+                                                        <button 
+                                                            type="button" 
+                                                            onClick={() => setEditingModalItemId(null)} 
+                                                            className="text-xs font-bold text-blue-700 bg-blue-100 hover:bg-blue-200 px-2.5 py-1 rounded-lg flex items-center gap-1 transition-colors"
+                                                        >
+                                                            <Check size={14} /> Concluir
+                                                        </button>
+                                                    </div>
                                                </div>
 
                                                {/* GRID PRINCIPAL: Coluna Esquerda (Campos, Preço e Variações) e Coluna Direita (Odontograma) */}
@@ -4270,25 +4303,25 @@ export const JobDetails = () => {
                                                                </div>
                                                                <div className="flex gap-1.5">
                                                                    <select 
-                                                                       value={isFixedDisc ? 'FIXED' : 'PERCENTAGE'}
-                                                                       onChange={e => {
-                                                                           const mode = e.target.value;
-                                                                           if (isItemSurcharge) {
-                                                                               if (mode === 'FIXED') {
-                                                                                   handleUpdateEditItem(item.id, { appliedSurchargeFixed: Number(item.appliedSurcharge) || 0, appliedSurcharge: 0 });
-                                                                               } else {
-                                                                                   handleUpdateEditItem(item.id, { appliedSurcharge: Number(item.appliedSurchargeFixed) || 0, appliedSurchargeFixed: 0 });
-                                                                               }
-                                                                           } else {
-                                                                               if (mode === 'FIXED') {
-                                                                                   handleUpdateEditItem(item.id, { appliedDiscountFixed: Number(item.appliedDiscount) || 0, appliedDiscount: 0 });
-                                                                               } else {
-                                                                                   handleUpdateEditItem(item.id, { appliedDiscount: Number(item.appliedDiscountFixed) || 0, appliedDiscountFixed: 0 });
-                                                                               }
-                                                                           }
-                                                                       }}
-                                                                       className="w-18 sm:w-20 px-2 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold focus:border-blue-500 outline-none"
-                                                                   >
+                                                                        value={isFixedDisc ? 'FIXED' : 'PERCENTAGE'}
+                                                                        onChange={e => {
+                                                                            const mode = e.target.value;
+                                                                            if (isItemSurcharge) {
+                                                                                if (mode === 'FIXED') {
+                                                                                    handleUpdateEditItem(item.id, { surchargeType: 'FIXED', appliedSurchargeFixed: Number(item.appliedSurcharge) || Number(item.appliedSurchargeFixed) || 0, appliedSurcharge: 0 });
+                                                                                } else {
+                                                                                    handleUpdateEditItem(item.id, { surchargeType: 'PERCENTAGE', appliedSurcharge: Number(item.appliedSurchargeFixed) || Number(item.appliedSurcharge) || 0, appliedSurchargeFixed: 0 });
+                                                                                }
+                                                                            } else {
+                                                                                if (mode === 'FIXED') {
+                                                                                    handleUpdateEditItem(item.id, { discountType: 'FIXED', appliedDiscountFixed: Number(item.appliedDiscount) || Number(item.appliedDiscountFixed) || 0, appliedDiscount: 0 });
+                                                                                } else {
+                                                                                    handleUpdateEditItem(item.id, { discountType: 'PERCENTAGE', appliedDiscount: Number(item.appliedDiscountFixed) || Number(item.appliedDiscount) || 0, appliedDiscountFixed: 0 });
+                                                                                }
+                                                                            }
+                                                                        }}
+                                                                        className="w-18 sm:w-20 px-2 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold focus:border-blue-500 outline-none"
+                                                                    >
                                                                        <option value="PERCENTAGE">%</option>
                                                                        <option value="FIXED">R$</option>
                                                                    </select>
@@ -5228,7 +5261,7 @@ export const JobDetails = () => {
 
                   </div>
                   <div className="p-4 md:p-4 sm:p-6 border-t bg-slate-50 flex justify-end gap-3 shrink-0">
-                      <button onClick={() => setShowEditModal(false)} className="px-5 py-2 font-black text-xs text-slate-400 uppercase tracking-widest">Cancelar</button>
+                      <button onClick={handleCloseEditModal} className="px-5 py-2 font-black text-xs text-slate-400 uppercase tracking-widest">Cancelar</button>
                       <button onClick={handleSaveChanges} disabled={isUpdatingStatus} className="px-6 py-3 bg-blue-600 text-white font-black text-xs rounded-xl shadow-xl shadow-blue-100 hover:bg-blue-700 flex items-center gap-2 uppercase tracking-widest transition-all active:scale-95 disabled:opacity-50">
                           {isUpdatingStatus ? <Loader2 className="animate-spin" size={16} /> : <><Save size={16} /> Salvar</>}
                       </button>
