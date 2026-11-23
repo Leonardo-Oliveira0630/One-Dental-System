@@ -1,3 +1,4 @@
+import { formatItemNameWithVariations } from '../JobDetails';
 import React, { useState, useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '../../context/AppContext';
@@ -778,7 +779,7 @@ export const Dentists = () => {
                     const isLast = currentIndex === totalSubCount;
                     tableBody.push([
                         { content: '', styles: { lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220,220,220] } },
-                        { content: `${subItem.quantity}      ${subItem.name.toUpperCase()}`, styles: { textColor: [100,100,100], fontSize: 8, lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220,220,220] } },
+                        { content: `${subItem.quantity}      ${formatItemNameWithVariations(subItem, jobTypes).toUpperCase()}`, styles: { textColor: [100,100,100], fontSize: 8, lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220,220,220] } },
                         { content: formatCurrencyBRL(subItem.price * subItem.quantity), styles: { textColor: [100,100,100], fontSize: 8, lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220,220,220] } },
                         { content: '', styles: { lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220,220,220] } }
                     ]);
@@ -2537,7 +2538,7 @@ export const Dentists = () => {
                                                                             <div className="ml-8 sm:ml-10 space-y-1">
                                                                                 {(item as any).job.items?.map((it:any, iIdx:number) => (
                                                                                     <div key={`item-${iIdx}`} className="flex items-center gap-4 text-[9px] font-bold text-slate-400 uppercase">
-                                                                                        <span>{it.quantity} x {it.name}</span>
+                                                                                        <span>{it.quantity} x {formatItemNameWithVariations(it, jobTypes)}</span>
                                                                                         <span className="text-slate-300">{formatCurrencyBRL(it.price)}</span>
                                                                                     </div>
                                                                                 ))}
