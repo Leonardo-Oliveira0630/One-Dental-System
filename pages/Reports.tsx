@@ -1,3 +1,4 @@
+import { formatItemNameWithVariations } from './JobDetails';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '../context/AppContext';
@@ -1708,8 +1709,7 @@ export default function Reports() {
           let finishDate = job.status === JobStatus.COMPLETED && job.history ? new Date(job.history.slice().reverse().find((h: any) => h.action === 'COMPLETED' || h.statusTo === JobStatus.COMPLETED)?.timestamp || new Date()).toLocaleDateString() : '-';
           
           let serviceItemsText = (job.items || []).map(item => {
-            const jt = jobTypes.find(t => t.id === item.jobTypeId);
-            return `${item.quantity}x ${jt ? jt.name : item.name}`;
+            return `${item.quantity}x ${formatItemNameWithVariations(item, jobTypes)}`;
           });
           let productItemsText = (job.products || []).map(prod => {
             return `${prod.quantity}x ${prod.name} (Produto)`;
@@ -3541,7 +3541,7 @@ export default function Reports() {
                                             <td className="py-2.5 px-3 font-bold text-slate-900">{job.patientName}</td>
                                             <td className="py-2.5 px-3 text-slate-600">
                                               {(job.items || []).map((it, idx) => (
-                                                <div key={idx} className="truncate max-w-xs">{it.quantity}x {it.name}</div>
+                                                <div key={idx} className="truncate max-w-xs">{it.quantity}x {formatItemNameWithVariations(it, jobTypes)}</div>
                                               ))}
                                             </td>
                                             <td className="py-2.5 px-3 text-slate-500">{formatSafeDateStr(job.createdAt)}</td>
@@ -3969,9 +3969,8 @@ export default function Reports() {
                                 <td className="p-3 font-bold text-slate-900 text-sm">{job.patientName || '-'}</td>
                                 <td className="p-3 text-xs text-slate-600">
                                   {(job.items || []).map((item: any, i: number) => {
-                                    const jt = jobTypes.find(tj => tj.id === item.jobTypeId);
                                     return (
-                                      <div key={i}>{safeNum(item.quantity, 1)}x {jt ? jt.name : (item.name || 'Serviço')}</div>
+                                      <div key={i}>{safeNum(item.quantity, 1)}x {formatItemNameWithVariations(item, jobTypes)}</div>
                                     );
                                   })}
                                   {(job.products || []).map((prod: any, i: number) => (
