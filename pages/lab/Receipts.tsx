@@ -8,7 +8,7 @@ import {
   Plus, Search, FileText, Download, Printer, Trash2, Edit2, 
   ChevronLeft, ChevronRight, X, Save, AlertTriangle, User as UserIcon,
   Briefcase, DollarSign, MessageCircle, CreditCard, Landmark, Ticket,
-  Stethoscope, Check, Settings, Sliders
+  Stethoscope, Check, Settings, Sliders, BarChart3, Calendar
 } from 'lucide-react';
 import { db } from '../../services/firebaseConfig';
 import { 
@@ -20,8 +20,8 @@ import { auth } from '../../services/firebaseConfig';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
-import { matchesSearchQuery, formatCurrencyBRL, formatNumberBRL, parseBrazilianCurrency } from '../../utils/stringUtils';
+import autoTable from 'jspdf-autotable';
+import { matchesSearchQuery, formatCurrencyBRL, formatNumberBRL, parseBrazilianCurrency, formatCurrencyInputMask } from '../../utils/stringUtils';
 
 export const Receipts: React.FC = () => {
     const { t } = useTranslation();
@@ -218,6 +218,20 @@ export const Receipts: React.FC = () => {
         valorBrutoComDesconto: 0,
         valorLiquido: 0
     });
+    const [valorBrutoStr, setValorBrutoStr] = useState('');
+    const [valorDescontoStr, setValorDescontoStr] = useState('');
+    const [showNumberConflictPopup, setShowNumberConflictPopup] = useState(false);
+    const [suggestedReceiptNumber, setSuggestedReceiptNumber] = useState('');
+    const [showReports, setShowReports] = useState(false);
+    const [reportStartDate, setReportStartDate] = useState(() => {
+        const now = new Date();
+        return format(new Date(now.getFullYear(), now.getMonth(), 1), 'yyyy-MM-dd');
+    });
+    const [reportEndDate, setReportEndDate] = useState(() => {
+        const now = new Date();
+        return format(new Date(now.getFullYear(), now.getMonth() + 1, 0), 'yyyy-MM-dd');
+    });
+    const [reportClientFilter, setReportClientFilter] = useState('');
 
     const dentists = useMemo(() => {
         const online = allUsers.filter(u => u.role === 'CLIENT').map(d => ({ ...d, type: 'ONLINE' }));
@@ -293,11 +307,8 @@ export const Receipts: React.FC = () => {
             setIsLoading(false);
             
             // Auto-generate next number if empty and recording new
-            if (!formData.numero && list.length > 0 && !showForm) {
-                const lastNum = Math.max(...list.map(r => parseInt(r.numero) || 0));
-                setFormData(prev => ({ ...prev, numero: (lastNum + 1).toString().padStart(5, '0') }));
-            } else if (!formData.numero && !showForm) {
-                setFormData(prev => ({ ...prev, numero: '00001' }));
+            if (!formData.numero && !showForm) {
+                setFormData(prev => ({ ...prev, numero: generateNextReceiptNumber(list) }));
             }
         }, (error) => {
             handleFirestoreError(error, OperationType.GET, path);
@@ -306,6 +317,51 @@ export const Receipts: React.FC = () => {
 
         return () => unsubscribe();
     }, [currentOrg?.id]);
+
+    const generateNextReceiptNumber = (list: Receipt[] = receipts) => {
+        let max = 0;
+        for (let i = 0; i < list.length; i++) {
+            const numStr = String(list[i].numero || '').trim();
+            if (!numStr) continue;
+            const digits = numStr.replace(/\D/g, '');
+            const num = parseInt(digits, 10);
+            if (!isNaN(num) && num > max) {
+                max = num;
+            }
+        }
+        return (max + 1).toString().padStart(5, '0');
+    };
+
+    const findDuplicateReceipt = (candidate: string, list: Receipt[] = receipts) => {
+        const cleanCandidate = String(candidate || '').trim();
+        if (!cleanCandidate) return undefined;
+        const isCandidateDigits = /^\d+$/.test(cleanCandidate);
+        const candidateNum = isCandidateDigits ? parseInt(cleanCandidate, 10) : NaN;
+
+        return list.find(r => {
+            if (editingReceipt && r.id === editingReceipt.id) return false;
+            const rNumStr = String(r.numero || '').trim();
+            if (!rNumStr) return false;
+            if (rNumStr.toLowerCase() === cleanCandidate.toLowerCase()) return true;
+            if (isCandidateDigits && /^\d+$/.test(rNumStr)) {
+                return parseInt(rNumStr, 10) === candidateNum;
+            }
+            return false;
+        });
+    };
+
+    const handleReceiptNumberBlur = () => {
+        const cleanNum = String(formData.numero || '').trim();
+        if (!cleanNum) {
+            setFormData(prev => ({ ...prev, numero: generateNextReceiptNumber() }));
+            return;
+        }
+        const duplicate = findDuplicateReceipt(cleanNum);
+        if (duplicate) {
+            setSuggestedReceiptNumber(generateNextReceiptNumber());
+            setShowNumberConflictPopup(true);
+        }
+    };
 
     const handleSelectDentist = (dentist: any) => {
         const isPJ = (dentist.cpfCnpj?.replace(/\D/g, '').length || 0) > 11;
@@ -343,9 +399,23 @@ export const Receipts: React.FC = () => {
         e.preventDefault();
         if (!currentOrg?.id || !currentUser?.id) return;
 
+        let finalNumero = String(formData.numero || '').trim();
+        if (!finalNumero) {
+            finalNumero = generateNextReceiptNumber();
+            setFormData(prev => ({ ...prev, numero: finalNumero }));
+        } else {
+            const duplicate = findDuplicateReceipt(finalNumero);
+            if (duplicate) {
+                setSuggestedReceiptNumber(generateNextReceiptNumber());
+                setShowNumberConflictPopup(true);
+                return;
+            }
+        }
+
         try {
             const dataToSave = {
                 ...formData,
+                numero: finalNumero,
                 organizationId: currentOrg.id,
                 createdBy: currentUser.id,
                 createdAt: editingReceipt ? editingReceipt.createdAt : serverTimestamp(),
@@ -370,8 +440,9 @@ export const Receipts: React.FC = () => {
 
     const resetForm = () => {
         setDentistSearch('');
-        const lastNum = receipts.length > 0 ? Math.max(...receipts.map(r => parseInt(r.numero) || 0)) : 0;
-        const nextNum = (lastNum + 1).toString().padStart(5, '0');
+        setValorBrutoStr('');
+        setValorDescontoStr('');
+        const nextNum = generateNextReceiptNumber();
         setFormData({
             dtEmissao: new Date(),
             numero: nextNum,
@@ -526,21 +597,27 @@ export const Receipts: React.FC = () => {
         // Calculate dynamic spacing based on length of amount in words
         const extensoLines = doc.splitTextToSize(extenso, safeMaxWidth - 25).length;
         const referenteY = 80 + (extensoLines * 6);
+        const referenteText = (receipt.referente || '').toUpperCase();
         
         doc.text("referente a ", 20, referenteY);
         doc.setFont("helvetica", "bold");
-        doc.text(receipt.referente.toUpperCase(), 43, referenteY, { maxWidth: safeMaxWidth - 23 });
+        doc.text(referenteText, 43, referenteY, { maxWidth: safeMaxWidth - 23 });
 
-        // City and Date
+        const referenteLines = Math.max(1, doc.splitTextToSize(referenteText, safeMaxWidth - 23).length);
+        const referenteEndY = referenteY + ((referenteLines - 1) * 5);
+
+        // City and Date (15 units below "Referente a")
         const city = currentOrg?.city || "Vitória";
-        const dateStr = format(receipt.dtEmissao, "d 'de' MMMM 'de' yyyy", { locale: ptBR });
+        const dateStr = format(receipt.dtEmissao || new Date(), "d 'de' MMMM 'de' yyyy", { locale: ptBR });
+        const cityDateY = referenteEndY + 15;
         doc.setFont("helvetica", "bold");
         doc.setFontSize(11);
-        doc.text(`${city}, ${dateStr}`, 190, 130, { align: 'right' });
+        doc.text(`${city}, ${dateStr}`, 190, cityDateY, { align: 'right' });
         
-        // Signature Line
+        // Signature Line (15 units below City/Date)
+        const signatureLineY = cityDateY + 15;
         doc.setDrawColor(200, 200, 200);
-        doc.line(110, 160, 190, 160);
+        doc.line(110, signatureLineY, 190, signatureLineY);
         
         doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
@@ -550,12 +627,204 @@ export const Receipts: React.FC = () => {
         const signatureDoc = currentOrg?.financialSettings?.techResponsibleCpf || currentOrg?.financialSettings?.businessData?.cnpj || currentOrg?.financialSettings?.businessData?.cpf || "";
         const isRT = !!currentOrg?.financialSettings?.techResponsibleName;
         
-        doc.text(signatureName, 150, 165, { align: 'center' });
+        doc.text(signatureName, 150, signatureLineY + 5, { align: 'center' });
         if (signatureDoc) {
-            doc.text(`${isRT ? 'CPF:' : ''} ${signatureDoc}`, 150, 170, { align: 'center' });
+            doc.text(`${isRT ? 'CPF:' : ''} ${signatureDoc}`, 150, signatureLineY + 10, { align: 'center' });
         }
         
         doc.save(`Recibo_${receipt.numero}_${receipt.clienteName}.pdf`);
+    };
+
+    const getClientPersonType = (receipt: Receipt): 'Física' | 'Jurídica' => {
+        const digits = (receipt.cpfCnpj || '').replace(/\D/g, '');
+        if (digits.length > 11) return 'Jurídica';
+        if (digits.length > 0 && digits.length <= 11) return 'Física';
+        return receipt.emitidoComo === 'PJ' ? 'Jurídica' : 'Física';
+    };
+
+    const getEmitterPersonType = (receipt: Receipt): 'Física' | 'Jurídica' => {
+        if (receipt.emitidoComo === 'PJ') return 'Jurídica';
+        if (receipt.emitidoComo === 'PF') return 'Física';
+        const orgDocDigits = (
+            currentOrg?.financialSettings?.techResponsibleCpf ||
+            currentOrg?.financialSettings?.businessData?.cpf ||
+            currentOrg?.financialSettings?.businessData?.cnpj ||
+            currentOrg?.cpfCnpj ||
+            ''
+        ).replace(/\D/g, '');
+        return orgDocDigits.length > 11 ? 'Jurídica' : 'Física';
+    };
+
+    const reportClientOptions = useMemo(() => {
+        const map = new Map<string, string>();
+        receipts.forEach(r => {
+            const name = (r.clienteName || '').trim();
+            if (!name) return;
+            const key = (r.clienteId || name).trim();
+            if (!map.has(key)) map.set(key, name);
+        });
+        dentists.forEach(d => {
+            const name = (d.name || '').trim();
+            if (!name) return;
+            const key = (d.id || name).trim();
+            if (!map.has(key)) map.set(key, name);
+        });
+        return Array.from(map.entries())
+            .map(([id, name]) => ({ id, name }))
+            .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+    }, [receipts, dentists]);
+
+    const reportReceipts = useMemo(() => {
+        let startBound: Date | null = null;
+        let endBound: Date | null = null;
+
+        if (reportStartDate) {
+            const [y, m, d] = reportStartDate.split('-').map(Number);
+            if (y && m && d) startBound = new Date(y, m - 1, d, 0, 0, 0, 0);
+        }
+        if (reportEndDate) {
+            const [y, m, d] = reportEndDate.split('-').map(Number);
+            if (y && m && d) endBound = new Date(y, m - 1, d, 23, 59, 59, 999);
+        }
+
+        const selectedOption = reportClientOptions.find(opt => opt.id === reportClientFilter);
+
+        return receipts
+            .filter(r => {
+                const emission = r.dtEmissao ? new Date(r.dtEmissao) : null;
+                if (startBound && (!emission || emission < startBound)) return false;
+                if (endBound && (!emission || emission > endBound)) return false;
+
+                if (reportClientFilter) {
+                    const matchId = r.clienteId && r.clienteId === reportClientFilter;
+                    const matchName = selectedOption && (r.clienteName || '').trim().toLowerCase() === selectedOption.name.toLowerCase();
+                    if (!matchId && !matchName) return false;
+                }
+                return true;
+            })
+            .sort((a, b) => String(a.numero || '').localeCompare(String(b.numero || ''), undefined, { numeric: true }));
+    }, [receipts, reportStartDate, reportEndDate, reportClientFilter, reportClientOptions]);
+
+    const reportTotals = useMemo(() => {
+        return reportReceipts.reduce((acc, r) => {
+            const bruto = Number(r.valorBruto) || 0;
+            const liquido = Number(r.valorLiquido) || 0;
+            const personType = getClientPersonType(r);
+            acc.totalBruto += bruto;
+            acc.totalLiquido += liquido;
+            if (personType === 'Física') {
+                acc.totalPessoaFisica += liquido;
+            } else {
+                acc.totalPessoaJuridica += liquido;
+            }
+            return acc;
+        }, {
+            totalBruto: 0,
+            totalLiquido: 0,
+            totalPessoaFisica: 0,
+            totalPessoaJuridica: 0
+        });
+    }, [reportReceipts, currentOrg]);
+
+    const generateReportPDF = () => {
+        const doc = new jsPDF();
+
+        // Title at top right (matching reference report)
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(18);
+        doc.text("Recibos", 196, 20, { align: 'right' });
+
+        // Period subtitle at right
+        const formatInputDate = (val: string) => {
+            if (!val) return '';
+            const [y, m, d] = val.split('-').map(Number);
+            if (!y || !m || !d) return val;
+            return format(new Date(y, m - 1, d, 12, 0, 0), 'dd/MM/yyyy');
+        };
+        const periodLabel = reportStartDate && reportEndDate
+            ? `${formatInputDate(reportStartDate)} a ${formatInputDate(reportEndDate)}`
+            : reportStartDate
+                ? `A partir de ${formatInputDate(reportStartDate)}`
+                : reportEndDate
+                    ? `Até ${formatInputDate(reportEndDate)}`
+                    : 'Todos os períodos';
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        doc.setTextColor(60, 60, 60);
+        doc.text(periodLabel, 196, 33, { align: 'right' });
+
+        if (reportClientFilter) {
+            const clientObj = reportClientOptions.find(c => c.id === reportClientFilter);
+            if (clientObj) {
+                doc.text(`Cliente: ${clientObj.name}`, 14, 33);
+            }
+        }
+
+        doc.setDrawColor(180, 180, 180);
+        doc.line(14, 37, 196, 37);
+
+        const bodyRows = reportReceipts.map(r => [
+            r.numero || '',
+            r.clienteName || '',
+            r.cpfCnpj || '',
+            r.dtEmissao ? format(new Date(r.dtEmissao), 'dd/MM/yyyy') : '',
+            formatNumberBRL(r.valorBruto),
+            formatNumberBRL(r.valorLiquido),
+            getClientPersonType(r)
+        ]);
+
+        autoTable(doc, {
+            startY: 41,
+            margin: { left: 14, right: 14 },
+            head: [['Número', 'Cliente', 'CPF/CNPJ', 'Emissão', 'Bruto', 'Líquido', 'Tipo']],
+            body: bodyRows,
+            theme: 'striped',
+            headStyles: {
+                fillColor: [229, 231, 235],
+                textColor: [17, 24, 39],
+                fontStyle: 'bold',
+                fontSize: 8,
+                cellPadding: 2.5,
+                lineWidth: 0
+            },
+            bodyStyles: {
+                fontSize: 8,
+                textColor: [31, 41, 55],
+                cellPadding: 2.2
+            },
+            alternateRowStyles: {
+                fillColor: [243, 244, 246]
+            },
+            columnStyles: {
+                0: { cellWidth: 16 },
+                1: { cellWidth: 'auto' },
+                2: { cellWidth: 28 },
+                3: { cellWidth: 22, halign: 'center' },
+                4: { cellWidth: 22, halign: 'right' },
+                5: { cellWidth: 22, halign: 'right' },
+                6: { cellWidth: 18, halign: 'center' }
+            }
+        });
+
+        let finalY = ((doc as any).lastAutoTable?.finalY || 45) + 4;
+        doc.setDrawColor(180, 180, 180);
+        doc.line(14, finalY, 196, finalY);
+
+        if (finalY + 32 > 285) {
+            doc.addPage();
+            finalY = 20;
+        }
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
+        doc.setTextColor(17, 24, 39);
+        doc.text(`Total Líquido: ${formatNumberBRL(reportTotals.totalLiquido)}`, 196, finalY + 8, { align: 'right' });
+        doc.text(`Total geral bruto: ${formatNumberBRL(reportTotals.totalBruto)}`, 196, finalY + 14, { align: 'right' });
+        doc.text(`Total pessoa física (F): ${formatNumberBRL(reportTotals.totalPessoaFisica)}`, 196, finalY + 20, { align: 'right' });
+        doc.text(`Total pessoa jurídica (J): ${formatNumberBRL(reportTotals.totalPessoaJuridica)}`, 196, finalY + 26, { align: 'right' });
+
+        doc.save(`Relatorio_Recibos_${reportStartDate || 'inicio'}_a_${reportEndDate || 'fim'}.pdf`);
     };
 
     const filteredReceipts = receipts.filter(r => 
@@ -581,27 +850,77 @@ export const Receipts: React.FC = () => {
 
     return (
         <div className="max-w-7xl mx-auto space-y-6 pb-20 animate-in fade-in duration-500">
+            {showNumberConflictPopup && (
+                <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                    <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl animate-in zoom-in duration-300">
+                        <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <AlertTriangle size={32} className="text-red-600" />
+                        </div>
+                        <h2 className="text-2xl font-black text-slate-800 text-center mb-2">
+                            {t('receipts.numberInUse', 'Número de Recibo em uso')}
+                        </h2>
+                        <p className="text-sm font-bold text-slate-500 text-center mb-6">
+                            {t('receipts.numberConflictMessage', {
+                                defaultValue: 'Já existe um recibo cadastrado com o número {{numero}}. Deseja prosseguir com o próximo número válido ({{suggested}})?',
+                                numero: formData.numero,
+                                suggested: suggestedReceiptNumber
+                            })}
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setShowNumberConflictPopup(false)}
+                                className="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-colors uppercase tracking-widest text-xs"
+                            >
+                                {t('common.cancel', 'Cancelar')}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setFormData(prev => ({ ...prev, numero: suggestedReceiptNumber }));
+                                    setShowNumberConflictPopup(false);
+                                }}
+                                className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors uppercase tracking-widest text-xs"
+                            >
+                                {t('receipts.useSuggested', { defaultValue: 'Usar {{number}}', number: suggestedReceiptNumber })}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-black text-slate-800 uppercase tracking-tight">{t('receipts.title', 'Recibos Financeiros')}</h1>
                     <p className="text-sm text-slate-500 font-bold uppercase tracking-widest">{t('receipts.subtitle', 'Gerenciamento e Emissão de Comprovantes')}</p>
                 </div>
-                {canManage && (
-                    <div className="flex items-center gap-2">
-                        <button 
-                            onClick={() => { setShowSettings(!showSettings); setShowForm(false); }}
-                            className="flex items-center gap-2 px-5 py-3 bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 rounded-2xl font-black uppercase text-xs transition-all cursor-pointer"
-                        >
-                            <Sliders size={16} className="text-slate-500" /> {t('receipts.settings', 'Configurar Pré-setados')}
-                        </button>
-                        <button 
-                            onClick={() => { resetForm(); setEditingReceipt(null); setShowForm(true); setShowSettings(false); }}
-                            className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-2xl font-black uppercase text-xs shadow-lg shadow-blue-600/30 hover:bg-blue-700 transition-all cursor-pointer"
-                        >
-                            <Plus size={18} /> {t('receipts.newReceipt', 'Novo Recibo')}
-                        </button>
-                    </div>
-                )}
+                <div className="flex flex-wrap items-center gap-2">
+                    <button
+                        onClick={() => { setShowReports(!showReports); setShowForm(false); setShowSettings(false); }}
+                        className={`flex items-center gap-2 px-5 py-3 border rounded-2xl font-black uppercase text-xs transition-all cursor-pointer ${
+                            showReports
+                                ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-600/20'
+                                : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-200'
+                        }`}
+                    >
+                        <BarChart3 size={16} className={showReports ? 'text-white' : 'text-slate-500'} /> {t('receipts.reports', 'Relatórios')}
+                    </button>
+                    {canManage && (
+                        <>
+                            <button 
+                                onClick={() => { setShowSettings(!showSettings); setShowForm(false); setShowReports(false); }}
+                                className="flex items-center gap-2 px-5 py-3 bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 rounded-2xl font-black uppercase text-xs transition-all cursor-pointer"
+                            >
+                                <Sliders size={16} className="text-slate-500" /> {t('receipts.settings', 'Configurar Pré-setados')}
+                            </button>
+                            <button 
+                                onClick={() => { resetForm(); setEditingReceipt(null); setShowForm(true); setShowSettings(false); setShowReports(false); }}
+                                className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-2xl font-black uppercase text-xs shadow-lg shadow-blue-600/30 hover:bg-blue-700 transition-all cursor-pointer"
+                            >
+                                <Plus size={18} /> {t('receipts.newReceipt', 'Novo Recibo')}
+                            </button>
+                        </>
+                    )}
+                </div>
             </div>
 
             {showSettings && (
@@ -714,8 +1033,14 @@ export const Receipts: React.FC = () => {
                                     <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">{t('receipts.date', 'Dt. Emissão')}</label>
                                     <input 
                                         type="date" 
-                                        value={format(formData.dtEmissao || new Date(), 'yyyy-MM-dd')}
-                                        onChange={e => setFormData({...formData, dtEmissao: new Date(e.target.value)})}
+                                        value={formData.dtEmissao && !isNaN(new Date(formData.dtEmissao).getTime()) ? format(new Date(formData.dtEmissao), 'yyyy-MM-dd') : ''}
+                                        onChange={e => {
+                                            if (!e.target.value) return;
+                                            const [year, month, day] = e.target.value.split('-').map(Number);
+                                            if (year && month && day) {
+                                                setFormData(prev => ({...prev, dtEmissao: new Date(year, month - 1, day, 12, 0, 0)}));
+                                            }
+                                        }}
                                         className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xs font-bold focus:ring-2 focus:ring-blue-500"
                                     />
                                 </div>
@@ -725,6 +1050,7 @@ export const Receipts: React.FC = () => {
                                         type="text" 
                                         value={formData.numero}
                                         onChange={e => setFormData({...formData, numero: e.target.value})}
+                                        onBlur={handleReceiptNumberBlur}
                                         className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xs font-bold focus:ring-2 focus:ring-blue-500"
                                         placeholder="000000"
                                     />
@@ -961,13 +1287,16 @@ export const Receipts: React.FC = () => {
                                     <div className="relative">
                                         <div className="absolute left-3 top-3 text-slate-400 text-xs font-bold">R$</div>
                                         <input 
-                                            type="number" 
-                                            step="0.01"
-                                            value={formData.valorBruto === 0 || formData.valorBruto === undefined ? '' : formData.valorBruto}
+                                            type="text"
+                                            inputMode="numeric"
+                                            value={valorBrutoStr}
+                                            onWheel={e => e.currentTarget.blur()}
                                             onFocus={e => e.target.select()}
                                             onChange={e => {
-                                                const val = e.target.value === '' ? 0 : parseFloat(e.target.value);
-                                                setFormData({...formData, valorBruto: isNaN(val) ? 0 : val});
+                                                const masked = formatCurrencyInputMask(e.target.value);
+                                                setValorBrutoStr(masked);
+                                                const val = parseBrazilianCurrency(masked);
+                                                setFormData(prev => ({...prev, valorBruto: isNaN(val) ? 0 : val}));
                                             }}
                                             placeholder="0,00"
                                             className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none text-sm font-black focus:ring-2 focus:ring-blue-500"
@@ -979,13 +1308,16 @@ export const Receipts: React.FC = () => {
                                     <div className="relative">
                                         <div className="absolute left-3 top-3 text-slate-400 text-xs font-bold">R$</div>
                                         <input 
-                                            type="number" 
-                                            step="0.01"
-                                            value={formData.valorDesconto === 0 || formData.valorDesconto === undefined ? '' : formData.valorDesconto}
+                                            type="text"
+                                            inputMode="numeric"
+                                            value={valorDescontoStr}
+                                            onWheel={e => e.currentTarget.blur()}
                                             onFocus={e => e.target.select()}
                                             onChange={e => {
-                                                const val = e.target.value === '' ? 0 : parseFloat(e.target.value);
-                                                setFormData({...formData, valorDesconto: isNaN(val) ? 0 : val});
+                                                const masked = formatCurrencyInputMask(e.target.value);
+                                                setValorDescontoStr(masked);
+                                                const val = parseBrazilianCurrency(masked);
+                                                setFormData(prev => ({...prev, valorDesconto: isNaN(val) ? 0 : val}));
                                             }}
                                             placeholder="0,00"
                                             className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none text-sm font-black focus:ring-2 focus:ring-blue-500 shadow-inner"
@@ -1024,6 +1356,149 @@ export const Receipts: React.FC = () => {
                         </div>
                     </form>
                 </div>
+            ) : showReports ? (
+                <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden animate-in slide-in-from-bottom-4">
+                    <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+                        <h2 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                            <BarChart3 size={18} className="text-indigo-600" /> {t('receipts.reportsTitle', 'Relatório de Recibos')}
+                        </h2>
+                        <button onClick={() => setShowReports(false)} className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"><X size={24}/></button>
+                    </div>
+
+                    <div className="p-4 sm:p-6 space-y-6">
+                        {/* Filtros de Data e Cliente */}
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-200 items-end">
+                            <div className="md:col-span-3">
+                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1 flex items-center gap-1">
+                                    <Calendar size={12} /> {t('receipts.startDate', 'Data Inicial')}
+                                </label>
+                                <input
+                                    type="date"
+                                    value={reportStartDate}
+                                    onChange={e => setReportStartDate(e.target.value)}
+                                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none text-xs font-bold focus:ring-2 focus:ring-indigo-500"
+                                />
+                            </div>
+                            <div className="md:col-span-3">
+                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1 flex items-center gap-1">
+                                    <Calendar size={12} /> {t('receipts.endDate', 'Data Final')}
+                                </label>
+                                <input
+                                    type="date"
+                                    value={reportEndDate}
+                                    onChange={e => setReportEndDate(e.target.value)}
+                                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none text-xs font-bold focus:ring-2 focus:ring-indigo-500"
+                                />
+                            </div>
+                            <div className="md:col-span-4">
+                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">
+                                    {t('receipts.client', 'Cliente (Dentista)')}
+                                </label>
+                                <select
+                                    value={reportClientFilter}
+                                    onChange={e => setReportClientFilter(e.target.value)}
+                                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none text-xs font-bold focus:ring-2 focus:ring-indigo-500"
+                                >
+                                    <option value="">{t('receipts.allClients', 'Todos os Clientes')}</option>
+                                    {reportClientOptions.map(c => (
+                                        <option key={c.id} value={c.id}>{c.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="md:col-span-2 flex gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setReportStartDate('');
+                                        setReportEndDate('');
+                                        setReportClientFilter('');
+                                    }}
+                                    className="px-3 py-2.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 rounded-xl font-black uppercase text-[10px] transition-colors cursor-pointer"
+                                >
+                                    {t('common.clear', 'Limpar')}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={generateReportPDF}
+                                    disabled={reportReceipts.length === 0}
+                                    className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 disabled:opacity-40 text-white rounded-xl font-black uppercase text-[10px] shadow-md transition-all cursor-pointer"
+                                >
+                                    <Printer size={14} /> {t('receipts.generatePdf', 'Gerar PDF')}
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Lista do Relatório */}
+                        {reportReceipts.length > 0 ? (
+                            <div className="space-y-4">
+                                <div className="overflow-x-auto border border-slate-200 rounded-2xl">
+                                    <table className="w-full text-left border-collapse">
+                                        <thead>
+                                            <tr className="bg-slate-200/80 text-slate-800 text-[10px] font-black uppercase tracking-wider border-b border-slate-300">
+                                                <th className="px-4 py-3">{t('receipts.code', 'Número')}</th>
+                                                <th className="px-4 py-3">{t('receipts.clientCol', 'Cliente')}</th>
+                                                <th className="px-4 py-3">{t('receipts.cpfCnpj', 'CPF/CNPJ')}</th>
+                                                <th className="px-4 py-3 text-center">{t('receipts.emissionCol', 'Emissão')}</th>
+                                                <th className="px-4 py-3 text-right">{t('receipts.grossCol', 'Valor Bruto')}</th>
+                                                <th className="px-4 py-3 text-right">{t('receipts.netCol', 'Valor Líquido')}</th>
+                                                <th className="px-4 py-3 text-center">{t('receipts.personTypeCol', 'Tipo Pessoa')}</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100 text-xs">
+                                            {reportReceipts.map((r, idx) => (
+                                                <tr key={r.id} className={idx % 2 === 1 ? 'bg-slate-50/90' : 'bg-white'}>
+                                                    <td className="px-4 py-2.5 font-mono font-bold text-slate-700 whitespace-nowrap">{r.numero}</td>
+                                                    <td className="px-4 py-2.5 font-bold text-slate-800">{r.clienteName}</td>
+                                                    <td className="px-4 py-2.5 font-medium text-slate-600 whitespace-nowrap">{r.cpfCnpj || '-'}</td>
+                                                    <td className="px-4 py-2.5 text-center font-medium text-slate-600 whitespace-nowrap">
+                                                        {r.dtEmissao ? format(new Date(r.dtEmissao), 'dd/MM/yyyy') : '-'}
+                                                    </td>
+                                                    <td className="px-4 py-2.5 text-right font-bold text-slate-700 whitespace-nowrap">
+                                                        {formatNumberBRL(r.valorBruto)}
+                                                    </td>
+                                                    <td className="px-4 py-2.5 text-right font-black text-blue-700 whitespace-nowrap">
+                                                        {formatNumberBRL(r.valorLiquido)}
+                                                    </td>
+                                                    <td className="px-4 py-2.5 text-center font-bold text-slate-600 whitespace-nowrap">
+                                                        {getClientPersonType(r)}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                {/* Totais seguindo o modelo */}
+                                <div className="flex justify-end pt-2 border-t border-slate-200">
+                                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 min-w-[280px] space-y-1.5 text-right">
+                                        <div className="flex justify-between gap-6 text-xs font-black text-slate-800">
+                                            <span>Total Líquido:</span>
+                                            <span>{formatNumberBRL(reportTotals.totalLiquido)}</span>
+                                        </div>
+                                        <div className="flex justify-between gap-6 text-xs font-black text-slate-700">
+                                            <span>Total geral bruto:</span>
+                                            <span>{formatNumberBRL(reportTotals.totalBruto)}</span>
+                                        </div>
+                                        <div className="flex justify-between gap-6 text-xs font-bold text-slate-600">
+                                            <span>Total pessoa física (F):</span>
+                                            <span>{formatNumberBRL(reportTotals.totalPessoaFisica)}</span>
+                                        </div>
+                                        <div className="flex justify-between gap-6 text-xs font-bold text-slate-600">
+                                            <span>Total pessoa jurídica (J):</span>
+                                            <span>{formatNumberBRL(reportTotals.totalPessoaJuridica)}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="text-center py-16 bg-slate-50 rounded-2xl border border-slate-200 border-dashed">
+                                <BarChart3 size={36} className="mx-auto text-slate-300 mb-3" />
+                                <p className="text-sm font-black text-slate-700">{t('receipts.noReportResults', 'Nenhum recibo encontrado para os filtros selecionados')}</p>
+                                <p className="text-xs font-bold text-slate-400 mt-1">{t('receipts.adjustFiltersHint', 'Ajuste o período ou selecione outro cliente para gerar o relatório.')}</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
             ) : (
                 <>
                     <div className="bg-white p-4 md:p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-4">
@@ -1058,6 +1533,8 @@ export const Receipts: React.FC = () => {
                                                     onClick={() => { 
                                                         setEditingReceipt(receipt); 
                                                         setFormData(receipt); 
+                                                        setValorBrutoStr(receipt.valorBruto ? formatNumberBRL(receipt.valorBruto) : '');
+                                                        setValorDescontoStr(receipt.valorDesconto ? formatNumberBRL(receipt.valorDesconto) : '');
                                                         setDentistSearch(receipt.clienteName);
                                                         setShowForm(true); 
                                                     }}
